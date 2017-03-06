@@ -37,17 +37,18 @@ extern "C" {
   };
 
   typedef struct xvc_dec_pic_stats {
+    uint32_t nal_unit_type;
     uint32_t poc;
     uint32_t doc;
     uint32_t soc;
     uint32_t tid;
-    uint32_t nal_unit_type;
     int32_t l0[5];
     int32_t l1[5];
-    int bitdepth;
-    int bitstream_bitdepth;
-    int width;
-    int height;
+    int32_t bitdepth;
+    int32_t bitstream_bitdepth;
+    int32_t width;
+    int32_t height;
+    int32_t qp;
     xvc_dec_chroma_format chroma_format;
     double framerate;
     double bitstream_framerate;

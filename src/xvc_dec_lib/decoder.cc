@@ -380,7 +380,8 @@ int Decoder::FillRefPicsHigherPoc(int start_idx,
 
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                              xvc_decoded_picture *output_pic) {
-  auto decoded_pic = pic_dec->GetPicData()->GetRecPic();
+  auto pic_data = pic_dec->GetPicData();
+  auto decoded_pic = pic_data->GetRecPic();
   output_pic->stats.height = decoded_pic->GetHeight(YuvComponent(0));
   output_pic->stats.width = decoded_pic->GetWidth(YuvComponent(0));
   output_pic->stats.bitdepth = output_bitdepth_;
@@ -392,19 +393,17 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   output_pic->stats.bitstream_framerate =
     PictureData::GetFramerate(0, curr_segment_header_.bitstream_ticks, 1);
   output_pic->stats.nal_unit_type =
-    static_cast<uint32_t>(pic_dec->GetPicData()->GetPicType());
+    static_cast<uint32_t>(pic_data->GetPicType());
 
   // Expose the 32 least significant bits of poc and doc.
-  output_pic->stats.poc =
-    static_cast<uint32_t>(pic_dec->GetPicData()->GetPoc());
-  output_pic->stats.doc =
-    static_cast<uint32_t>(pic_dec->GetPicData()->GetDoc());
-  output_pic->stats.soc =
-    static_cast<uint32_t>(pic_dec->GetPicData()->GetSoc());
-  output_pic->stats.tid = pic_dec->GetPicData()->GetTid();
+  output_pic->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());
+  output_pic->stats.doc = static_cast<uint32_t>(pic_data->GetDoc());
+  output_pic->stats.soc = static_cast<uint32_t>(pic_data->GetSoc());
+  output_pic->stats.tid = pic_data->GetTid();
+  output_pic->stats.qp = pic_data->GetPicQp()->GetQpRaw(YuvComponent::kY);
 
   // Expose the first five reference pictures in L0 and L1.
-  ReferencePictureLists* rpl = pic_dec->GetPicData()->GetRefPicLists();
+  ReferencePictureLists* rpl = pic_data->GetRefPicLists();
   int length = sizeof(output_pic->stats.l0) / sizeof(output_pic->stats.l0[0]);
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {

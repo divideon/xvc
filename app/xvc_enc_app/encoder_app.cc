@@ -400,6 +400,7 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
     std::cout << "  DOC:" << std::setw(6) << nal_unit.stats.doc;
     std::cout << "  SOC:" << std::setw(6) << nal_unit.stats.soc;
     std::cout << "  TID:" << std::setw(6) << nal_unit.stats.tid;
+    std::cout << "   QP:" << std::setw(6) << nal_unit.stats.qp;
   } else {
     std::cout << "     - not a picture -              ";
   }

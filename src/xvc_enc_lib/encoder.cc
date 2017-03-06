@@ -426,17 +426,19 @@ int Encoder::FillRefPicsHigherPoc(int start_idx,
 
 void Encoder::SetNalStats(xvc_enc_nal_unit *nal,
                           std::shared_ptr<PictureEncoder> pic) {
+  auto pic_data = pic->GetPicData();
   nal->stats.nal_unit_type =
-    static_cast<uint32_t>(pic->GetPicData()->GetPicType());
+    static_cast<uint32_t>(pic_data->GetPicType());
 
   // Expose the 32 least significant bits of poc and doc.
-  nal->stats.poc = static_cast<uint32_t>(pic->GetPicData()->GetPoc());
-  nal->stats.doc = static_cast<uint32_t>(pic->GetPicData()->GetDoc());
-  nal->stats.soc = static_cast<uint32_t>(pic->GetPicData()->GetSoc());
-  nal->stats.tid = pic->GetPicData()->GetTid();
+  nal->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());
+  nal->stats.doc = static_cast<uint32_t>(pic_data->GetDoc());
+  nal->stats.soc = static_cast<uint32_t>(pic_data->GetSoc());
+  nal->stats.tid = pic_data->GetTid();
+  nal->stats.qp = pic_data->GetPicQp()->GetQpRaw(YuvComponent::kY);
 
   // Expose the first reference pictures in L0 and L1.
-  ReferencePictureLists* rpl = pic->GetPicData()->GetRefPicLists();
+  ReferencePictureLists* rpl = pic_data->GetRefPicLists();
   int length = sizeof(nal->stats.l0) / sizeof(nal->stats.l0[0]);
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {

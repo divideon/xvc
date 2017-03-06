@@ -38,11 +38,12 @@ extern "C" {
   };
 
   typedef struct xvc_enc_nal_stats {
+    uint32_t nal_unit_type;
     uint32_t poc;
     uint32_t doc;
     uint32_t soc;
     uint32_t tid;
-    uint32_t nal_unit_type;
+    int32_t qp;
     int32_t l0[5];
     int32_t l1[5];
   } xvc_enc_nal_stats;

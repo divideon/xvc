@@ -283,6 +283,7 @@ void DecoderApp::PrintPictureInfo(xvc_dec_pic_stats pic_stats) {
     std::cout << "  DOC:" << std::setw(6) << pic_stats.doc;
     std::cout << "  SOC:" << std::setw(6) << pic_stats.soc;
     std::cout << "  TID:" << std::setw(6) << pic_stats.tid;
+    std::cout << "   QP:" << std::setw(6) << pic_stats.qp;
     if (pic_stats.l0[0] >= 0 || pic_stats.l1[0] >= 0) {
       std::cout << "  RefPics: L0: { ";
       int length = sizeof(pic_stats.l0) / sizeof(pic_stats.l0[0]);
