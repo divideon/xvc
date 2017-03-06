@@ -29,7 +29,7 @@ public:
   void DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                     PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
                     SegmentNum soc, PicNum num_buffered_nals);
-  bool Decode(BitReader *bit_reader, int base_qp, PicNum sub_gop_length);
+  bool Decode(BitReader *bit_reader, int segment_qp, PicNum sub_gop_length);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
 
 private:

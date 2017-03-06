@@ -27,11 +27,13 @@ public:
                  int bitdepth);
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
-  std::vector<uint8_t>& Encode(int base_qp, PicNum sub_gop_length,
+  std::vector<uint8_t>& Encode(int segment_qp, PicNum sub_gop_length,
                                int buffer_flag, bool flat_lambda);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
 
 private:
+  void WriteHeader(const PictureData &pic_data, PicNum sub_gop_length,
+                   int buffer_flag, BitWriter *bitwriter);
   void WriteChecksum(BitWriter *bitwriter);
 
   BitWriter bit_writer_;

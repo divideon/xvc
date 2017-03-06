@@ -61,16 +61,18 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   bit_reader->SkipBits();
 }
 
-bool PictureDecoder::Decode(BitReader *bit_reader, int base_qp,
+bool PictureDecoder::Decode(BitReader *bit_reader, int segment_qp,
                             PicNum sub_gop_length) {
-  QP qp(base_qp, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
+  int pic_qp = pic_data_->DerivePictureQp(segment_qp);
+  QP qp(pic_qp, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
         pic_data_->GetBitdepth(), static_cast<int>(sub_gop_length),
         pic_data_->GetTid());
+  pic_data_->Init(qp);
+
   EntropyDecoder entropy_decoder(bit_reader);
+  entropy_decoder.Start();
   SyntaxReader syntax_reader(qp, pic_data_->GetPredictionType(),
                              &entropy_decoder);
-  pic_data_->Init(qp);
-  entropy_decoder.Start();
   std::unique_ptr<CuDecoder> cu_decoder(
     new CuDecoder(qp, pic_data_->GetRecPic().get(), pic_data_.get()));
   int num_ctus = pic_data_->GetNumberOfCtu();
@@ -82,11 +84,11 @@ bool PictureDecoder::Decode(BitReader *bit_reader, int base_qp,
                                pic_data_->GetTcOffset());
     deblocker.DeblockPicture();
   }
-
   if (!entropy_decoder.DecodeBinTrm()) {
     assert(0);
   }
   entropy_decoder.Finish();
+
   pic_data_->GetRecPic()->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   return ValidateChecksum(bit_reader);

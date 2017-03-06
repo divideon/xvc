@@ -48,6 +48,7 @@ public:
 
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   const QP* GetPicQp() const { return pic_qp_.get(); }
+  int DerivePictureQp(int segment_qp) const;
 
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
     ChromaFormat chroma_format, int width, int height, int bitdepth);
