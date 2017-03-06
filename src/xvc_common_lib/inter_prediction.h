@@ -63,11 +63,15 @@ private:
   static const std::array<std::array<int16_t, kNumTapsLuma>, 4> kLumaFilter;
   static const std::array<std::array<int16_t, kNumTapsChroma>, 8> kChromaFilter;
   static const std::array<std::array<uint8_t, 2>, 12> kMergeCandL0L1Idx;
+  static void ScaleMv(PicNum poc_current1, PicNum poc_ref1, PicNum poc_current2,
+                      PicNum poc_ref2, MotionVector *out);
 
-  bool GetMVPCand(const CodingUnit *cu, RefPicList ref_list, int ref_idx,
+  bool GetMvpCand(const CodingUnit *cu, RefPicList ref_list, int ref_idx,
                   PicNum ref_poc, MotionVector *mv_out);
-  bool GetScaledMVPCand(const CodingUnit *cu, RefPicList cu_ref_list,
+  bool GetScaledMvpCand(const CodingUnit *cu, RefPicList cu_ref_list,
                         int ref_idx, MotionVector *mv_out);
+  bool GetTemporalMvPredictor(const CodingUnit &cu, RefPicList ref_list,
+                              int ref_idx, MotionVector *mv_out);
   void MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, const MotionVector &mv,
                             int16_t *pred, ptrdiff_t pred_stride);

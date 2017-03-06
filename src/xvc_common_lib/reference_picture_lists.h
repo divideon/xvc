@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "xvc_common_lib/cu_types.h"
+#include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc {
@@ -41,13 +42,19 @@ public:
   PicNum GetRefPoc(RefPicList ref_list, int ref_idx) const {
     return (ref_list == RefPicList::kL0) ? l0_[ref_idx].poc : l1_[ref_idx].poc;
   }
+  bool HasOnlyBackReferences() const { return only_back_references_; }
+  PicturePredictionType GetRefPicType(RefPicList ref_list, int ref_idx) const;
+  const QP* GetRefPicQp(RefPicList ref_list, int ref_idx) const;
+  int GetRefPicTid(RefPicList ref_list, int ref_idx) const;
+  const CodingUnit* GetCodingUnitAt(RefPicList ref_list, int ref_idx, int posx,
+                                    int posy) const;
   void SetRefPic(RefPicList ref_list, int index, PicNum ref_poc,
                  const std::shared_ptr<PictureData> &pic_data,
                  const std::shared_ptr<YuvPicture> &ref_pic);
   void GetSamePocMappingFor(RefPicList ref_list,
                             std::vector<int> *mapping) const;
   void ZeroOutReferences();
-  void Clear();
+  void Reset(PicNum current_poc);
 
 private:
   struct RefEntry {
@@ -57,6 +64,8 @@ private:
   };
   std::vector<RefEntry> l0_;
   std::vector<RefEntry> l1_;
+  PicNum current_poc_ = static_cast<PicNum>(-1);
+  bool only_back_references_ = true;
 };
 
 }   // namespace xvc

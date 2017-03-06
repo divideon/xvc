@@ -29,6 +29,39 @@ bool ReferencePictureLists::IsRefPicListUsed(RefPicList ref_pic_list,
   }
 }
 
+PicturePredictionType
+ReferencePictureLists::GetRefPicType(RefPicList ref_list, int ref_idx) const {
+  const std::vector<RefEntry> *entry_list =
+    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
+  return (*entry_list)[ref_idx].data->GetPredictionType();
+}
+
+const QP*
+ReferencePictureLists::GetRefPicQp(RefPicList ref_list, int ref_idx) const {
+  const std::vector<RefEntry> *entry_list =
+    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
+  return (*entry_list)[ref_idx].data->GetPicQp();
+}
+
+int
+ReferencePictureLists::GetRefPicTid(RefPicList ref_list, int ref_idx) const {
+  const std::vector<RefEntry> *entry_list =
+    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
+  return (*entry_list)[ref_idx].data->GetTid();
+}
+
+const CodingUnit*
+ReferencePictureLists::GetCodingUnitAt(RefPicList ref_list, int index,
+                                       int posx, int posy) const {
+  std::shared_ptr<const PictureData> pic_data;
+  if (ref_list == RefPicList::kL0) {
+    pic_data = l0_[index].data;
+  } else {
+    pic_data = l1_[index].data;
+  }
+  return pic_data->GetCuAt(posx, posy);
+}
+
 void
 ReferencePictureLists::SetRefPic(RefPicList list, int index, PicNum ref_poc,
                                  const std::shared_ptr<PictureData> &pic_data,
@@ -40,6 +73,9 @@ ReferencePictureLists::SetRefPic(RefPicList list, int index, PicNum ref_poc,
   (*entry_list)[index].pic = ref_pic;
   (*entry_list)[index].data = pic_data;
   (*entry_list)[index].poc = ref_poc;
+  if (ref_poc > current_poc_) {
+    only_back_references_ = false;
+  }
 }
 
 void
@@ -72,9 +108,11 @@ void ReferencePictureLists::ZeroOutReferences() {
   }
 }
 
-void ReferencePictureLists::Clear() {
+void ReferencePictureLists::Reset(PicNum current_poc) {
   l0_.clear();
   l1_.clear();
+  current_poc_ = current_poc;
+  only_back_references_ = true;
 }
 
 }   // namespace xvc

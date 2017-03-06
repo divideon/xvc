@@ -73,6 +73,7 @@ const int kNumIntraChromaModes = 5;
 const int kNumInterMvPredictors = 2;
 const int kNumInterMergeCandidates = 5;
 const int kMvPrecisionShift = 2;
+const bool kTemporalMvPrediction = true;
 
 // Quant
 const int kMaxTrDynamicRange = 15;

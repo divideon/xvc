@@ -23,6 +23,12 @@ public:
 
   QP(int qp, ChromaFormat chroma_format, PicturePredictionType pic_type,
      int bitdepth, int sub_gop_length, int temporal_id, int chroma_offset = 0);
+  bool operator<(const QP &qp) const {
+    return qp_raw_[0] < qp.qp_raw_[0];
+  }
+  bool operator<=(const QP &qp) const {
+    return qp_raw_[0] <= qp.qp_raw_[0];
+  }
   int GetQpRaw(YuvComponent comp) const {
     return qp_raw_[comp];
   }

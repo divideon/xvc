@@ -62,6 +62,8 @@ void PictureData::Init(const QP &pic_qp) {
   for (CodingUnit *ctu : ctu_list_) {
     ReleaseSubCuRecursively(ctu);
   }
+  RefPicList tmvp_ref_list = DetermineTmvpRefList(&tmvp_ref_idx_);
+  tmvp_ref_list_inv_ = ReferencePictureLists::Inverse(tmvp_ref_list);
 }
 
 int PictureData::DerivePictureQp(int segment_qp) const {
@@ -405,6 +407,31 @@ double PictureData::GetFramerate(int max_tid, int bitstream_ticks,
     return (1.0 * constants::kTimeScale) / (sub_gop_length * bitstream_ticks);
   }
   return (1.0 * constants::kTimeScale) / (bitstream_ticks);
+}
+
+RefPicList PictureData::DetermineTmvpRefList(int *tmvp_ref_idx) {
+  const int ref_idx = 0;
+  *tmvp_ref_idx = ref_idx;
+  if (GetPredictionType() != PicturePredictionType::kBi) {
+    return RefPicList::kL0;
+  }
+#if HM_STRICT
+  int tid_l0 = ref_pic_lists_.GetRefPicTid(RefPicList::kL0, ref_idx);
+  int tid_l1 = ref_pic_lists_.GetRefPicTid(RefPicList::kL1, ref_idx);
+  return (tid_l0 <= tid_l1) ? RefPicList::kL0 : RefPicList::kL1;
+#else
+  if (ref_pic_lists_.GetRefPicType(RefPicList::kL0, 0) ==
+      PicturePredictionType::kIntra) {
+    return RefPicList::kL1;
+  }
+  if (ref_pic_lists_.GetRefPicType(RefPicList::kL1, 0) ==
+      PicturePredictionType::kIntra) {
+    return RefPicList::kL0;
+  }
+  const QP *qp_l0 = ref_pic_lists_.GetRefPicQp(RefPicList::kL0, ref_idx);
+  const QP *qp_l1 = ref_pic_lists_.GetRefPicQp(RefPicList::kL1, ref_idx);
+  return (*qp_l0 <= *qp_l1) ? RefPicList::kL0 : RefPicList::kL1;
+#endif
 }
 
 void PictureData::ReleaseSubCuRecursively(CodingUnit *cu) const {

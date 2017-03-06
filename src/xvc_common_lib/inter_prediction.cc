@@ -71,39 +71,39 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
   bool smvp_added = tmp && tmp->IsInter();
 
   // Left
-  if (GetMVPCand(cu.GetCodingUnitLeftBelow(),
+  if (GetMvpCand(cu.GetCodingUnitLeftBelow(),
                  ref_list, ref_idx, ref_poc, &list[i])) {
     i++;
-  } else if (GetMVPCand(cu.GetCodingUnitLeftCorner(),
+  } else if (GetMvpCand(cu.GetCodingUnitLeftCorner(),
                         ref_list, ref_idx, ref_poc, &list[i])) {
     i++;
-  } else if (GetScaledMVPCand(cu.GetCodingUnitLeftBelow(),
+  } else if (GetScaledMvpCand(cu.GetCodingUnitLeftBelow(),
                               ref_list, ref_idx, &list[i])) {
     i++;
-  } else if (GetScaledMVPCand(cu.GetCodingUnitLeftCorner(),
+  } else if (GetScaledMvpCand(cu.GetCodingUnitLeftCorner(),
                               ref_list, ref_idx, &list[i])) {
     i++;
   }
 
   // Above
-  if (GetMVPCand(cu.GetCodingUnitAboveRight(),
+  if (GetMvpCand(cu.GetCodingUnitAboveRight(),
                  ref_list, ref_idx, ref_poc, &list[i])) {
     i++;
-  } else if (GetMVPCand(cu.GetCodingUnitAboveCorner(),
+  } else if (GetMvpCand(cu.GetCodingUnitAboveCorner(),
                         ref_list, ref_idx, ref_poc, &list[i])) {
     i++;
-  } else if (GetMVPCand(cu.GetCodingUnitAboveLeft(),
+  } else if (GetMvpCand(cu.GetCodingUnitAboveLeft(),
                         ref_list, ref_idx, ref_poc, &list[i])) {
     i++;
   }
   if (!smvp_added) {
-    if (GetScaledMVPCand(cu.GetCodingUnitAboveRight(),
+    if (GetScaledMvpCand(cu.GetCodingUnitAboveRight(),
                          ref_list, ref_idx, &list[i])) {
       i++;
-    } else if (GetScaledMVPCand(cu.GetCodingUnitAboveCorner(),
+    } else if (GetScaledMvpCand(cu.GetCodingUnitAboveCorner(),
                                 ref_list, ref_idx, &list[i])) {
       i++;
-    } else if (GetScaledMVPCand(cu.GetCodingUnitAboveLeft(),
+    } else if (GetScaledMvpCand(cu.GetCodingUnitAboveLeft(),
                                 ref_list, ref_idx, &list[i])) {
       i++;
     }
@@ -113,7 +113,11 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
     i = 1;
   }
 
-  // TODO(Dev) Insert TMVP here
+  if (constants::kTemporalMvPrediction && i < 2) {
+    if (GetTemporalMvPredictor(cu, ref_list, ref_idx, &list[i])) {
+      i++;
+    }
+  }
 
   if (i == 0) {
     list[i++] = MotionVector(0, 0);
@@ -209,7 +213,23 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
     }
   }
 
-  // TODO(Dev) Insert TMVP candidate here
+  if (constants::kTemporalMvPrediction && num < static_cast<int>(list.size())) {
+    bool found_any =
+      GetTemporalMvPredictor(cu, RefPicList::kL0, 0, &list[num].mv[0]);
+    list[num].ref_idx[0] = 0;
+    list[num].inter_dir = InterDir::kL0;
+    if (pic_bi_pred &&
+        GetTemporalMvPredictor(cu, RefPicList::kL1, 0, &list[num].mv[1])) {
+      list[num].ref_idx[1] = 0;
+      list[num].inter_dir = found_any ? InterDir::kBi : InterDir::kL1;
+      found_any = true;
+    }
+    if (found_any) {
+      if (num++ == merge_cand_idx) {
+        return list;
+      }
+    }
+  }
 
   if (pic_bi_pred) {
     auto ref_pic_lists = cu.GetRefPicLists();
@@ -369,7 +389,25 @@ void InterPrediction::ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
   *mv_y = util::Clip3(*mv_y, pic_min_y, pic_max_y);
 }
 
-bool InterPrediction::GetMVPCand(const CodingUnit *cu, RefPicList ref_list,
+void InterPrediction::ScaleMv(PicNum poc_current1, PicNum poc_ref1,
+                              PicNum poc_current2, PicNum poc_ref2,
+                              MotionVector *mv) {
+  if (poc_current2 == poc_ref2) {
+    return;
+  }
+  int diff1 =
+    util::Clip3(static_cast<int>(poc_current1 - poc_ref1), -128, 127);
+  int diff2 =
+    util::Clip3(static_cast<int>(poc_current2 - poc_ref2), -128, 127);
+  int iX = (16384 + abs(diff2 / 2)) / diff2;
+  int scale_factor = util::Clip3((diff1 * iX + 32) >> 6, -4096, 4095);
+  mv->x = util::Clip3((scale_factor * mv->x + 127 +
+    (scale_factor * mv->x < 0)) >> 8, -32768, 32767);
+  mv->y = util::Clip3((scale_factor * mv->y + 127 +
+    (scale_factor * mv->y < 0)) >> 8, -32768, 32767);
+}
+
+bool InterPrediction::GetMvpCand(const CodingUnit *cu, RefPicList ref_list,
                                  int ref_idx, PicNum ref_poc,
                                  MotionVector *mv_out) {
   if (!cu || !cu->IsInter()) {
@@ -387,7 +425,7 @@ bool InterPrediction::GetMVPCand(const CodingUnit *cu, RefPicList ref_list,
   return false;
 }
 
-bool InterPrediction::GetScaledMVPCand(const CodingUnit *cu,
+bool InterPrediction::GetScaledMvpCand(const CodingUnit *cu,
                                        RefPicList cu_ref_list, int ref_idx,
                                        MotionVector *out) {
   if (!cu || !cu->IsInter()) {
@@ -405,25 +443,76 @@ bool InterPrediction::GetScaledMVPCand(const CodingUnit *cu,
       *out = cu->GetMv(ref_list);
       return true;
     }
-    const MotionVector &mv = cu->GetMv(ref_list);
     auto *ref_pic_list = cu->GetRefPicLists();
     PicNum poc_current = cu->GetPoc();
     PicNum poc_ref_1 = ref_pic_list->GetRefPoc(cu_ref_list, ref_idx);
     PicNum poc_ref_2 = ref_pic_list->GetRefPoc(ref_list, cu_ref_idx);
-    if (poc_current == poc_ref_2) {
-      *out = mv;
+    *out = cu->GetMv(ref_list);
+    ScaleMv(poc_current, poc_ref_1, poc_current, poc_ref_2, out);
+    return true;
+  }
+  return false;
+}
+
+bool
+InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
+                                        RefPicList ref_list, int ref_idx,
+                                        MotionVector *mv_out) {
+  const YuvComponent comp = YuvComponent::kY;
+  const PicNum cu_poc = cu.GetPoc();
+  const PicNum cu_ref_poc = cu.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
+  auto ref_pic_list = cu.GetRefPicLists();
+  int tmvp_cu_ref_idx = cu.GetPicData()->GetTmvpRefIdx();
+  RefPicList tmvp_cu_ref_list = cu.GetPicData()->GetTmvpRefList();
+  RefPicList tmvp_mv_ref_list = ref_pic_list->HasOnlyBackReferences() ?
+    ref_list : ReferencePictureLists::Inverse(tmvp_cu_ref_list);
+
+  auto get_temporal_mv =
+    [&cu_poc, &cu_ref_poc](const CodingUnit *col_cu, RefPicList ref_list,
+                           MotionVector *col_mv) {
+    if (!col_cu->IsInter()) {
+      return false;
+    }
+    if (!col_cu->HasMv(ref_list)) {
+      ref_list = ReferencePictureLists::Inverse(ref_list);
+    }
+    int ref_idx = col_cu->GetRefIdx(ref_list);
+    PicNum col_poc = col_cu->GetPoc();
+    PicNum col_ref_poc = col_cu->GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
+    *col_mv = col_cu->GetMv(ref_list);
+    ScaleMv(cu_poc, cu_ref_poc, col_poc, col_ref_poc, col_mv);
+    return true;
+  };
+
+  // Bottom right CU
+  int col_x = cu.GetPosX(comp) + cu.GetWidth(comp);
+  int col_y = cu.GetPosY(comp) + cu.GetHeight(comp);
+  if ((cu.GetPosY(comp) / constants::kMaxBlockSize) ==
+    (col_y / constants::kMaxBlockSize)) {
+#if HM_STRICT
+    col_x = ((col_x >> 4) << 4);
+    col_y = ((col_y >> 4) << 4);
+#endif
+    // Including picture out of bounds check
+    const CodingUnit *col_cu =
+      ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
+                                    col_x, col_y);
+    if (col_cu && get_temporal_mv(col_cu, tmvp_mv_ref_list, mv_out)) {
       return true;
     }
-    int diff1 =
-      util::Clip3(static_cast<int>(poc_current - poc_ref_1), -128, 127);
-    int diff2 =
-      util::Clip3(static_cast<int>(poc_current - poc_ref_2), -128, 127);
-    int iX = (16384 + abs(diff2 / 2)) / diff2;
-    int scale_factor = util::Clip3((diff1 * iX + 32) >> 6, -4096, 4095);
-    out->x = util::Clip3((scale_factor * mv.x + 127 +
-      (scale_factor * mv.x < 0)) >> 8, -32768, 32767);
-    out->y = util::Clip3((scale_factor * mv.y + 127 +
-      (scale_factor * mv.y < 0)) >> 8, -32768, 32767);
+  }
+
+  // Center CU
+  col_x = cu.GetPosX(comp) + cu.GetWidth(comp) / 2;
+  col_y = cu.GetPosY(comp) + cu.GetHeight(comp) / 2;
+#if HM_STRICT
+  col_x = ((col_x >> 4) << 4);
+  col_y = ((col_y >> 4) << 4);
+#endif
+  const CodingUnit *col_cu =
+    ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
+                                  col_x, col_y);
+  if (get_temporal_mv(col_cu, tmvp_mv_ref_list, mv_out)) {
     return true;
   }
   return false;

@@ -267,7 +267,7 @@ std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
 
 void Decoder::PrepareRefPicLists(std::shared_ptr<PictureDecoder> curr_pic) {
   ReferencePictureLists* rpl = curr_pic->GetPicData()->GetRefPicLists();
-  rpl->Clear();
+  rpl->Reset(curr_pic->GetPicData()->GetPoc());
   if (curr_pic->GetPicData()->GetPredictionType() ==
       PicturePredictionType::kIntra) {
     return;

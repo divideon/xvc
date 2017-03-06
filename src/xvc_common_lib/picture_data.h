@@ -99,6 +99,8 @@ public:
   const ReferencePictureLists *GetRefPicLists() const {
     return &ref_pic_lists_;
   }
+  RefPicList GetTmvpRefList() const { return tmvp_ref_list_inv_; }
+  int GetTmvpRefIdx() const { return tmvp_ref_idx_; }
   void SetDeblock(bool deblock) { deblock_ = deblock; }
   bool GetDeblock() const { return deblock_; }
   void SetBetaOffset(int offset) { beta_offset_ = offset; }
@@ -111,6 +113,7 @@ private:
   static PicNum PocToDoc(const PicNum sub_gop_length, const PicNum poc);
   static int DocToTid(const PicNum sub_gop_length, const PicNum doc);
 
+  RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void ReleaseSubCuRecursively(CodingUnit *cu) const;
 
   std::shared_ptr<YuvPicture> rec_pic_;
@@ -134,6 +137,8 @@ private:
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;
   OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
   ReferencePictureLists ref_pic_lists_;
+  RefPicList tmvp_ref_list_inv_ = RefPicList::kTotalNumber;
+  int tmvp_ref_idx_ = -1;
   bool deblock_ = true;
   int beta_offset_ = 0;
   int tc_offset_ = 0;

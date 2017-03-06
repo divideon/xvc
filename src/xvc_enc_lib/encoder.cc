@@ -329,7 +329,7 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
 
 void Encoder::PrepareRefPicLists(std::shared_ptr<PictureEncoder> curr_pic) {
   ReferencePictureLists* rpl = curr_pic->GetPicData()->GetRefPicLists();
-  rpl->Clear();
+  rpl->Reset(curr_pic->GetPicData()->GetPoc());
   if (curr_pic->GetPicData()->GetPredictionType() ==
       PicturePredictionType::kIntra) {
     return;
