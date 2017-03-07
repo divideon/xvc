@@ -468,18 +468,19 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
     ref_list : ReferencePictureLists::Inverse(tmvp_cu_ref_list);
 
   auto get_temporal_mv =
-    [&cu_poc, &cu_ref_poc](const CodingUnit *col_cu, RefPicList ref_list,
+    [&cu_poc, &cu_ref_poc](const CodingUnit *col_cu, RefPicList col_ref_list,
                            MotionVector *col_mv) {
     if (!col_cu->IsInter()) {
       return false;
     }
-    if (!col_cu->HasMv(ref_list)) {
-      ref_list = ReferencePictureLists::Inverse(ref_list);
+    if (!col_cu->HasMv(col_ref_list)) {
+      col_ref_list = ReferencePictureLists::Inverse(col_ref_list);
     }
-    int ref_idx = col_cu->GetRefIdx(ref_list);
+    int col_ref_idx = col_cu->GetRefIdx(col_ref_list);
     PicNum col_poc = col_cu->GetPoc();
-    PicNum col_ref_poc = col_cu->GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
-    *col_mv = col_cu->GetMv(ref_list);
+    PicNum col_ref_poc =
+      col_cu->GetRefPicLists()->GetRefPoc(col_ref_list, col_ref_idx);
+    *col_mv = col_cu->GetMv(col_ref_list);
     ScaleMv(cu_poc, cu_ref_poc, col_poc, col_ref_poc, col_mv);
     return true;
   };
