@@ -26,6 +26,7 @@ public:
   PictureEncoder(ChromaFormat chroma_format, int width, int height,
                  int bitdepth);
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
+  std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::vector<uint8_t>* Encode(int segment_qp, PicNum sub_gop_length,
                                int buffer_flag, bool flat_lambda);

@@ -73,8 +73,10 @@ ReferencePictureLists::GetCodingUnitAt(RefPicList ref_list, int index,
 
 void
 ReferencePictureLists::SetRefPic(RefPicList list, int index, PicNum ref_poc,
-                                 const std::shared_ptr<PictureData> &pic_data,
-                                 const std::shared_ptr<YuvPicture> &ref_pic) {
+                                 const std::shared_ptr<const PictureData>
+                                 &pic_data,
+                                 const std::shared_ptr<const YuvPicture>
+                                 &ref_pic) {
   std::vector<RefEntry> *entry_list = list == RefPicList::kL0 ? &l0_ : &l1_;
   if (index >= static_cast<int>(entry_list->size())) {
     entry_list->resize(index + 1);

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <limits>
 
+#include "xvc_common_lib/reference_list_sorter.h"
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/utils.h"
 #include "xvc_dec_lib/segment_header_reader.h"
@@ -136,7 +137,10 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                         &sub_gop_start_poc_, &sub_gop_length_, soc_,
                         num_tail_pics_);
 
-  PrepareRefPicLists(pic_dec);
+  ReferenceListSorter<PictureDecoder>
+    ref_list_sorter(prev_segment_header_.open_gop);
+  ref_list_sorter.PrepareRefPicLists(pic_dec->GetPicData(), pic_decoders_,
+                                     pic_dec->GetPicData()->GetRefPicLists());
 
   // Decode the picture.
   if (!pic_dec->Decode(&pic_bit_reader, segment_header->base_qp,
@@ -264,119 +268,6 @@ std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
   assert(*pic_it);
   return *pic_it;
 }
-
-void Decoder::PrepareRefPicLists(std::shared_ptr<PictureDecoder> curr_pic) {
-  ReferencePictureLists* rpl = curr_pic->GetPicData()->GetRefPicLists();
-  rpl->Reset(curr_pic->GetPicData()->GetPoc());
-  if (curr_pic->GetPicData()->GetPredictionType() ==
-      PicturePredictionType::kIntra) {
-    return;
-  }
-  int num_pics_in_l0 =
-    FillRefPicsLowerPoc(0, curr_pic, RefPicList::kL0);
-  FillRefPicsHigherPoc(num_pics_in_l0, curr_pic, RefPicList::kL0);
-  int num_pics_in_l1 =
-    FillRefPicsHigherPoc(0, curr_pic, RefPicList::kL1);
-  FillRefPicsLowerPoc(num_pics_in_l1, curr_pic, RefPicList::kL1);
-}
-
-int Decoder::FillRefPicsLowerPoc(int start_idx,
-                                 std::shared_ptr<PictureDecoder> curr_pic,
-                                 RefPicList ref_pic_list) {
-  int idx = start_idx;
-  PicNum curr_poc = curr_pic->GetPicData()->GetPoc();
-  SegmentNum curr_soc = curr_pic->GetPicData()->GetSoc();
-  PicNum last_added_poc = curr_poc;
-  std::shared_ptr<PictureDecoder> pic_dec;
-  ReferencePictureLists* rpl = curr_pic->GetPicData()->GetRefPicLists();
-  int last_added_tid = curr_pic->GetPicData()->GetTid();
-  bool found_pic = true;
-  while (found_pic) {
-    PicNum highest_poc_plus1 = 0;
-    found_pic = false;
-    for (auto &pic : pic_decoders_) {
-      auto pic_data = pic->GetPicData();
-      if (pic_data->GetSoc() == curr_soc &&
-          pic_data->GetPoc() < last_added_poc &&
-          pic_data->GetPoc() + 1 > highest_poc_plus1 &&
-          (pic_data->GetTid() < last_added_tid ||
-           pic_data->GetTid() == 0)) {
-        pic_dec = pic;
-        highest_poc_plus1 = pic_data->GetPoc() + 1;
-        found_pic = true;
-      }
-    }
-    if (found_pic) {
-      last_added_tid = pic_dec->GetPicData()->GetTid();
-      last_added_poc = highest_poc_plus1 - 1;
-      if (idx < constants::kNumPicsInRefPicLists) {
-        rpl->SetRefPic(ref_pic_list, idx++, pic_dec->GetPicData()->GetPoc(),
-                       pic_dec->GetPicData(),
-                       pic_dec->GetPicData()->GetRecPic());
-      }
-    }
-  }
-  return idx;
-}
-
-int Decoder::FillRefPicsHigherPoc(int start_idx,
-                                  std::shared_ptr<PictureDecoder> curr_pic,
-                                  RefPicList ref_pic_list) {
-  int idx = start_idx;
-  PicNum curr_poc = curr_pic->GetPicData()->GetPoc();
-  SegmentNum curr_soc = curr_pic->GetPicData()->GetSoc();
-  PicNum last_added_poc = curr_poc;
-  std::shared_ptr<PictureDecoder> pic_dec;
-  ReferencePictureLists* rpl = curr_pic->GetPicData()->GetRefPicLists();
-  int last_added_tid = curr_pic->GetPicData()->GetTid();
-  bool found_pic = true;
-  while (found_pic) {
-    PicNum lowest_poc = std::numeric_limits<PicNum>::max();
-    found_pic = false;
-    for (auto &pic : pic_decoders_) {
-      auto pic_data = pic->GetPicData();
-      if ((pic_data->GetSoc() == curr_soc ||
-        (pic_data->GetSoc() == static_cast<SegmentNum>(curr_soc + 1) &&
-         prev_segment_header_.open_gop)) &&
-          pic_data->GetPoc() > last_added_poc &&
-          pic_data->GetPoc() < lowest_poc &&
-          (pic_data->GetTid() < last_added_tid ||
-           pic_data->GetTid() == 0)) {
-        pic_dec = pic;
-        lowest_poc = pic_data->GetPoc();
-        found_pic = true;
-      }
-    }
-    if (found_pic) {
-      last_added_tid = pic_dec->GetPicData()->GetTid();
-      last_added_poc = lowest_poc;
-      if (idx < constants::kNumPicsInRefPicLists) {
-        auto ref_data = pic_dec->GetPicData();
-        auto curr_data = curr_pic->GetPicData();
-        YuvComponent c = YuvComponent::kY;
-        if (curr_data->GetSoc() != ref_data->GetSoc() &&
-          (curr_data->GetPictureWidth(c) != ref_data->GetPictureWidth(c) ||
-           curr_data->GetPictureHeight(c) != ref_data->GetPictureHeight(c) ||
-           curr_data->GetChromaFormat() != ref_data->GetChromaFormat() ||
-           curr_data->GetBitdepth() != ref_data->GetBitdepth())) {
-          rpl->SetRefPic(ref_pic_list, idx++, pic_dec->GetPicData()->GetPoc(),
-                         pic_dec->GetPicData(),
-                         pic_dec->GetPicData()->GetAlternativeRecPic(
-                           curr_data->GetChromaFormat(),
-                           curr_data->GetPictureWidth(c),
-                           curr_data->GetPictureHeight(c),
-                           curr_data->GetBitdepth()));
-        } else {
-          rpl->SetRefPic(ref_pic_list, idx++, pic_dec->GetPicData()->GetPoc(),
-                         pic_dec->GetPicData(),
-                         pic_dec->GetPicData()->GetRecPic());
-        }
-      }
-    }
-  }
-  return idx;
-}
-
 
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                              xvc_decoded_picture *output_pic) {

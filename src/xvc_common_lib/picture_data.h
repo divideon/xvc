@@ -46,12 +46,13 @@ public:
     return util::GetNumComponents(chroma_fmt_);
   }
 
+  std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   const QP* GetPicQp() const { return pic_qp_.get(); }
   int DerivePictureQp(int segment_qp) const;
 
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
-    ChromaFormat chroma_format, int width, int height, int bitdepth);
+    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
 
   CodingUnit *GetCtu(int rsaddr) { return ctu_list_[rsaddr]; }
   const CodingUnit *GetCtu(int rsaddr) const { return ctu_list_[rsaddr]; }
@@ -108,6 +109,15 @@ public:
   int GetBetaOffset() const { return beta_offset_; }
   void SetTcOffset(int offset) { tc_offset_ = offset; }
   int GetTcOffset() const { return tc_offset_; }
+
+  static bool IsSameDimension(const PictureData &pic1,
+                              const PictureData &pic2) {
+    const YuvComponent luma = YuvComponent::kY;
+    return pic1.GetPictureWidth(luma) == pic2.GetPictureWidth(luma) &&
+      pic1.GetPictureHeight(luma) == pic2.GetPictureHeight(luma) &&
+      pic1.GetChromaFormat() == pic2.GetChromaFormat() &&
+      pic1.GetBitdepth() == pic2.GetBitdepth();
+  }
 
 private:
   static PicNum DocToPoc(const PicNum sub_gop_length, const PicNum doc);

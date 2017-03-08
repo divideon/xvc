@@ -74,6 +74,9 @@
     <ClInclude Include="segment_header.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="reference_list_sorter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common.cc">

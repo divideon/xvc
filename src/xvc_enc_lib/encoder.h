@@ -66,14 +66,6 @@ private:
                              xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
 
-  void PrepareRefPicLists(std::shared_ptr<PictureEncoder> pic);
-  int FillRefPicsLowerPoc(int start_idx,
-                          std::shared_ptr<PictureEncoder> curr_pic,
-                          RefPicList ref_pic_list);
-  int FillRefPicsHigherPoc(int start_idx,
-                           std::shared_ptr<PictureEncoder> curr_pic,
-                           RefPicList ref_pic_list);
-
   void SetNalStats(xvc_enc_nal_unit *nal, std::shared_ptr<PictureEncoder> pic);
 
   int input_bitdepth_ = 8;

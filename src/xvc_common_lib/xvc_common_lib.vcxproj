@@ -178,6 +178,7 @@
     <ClInclude Include="picture_data.h" />
     <ClInclude Include="picture_types.h" />
     <ClInclude Include="reference_picture_lists.h" />
+    <ClInclude Include="reference_list_sorter.h" />
     <ClInclude Include="resample.h" />
     <ClInclude Include="restrictions.h" />
     <ClInclude Include="sample_buffer.h" />

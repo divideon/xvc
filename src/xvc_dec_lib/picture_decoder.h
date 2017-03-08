@@ -25,6 +25,7 @@ class PictureDecoder {
 public:
   explicit PictureDecoder(ChromaFormat chroma_format, int width,
                           int height, int bitdepth);
+  std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   void DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                     PicNum *sub_gop_start_poc, PicNum *sub_gop_length,

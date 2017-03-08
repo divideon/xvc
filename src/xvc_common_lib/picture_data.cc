@@ -77,35 +77,38 @@ int PictureData::DerivePictureQp(int segment_qp) const {
   return segment_qp + tid_ + 1;
 }
 
-std::shared_ptr<YuvPicture> PictureData::GetAlternativeRecPic(
-  ChromaFormat chroma_format, int width, int height, int bitdepth) {
+std::shared_ptr<YuvPicture>
+PictureData::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
+                                  int height, int bitdepth) const {
   if (alt_rec_pic_)
     return alt_rec_pic_;
-
-  alt_rec_pic_ = std::make_shared<YuvPicture>(chroma_format, width, height,
-                                              bitdepth, true);
+  auto alt_rec_pic =
+    std::make_shared<YuvPicture>(chroma_format, width, height, bitdepth, true);
   for (int c = 0; c < util::GetNumComponents(chroma_format); c++) {
     YuvComponent comp = YuvComponent(c);
     uint8_t* dst =
-      reinterpret_cast<uint8_t*>(alt_rec_pic_->GetSamplePtr(comp, 0, 0));
+      reinterpret_cast<uint8_t*>(alt_rec_pic->GetSamplePtr(comp, 0, 0));
     if (rec_pic_->GetChromaFormat() == ChromaFormat::kMonochrome &&
         comp != YuvComponent::kY) {
-      std::memset(dst, 1 << (alt_rec_pic_->GetBitdepth() - 1),
-                  alt_rec_pic_->GetStride(comp) *
-                  alt_rec_pic_->GetHeight(comp) * sizeof(Sample));
+      std::memset(dst, 1 << (alt_rec_pic->GetBitdepth() - 1),
+                  alt_rec_pic->GetStride(comp) *
+                  alt_rec_pic->GetHeight(comp) * sizeof(Sample));
       continue;
     }
     uint8_t* src =
       reinterpret_cast<uint8_t*>(rec_pic_->GetSamplePtr(comp, 0, 0));
     resample::Resample<Sample, Sample>
-      (dst, alt_rec_pic_->GetWidth(comp), alt_rec_pic_->GetHeight(comp),
-       alt_rec_pic_->GetStride(comp), alt_rec_pic_->GetBitdepth(),
+      (dst, alt_rec_pic->GetWidth(comp), alt_rec_pic->GetHeight(comp),
+       alt_rec_pic->GetStride(comp), alt_rec_pic->GetBitdepth(),
        src, rec_pic_->GetWidth(comp), rec_pic_->GetHeight(comp),
        rec_pic_->GetStride(comp), rec_pic_->GetBitdepth());
   }
-
-  alt_rec_pic_->PadBorder();
-  return alt_rec_pic_;
+  alt_rec_pic->PadBorder();
+  // TODO(PH) Revise const_cast by making this function a pure getter?
+  // In the future alternate pictures should probably be created
+  // beforehand in a separate thread as this can be quite time consuming
+  const_cast<PictureData*>(this)->alt_rec_pic_ = alt_rec_pic;
+  return alt_rec_pic;
 }
 
 CodingUnit* PictureData::SetCtu(int rsaddr, CodingUnit *cu) {

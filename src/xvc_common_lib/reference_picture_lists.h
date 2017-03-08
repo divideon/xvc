@@ -50,8 +50,8 @@ public:
   const CodingUnit* GetCodingUnitAt(RefPicList ref_list, int ref_idx, int posx,
                                     int posy) const;
   void SetRefPic(RefPicList ref_list, int index, PicNum ref_poc,
-                 const std::shared_ptr<PictureData> &pic_data,
-                 const std::shared_ptr<YuvPicture> &ref_pic);
+                 const std::shared_ptr<const PictureData> &pic_data,
+                 const std::shared_ptr<const YuvPicture> &ref_pic);
   void GetSamePocMappingFor(RefPicList ref_list,
                             std::vector<int> *mapping) const;
   void ZeroOutReferences();

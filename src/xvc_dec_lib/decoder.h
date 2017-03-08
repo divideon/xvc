@@ -61,14 +61,6 @@ private:
   std::shared_ptr<PictureDecoder> GetNewPictureDecoder(
     ChromaFormat chroma_format, int width, int height, int bitdepth);
 
-  void PrepareRefPicLists(std::shared_ptr<PictureDecoder> pic);
-  int FillRefPicsLowerPoc(int start_idx,
-                          std::shared_ptr<PictureDecoder> curr_pic,
-                          RefPicList ref_pic_list);
-  int FillRefPicsHigherPoc(int start_idx,
-                           std::shared_ptr<PictureDecoder> curr_pic,
-                           RefPicList ref_pic_list);
-
   void SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                       xvc_decoded_picture *output_pic);
 
