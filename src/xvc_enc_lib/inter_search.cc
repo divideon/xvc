@@ -216,9 +216,9 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp,
     const MotionVector *mv_start = nullptr;
     int mvp_idx;
     if (!bi_pred) {
-      const YuvPicture &ref_pic =
+      const YuvPicture *ref_pic =
         cu->GetRefPicLists()->GetRefPic(ref_list, ref_idx);
-      mvp_idx = EvalStartMvp(*cu, qp, mvp_list, ref_pic, pred, pred_stride);
+      mvp_idx = EvalStartMvp(*cu, qp, mvp_list, *ref_pic, pred, pred_stride);
     } else {
       mv_start = &unipred_best_mv_[static_cast<int>(ref_list)][ref_idx];
       mvp_idx = unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx];
@@ -284,30 +284,30 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const QP &qp,
                               const MotionVector *bipred_mv_start,
                               Sample *pred, ptrdiff_t pred_stride,
                               Distortion *out_dist) {
-  const YuvPicture &ref_pic =
+  const YuvPicture *ref_pic =
     cu.GetRefPicLists()->GetRefPic(ref_list, ref_idx);
   MotionVector clip_min, clip_max;
   if (!bipred_mv_start) {
-    DetermineMinMaxMv(cu, ref_pic, mvp.x, mvp.y, kSearchRangeUni,
+    DetermineMinMaxMv(cu, *ref_pic, mvp.x, mvp.y, kSearchRangeUni,
                       &clip_min, &clip_max);
   } else {
-    DetermineMinMaxMv(cu, ref_pic, bipred_mv_start->x, bipred_mv_start->y,
+    DetermineMinMaxMv(cu, *ref_pic, bipred_mv_start->x, bipred_mv_start->y,
                       kSearchRangeBi, &clip_min, &clip_max);
   }
 
   MotionVector mv_fullpel;
   if (search_method == SearchMethod::FullSearch) {
-    mv_fullpel = FullSearch(cu, qp, mvp, ref_pic, clip_min, clip_max);
+    mv_fullpel = FullSearch(cu, qp, mvp, *ref_pic, clip_min, clip_max);
   } else if (search_method == SearchMethod::TZSearch) {
     mv_fullpel =
-      TZSearch(cu, qp, mvp, ref_pic, clip_min, clip_max,
+      TZSearch(cu, qp, mvp, *ref_pic, clip_min, clip_max,
                previous_fullpel_[static_cast<int>(ref_list)][ref_idx]);
     previous_fullpel_[static_cast<int>(ref_list)][ref_idx] = mv_fullpel;
   } else {
     assert(0);
   }
   MotionVector mv_subpel =
-    SubpelSearch(cu, qp, ref_pic, mvp, mv_fullpel, orig_buffer, pred,
+    SubpelSearch(cu, qp, *ref_pic, mvp, mv_fullpel, orig_buffer, pred,
                  pred_stride, out_dist);
   return mv_subpel;
 }

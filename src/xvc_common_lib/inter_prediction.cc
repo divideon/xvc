@@ -326,25 +326,25 @@ void InterPrediction::MotionCompensation(const CodingUnit &cu,
       cu.GetInterDir() == InterDir::kL0 ? RefPicList::kL0 : RefPicList::kL1;
     MotionVector mv = cu.GetMv(ref_list);
     int ref_idx = cu.GetRefIdx(ref_list);
-    const YuvPicture &ref_pic = ref_pic_lists->GetRefPic(ref_list, ref_idx);
-    ClipMV(cu, ref_pic, &mv.x, &mv.y);
-    MotionCompensationMv(cu, comp, ref_pic, mv.x, mv.y, pred, pred_stride);
+    const YuvPicture *ref_pic = ref_pic_lists->GetRefPic(ref_list, ref_idx);
+    ClipMV(cu, *ref_pic, &mv.x, &mv.y);
+    MotionCompensationMv(cu, comp, *ref_pic, mv.x, mv.y, pred, pred_stride);
   } else {
     // L0
     MotionVector mv_l0 = cu.GetMv(RefPicList::kL0);
-    const YuvPicture &ref_pic_l0 =
+    const YuvPicture *ref_pic_l0 =
       ref_pic_lists->GetRefPic(RefPicList::kL0, cu.GetRefIdx(RefPicList::kL0));
-    ClipMV(cu, ref_pic_l0, &mv_l0.x, &mv_l0.y);
+    ClipMV(cu, *ref_pic_l0, &mv_l0.x, &mv_l0.y);
     int16_t *dst_pred_l0 = &bipred_temp_[0][0];
-    MotionCompensationBi(cu, comp, ref_pic_l0, mv_l0, dst_pred_l0,
+    MotionCompensationBi(cu, comp, *ref_pic_l0, mv_l0, dst_pred_l0,
                          constants::kMaxBlockSize);
     // L1
     MotionVector mv_l1 = cu.GetMv(RefPicList::kL1);
-    const YuvPicture &ref_pic_l1 =
+    const YuvPicture *ref_pic_l1 =
       ref_pic_lists->GetRefPic(RefPicList::kL1, cu.GetRefIdx(RefPicList::kL1));
-    ClipMV(cu, ref_pic_l1, &mv_l1.x, &mv_l1.y);
+    ClipMV(cu, *ref_pic_l1, &mv_l1.x, &mv_l1.y);
     int16_t *dst_pred_l1 = &bipred_temp_[1][0];
-    MotionCompensationBi(cu, comp, ref_pic_l1, mv_l1, dst_pred_l1,
+    MotionCompensationBi(cu, comp, *ref_pic_l1, mv_l1, dst_pred_l1,
                          constants::kMaxBlockSize);
 
     AddAvgBi(cu, comp, dst_pred_l0, constants::kMaxBlockSize,

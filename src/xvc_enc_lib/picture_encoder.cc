@@ -27,7 +27,7 @@ PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
                                           bitdepth)) {
 }
 
-std::vector<uint8_t>&
+std::vector<uint8_t>*
 PictureEncoder::Encode(int segment_qp, PicNum sub_gop_length, int buffer_flag,
                        bool flat_lambda) {
   bit_writer_.Clear();

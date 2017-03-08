@@ -54,8 +54,9 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
                                curr_segment_open_gop_);
     soc_++;
     xvc_enc_nal_unit nal;
-    nal.bytes = &bit_writer_.GetBytes()[0];
-    nal.size = bit_writer_.GetBytes().size();
+    std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
+    nal.bytes = &(*nal_bytes)[0];
+    nal.size = nal_bytes->size();
     nal.stats.nal_unit_type = 16;
     nal.buffer_flag = 0;
     nal_units_.push_back(nal);
@@ -165,15 +166,15 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   PrepareRefPicLists(pic);
 
   // Bitstream reference valid until next picture is coded
-  std::vector<uint8_t> &pic_bytes =
+  std::vector<uint8_t> *pic_bytes =
     pic->Encode(segment_header_.base_qp, segment_header_.max_sub_gop_length,
                 bflag, flat_lambda_);
 
   // When a picture has been encoded the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.
   xvc_enc_nal_unit nal;
-  nal.bytes = &pic_bytes[0];
-  nal.size = pic_bytes.size();
+  nal.bytes = &(*pic_bytes)[0];
+  nal.size = pic_bytes->size();
   nal.buffer_flag = bflag;
   SetNalStats(&nal, pic);
   nal_units_.push_back(nal);

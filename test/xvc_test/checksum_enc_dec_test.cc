@@ -32,7 +32,7 @@ protected:
                                             pic_height_, internal_bitdepth_);
   }
 
-  std::vector<uint8_t>& EncodePicture(xvc::Sample *orig) {
+  std::vector<uint8_t>* EncodePicture(xvc::Sample *orig) {
     xvc::PicNum sub_gop_length = 1;
     int buffer_flag = 0;
     bool flat_lamda = false;
@@ -66,9 +66,9 @@ protected:
 };
 
 TEST_P(ChecksumEncDecTest, CodingSamePictureGivesIdenticalChecksum) {
-  std::vector<uint8_t> bitstream1 = EncodePicture(&input_pic_[0]);
+  std::vector<uint8_t> bitstream1(*EncodePicture(&input_pic_[0]));
   std::vector<uint8_t> enc_checksum1 = pic_encoder_->GetLastChecksum();
-  std::vector<uint8_t> bitstream2 = EncodePicture(&input_pic_[0]);
+  std::vector<uint8_t> bitstream2(*EncodePicture(&input_pic_[0]));
   std::vector<uint8_t> enc_checksum2 = pic_encoder_->GetLastChecksum();
   ASSERT_EQ(enc_checksum1, enc_checksum2);
 
@@ -79,14 +79,14 @@ TEST_P(ChecksumEncDecTest, CodingSamePictureGivesIdenticalChecksum) {
 }
 
 TEST_P(ChecksumEncDecTest, DifferentPictureGivesDifferentChecksum) {
-  std::vector<uint8_t> bitstream1 = EncodePicture(&input_pic_[0]);
+  std::vector<uint8_t> bitstream1(*EncodePicture(&input_pic_[0]));
   std::vector<uint8_t> enc_checksum1 = pic_encoder_->GetLastChecksum();
 
   std::vector<xvc::Sample> orig2(input_pic_.begin(), input_pic_.end());
   for (int i = 0; i < pic_width_; i++) {
     orig2[i] += 10;   // random modification
   }
-  std::vector<uint8_t> bitstream2 = EncodePicture(&orig2[0]);
+  std::vector<uint8_t> bitstream2(*EncodePicture(&orig2[0]));
   std::vector<uint8_t> enc_checksum2 = pic_encoder_->GetLastChecksum();
   ASSERT_NE(enc_checksum1, enc_checksum2);
 
@@ -97,7 +97,7 @@ TEST_P(ChecksumEncDecTest, DifferentPictureGivesDifferentChecksum) {
 }
 
 TEST_P(ChecksumEncDecTest, MismatchingChecksumFailsDecode) {
-  std::vector<uint8_t> bitstream1 = EncodePicture(&input_pic_[0]);
+  std::vector<uint8_t> bitstream1(*EncodePicture(&input_pic_[0]));
   std::vector<uint8_t> enc_checksum1 = pic_encoder_->GetLastChecksum();
 
   auto bitstream2 = bitstream1;

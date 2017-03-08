@@ -19,7 +19,7 @@ public:
   BitWriter() : shift_(0) {
   }
 
-  std::vector<uint8_t>& GetBytes() { return buffer_; }
+  std::vector<uint8_t>* GetBytes() { return &buffer_; }
   void Clear() {
     buffer_.clear();
     assert(!shift_);

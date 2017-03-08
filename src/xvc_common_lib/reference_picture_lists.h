@@ -36,8 +36,9 @@ public:
     return (list == RefPicList::kL0) ?
       static_cast<int>(l0_.size()) : static_cast<int>(l1_.size());
   }
-  const YuvPicture& GetRefPic(RefPicList ref_list, int ref_idx) const {
-    return ref_list == RefPicList::kL0 ? *l0_[ref_idx].pic : *l1_[ref_idx].pic;
+  const YuvPicture* GetRefPic(RefPicList ref_list, int ref_idx) const {
+    return ref_list == RefPicList::kL0 ?
+      l0_[ref_idx].pic.get() : l1_[ref_idx].pic.get();
   }
   PicNum GetRefPoc(RefPicList ref_list, int ref_idx) const {
     return (ref_list == RefPicList::kL0) ? l0_[ref_idx].poc : l1_[ref_idx].poc;
