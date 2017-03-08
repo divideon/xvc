@@ -4,23 +4,23 @@
 * without the written permission of the copyright holder.
 ******************************************************************************/
 
-#ifndef XVC_DEC_LIB_SEGMENT_HEADER_READER_H_
-#define XVC_DEC_LIB_SEGMENT_HEADER_READER_H_
+#ifndef XVC_ENC_LIB_SEGMENT_HEADER_WRITER_H_
+#define XVC_ENC_LIB_SEGMENT_HEADER_WRITER_H_
 
 #include "xvc_common_lib/segment_header.h"
 
-#include "xvc_dec_lib/decoder.h"
-#include "xvc_dec_lib/bit_reader.h"
+#include "xvc_enc_lib/bit_writer.h"
 
 namespace xvc {
 
-class SegmentHeaderReader {
+class SegmentHeaderWriter {
 public:
-  static Decoder::State Read(SegmentHeader* segment_header,
-                             BitReader *bit_reader,
-                             SegmentNum segment_counter);
+  static void Write(SegmentHeader* segment_header,
+                    BitWriter *bit_writer,
+                    double framerate,
+                    int open_gop);
 };
 
 }   // namespace xvc
 
-#endif  // XVC_DEC_LIB_SEGMENT_HEADER_READER_H_
+#endif  // XVC_ENC_LIB_SEGMENT_HEADER_WRITER_H_

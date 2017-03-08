@@ -14,8 +14,8 @@ namespace xvc {
 
 class EntropyEncoder {
 public:
-  explicit EntropyEncoder(BitWriter *bitwriter);
-  EntropyEncoder(BitWriter *bitwriter, uint32_t written_bits,
+  explicit EntropyEncoder(BitWriter *bit_writer);
+  EntropyEncoder(BitWriter *bit_writer, uint32_t written_bits,
                  uint32_t fractional_bits);
 
   void EncodeBin(uint32_t binval, ContextModel *ctx);

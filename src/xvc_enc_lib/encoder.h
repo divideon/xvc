@@ -14,6 +14,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/picture_encoder.h"
 #include "xvc_enc_lib/xvcenc.h"
@@ -24,8 +25,8 @@ namespace xvc {
 
 class Encoder : public xvc_encoder {
 public:
-  explicit Encoder(int internal_bitdepth)
-    : internal_bitdepth_(internal_bitdepth) {
+  explicit Encoder(int internal_bitdepth) {
+    segment_header_.internal_bitdepth = internal_bitdepth;
   }
   int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
              bool output_rec, xvc_enc_pic_buffer *rec_pic);
@@ -33,24 +34,26 @@ public:
             xvc_enc_pic_buffer *rec_pic);
 
   void SetResolution(int width, int height) {
-    pic_width_ = width;
-    pic_height_ = height;
+    segment_header_.pic_width = width;
+    segment_header_.pic_height = height;
   }
   void SetChromaFormat(xvc_enc_chroma_format format) {
-    chroma_format_ = ChromaFormat(format);
+    segment_header_.chroma_format = ChromaFormat(format);
   }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
   void SetFramerate(double rate) { framerate_ = rate; }
-  void SetSubGopLength(PicNum length) { sub_gop_length_ = length; }
+  void SetSubGopLength(PicNum length) {
+    segment_header_.max_sub_gop_length = length;
+  }
   void SetPicBufferingNum(int num) { pic_buffering_num_ = num; }
   void SetSegmentLength(PicNum length) { segment_length_ = length; }
   void SetClosedGopInterval(PicNum interval) {
     closed_gop_interval_ = interval;
   }
-  void SetQP(int qp) { base_qp_ = qp; }
-  void SetDeblock(int deblock) { deblock_ = deblock; }
-  void SetBetaOffset(int offset) { beta_offset_ = offset; }
-  void SetTcOffset(int offset) { tc_offset_ = offset; }
+  void SetQP(int qp) { segment_header_.base_qp = qp; }
+  void SetDeblock(int deblock) { segment_header_.deblock = deblock; }
+  void SetBetaOffset(int offset) { segment_header_.beta_offset = offset; }
+  void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
   void SetAllIntra(bool all_intra) { all_intra_ = all_intra; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
 
@@ -58,7 +61,6 @@ private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
   void ReconstructOnePicture(bool output_rec,
                              xvc_enc_pic_buffer *rec_pic);
-  void EncodeSegmentHeader();
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
 
   void PrepareRefPicLists(std::shared_ptr<PictureEncoder> pic);
@@ -71,17 +73,10 @@ private:
 
   void SetNalStats(xvc_enc_nal_unit *nal, std::shared_ptr<PictureEncoder> pic);
 
-  int pic_width_ = 0;
-  int pic_height_ = 0;
   int input_bitdepth_ = 8;
   int buffer_flag_ = 0;
-  ChromaFormat chroma_format_ = ChromaFormat::k420;
-  int internal_bitdepth_ = 0;
   double framerate_ = 0;
-  int base_qp_ = -1;
-  int deblock_ = 0;
-  int beta_offset_ = 0;
-  int tc_offset_ = 0;
+  SegmentHeader segment_header_;
   PicNum sub_gop_end_poc_ = 0;
   PicNum sub_gop_start_poc_ = 0;
   bool prev_segment_open_gop_ = false;
@@ -90,7 +85,6 @@ private:
   PicNum doc_ = 0;
   SegmentNum soc_ = std::numeric_limits<SegmentNum>::max();
   PicNum pic_buffering_num_ = 1;
-  PicNum sub_gop_length_ = 1;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   bool all_intra_ = false;

@@ -56,6 +56,7 @@ protected:
     encoder_ = new ::xvc::Encoder(8);
     encoder_->SetChromaFormat(XVC_ENC_CHROMA_FORMAT_420);
     encoder_->SetResolution(0, 0);
+    encoder_->SetDeblock(1);
   }
   virtual void TearDown() {
     delete encoder_;

@@ -41,6 +41,9 @@
     <ClInclude Include="cu_writer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="segment_header_writer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu_encoder.cc">
@@ -71,6 +74,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cu_writer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="segment_header_writer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

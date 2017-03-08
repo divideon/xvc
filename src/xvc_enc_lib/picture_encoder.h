@@ -33,8 +33,8 @@ public:
 
 private:
   void WriteHeader(const PictureData &pic_data, PicNum sub_gop_length,
-                   int buffer_flag, BitWriter *bitwriter);
-  void WriteChecksum(BitWriter *bitwriter);
+                   int buffer_flag, BitWriter *bit_writer);
+  void WriteChecksum(BitWriter *bit_writer);
 
   BitWriter bit_writer_;
   Checksum checksum_;

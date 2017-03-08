@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "xvc_common_lib/restrictions.h"
+#include "xvc_enc_lib/segment_header_writer.h"
 
 namespace xvc {
 
@@ -29,17 +30,35 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   } else {
     pic_data->SetPicType(NalUnitType::kBipredictedPicture);
   }
-  pic_data->CalcDocFromPoc(sub_gop_length_, sub_gop_start_poc_);
-  pic_data->CalcTidFromDoc(sub_gop_length_, sub_gop_start_poc_);
-  pic_data->SetDeblock(deblock_ > 0);
-  pic_data->SetBetaOffset(beta_offset_);
-  pic_data->SetTcOffset(tc_offset_);
+  pic_data->CalcDocFromPoc(segment_header_.max_sub_gop_length,
+                           sub_gop_start_poc_);
+  pic_data->CalcTidFromDoc(segment_header_.max_sub_gop_length,
+                           sub_gop_start_poc_);
+  pic_data->SetDeblock(segment_header_.deblock > 0);
+  pic_data->SetBetaOffset(segment_header_.beta_offset);
+  pic_data->SetTcOffset(segment_header_.tc_offset);
 
   pic_enc->GetOrigPic()->CopyFrom(pic_bytes, input_bitdepth_);
 
   // Check if it is time to encode a new segment header.
   if ((poc_ % segment_length_) == 0) {
-    EncodeSegmentHeader();
+    prev_segment_open_gop_ = curr_segment_open_gop_;
+    if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
+      curr_segment_open_gop_ = false;
+    } else {
+      curr_segment_open_gop_ = true;
+    }
+    segment_header_.major_version = constants::kXvcMajorVersion;
+    segment_header_.minor_version = constants::kXvcMinorVersion;
+    SegmentHeaderWriter::Write(&segment_header_, &bit_writer_, framerate_,
+                               curr_segment_open_gop_);
+    soc_++;
+    xvc_enc_nal_unit nal;
+    nal.bytes = &bit_writer_.GetBytes()[0];
+    nal.size = bit_writer_.GetBytes().size();
+    nal.stats.nal_unit_type = 16;
+    nal.buffer_flag = 0;
+    nal_units_.push_back(nal);
     pic_data->SetPicType(NalUnitType::kIntraAccessPicture);
     buffer_flag_ = 1;
   } else {
@@ -54,8 +73,8 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   }
 
   // Check if there are enough pictures buffered to encode a new Sub Gop
-  if (poc_ == doc_ + sub_gop_length_) {
-    for (PicNum i = 0; i < sub_gop_length_; i++) {
+  if (poc_ == doc_ + segment_header_.max_sub_gop_length) {
+    for (PicNum i = 0; i < segment_header_.max_sub_gop_length; i++) {
       // Find next picture to encode by searching for
       // the one that has doc = this->doc_ + 1.
       for (auto &pic : pic_encoders_) {
@@ -77,7 +96,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   rec_pic->size = 0;
   // If enough pictures have been encoded, the reconstructed picture
   // with lowest poc can be output.
-  if (poc_ >= sub_gop_length_) {
+  if (poc_ >= segment_header_.max_sub_gop_length) {
     ReconstructOnePicture(output_rec, rec_pic);
   }
   // Increase encoder poc counter by one for each call to Encode.
@@ -99,17 +118,19 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   // Check if there are pictures left to encode.
   if (doc_ < poc_) {
     // Use a smaller Sub Gop for the pictures that have not been encoded yet.
-    sub_gop_length_ = poc_ - doc_;
+    segment_header_.max_sub_gop_length = poc_ - doc_;
     buffer_flag_ = 0;
     // Recount doc and tid for the pictures to be encoded.
     for (auto &pic : pic_encoders_) {
       auto pd = pic->GetPicData();
       if (pd->GetPoc() > doc_) {
-        pd->CalcDocFromPoc(sub_gop_length_, sub_gop_start_poc_);
-        pd->CalcTidFromDoc(sub_gop_length_, sub_gop_start_poc_);
+        pd->CalcDocFromPoc(segment_header_.max_sub_gop_length,
+                           sub_gop_start_poc_);
+        pd->CalcTidFromDoc(segment_header_.max_sub_gop_length,
+                           sub_gop_start_poc_);
       }
     }
-    for (PicNum i = 0; i < sub_gop_length_; i++) {
+    for (PicNum i = 0; i < segment_header_.max_sub_gop_length; i++) {
       // Find next picture to encode by searching for
       // the one that has doc = this->doc_ + 1.
       for (auto &pic : pic_encoders_) {
@@ -145,7 +166,8 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
 
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> &pic_bytes =
-    pic->Encode(base_qp_, sub_gop_length_, bflag, flat_lambda_);
+    pic->Encode(segment_header_.base_qp, segment_header_.max_sub_gop_length,
+                bflag, flat_lambda_);
 
   // When a picture has been encoded the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.
@@ -187,121 +209,13 @@ void Encoder::ReconstructOnePicture(bool output_rec,
   }
 }
 
-void Encoder::EncodeSegmentHeader() {
-  bit_writer_.Clear();
-  bit_writer_.WriteBits(33, 8);  // Nal Unit header with nal_unit_type == 16
-  bit_writer_.WriteBits(constants::kXvcMajorVersion, 16);
-  bit_writer_.WriteBits(constants::kXvcMinorVersion, 16);
-  bit_writer_.WriteBits(pic_width_, 16);
-  bit_writer_.WriteBits(pic_height_, 16);
-  bit_writer_.WriteBits(static_cast<uint8_t>(chroma_format_), 4);
-  bit_writer_.WriteBits(internal_bitdepth_ - 8, 4);
-  bit_writer_.WriteBits(static_cast<uint32_t>(constants::kTimeScale
-                                              / framerate_), 24);
-  bit_writer_.WriteBits(base_qp_ + 64, 7);
-  bit_writer_.WriteBits(static_cast<uint32_t>(sub_gop_length_), 8);
-  bit_writer_.WriteBit(1);  // shorter_sub_gops_allowed
-  // The open gop flag is set to 0 if the tail pictures
-  // do not predict from the Intra picture in the next segment.
-  prev_segment_open_gop_ = curr_segment_open_gop_;
-  if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
-    bit_writer_.WriteBit(0);  // open_gop = 0 (closed Gop)
-    curr_segment_open_gop_ = false;
-  } else {
-    bit_writer_.WriteBit(1);  // open_gop = 1 (open Gop)
-    curr_segment_open_gop_ = true;
-  }
-  bit_writer_.WriteBits(deblock_, 2);
-  if (deblock_ == 3) {
-    int d = constants::kDeblockOffsetBits;
-    bit_writer_.WriteBits(beta_offset_ + (1 << (d - 1)), d);
-    bit_writer_.WriteBits(tc_offset_ + (1 << (d - 1)), d);
-  }
-  bit_writer_.WriteBits(0, 4);  // num_ref_pic_r0
-  bit_writer_.WriteBits(0, 4);  // num_ref_pic_r1
-
-  auto &restr = Restrictions::Get();
-  if (Restrictions::GetIntraRestrictions()) {
-    bit_writer_.WriteBit(1);  // intra_restrictions
-    bit_writer_.WriteBit(restr.disable_intra_ref_padding);
-    bit_writer_.WriteBit(restr.disable_intra_ref_sample_filter);
-    bit_writer_.WriteBit(restr.disable_intra_dc_post_filter);
-    bit_writer_.WriteBit(restr.disable_intra_ver_hor_post_filter);
-    bit_writer_.WriteBit(restr.disable_intra_planar);
-    bit_writer_.WriteBit(restr.disable_intra_mpm_prediction);
-    bit_writer_.WriteBit(restr.disable_intra_chroma_predictor);
-  } else {
-    bit_writer_.WriteBit(0);  // intra_restrictions
-  }
-  if (Restrictions::GetInterRestrictions()) {
-    bit_writer_.WriteBit(1);  // inter_restrictions
-    bit_writer_.WriteBit(restr.disable_inter_mvp);
-    bit_writer_.WriteBit(restr.disable_inter_scaling_mvp);
-    bit_writer_.WriteBit(restr.disable_inter_merge_candidates);
-    bit_writer_.WriteBit(restr.disable_inter_merge_mode);
-    bit_writer_.WriteBit(restr.disable_inter_skip_mode);
-    bit_writer_.WriteBit(restr.disable_inter_chroma_subpel);
-    bit_writer_.WriteBit(restr.disable_inter_mvd_greater_than_flags);
-  } else {
-    bit_writer_.WriteBit(0);  // inter_restrictions
-  }
-  if (Restrictions::GetTransformRestrictions()) {
-    bit_writer_.WriteBit(1);  // transform_restrictions
-    bit_writer_.WriteBit(restr.disable_transform_adaptive_scan_order);
-    bit_writer_.WriteBit(restr.disable_transform_residual_greater_than_flags);
-    bit_writer_.WriteBit(restr.disable_transform_last_position);
-    bit_writer_.WriteBit(restr.disable_transform_cbf);
-    bit_writer_.WriteBit(restr.disable_transform_subblock_csbf);
-    bit_writer_.WriteBit(restr.disable_transform_adaptive_exp_golomb);
-  } else {
-    bit_writer_.WriteBit(0);  // transform_restrictions
-  }
-  if (Restrictions::GetCabacRestrictions()) {
-    bit_writer_.WriteBit(1);  // cabac_restrictions
-    bit_writer_.WriteBit(restr.disable_cabac_ctx_update);
-    bit_writer_.WriteBit(restr.disable_cabac_split_flag_ctx);
-    bit_writer_.WriteBit(restr.disable_cabac_skip_flag_ctx);
-    bit_writer_.WriteBit(restr.disable_cabac_subblock_csbf_ctx);
-    bit_writer_.WriteBit(restr.disable_cabac_coeff_sig_ctx);
-    bit_writer_.WriteBit(restr.disable_cabac_coeff_greater1_ctx);
-    bit_writer_.WriteBit(restr.disable_cabac_coeff_greater2_ctx);
-    bit_writer_.WriteBit(restr.disable_cabac_coeff_last_pos_ctx);
-  } else {
-    bit_writer_.WriteBit(0);  // cabac_restrictions
-  }
-  if (Restrictions::GetDeblockRestrictions()) {
-    bit_writer_.WriteBit(1);  // deblock_restrictions
-    bit_writer_.WriteBit(restr.disable_deblock_strong_filter);
-    bit_writer_.WriteBit(restr.disable_deblock_weak_filter);
-    bit_writer_.WriteBit(restr.disable_deblock_chroma_filter);
-    bit_writer_.WriteBit(restr.disable_deblock_boundary_strength_zero);
-    bit_writer_.WriteBit(restr.disable_deblock_boundary_strength_one);
-    bit_writer_.WriteBit(restr.disable_deblock_initial_sample_decision);
-    bit_writer_.WriteBit(restr.disable_deblock_two_samples_weak_filter);
-    bit_writer_.WriteBit(restr.disable_deblock_depending_on_qp);
-  } else {
-    bit_writer_.WriteBit(0);  // deblock_restrictions
-  }
-  bit_writer_.PadZeroBits();
-
-  // Increase segment order count
-  soc_++;
-  xvc_enc_nal_unit nal;
-  nal.bytes = &bit_writer_.GetBytes()[0];
-  nal.size = bit_writer_.GetBytes().size();
-  nal.stats.nal_unit_type = 16;
-  nal.buffer_flag = 0;
-  nal_units_.push_back(nal);
-}
-
 std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   // Allocate a new PictureEncoder if the number of buffered pictures
   // is lower than the maximum that will be used.
   if (pic_encoders_.size() < pic_buffering_num_) {
-    auto pic = std::make_shared<PictureEncoder>(chroma_format_,
-                                                pic_width_,
-                                                pic_height_,
-                                                internal_bitdepth_);
+    auto pic = std::make_shared<PictureEncoder>(
+      segment_header_.chroma_format, segment_header_.pic_width,
+      segment_header_.pic_height, segment_header_.internal_bitdepth);
     pic_encoders_.push_back(pic);
     return pic;
   }

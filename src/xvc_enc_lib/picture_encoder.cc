@@ -67,19 +67,19 @@ PictureEncoder::Encode(int segment_qp, PicNum sub_gop_length, int buffer_flag,
 
 void PictureEncoder::WriteHeader(const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
-                                 BitWriter *bitwriter) {
-  bitwriter->WriteBits(static_cast<uint8_t>(pic_data.GetPicType()) << 1,
+                                 BitWriter *bit_writer) {
+  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetPicType()) << 1,
                         8);  // Nal Unit header
-  bitwriter->WriteBits(buffer_flag, 1);
-  bitwriter->WriteBits(pic_data.GetTid(), 3);
+  bit_writer->WriteBits(buffer_flag, 1);
+  bit_writer->WriteBits(pic_data.GetTid(), 3);
   if (pic_data.GetTid() == 0) {
     if (pic_data.GetPoc() == 0) {
-      bitwriter->WriteBits(0, 7);
+      bit_writer->WriteBits(0, 7);
     } else {
-      bitwriter->WriteBits(static_cast<uint32_t>(sub_gop_length), 7);
+      bit_writer->WriteBits(static_cast<uint32_t>(sub_gop_length), 7);
     }
   }
-  bitwriter->PadZeroBits();
+  bit_writer->PadZeroBits();
 }
 
 void PictureEncoder::WriteChecksum(BitWriter *bit_writer) {

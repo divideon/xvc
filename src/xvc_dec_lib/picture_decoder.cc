@@ -94,11 +94,11 @@ bool PictureDecoder::Decode(BitReader *bit_reader, int segment_qp,
   return ValidateChecksum(bit_reader);
 }
 
-bool PictureDecoder::ValidateChecksum(BitReader *bitreader) {
-  size_t checksum_len = bitreader->ReadByte();
+bool PictureDecoder::ValidateChecksum(BitReader *bit_reader) {
+  size_t checksum_len = bit_reader->ReadByte();
   std::vector<uint8_t> checksum_bytes;
   checksum_bytes.resize(checksum_len);
-  bitreader->ReadBytes(&checksum_bytes[0], checksum_len);
+  bit_reader->ReadBytes(&checksum_bytes[0], checksum_len);
 
   checksum_.Clear();
   checksum_.HashPicture(*(pic_data_->GetRecPic()));

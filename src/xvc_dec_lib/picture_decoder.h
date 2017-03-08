@@ -33,7 +33,7 @@ public:
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
 
 private:
-  bool ValidateChecksum(BitReader *bitreader);
+  bool ValidateChecksum(BitReader *bit_reader);
 
   std::shared_ptr<PictureData> pic_data_;
   Checksum checksum_;

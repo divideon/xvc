@@ -169,6 +169,7 @@
     <ClInclude Include="encoder.h" />
     <ClInclude Include="entropy_encoder.h" />
     <ClInclude Include="picture_encoder.h" />
+    <ClInclude Include="segment_header_writer.h" />
     <ClInclude Include="syntax_writer.h" />
     <ClInclude Include="xvcenc.h" />
   </ItemGroup>
@@ -181,6 +182,7 @@
     <ClCompile Include="encoder.cc" />
     <ClCompile Include="entropy_encoder.cc" />
     <ClCompile Include="picture_encoder.cc" />
+    <ClCompile Include="segment_header_writer.cc" />
     <ClCompile Include="syntax_writer.cc" />
     <ClCompile Include="xvcenc.cc" />
   </ItemGroup>

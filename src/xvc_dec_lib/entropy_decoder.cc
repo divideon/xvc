@@ -10,8 +10,8 @@
 
 namespace xvc {
 
-EntropyDecoder::EntropyDecoder(BitReader *bitreader)
-  : bit_reader_(bitreader) {
+EntropyDecoder::EntropyDecoder(BitReader *bit_reader)
+  : bit_reader_(bit_reader) {
   range_ = 510;
   bits_needed_ = -24;
   value_ = 0;
