@@ -72,11 +72,11 @@ void CuWriter::WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
                                     SyntaxWriter *writer) const {
   IntraMode luma_mode = cu.GetIntraMode(YuvComponent::kY);
   if (util::IsLuma(comp)) {
-    IntraPredictorLuma mpm = intra_pred_.GetPredictorLuma(cu);
+    IntraPredictorLuma mpm = intra_pred_->GetPredictorLuma(cu);
     writer->WriteIntraMode(luma_mode, mpm);
   } else if (util::IsFirstChroma(comp)) {
     IntraPredictorChroma
-      chroma_preds = intra_pred_.GetPredictorsChroma(luma_mode);
+      chroma_preds = intra_pred_->GetPredictorsChroma(luma_mode);
     if (!Restrictions::Get().disable_intra_chroma_predictor) {
       writer->WriteIntraChromaMode(cu.GetIntraChromaMode(), chroma_preds);
     }

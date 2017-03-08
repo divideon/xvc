@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "xvc_common_lib/utils.h"
+#include "xvc_enc_lib/cu_writer.h"
 
 namespace xvc {
 
@@ -90,7 +91,6 @@ InterSearch::InterSearch(int bitdepth, const YuvPicture &orig_pic,
 
 void InterSearch::Search(CodingUnit *cu, const QP &qp,
                          PicturePredictionType pic_type,
-                         const CuWriter &cu_writer,
                          const SyntaxWriter &bitstream_writer,
                          SampleBuffer *pred_buffer) {
   const YuvComponent comp = YuvComponent::kY;
@@ -105,9 +105,9 @@ void InterSearch::Search(CodingUnit *cu, const QP &qp,
   CodingUnit::InterState state_l0;
   cu->SetInterDir(InterDir::kL0);
   Distortion cost_l0 = std::numeric_limits<Distortion>::max();
-  cost_l0 = SearchRefIdx(cu, qp, pic_type, RefPicList::kL0,
-                         cu_writer, bitstream_writer, orig_luma,
-                         pred, pred_stride, cost_l0, &state_l0, nullptr);
+  cost_l0 = SearchRefIdx(cu, qp, pic_type, RefPicList::kL0, bitstream_writer,
+                         orig_luma, pred, pred_stride, cost_l0, &state_l0,
+                         nullptr);
   if (pic_type == PicturePredictionType::kUni) {
     return;
   }
@@ -117,9 +117,8 @@ void InterSearch::Search(CodingUnit *cu, const QP &qp,
   Distortion cost_l1_unique_poc;
   cu->SetInterDir(InterDir::kL1);
   Distortion cost_l1 = std::numeric_limits<Distortion>::max();
-  cost_l1 = SearchRefIdx(cu, qp, pic_type, RefPicList::kL1,
-                         cu_writer, bitstream_writer, orig_luma,
-                         pred, pred_stride, cost_l1, &state_bi,
+  cost_l1 = SearchRefIdx(cu, qp, pic_type, RefPicList::kL1, bitstream_writer,
+                         orig_luma, pred, pred_stride, cost_l1, &state_bi,
                          &state_l1_unique_poc, &cost_l1_unique_poc);
 
   // Prepare initial bi-prediction state with best from both lists
@@ -129,9 +128,9 @@ void InterSearch::Search(CodingUnit *cu, const QP &qp,
   cu->SetMvDelta(state_l0.mvd[0], RefPicList::kL0);
   cu->SetMvpIdx(state_l0.mvp_idx[0], RefPicList::kL0);
   InterDir best_uni_dir = cost_l0 <= cost_l1 ? InterDir::kL0 : InterDir::kL1;
-  Distortion cost_best_bi = SearchBiIterative(cu, qp, pic_type, cu_writer,
-                                              bitstream_writer, best_uni_dir,
-                                              pred, pred_stride, &state_bi);
+  Distortion cost_best_bi =
+    SearchBiIterative(cu, qp, pic_type, bitstream_writer, best_uni_dir,
+                      pred, pred_stride, &state_bi);
 
   if (cost_best_bi <= cost_l0 && cost_best_bi <= cost_l1_unique_poc) {
     cu->LoadStateFrom(state_bi);
@@ -145,7 +144,6 @@ void InterSearch::Search(CodingUnit *cu, const QP &qp,
 Distortion
 InterSearch::SearchBiIterative(CodingUnit *cu, const QP &qp,
                                PicturePredictionType pic_type,
-                               const CuWriter &cu_writer,
                                const SyntaxWriter &bitstream_writer,
                                InterDir best_uni_dir,
                                Sample *pred_buf, ptrdiff_t pred_stride,
@@ -172,9 +170,9 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const QP &qp,
     cu->SetInterDir(InterDir::kBi);
 
     Distortion prev_best = cost_best;
-    cost_best = SearchRefIdx(cu, qp, pic_type, search_list, cu_writer,
-                             bitstream_writer, bipred_orig_buffer_,
-                             pred_buf, pred_stride, cost_best, best_state);
+    cost_best = SearchRefIdx(cu, qp, pic_type, search_list, bitstream_writer,
+                             bipred_orig_buffer_, pred_buf, pred_stride,
+                             cost_best, best_state);
     if (cost_best == prev_best) {
       break;
     }
@@ -187,7 +185,6 @@ template<typename TOrig>
 Distortion
 InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp,
                           PicturePredictionType pic_type, RefPicList ref_list,
-                          const CuWriter &cu_writer,
                           const SyntaxWriter &bitstream_writer,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *pred, ptrdiff_t pred_stride,
@@ -251,7 +248,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp,
     cu->SetMvpIdx(mvp_idx, ref_list);
     cu->SetMvDelta(mvd, ref_list);
     cu->SetMv(mv_subpel, ref_list);
-    Bits bits = GetInterPredBits(*cu, cu_writer, bitstream_writer, pic_type);
+    Bits bits = GetInterPredBits(*cu, bitstream_writer, pic_type);
     Distortion dist_scaled =
       static_cast<Distortion>(std::floor(dist * weight));
     Distortion cost = dist_scaled + ((bits * lambda) >> 16);
@@ -671,7 +668,6 @@ bool InterSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
 }
 
 Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
-                                   const CuWriter &cu_writer,
                                    const SyntaxWriter &bitstream_writer,
                                    PicturePredictionType pic_pred_type) {
 #if HM_STRICT
@@ -703,8 +699,10 @@ Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
     return bits;
   }
 #else
+  const PictureData *pic_data = cu.GetPicData();
+  CuWriter cu_writer(*pic_data, nullptr);
   RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-  cu_writer.WriteInterPrediction(cu, YuvComponent::kY, rdo_writer);
+  cu_writer.WriteInterPrediction(cu, YuvComponent::kY, &rdo_writer);
   return rdo_writer.GetNumWrittenBits();
 #endif
 }

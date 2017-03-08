@@ -40,7 +40,7 @@ CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
   inv_transform_(rec_pic->GetBitdepth()),
   fwd_transform_(rec_pic->GetBitdepth()),
   quantize_(),
-  cu_writer_(pic_data_, intra_pred_),
+  cu_writer_(pic_data_, &intra_pred_),
   temp_pred_(kBufferStride_, constants::kMaxBlockSize),
   temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
   temp_resi_(kBufferStride_, constants::kMaxBlockSize),
@@ -230,8 +230,7 @@ CuEncoder::RdoCost
 CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
                          const SyntaxWriter &bitstream_writer) {
   PicturePredictionType pic_pred_type = pic_data_.GetPredictionType();
-  inter_search_.Search(cu, qp, pic_pred_type, cu_writer_, bitstream_writer,
-                       &temp_pred_);
+  inter_search_.Search(cu, qp, pic_pred_type, bitstream_writer, &temp_pred_);
   Distortion dist = CompressAndEvalCbf(cu, qp, bitstream_writer);
   return ComputeDistCostNoSplit(*cu, qp, bitstream_writer, dist);
 }
@@ -471,7 +470,7 @@ bool CuEncoder::SearchCbfAllZero(CodingUnit *cu, const QP &qp,
   }
 #else
   for (int c = 0; c < constants::kMaxYuvComponents; c++) {
-    cu_writer_.WriteCoefficients(cu, YuvComponent(c), rdo_writer_nonzero);
+    cu_writer_.WriteCoefficients(*cu, YuvComponent(c), &rdo_writer_nonzero);
   }
 #endif
   Bits bits_non_zero = rdo_writer_nonzero.GetNumWrittenBits();

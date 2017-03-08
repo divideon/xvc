@@ -15,7 +15,6 @@
 #include "xvc_common_lib/sample_buffer.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
-#include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
@@ -34,7 +33,6 @@ public:
               const ReferencePictureLists &ref_pic_list);
   void Search(CodingUnit *cu, const QP &qp,
               PicturePredictionType pic_type,
-              const CuWriter &cu_writer,
               const SyntaxWriter &bitstream_writer,
               SampleBuffer *pred_buffer);
 
@@ -47,7 +45,6 @@ private:
   template<typename TOrig> class DistortionWrapper;
   Distortion SearchBiIterative(CodingUnit *cu, const QP &qp,
                                PicturePredictionType pic_type,
-                               const CuWriter &cu_writer,
                                const SyntaxWriter &bitstream_writer,
                                InterDir best_uni_dir,
                                Sample *pred_buf, ptrdiff_t pred_stride,
@@ -55,7 +52,7 @@ private:
   template<typename TOrig>
   Distortion SearchRefIdx(CodingUnit *cu, const QP &qp,
                           PicturePredictionType pic_type,
-                          RefPicList ref_list, const CuWriter &cu_writer,
+                          RefPicList ref_list,
                           const SyntaxWriter &bitstream_writer,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *pred, ptrdiff_t pred_stride,
@@ -108,7 +105,7 @@ private:
                       const MotionVector &mv_final, int mvp_idx_start);
   Distortion GetCost(SearchState *state, int mv_x, int mv_y);
   bool CheckCostBest(SearchState *state, int mv_x, int mv_y);
-  Bits GetInterPredBits(const CodingUnit &cu, const CuWriter &cu_writer,
+  Bits GetInterPredBits(const CodingUnit &cu,
                         const SyntaxWriter &bitstream_writer,
                         PicturePredictionType pic_pred_type);
   Bits GetMvpBits(int mvp_idx, int num_mvp);

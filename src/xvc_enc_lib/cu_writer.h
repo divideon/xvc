@@ -16,7 +16,7 @@ namespace xvc {
 
 class CuWriter {
 public:
-  CuWriter(const PictureData &pic_data, const IntraPrediction &intra_pred)
+  CuWriter(const PictureData &pic_data, const IntraPrediction *intra_pred)
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
@@ -32,7 +32,7 @@ public:
 
 private:
   const PictureData &pic_data_;
-  const IntraPrediction &intra_pred_;
+  const IntraPrediction *intra_pred_;
 };
 
 }   // namespace xvc
