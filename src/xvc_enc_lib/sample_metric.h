@@ -28,23 +28,23 @@ public:
     : type_(type), qp_(qp), bitdepth_(bitdepth) {
   }
   // Sample vs Sample
-  Distortion CompareComponent(const CodingUnit &cu, YuvComponent comp,
-                              const YuvPicture &src1, const YuvPicture &src2);
-  Distortion CompareComponent(const CodingUnit &cu, YuvComponent comp,
-                              const YuvPicture &src1,
-                              const Sample *src2, ptrdiff_t stride2);
-  Distortion CompareComponent(const CodingUnit &cu, YuvComponent comp,
-                              const YuvPicture &src1, const SampleBuffer &src2);
-  Distortion CompareComponent(const CodingUnit &cu, YuvComponent comp,
-                              const SampleBuffer &src1,
-                              const SampleBuffer &src2);
-  Distortion CompareComponent(YuvComponent comp, int width, int height,
-                              const Sample *src1, ptrdiff_t stride1,
-                              const Sample *src2, ptrdiff_t stride2);
+  Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
+                           const YuvPicture &src1, const YuvPicture &src2);
+  Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
+                           const YuvPicture &src1,
+                           const Sample *src2, ptrdiff_t stride2);
+  Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
+                           const YuvPicture &src1, const SampleBuffer &src2);
+  Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
+                           const SampleBuffer &src1,
+                           const SampleBuffer &src2);
+  Distortion CompareSample(YuvComponent comp, int width, int height,
+                           const Sample *src1, ptrdiff_t stride1,
+                           const Sample *src2, ptrdiff_t stride2);
   // Sample vs Residual
-  Distortion CompareComponent(YuvComponent comp, int width, int height,
-                              const Residual *src1, ptrdiff_t stride1,
-                              const Sample *src2, ptrdiff_t stride2);
+  Distortion CompareSample(YuvComponent comp, int width, int height,
+                           const Residual *src1, ptrdiff_t stride1,
+                           const Sample *src2, ptrdiff_t stride2);
   // Residual vs Residual
   Distortion CompareShort(YuvComponent comp, int width, int height,
                           const DataBuffer<Residual> &src1,

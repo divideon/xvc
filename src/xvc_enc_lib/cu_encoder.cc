@@ -245,10 +245,10 @@ CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
 #else
   const bool kAlwaysExplicitSkipFlagRdo = false;
 #endif
-  InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   cu->SetPredMode(PredictionMode::kInter);
   cu->SetMergeFlag(true);
-  SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
+
+  InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   RdoCost best_cost(std::numeric_limits<Cost>::max());
   Cost best_non_skip = std::numeric_limits<Cost>::max();
   CodingUnit::TransformState best_state;
@@ -335,6 +335,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
 Distortion CuEncoder::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
                                          const SyntaxWriter &bitstream_writer,
                                          Distortion *out_dist_zero) {
+  SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
   std::array<bool, constants::kMaxYuvComponents> cbf_modified = { false };
   Distortion final_dist = 0;
   Distortion sum_dist_zero = 0;
@@ -342,10 +343,9 @@ Distortion CuEncoder::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
 
   for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
-    SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
     Distortion dist_orig = CompressComponent(cu, comp, qp);
     Distortion dist_zero =
-      metric.CompareComponent(*cu, comp, orig_pic_, temp_pred_);
+      metric.CompareSample(*cu, comp, orig_pic_, temp_pred_);
     Distortion dist_fast = dist_orig;
     // TODO(Dev) Investigate trade-off with using clipped samples for rdo
 #if HM_STRICT
@@ -405,6 +405,8 @@ Distortion CuEncoder::CompressSkipOnly(CodingUnit *cu, const QP &qp,
   assert(cu->GetPredMode() == PredictionMode::kInter);
   cu->SetSkipFlag(true);
   cu->SetRootCbf(false);
+
+  SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
   Distortion sum_dist = 0;
   for (int c = 0; c < constants::kMaxYuvComponents; c++) {
     const YuvComponent comp = YuvComponent(c);
@@ -415,9 +417,7 @@ Distortion CuEncoder::CompressSkipOnly(CodingUnit *cu, const QP &qp,
                                      reco_buffer.GetStride());
     cu->SetCbf(comp, false);
     if (calc_distortion) {
-      SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
-      Distortion dist =
-        metric.CompareComponent(*cu, comp, orig_pic_, reco_buffer);
+      Distortion dist = metric.CompareSample(*cu, comp, orig_pic_, reco_buffer);
       sum_dist += dist;
     }
   }
@@ -515,6 +515,7 @@ IntraMode CuEncoder::SearchIntraLuma(CodingUnit *cu, YuvComponent comp,
   IntraPrediction::State intra_state =
     intra_pred_.ComputeReferenceState(*cu, comp, reco, reco_stride);
 
+  SampleMetric metric(MetricType::kSATD, qp, rec_pic_.GetBitdepth());
   std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber> modes_cost;
   for (int i = 0; i < IntraMode::kTotalNumber; i++) {
     IntraMode intra_mode = static_cast<IntraMode>(i);
@@ -526,10 +527,9 @@ IntraMode CuEncoder::SearchIntraLuma(CodingUnit *cu, YuvComponent comp,
     rdo_writer.WriteIntraMode(intra_mode, mpm);
     size_t bits = rdo_writer.GetNumWrittenBits();
 
-    SampleMetric metric(MetricType::kSATD, qp, rec_pic_.GetBitdepth());
-    uint64_t sad = metric.CompareComponent(*cu, comp, orig_pic_,
-                                           temp_pred_.GetDataPtr(),
-                                           temp_pred_.GetStride());
+    uint64_t sad = metric.CompareSample(*cu, comp, orig_pic_,
+                                        temp_pred_.GetDataPtr(),
+                                        temp_pred_.GetStride());
     double cost = sad + bits * qp.GetLambdaSqrt();
     modes_cost[i] = std::make_pair(intra_mode, cost);
   }
@@ -680,7 +680,7 @@ Distortion CuEncoder::CompressComponent(CodingUnit *cu, YuvComponent comp,
                       min_pel_, max_pel_);
 
   SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
-  return metric.CompareComponent(*cu, comp, orig_pic_, reco_buffer);
+  return metric.CompareSample(*cu, comp, orig_pic_, reco_buffer);
 }
 
 CuEncoder::RdoCost

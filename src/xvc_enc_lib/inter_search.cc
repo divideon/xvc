@@ -59,8 +59,8 @@ public:
 
   Distortion GetDist(int mv_x, int mv_y) {
     const Sample *src2_ptr = src2_ + mv_y * stride2_ + mv_x;
-    return metric_.CompareComponent(comp_, width_, height_, src1_, stride1_,
-                                    src2_ptr, stride2_);
+    return metric_.CompareSample(comp_, width_, height_, src1_, stride1_,
+                                 src2_ptr, stride2_);
   }
 
 private:
@@ -587,8 +587,8 @@ InterSearch::GetSubpelDistortion(const CodingUnit &cu,
   int width = cu.GetWidth(comp);
   int height = cu.GetHeight(comp);
   MotionCompensationMv(cu, comp, ref_pic, mv_x, mv_y, buf, buf_stride);
-  return metric->CompareComponent(comp, width, height, orig_buffer.GetDataPtr(),
-                                  orig_buffer.GetStride(), &buf[0], buf_stride);
+  return metric->CompareSample(comp, width, height, orig_buffer.GetDataPtr(),
+                               orig_buffer.GetStride(), &buf[0], buf_stride);
 }
 
 void
@@ -622,8 +622,8 @@ int InterSearch::EvalStartMvp(const CodingUnit &cu, const QP &qp,
     ClipMV(cu, ref_pic, &mv.x, &mv.y);
     MotionCompensationMv(cu, YuvComponent::kY, ref_pic, mv.x, mv.y,
                          pred_buf, pred_stride);
-    Distortion dist = metric.CompareComponent(cu, YuvComponent::kY, orig_pic_,
-                                              pred_buf, pred_stride);
+    Distortion dist = metric.CompareSample(cu, YuvComponent::kY, orig_pic_,
+                                           pred_buf, pred_stride);
     Bits bits = GetMvpBits(i, static_cast<int>(mvp_list.size()));
     Cost cost = dist + (static_cast<uint32_t>(bits * lambda + 0.5) >> 16);
     if (cost < best_mvp_cost) {
