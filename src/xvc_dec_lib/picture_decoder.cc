@@ -13,6 +13,7 @@
 
 #include "xvc_common_lib/deblocking_filter.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_dec_lib/cu_decoder.h"
 #include "xvc_dec_lib/entropy_decoder.h"
 
@@ -35,7 +36,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   // Start by reading the picture header data
   uint32_t header = bit_reader->ReadBits(8);
   NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
-  pic_data_->SetPicType(nal_unit_type);
+  pic_data_->SetNalType(nal_unit_type);
   int buffer_flag = bit_reader->ReadBits(1);
   if (buffer_flag) {
     pic_data_->SetSoc(soc - 1);
@@ -48,12 +49,16 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     PicNum length = bit_reader->ReadBits(7);
     if (length > 0 && num_buffered_nals == 0) {
       *sub_gop_length = length;
-      pic_data_->SetPoc(*sub_gop_end_poc + *sub_gop_length);
-      pic_data_->CalcDocFromPoc(*sub_gop_length, *sub_gop_end_poc);
+      PicNum poc = *sub_gop_end_poc + *sub_gop_length;
+      pic_data_->SetPoc(poc);
+      pic_data_->SetDoc(SegmentHeader::CalcDocFromPoc(poc, *sub_gop_length,
+                                                      *sub_gop_end_poc));
     } else if (soc > 0) {
       *sub_gop_length = num_buffered_nals + 1;
-      pic_data_->SetPoc(*sub_gop_end_poc + *sub_gop_length);
-      pic_data_->CalcDocFromPoc(*sub_gop_length, *sub_gop_end_poc);
+      PicNum poc = *sub_gop_end_poc + *sub_gop_length;
+      pic_data_->SetPoc(poc);
+      pic_data_->SetDoc(SegmentHeader::CalcDocFromPoc(poc, *sub_gop_length,
+                                                      *sub_gop_end_poc));
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
     *sub_gop_end_poc = pic_data_->GetPoc();

@@ -12,6 +12,7 @@
 
 #include "xvc_common_lib/reference_list_sorter.h"
 #include "xvc_common_lib/restrictions.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/utils.h"
 #include "xvc_dec_lib/segment_header_reader.h"
 
@@ -58,9 +59,9 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     if (output_bitdepth_ == 0) {
       output_bitdepth_ = curr_segment_header_.internal_bitdepth;
     }
-    max_tid_ = PictureData::GetMaxTid(decoder_ticks_,
-                                      curr_segment_header_.bitstream_ticks,
-                                      sub_gop_length_);
+    max_tid_ = SegmentHeader::GetMaxTid(decoder_ticks_,
+                                        curr_segment_header_.bitstream_ticks,
+                                        sub_gop_length_);
 
   } else if (state_ == State::kNoSegmentHeader ||
              state_ == State::kDecoderVersionTooLow ||
@@ -126,7 +127,8 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
   auto pic_data = pic_dec->GetPicData();
   pic_data->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   pic_data->SetDoc(doc_);
-  pic_data->CalcPocFromDoc(sub_gop_length_, sub_gop_start_poc_);
+  pic_data->SetPoc(SegmentHeader::CalcPocFromDoc(doc_, sub_gop_length_,
+                                                 sub_gop_start_poc_));
 
   pic_data->SetDeblock(segment_header->deblock > 0);
   pic_data->SetBetaOffset(segment_header->beta_offset);
@@ -279,12 +281,12 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   output_pic->stats.bitstream_bitdepth = decoded_pic->GetBitdepth();
   output_pic->stats.chroma_format = getChromaFormatApiStyle();
   output_pic->stats.framerate =
-    PictureData::GetFramerate(max_tid_, curr_segment_header_.bitstream_ticks,
-                              sliding_window_length_ - 1);
+    SegmentHeader::GetFramerate(max_tid_, curr_segment_header_.bitstream_ticks,
+                                sliding_window_length_ - 1);
   output_pic->stats.bitstream_framerate =
-    PictureData::GetFramerate(0, curr_segment_header_.bitstream_ticks, 1);
+    SegmentHeader::GetFramerate(0, curr_segment_header_.bitstream_ticks, 1);
   output_pic->stats.nal_unit_type =
-    static_cast<uint32_t>(pic_data->GetPicType());
+    static_cast<uint32_t>(pic_data->GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
   output_pic->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());

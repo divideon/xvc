@@ -202,6 +202,7 @@
     <ClCompile Include="reference_picture_lists.cc" />
     <ClCompile Include="resample.cc" />
     <ClCompile Include="restrictions.cc" />
+    <ClCompile Include="segment_header.cc" />
     <ClCompile Include="utils.cc" />
     <ClCompile Include="utils_md5.cc" />
     <ClCompile Include="quantize.cc" />

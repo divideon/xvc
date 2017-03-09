@@ -68,7 +68,7 @@ PictureEncoder::Encode(int segment_qp, PicNum sub_gop_length, int buffer_flag,
 void PictureEncoder::WriteHeader(const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
                                  BitWriter *bit_writer) {
-  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetPicType()) << 1,
+  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()) << 1,
                         8);  // Nal Unit header
   bit_writer->WriteBits(buffer_flag, 1);
   bit_writer->WriteBits(pic_data.GetTid(), 3);

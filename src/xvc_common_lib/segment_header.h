@@ -12,6 +12,17 @@
 namespace xvc {
 
 struct SegmentHeader {
+  static PicNum CalcDocFromPoc(PicNum poc, PicNum sub_gop_length,
+                               PicNum sub_gop_start_poc_);
+  static PicNum CalcPocFromDoc(PicNum doc, PicNum sub_gop_length,
+                               PicNum sub_gop_start_poc_);
+  static int CalcTidFromDoc(PicNum doc, PicNum sub_gop_length,
+                            PicNum sub_gop_start_poc_);
+  static int GetMaxTid(int decoder_ticks, int bitstream_ticks,
+                       PicNum sub_gop_length);
+  static double GetFramerate(int max_tid, int bitstream_ticks,
+                             PicNum sub_gop_length);
+
   int codec_identifier = -1;
   int major_version = -1;
   int minor_version = -1;
@@ -29,6 +40,11 @@ struct SegmentHeader {
   int num_ref_pic_r0 = 0;
   int num_ref_pic_r1 = 0;
   SegmentNum soc = static_cast<SegmentNum>(-1);
+
+private:
+  static PicNum DocToPoc(PicNum sub_gop_length, PicNum doc);
+  static PicNum PocToDoc(PicNum sub_gop_length, PicNum poc);
+  static int DocToTid(PicNum sub_gop_length, PicNum doc);
 };
 
 }   // namespace xvc

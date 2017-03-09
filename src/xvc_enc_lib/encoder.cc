@@ -13,6 +13,7 @@
 
 #include "xvc_common_lib/reference_list_sorter.h"
 #include "xvc_common_lib/restrictions.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_enc_lib/segment_header_writer.h"
 
 namespace xvc {
@@ -27,14 +28,18 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   pic_data->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   pic_data->SetPoc(poc_);
   if (all_intra_) {
-    pic_data->SetPicType(NalUnitType::kIntraPicture);
+    pic_data->SetNalType(NalUnitType::kIntraPicture);
   } else {
-    pic_data->SetPicType(NalUnitType::kBipredictedPicture);
+    pic_data->SetNalType(NalUnitType::kBipredictedPicture);
   }
-  pic_data->CalcDocFromPoc(segment_header_.max_sub_gop_length,
-                           sub_gop_start_poc_);
-  pic_data->CalcTidFromDoc(segment_header_.max_sub_gop_length,
-                           sub_gop_start_poc_);
+  PicNum doc =
+    SegmentHeader::CalcDocFromPoc(poc_, segment_header_.max_sub_gop_length,
+                                  sub_gop_start_poc_);
+  int tid =
+    SegmentHeader::CalcTidFromDoc(doc, segment_header_.max_sub_gop_length,
+                                  sub_gop_start_poc_);
+  pic_data->SetDoc(doc);
+  pic_data->SetTid(tid);
   pic_data->SetDeblock(segment_header_.deblock > 0);
   pic_data->SetBetaOffset(segment_header_.beta_offset);
   pic_data->SetTcOffset(segment_header_.tc_offset);
@@ -59,7 +64,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     nal.stats.nal_unit_type = 16;
     nal.buffer_flag = 0;
     nal_units_.push_back(nal);
-    pic_data->SetPicType(NalUnitType::kIntraAccessPicture);
+    pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
     buffer_flag_ = 1;
   } else {
     buffer_flag_ = 0;
@@ -124,10 +129,15 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
     for (auto &pic : pic_encoders_) {
       auto pd = pic->GetPicData();
       if (pd->GetPoc() > doc_) {
-        pd->CalcDocFromPoc(segment_header_.max_sub_gop_length,
-                           sub_gop_start_poc_);
-        pd->CalcTidFromDoc(segment_header_.max_sub_gop_length,
-                           sub_gop_start_poc_);
+        PicNum doc =
+          SegmentHeader::CalcDocFromPoc(pd->GetPoc(),
+                                        segment_header_.max_sub_gop_length,
+                                        sub_gop_start_poc_);
+        int tid =
+          SegmentHeader::CalcTidFromDoc(doc, segment_header_.max_sub_gop_length,
+                                        sub_gop_start_poc_);
+        pd->SetDoc(doc);
+        pd->SetTid(tid);
       }
     }
     for (PicNum i = 0; i < segment_header_.max_sub_gop_length; i++) {
@@ -160,7 +170,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   // next segment and then be buffered in the decoder to be decoded after
   // the key picture.
   int bflag = (buffer_flag_ &&
-    (pic->GetPicData()->GetPicType() != NalUnitType::kIntraAccessPicture));
+    (pic->GetPicData()->GetNalType() != NalUnitType::kIntraAccessPicture));
 
   ReferenceListSorter<PictureEncoder> ref_list_sorter(prev_segment_open_gop_);
   ref_list_sorter.PrepareRefPicLists(pic->GetPicData(), pic_encoders_,
@@ -247,7 +257,7 @@ void Encoder::SetNalStats(xvc_enc_nal_unit *nal,
                           std::shared_ptr<PictureEncoder> pic) {
   auto pic_data = pic->GetPicData();
   nal->stats.nal_unit_type =
-    static_cast<uint32_t>(pic_data->GetPicType());
+    static_cast<uint32_t>(pic_data->GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
   nal->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());

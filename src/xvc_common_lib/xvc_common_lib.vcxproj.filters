@@ -130,5 +130,8 @@
     <ClCompile Include="resample.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="segment_header.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

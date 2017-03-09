@@ -32,6 +32,19 @@ public:
 
   void Init(const QP &pic_qp);
 
+  // General
+  PicturePredictionType GetPredictionType() const;
+  const QP* GetPicQp() const { return pic_qp_.get(); }
+  int DerivePictureQp(int segment_qp) const;
+  std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
+  std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
+  std::shared_ptr<YuvPicture> GetAlternativeRecPic(
+    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
+  bool IsIntraPic() const {
+    return GetPredictionType() == PicturePredictionType::kIntra;
+  }
+
+  // Sample info
   int GetPictureWidth(YuvComponent comp) const {
     return comp == kY ? pic_width_ : pic_width_ >> chroma_shift_x_;
   }
@@ -46,14 +59,7 @@ public:
     return util::GetNumComponents(chroma_fmt_);
   }
 
-  std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
-  std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
-  const QP* GetPicQp() const { return pic_qp_.get(); }
-  int DerivePictureQp(int segment_qp) const;
-
-  std::shared_ptr<YuvPicture> GetAlternativeRecPic(
-    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
-
+  // CU data
   CodingUnit *GetCtu(int rsaddr) { return ctu_list_[rsaddr]; }
   const CodingUnit *GetCtu(int rsaddr) const { return ctu_list_[rsaddr]; }
   CodingUnit* SetCtu(int rsaddr, CodingUnit *cu);
@@ -70,16 +76,11 @@ public:
   void MarkUsedInPic(CodingUnit *cu);
   void ClearMarkCuInPic(CodingUnit *cu);
 
+  // Higher layer syntax
+  void SetNalType(NalUnitType type) { nal_type_ = type; }
+  NalUnitType GetNalType() const { return nal_type_; }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() { return output_status_; }
-
-  void SetPicType(NalUnitType type) { nal_type_ = type; }
-  NalUnitType GetPicType() const { return nal_type_; }
-  PicturePredictionType GetPredictionType() const;
-  bool IsIntraPic() const {
-    return GetPredictionType() == PicturePredictionType::kIntra;
-  }
-
   void SetPoc(PicNum poc) { poc_ = poc; }
   PicNum GetPoc() const { return poc_; }
   void SetDoc(PicNum doc) { doc_ = doc; }
@@ -89,13 +90,7 @@ public:
   void SetTid(int tid) { tid_ = tid; }
   int GetTid() const { return tid_; }
 
-  void CalcDocFromPoc(PicNum sub_gop_length, PicNum sub_gop_start_poc_);
-  void CalcTidFromDoc(PicNum sub_gop_length, PicNum sub_gop_start_poc_);
-  void CalcPocFromDoc(PicNum sub_gop_length, PicNum sub_gop_start_poc_);
-  static int GetMaxTid(int decoder_ticks, int bitstream_ticks,
-                       PicNum sub_gop_length);
-  static double GetFramerate(int max_tid, int bitstream_ticks,
-                             PicNum sub_gop_length);
+  // Per picture data
   ReferencePictureLists* GetRefPicLists() { return &ref_pic_lists_; }
   const ReferencePictureLists *GetRefPicLists() const {
     return &ref_pic_lists_;
@@ -110,6 +105,7 @@ public:
   void SetTcOffset(int offset) { tc_offset_ = offset; }
   int GetTcOffset() const { return tc_offset_; }
 
+  // Helper
   static bool IsSameDimension(const PictureData &pic1,
                               const PictureData &pic2) {
     const YuvComponent luma = YuvComponent::kY;
@@ -120,10 +116,6 @@ public:
   }
 
 private:
-  static PicNum DocToPoc(const PicNum sub_gop_length, const PicNum doc);
-  static PicNum PocToDoc(const PicNum sub_gop_length, const PicNum poc);
-  static int DocToTid(const PicNum sub_gop_length, const PicNum doc);
-
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void ReleaseSubCuRecursively(CodingUnit *cu) const;
 

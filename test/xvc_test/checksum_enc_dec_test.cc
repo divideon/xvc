@@ -38,7 +38,7 @@ protected:
     bool flat_lamda = false;
     pic_encoder_->GetOrigPic()->CopyFrom(reinterpret_cast<uint8_t*>(orig),
                                          input_bitdepth_);
-    pic_encoder_->GetPicData()->SetPicType(xvc::NalUnitType::kIntraPicture);
+    pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
     return pic_encoder_->Encode(base_qp_, sub_gop_length, buffer_flag,
                                 flat_lamda);
   }
