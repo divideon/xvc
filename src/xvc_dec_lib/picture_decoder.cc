@@ -50,7 +50,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
       *sub_gop_length = length;
       pic_data_->SetPoc(*sub_gop_end_poc + *sub_gop_length);
       pic_data_->CalcDocFromPoc(*sub_gop_length, *sub_gop_end_poc);
-    } else if (*sub_gop_end_poc > 0) {
+    } else if (soc > 0) {
       *sub_gop_length = num_buffered_nals + 1;
       pic_data_->SetPoc(*sub_gop_end_poc + *sub_gop_length);
       pic_data_->CalcDocFromPoc(*sub_gop_length, *sub_gop_end_poc);
