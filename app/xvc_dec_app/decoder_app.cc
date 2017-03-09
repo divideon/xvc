@@ -195,12 +195,12 @@ void DecoderApp::PrintStatistics() {
     std::chrono::duration<float>(end_ - start_).count() << " s" << std::endl;
 }
 
-bool DecoderApp::CheckConformance() {
+int DecoderApp::CheckConformance() {
   if (num_pictures_decoded_ == 0) {
     std::cout << std::endl;
     std::cout << "No pictures were decoded." << std::endl;
     std::cout << std::endl;
-    return false;
+    return XVC_DEC_NO_DECODED_PIC;
   }
   int num_corrupted_pics;
   xvc_dec_return_code ret;
@@ -211,19 +211,19 @@ bool DecoderApp::CheckConformance() {
       num_corrupted_pics << " pictures." << std::endl;
     std::cout << "The bitstream is NOT a conforming bitstream." << std::endl;
     std::cout << std::endl;
-    return false;
+    return ret;
   } else if (ret == XVC_DEC_OK) {
     assert(num_corrupted_pics == 0);
     std::cout << std::endl;
     std::cout << "Conformance verified." << std::endl;
     std::cout << "The bitstream is a conforming bitstream." << std::endl;
     std::cout << std::endl;
-    return true;
+    return ret;
   }
   std::cout << std::endl;
   std::cout << "Error: Conformance check unsuccessful." << std::endl;
   std::cout << std::endl;
-  return false;
+  return ret;
 }
 
 void DecoderApp::PrintUsage() {

@@ -17,5 +17,5 @@ int main(int argc, const char *argv[]) {
   main_app.CloseStream();
   main_app.PrintStatistics();
 
-  return main_app.CheckConformance() ? 0 : 1;
+  return main_app.CheckConformance();
 }

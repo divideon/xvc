@@ -28,7 +28,7 @@ public:
   void MainDecoderLoop();
   void CloseStream();
   void PrintStatistics();
-  bool CheckConformance();
+  int CheckConformance();
 
 private:
   void PrintUsage();
