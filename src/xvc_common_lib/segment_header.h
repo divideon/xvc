@@ -12,6 +12,7 @@
 namespace xvc {
 
 struct SegmentHeader {
+  int codec_identifier = -1;
   int major_version = -1;
   int minor_version = -1;
   int pic_width = 0;

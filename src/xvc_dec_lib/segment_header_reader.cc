@@ -13,6 +13,10 @@ namespace xvc {
 Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
                                          BitReader *bit_reader,
                                          SegmentNum segment_counter) {
+  segment_header->codec_identifier = bit_reader->ReadBits(24);
+  if (segment_header->codec_identifier != constants::kXvcCodecIdentifier) {
+    return Decoder::State::kNoSegmentHeader;
+  }
   segment_header->major_version = bit_reader->ReadBits(16);
   if (segment_header->major_version > constants::kXvcMajorVersion) {
     return Decoder::State::kDecoderVersionTooLow;

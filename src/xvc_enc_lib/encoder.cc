@@ -48,8 +48,6 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     } else {
       curr_segment_open_gop_ = true;
     }
-    segment_header_.major_version = constants::kXvcMajorVersion;
-    segment_header_.minor_version = constants::kXvcMinorVersion;
     SegmentHeaderWriter::Write(&segment_header_, &bit_writer_, framerate_,
                                curr_segment_open_gop_);
     soc_++;

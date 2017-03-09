@@ -50,6 +50,7 @@ enum YuvComponent {
 namespace constants {
 
 // xvc version
+const uint32_t kXvcCodecIdentifier = 7894627;
 const int kXvcMajorVersion = 1;
 const int kXvcMinorVersion = 0;
 

@@ -17,10 +17,10 @@ public:
     // Rewrite version directly in bitstream
     uint8_t *segment_header = nal_units_[0].bytes;
     segment_header++;   // nal_header (1 byte)
-    segment_header[0] = (major_version >> 8) & 0xFF;
-    segment_header[1] = (major_version >> 0) & 0xFF;
-    segment_header[2] = (minor_version >> 8) & 0xFF;
-    segment_header[3] = (minor_version >> 0) & 0xFF;
+    segment_header[3] = (major_version >> 8) & 0xFF;
+    segment_header[4] = (major_version >> 0) & 0xFF;
+    segment_header[5] = (minor_version >> 8) & 0xFF;
+    segment_header[6] = (minor_version >> 0) & 0xFF;
     return decoder_->DecodeNal(nal_units_[0].bytes, nal_units_[0].size);
   }
 };
