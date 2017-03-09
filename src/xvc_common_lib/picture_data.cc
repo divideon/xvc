@@ -64,6 +64,10 @@ void PictureData::Init(const QP &pic_qp) {
   }
   RefPicList tmvp_ref_list = DetermineTmvpRefList(&tmvp_ref_idx_);
   tmvp_ref_list_inv_ = ReferencePictureLists::Inverse(tmvp_ref_list);
+  PicturePredictionType pic_type =
+    ref_pic_lists_.GetRefPicType(tmvp_ref_list_inv_, tmvp_ref_idx_);
+  tmvp_valid_ = pic_type == PicturePredictionType::kUni ||
+    pic_type == PicturePredictionType::kBi;
 }
 
 int PictureData::DerivePictureQp(int segment_qp) const {

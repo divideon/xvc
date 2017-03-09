@@ -113,7 +113,8 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
     i = 1;
   }
 
-  if (constants::kTemporalMvPrediction && i < 2) {
+  if (constants::kTemporalMvPrediction && i < 2 &&
+      cu.GetPicData()->GetTmvpValid()) {
     if (GetTemporalMvPredictor(cu, ref_list, ref_idx, &list[i])) {
       i++;
     }
@@ -213,7 +214,8 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
     }
   }
 
-  if (constants::kTemporalMvPrediction && num < static_cast<int>(list.size())) {
+  if (constants::kTemporalMvPrediction && num < static_cast<int>(list.size()) &&
+      cu.GetPicData()->GetTmvpValid()) {
     bool found_any =
       GetTemporalMvPredictor(cu, RefPicList::kL0, 0, &list[num].mv[0]);
     list[num].ref_idx[0] = 0;
