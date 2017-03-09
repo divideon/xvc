@@ -14,7 +14,9 @@
 #define XVC_HIGH_BITDEPTH 1
 #endif
 
+#ifndef HM_STRICT
 #define HM_STRICT 1
+#endif
 
 namespace xvc {
 
