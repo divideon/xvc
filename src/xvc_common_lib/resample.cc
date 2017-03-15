@@ -270,7 +270,7 @@ void Resample(uint8_t *dst_start, int dst_width, int dst_height,
   int scale_x =
     ((src_width << kPositionPrecision) + (dst_width >> 1)) / dst_width;
   int shift_hor =
-    std::max(src_bitdepth - kInternalPrecision - kFilterPrecision, 0);
+    std::max(src_bitdepth - (kInternalPrecision - kFilterPrecision), 0);
 
   // Horizontal filtering from src to tmp.
   for (int i = -tmp_pad; i < tmp_height + tmp_pad; i++) {
