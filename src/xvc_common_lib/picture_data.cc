@@ -88,6 +88,13 @@ std::shared_ptr<YuvPicture> PictureData::GetAlternativeRecPic(
     YuvComponent comp = YuvComponent(c);
     uint8_t* dst =
       reinterpret_cast<uint8_t*>(alt_rec_pic_->GetSamplePtr(comp, 0, 0));
+    if (rec_pic_->GetChromaFormat() == ChromaFormat::kMonochrome &&
+        comp != YuvComponent::kY) {
+      std::memset(dst, 1 << (alt_rec_pic_->GetBitdepth() - 1),
+                  alt_rec_pic_->GetStride(comp) *
+                  alt_rec_pic_->GetHeight(comp) * sizeof(Sample));
+      continue;
+    }
     uint8_t* src =
       reinterpret_cast<uint8_t*>(rec_pic_->GetSamplePtr(comp, 0, 0));
     resample::Resample<Sample, Sample>

@@ -123,7 +123,7 @@ extern "C" {
       return nullptr;
     }
     if (param->sub_gop_length == 0) {
-      param->sub_gop_length = !param->all_intra ? 8 : 1;
+      param->sub_gop_length = !param->all_intra ? 16 : 1;
     }
     xvc::Encoder *encoder = new xvc::Encoder(param->internal_bitdepth);
     encoder->SetResolution(param->width, param->height);
