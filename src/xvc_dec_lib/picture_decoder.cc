@@ -13,6 +13,7 @@
 
 #include "xvc_common_lib/deblocking_filter.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_common_lib/resample.h"
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_dec_lib/cu_decoder.h"
 #include "xvc_dec_lib/entropy_decoder.h"
@@ -23,6 +24,8 @@ PictureDecoder::PictureDecoder(ChromaFormat chroma_format, int width,
                                int height, int bitdepth)
   : pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
                                             bitdepth)),
+  rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
+                                        bitdepth, true)),
   checksum_(Checksum::kDefaultMethod),
   first_peek_(1) {
 }
@@ -78,13 +81,14 @@ bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
   SyntaxReader syntax_reader(qp, pic_data_->GetPredictionType(),
                              &entropy_decoder);
   std::unique_ptr<CuDecoder> cu_decoder(
-    new CuDecoder(qp, pic_data_->GetRecPic().get(), pic_data_.get()));
+    new CuDecoder(qp, rec_pic_.get(), pic_data_.get()));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
     cu_decoder->DecodeCtu(rsaddr, &syntax_reader);
   }
   if (pic_data_->GetDeblock()) {
-    DeblockingFilter deblocker(pic_data_.get(), pic_data_->GetBetaOffset(),
+    DeblockingFilter deblocker(pic_data_.get(), rec_pic_.get(),
+                               pic_data_->GetBetaOffset(),
                                pic_data_->GetTcOffset());
     deblocker.DeblockPicture();
   }
@@ -93,9 +97,43 @@ bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
   }
   entropy_decoder.Finish();
 
-  pic_data_->GetRecPic()->PadBorder();
+  rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   return ValidateChecksum(bit_reader);
+}
+
+std::shared_ptr<YuvPicture>
+PictureDecoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
+                                     int height, int bitdepth) const {
+  if (alt_rec_pic_)
+    return alt_rec_pic_;
+  auto alt_rec_pic =
+    std::make_shared<YuvPicture>(chroma_format, width, height, bitdepth, true);
+  for (int c = 0; c < util::GetNumComponents(chroma_format); c++) {
+    YuvComponent comp = YuvComponent(c);
+    uint8_t* dst =
+      reinterpret_cast<uint8_t*>(alt_rec_pic->GetSamplePtr(comp, 0, 0));
+    if (rec_pic_->GetChromaFormat() == ChromaFormat::kMonochrome &&
+        comp != YuvComponent::kY) {
+      std::memset(dst, 1 << (alt_rec_pic->GetBitdepth() - 1),
+                  alt_rec_pic->GetStride(comp) *
+                  alt_rec_pic->GetHeight(comp) * sizeof(Sample));
+      continue;
+    }
+    uint8_t* src =
+      reinterpret_cast<uint8_t*>(rec_pic_->GetSamplePtr(comp, 0, 0));
+    resample::Resample<Sample, Sample>
+      (dst, alt_rec_pic->GetWidth(comp), alt_rec_pic->GetHeight(comp),
+       alt_rec_pic->GetStride(comp), alt_rec_pic->GetBitdepth(),
+       src, rec_pic_->GetWidth(comp), rec_pic_->GetHeight(comp),
+       rec_pic_->GetStride(comp), rec_pic_->GetBitdepth());
+  }
+  alt_rec_pic->PadBorder();
+  // TODO(PH) Revise const_cast by making this function a pure getter?
+  // In the future alternate pictures should probably be created
+  // beforehand in a separate thread as this can be quite time consuming
+  const_cast<PictureDecoder*>(this)->alt_rec_pic_ = alt_rec_pic;
+  return alt_rec_pic;
 }
 
 bool PictureDecoder::ValidateChecksum(BitReader *bit_reader) {
@@ -105,7 +143,7 @@ bool PictureDecoder::ValidateChecksum(BitReader *bit_reader) {
   bit_reader->ReadBytes(&checksum_bytes[0], checksum_len);
 
   checksum_.Clear();
-  checksum_.HashPicture(*(pic_data_->GetRecPic()));
+  checksum_.HashPicture(*rec_pic_);
   return checksum_ == Checksum(checksum_.GetMethod(), checksum_bytes);
 }
 

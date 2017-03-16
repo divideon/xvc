@@ -191,7 +191,6 @@ void Decoder::FlushBufferedTailPics() {
 
 void Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   // Find the picture with lowest Poc that has not been output.
-  std::shared_ptr<YuvPicture> decoded_pic;
   std::shared_ptr<PictureDecoder> pic_dec;
   PicNum lowest_poc = std::numeric_limits<PicNum>::max();
   for (auto &pic : pic_decoders_) {
@@ -209,8 +208,7 @@ void Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   }
   pic_dec->GetPicData()->SetOutputStatus(OutputStatus::kHasBeenOutput);
   SetOutputStats(pic_dec, output_pic);
-  decoded_pic = pic_dec->GetPicData()->GetRecPic();
-
+  auto decoded_pic = pic_dec->GetRecPic();
   decoded_pic->CopyTo(&output_pic_bytes_, output_width_, output_height_,
                       output_chroma_format_, output_bitdepth_);
   output_pic->size = output_pic_bytes_.size();
@@ -273,11 +271,10 @@ std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                              xvc_decoded_picture *output_pic) {
   auto pic_data = pic_dec->GetPicData();
-  auto decoded_pic = pic_data->GetRecPic();
-  output_pic->stats.height = decoded_pic->GetHeight(YuvComponent(0));
-  output_pic->stats.width = decoded_pic->GetWidth(YuvComponent(0));
+  output_pic->stats.width = pic_data->GetPictureWidth(YuvComponent(0));
+  output_pic->stats.height = pic_data->GetPictureHeight(YuvComponent(0));
   output_pic->stats.bitdepth = output_bitdepth_;
-  output_pic->stats.bitstream_bitdepth = decoded_pic->GetBitdepth();
+  output_pic->stats.bitstream_bitdepth = pic_data->GetBitdepth();
   output_pic->stats.chroma_format = getChromaFormatApiStyle();
   output_pic->stats.framerate =
     SegmentHeader::GetFramerate(max_tid_, curr_segment_header_.bitstream_ticks,

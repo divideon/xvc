@@ -222,7 +222,7 @@ void Encoder::ReconstructOnePicture(bool output_rec,
     return;
   }
   pic_enc->GetPicData()->SetOutputStatus(OutputStatus::kHasBeenOutput);
-  auto rec_pic_out = pic_enc->GetPicData()->GetRecPic();
+  auto rec_pic_out = pic_enc->GetRecPic();
 
   // Only perform reconstruction if it is requested and a picture was found.
   if (output_rec && rec_pic_out) {

@@ -65,7 +65,7 @@ private:
       last_added_poc = highest_poc_plus1 - 1;
       rpl->SetRefPic(ref_pic_list, ref_idx, pic_enc_dec->GetPicData()->GetPoc(),
                       pic_enc_dec->GetPicData(),
-                      pic_enc_dec->GetPicData()->GetRecPic());
+                      pic_enc_dec->GetRecPic());
       ref_idx++;
     }
     return ref_idx;
@@ -102,10 +102,10 @@ private:
       last_added_tid = pic_enc_dec->GetPicData()->GetTid();
       last_added_poc = lowest_poc;
       auto ref_data = pic_enc_dec->GetPicData();
-      auto ref_pic = pic_enc_dec->GetPicData()->GetRecPic();
+      auto ref_pic = pic_enc_dec->GetRecPic();
       if (curr_pic->GetSoc() != ref_data->GetSoc() &&
           !PictureData::IsSameDimension(*curr_pic, *ref_data)) {
-        ref_pic = pic_enc_dec->GetPicData()->GetAlternativeRecPic(
+        ref_pic = pic_enc_dec->GetAlternativeRecPic(
           curr_pic->GetChromaFormat(),
           curr_pic->GetPictureWidth(YuvComponent::kY),
           curr_pic->GetPictureHeight(YuvComponent::kY),
@@ -113,7 +113,7 @@ private:
       }
       rpl->SetRefPic(ref_pic_list, ref_idx, pic_enc_dec->GetPicData()->GetPoc(),
                       pic_enc_dec->GetPicData(),
-                      pic_enc_dec->GetPicData()->GetRecPic());
+                      pic_enc_dec->GetRecPic());
       ref_idx++;
     }
     return ref_idx;

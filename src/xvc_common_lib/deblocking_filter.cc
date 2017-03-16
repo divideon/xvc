@@ -44,8 +44,8 @@ void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
   YuvComponent chroma = YuvComponent::kU;
   int pos_x = cu->GetPosX(luma);
   int pos_y = cu->GetPosY(luma);
-  int chroma_scale_x = 1 << pic_data_->GetRecPic()->GetSizeShiftX(chroma);
-  int chroma_scale_y = 1 << pic_data_->GetRecPic()->GetSizeShiftY(chroma);
+  int chroma_scale_x = 1 << rec_pic_->GetSizeShiftX(chroma);
+  int chroma_scale_y = 1 << rec_pic_->GetSizeShiftY(chroma);
   int height_in_8x8 = cu->GetHeight(luma) >> 3;
   int width_in_8x8 = cu->GetWidth(luma) >> 3;
 
@@ -179,10 +179,9 @@ int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
 
 void DeblockingFilter::FilterEdgeLuma(int x, int y, Direction dir,
                                       int boundary_strength, int qp) {
-  std::shared_ptr<YuvPicture> src_pic = pic_data_->GetRecPic();
   YuvComponent luma = YuvComponent::kY;
-  Sample *src = src_pic->GetSamplePtr(luma, x, y);
-  ptrdiff_t src_stride = src_pic->GetStride(luma);
+  Sample *src = rec_pic_->GetSamplePtr(luma, x, y);
+  ptrdiff_t src_stride = rec_pic_->GetStride(luma);
   ptrdiff_t offset;
   ptrdiff_t step_size;
 
@@ -221,7 +220,7 @@ void DeblockingFilter::FilterEdgeLuma(int x, int y, Direction dir,
     }
 
     int index_tc = util::Clip3(qp + tc_offset_ + 2 * (boundary_strength - 1), 0,
-                               static_cast<int>(kTcTable.size()));
+                               static_cast<int>(kTcTable.size()) - 1);
     int tc = kTcTable[index_tc] << bitdepth_shift;
 
     // Check if strong filtering should be applied.
@@ -339,11 +338,10 @@ void DeblockingFilter::FilterLumaStrong(Sample* src, ptrdiff_t step_size,
 void DeblockingFilter::FilterEdgeChroma(int x, int y, int scale_x, int scale_y,
                                         Direction dir, int boundary_strength,
                                         int qp) {
-  std::shared_ptr<YuvPicture> src_pic = pic_data_->GetRecPic();
   for (int i = 1; i < constants::kMaxYuvComponents; i++) {
     YuvComponent comp = YuvComponent(i);
-    Sample *src = src_pic->GetSamplePtr(comp, x, y);
-    ptrdiff_t src_stride = src_pic->GetStride(comp);
+    Sample *src = rec_pic_->GetSamplePtr(comp, x, y);
+    ptrdiff_t src_stride = rec_pic_->GetStride(comp);
     ptrdiff_t offset;
     ptrdiff_t step_size;
 

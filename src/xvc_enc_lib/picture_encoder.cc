@@ -25,7 +25,9 @@ PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
   orig_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
                                          bitdepth, false)),
   pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
-                                          bitdepth)) {
+                                          bitdepth)),
+  rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
+                                        bitdepth, true)) {
 }
 
 std::vector<uint8_t>*
@@ -50,24 +52,31 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   entropy_encoder.Start();
   SyntaxWriter writer(qp, pic_data_->GetPredictionType(), &entropy_encoder);
   std::unique_ptr<CuEncoder> cu_encoder(
-    new CuEncoder(qp, *orig_pic_, pic_data_->GetRecPic().get(),
-                  pic_data_.get()));
+    new CuEncoder(qp, *orig_pic_, rec_pic_.get(), pic_data_.get()));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
     cu_encoder->EncodeCtu(rsaddr, &writer);
   }
   if (pic_data_->GetDeblock()) {
-    DeblockingFilter deblocker(pic_data_.get(), pic_data_->GetBetaOffset(),
+    DeblockingFilter deblocker(pic_data_.get(), rec_pic_.get(),
+                               pic_data_->GetBetaOffset(),
                                pic_data_->GetTcOffset());
     deblocker.DeblockPicture();
   }
   entropy_encoder.EncodeBinTrm(1);
   entropy_encoder.Finish();
-
   WriteChecksum(&bit_writer_);
-  pic_data_->GetRecPic()->PadBorder();
+
+  rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   return bit_writer_.GetBytes();
+}
+
+std::shared_ptr<YuvPicture>
+PictureEncoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
+                                     int height, int bitdepth) const {
+  assert(0);
+  return std::shared_ptr<YuvPicture>();
 }
 
 void PictureEncoder::WriteHeader(const PictureData &pic_data,
@@ -92,7 +101,7 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
 
 void PictureEncoder::WriteChecksum(BitWriter *bit_writer) {
   checksum_.Clear();
-  checksum_.HashPicture(*(pic_data_->GetRecPic()));
+  checksum_.HashPicture(*rec_pic_);
   std::vector<uint8_t> hash = checksum_.GetHash();
   assert(hash.size() < UINT8_MAX);
   bit_writer->WriteByte(static_cast<uint8_t>(hash.size()));

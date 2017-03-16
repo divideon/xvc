@@ -14,7 +14,6 @@
 #include "xvc_common_lib/reference_picture_lists.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/utils.h"
-#include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc {
 
@@ -35,10 +34,6 @@ public:
   // General
   PicturePredictionType GetPredictionType() const;
   const QP* GetPicQp() const { return pic_qp_.get(); }
-  std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
-  std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
-  std::shared_ptr<YuvPicture> GetAlternativeRecPic(
-    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
   bool IsIntraPic() const {
     return GetPredictionType() == PicturePredictionType::kIntra;
   }
@@ -118,8 +113,6 @@ private:
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void ReleaseSubCuRecursively(CodingUnit *cu) const;
 
-  std::shared_ptr<YuvPicture> rec_pic_;
-  std::shared_ptr<YuvPicture> alt_rec_pic_;
   std::vector<CodingUnit*> ctu_list_;
   std::vector<CodingUnit*> cu_pic_table_;
   ptrdiff_t cu_pic_stride_;

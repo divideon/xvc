@@ -9,6 +9,7 @@
 
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc {
 
@@ -19,9 +20,10 @@ enum class Direction {
 
 class DeblockingFilter {
 public:
-  explicit DeblockingFilter(PictureData *pic_data, int beta_offset,
-                            int tc_offset) :
+  explicit DeblockingFilter(PictureData *pic_data, YuvPicture *rec_pic,
+                            int beta_offset, int tc_offset) :
     pic_data_(pic_data),
+    rec_pic_(rec_pic),
     beta_offset_(beta_offset),
     tc_offset_(tc_offset) {
   }
@@ -46,6 +48,7 @@ private:
                     ptrdiff_t offset, int tc2);
 
   PictureData *pic_data_;
+  YuvPicture *rec_pic_;
   int beta_offset_ = 0;
   int tc_offset_ = 0;
 };

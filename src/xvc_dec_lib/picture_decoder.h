@@ -28,16 +28,23 @@ public:
                           int height, int bitdepth);
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
+  std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
+  std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
+
   void DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                     PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
                     SegmentNum soc, int num_buffered_nals);
   bool Decode(BitReader *bit_reader, PicNum sub_gop_length);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
+  std::shared_ptr<YuvPicture> GetAlternativeRecPic(
+    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
 
 private:
   bool ValidateChecksum(BitReader *bit_reader);
 
   std::shared_ptr<PictureData> pic_data_;
+  std::shared_ptr<YuvPicture> rec_pic_;
+  std::shared_ptr<YuvPicture> alt_rec_pic_;
   Checksum checksum_;
   int first_peek_;
   int pic_qp_ = -1;

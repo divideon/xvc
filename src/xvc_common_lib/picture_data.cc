@@ -7,27 +7,22 @@
 #include "xvc_common_lib/picture_data.h"
 
 #include <cassert>
-#include <fstream>
-
 
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/common.h"
-#include "xvc_common_lib/resample.h"
 #include "xvc_common_lib/restrictions.h"
-
+#include "xvc_common_lib/utils.h"
 
 namespace xvc {
 
 PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
                          int bitdepth)
-  : rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
-                                          bitdepth, true)),
-  pic_width_(width),
+  : pic_width_(width),
   pic_height_(height),
   bitdepth_(bitdepth),
   chroma_fmt_(chroma_format),
-  chroma_shift_x_(rec_pic_->GetSizeShiftX(YuvComponent::kU)),
-  chroma_shift_y_(rec_pic_->GetSizeShiftY(YuvComponent::kU)),
+  chroma_shift_x_(util::GetChromaShiftX(chroma_format)),
+  chroma_shift_y_(util::GetChromaShiftY(chroma_format)),
   ctu_num_x_((pic_width_ + constants::kCtuSize - 1) /
              constants::kCtuSize),
   ctu_num_y_((pic_height_ + constants::kCtuSize - 1) /
@@ -69,40 +64,6 @@ void PictureData::Init(const QP &pic_qp) {
     ref_pic_lists_.GetRefPicType(tmvp_ref_list_inv_, tmvp_ref_idx_);
   tmvp_valid_ = pic_type == PicturePredictionType::kUni ||
     pic_type == PicturePredictionType::kBi;
-}
-
-std::shared_ptr<YuvPicture>
-PictureData::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
-                                  int height, int bitdepth) const {
-  if (alt_rec_pic_)
-    return alt_rec_pic_;
-  auto alt_rec_pic =
-    std::make_shared<YuvPicture>(chroma_format, width, height, bitdepth, true);
-  for (int c = 0; c < util::GetNumComponents(chroma_format); c++) {
-    YuvComponent comp = YuvComponent(c);
-    uint8_t* dst =
-      reinterpret_cast<uint8_t*>(alt_rec_pic->GetSamplePtr(comp, 0, 0));
-    if (rec_pic_->GetChromaFormat() == ChromaFormat::kMonochrome &&
-        comp != YuvComponent::kY) {
-      std::memset(dst, 1 << (alt_rec_pic->GetBitdepth() - 1),
-                  alt_rec_pic->GetStride(comp) *
-                  alt_rec_pic->GetHeight(comp) * sizeof(Sample));
-      continue;
-    }
-    uint8_t* src =
-      reinterpret_cast<uint8_t*>(rec_pic_->GetSamplePtr(comp, 0, 0));
-    resample::Resample<Sample, Sample>
-      (dst, alt_rec_pic->GetWidth(comp), alt_rec_pic->GetHeight(comp),
-       alt_rec_pic->GetStride(comp), alt_rec_pic->GetBitdepth(),
-       src, rec_pic_->GetWidth(comp), rec_pic_->GetHeight(comp),
-       rec_pic_->GetStride(comp), rec_pic_->GetBitdepth());
-  }
-  alt_rec_pic->PadBorder();
-  // TODO(PH) Revise const_cast by making this function a pure getter?
-  // In the future alternate pictures should probably be created
-  // beforehand in a separate thread as this can be quite time consuming
-  const_cast<PictureData*>(this)->alt_rec_pic_ = alt_rec_pic;
-  return alt_rec_pic;
 }
 
 CodingUnit* PictureData::SetCtu(int rsaddr, CodingUnit *cu) {
