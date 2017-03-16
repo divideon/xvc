@@ -29,14 +29,18 @@ PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
 }
 
 std::vector<uint8_t>*
-PictureEncoder::Encode(int segment_qp, PicNum sub_gop_length, int buffer_flag,
+PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
+                       PicNum sub_gop_length, int buffer_flag,
                        bool flat_lambda) {
   int lambda_sub_gop_length =
-    !flat_lambda ? static_cast<int>(sub_gop_length) : 1;
+    !flat_lambda ? static_cast<int>(segment.max_sub_gop_length) : 1;
+  int lambda_max_tid = SegmentHeader::GetMaxTid(lambda_sub_gop_length);
   int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
   int pic_qp = DerivePictureQp(*pic_data_, segment_qp);
-  QP qp(pic_qp, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
-        pic_data_->GetBitdepth(), lambda_sub_gop_length, lambda_pic_tid);
+  double lambda =
+    QP::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
+                        lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid);
+  QP qp(pic_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(), lambda);
   pic_data_->Init(qp);
 
   bit_writer_.Clear();

@@ -23,10 +23,8 @@ namespace {
 class ResidualCoding : public ::testing::TestWithParam<int> {
 protected:
   void SetUp() override {
-    int sub_gop_length = 8;
-    int temporal_id = 1;
-    qp_.reset(new xvc::QP(32, chroma_format, pic_type, bitdepth, sub_gop_length,
-                         temporal_id));
+    double lambda = 0;
+    qp_.reset(new xvc::QP(32, chroma_format, bitdepth, lambda));
     enc_coeff.fill(0);
     dec_coeff.fill(0xff);
   }

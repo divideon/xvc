@@ -27,22 +27,36 @@ const int QP::kInvQuantScales_[kNumScalingListRem_] = {
   40, 45, 51, 57, 64, 72
 };
 
-QP::QP(int qp, ChromaFormat chroma_format, PicturePredictionType pic_type,
-       int bitdepth, int sub_gop_length, int temporal_id, int chroma_offset)
-  : qp_raw_({ qp,
-            GetChromaQP(qp + chroma_offset, chroma_format, bitdepth),
-            GetChromaQP(qp + chroma_offset, chroma_format, bitdepth) }),
-  qp_bitdepth_({ qp_raw_[0] + kNumScalingListRem_ * (bitdepth - 8),
-                 qp_raw_[1] + kNumScalingListRem_ * (bitdepth - 8),
-                 qp_raw_[2] + kNumScalingListRem_ * (bitdepth - 8) }),
-  distortion_weight_({ 1.0,
-                     GetChromaDistWeight(qp + chroma_offset, chroma_format),
-                     GetChromaDistWeight(qp + chroma_offset, chroma_format) }) {
-  lambda_ = CalculateLambda(qp, pic_type, sub_gop_length, temporal_id);
-  lambda_sqrt_ = std::sqrt(lambda_);
+QP::QP(int qp_unscaled, ChromaFormat chroma_format, int bitdepth, double lambda,
+       int chroma_offset)
+  : lambda_(lambda),
+  lambda_sqrt_(std::sqrt(lambda)) {
+  int qp = ScaleLumaQP(qp_unscaled, bitdepth, lambda);
+  qp_raw_[0] = qp;
+  qp_raw_[1] = ScaleChromaQP(qp + chroma_offset, chroma_format, bitdepth);
+  qp_raw_[2] = ScaleChromaQP(qp + chroma_offset, chroma_format, bitdepth);
+  qp_bitdepth_[0] = qp_raw_[0] + kNumScalingListRem_ * (bitdepth - 8);
+  qp_bitdepth_[1] = qp_raw_[1] + kNumScalingListRem_ * (bitdepth - 8);
+  qp_bitdepth_[2] = qp_raw_[2] + kNumScalingListRem_ * (bitdepth - 8);
+  distortion_weight_[0] = 1.0;
+  distortion_weight_[1] =
+    GetChromaDistWeight(qp + chroma_offset, chroma_format);
+  distortion_weight_[2] =
+    GetChromaDistWeight(qp + chroma_offset, chroma_format);
 }
 
-int QP::GetChromaQP(int qp, ChromaFormat chroma_format, int bitdepth) {
+int QP::ScaleLumaQP(int qp, int bitdepth, double lambda) {
+  if (lambda == 0) {
+    return qp;
+  }
+  int qp_temp = qp - 12;
+  double lambda_ref = 0.57 * std::pow(2.0, qp_temp / 3.0);
+  int qp_offset = static_cast<int>(
+    std::floor((3.0 * log(lambda / lambda_ref) / log(2.0)) + 0.5));
+  return qp + qp_offset;
+}
+
+int QP::ScaleChromaQP(int qp, ChromaFormat chroma_format, int bitdepth) {
   int chroma_qp = util::Clip3(qp, 0, kChromaQpMax_);
   if (chroma_format == ChromaFormat::k420) {
     chroma_qp = kChromaScale_[chroma_qp];
@@ -60,15 +74,33 @@ double QP::GetChromaDistWeight(int qp, ChromaFormat chroma_format) {
 }
 
 double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
-                           int sub_gop_length, int temporal_id) {
+                           int sub_gop_length, int temporal_id,
+                           int max_temporal_id) {
   int qp_temp = qp - 12;
-  double bframe_factor =
+  double lambda = std::pow(2.0, qp_temp / 3.0);
+  double pic_type_factor =
+    pic_type == PicturePredictionType::kIntra ? 0.57 : 0.68;
+  double subgop_factor =
     1.0 - util::Clip3(0.05 * (sub_gop_length - 1), 0.0, 0.5);
-  double qp_factor =
-    pic_type == PicturePredictionType::kIntra ? 0.57*bframe_factor : 1.0;
-  double gop_factor =
-    temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
-  return qp_factor * gop_factor * std::pow(2.0, qp_temp / 3.0);
+  double hierarchical_factor = 1;
+  if (temporal_id > 0 && temporal_id == max_temporal_id) {
+    subgop_factor = 1.0;
+    hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+  } else if (temporal_id > 0) {
+    hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+    hierarchical_factor *= 0.8;
+  }
+#if HM_STRICT
+  if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra) {
+    static const std::array<double, 5> temporal_factor = { {
+        0.6, 0.2, 0.33, 0.33, 0.4
+    } };
+    hierarchical_factor =
+      temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+    return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+  }
+#endif
+  return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
 }
 
 int Quantize::Forward(YuvComponent comp, const QP &qp, int shift, int offset,

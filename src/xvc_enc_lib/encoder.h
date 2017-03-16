@@ -40,8 +40,8 @@ public:
   }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
   void SetFramerate(double rate) { framerate_ = rate; }
-  void SetSubGopLength(PicNum length) {
-    segment_header_.max_sub_gop_length = length;
+  void SetSubGopLength(PicNum sub_gop_length) {
+    segment_header_.max_sub_gop_length = sub_gop_length;
   }
   void SetPicBufferingNum(int num) { pic_buffering_num_ = num; }
   void SetSegmentLength(PicNum length) { segment_length_ = length; }
@@ -56,7 +56,8 @@ public:
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
 
 private:
-  void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
+  void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
+                        PicNum sub_gop_length);
   void ReconstructOnePicture(bool output_rec,
                              xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();

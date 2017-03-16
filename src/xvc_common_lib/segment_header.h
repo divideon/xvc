@@ -18,14 +18,20 @@ struct SegmentHeader {
                                PicNum sub_gop_start_poc_);
   static int CalcTidFromDoc(PicNum doc, PicNum sub_gop_length,
                             PicNum sub_gop_start_poc_);
-  static int GetMaxTid(int decoder_ticks, int bitstream_ticks,
-                       PicNum sub_gop_length);
+  static int GetMaxTid(PicNum sub_gop_length);
+  static int GetFramerateMaxTid(int decoder_ticks, int bitstream_ticks,
+                                PicNum sub_gop_length);
   static double GetFramerate(int max_tid, int bitstream_ticks,
                              PicNum sub_gop_length);
+
+  SegmentHeader() = default;
+  SegmentHeader(int width, int height, int internal_bitdepth,
+                ChromaFormat chroma_format, PicNum sub_gop_length);
 
   int codec_identifier = -1;
   int major_version = -1;
   int minor_version = -1;
+  SegmentNum soc = static_cast<SegmentNum>(-1);
   int pic_width = 0;
   int pic_height = 0;
   ChromaFormat chroma_format = ChromaFormat::kUndefinedChromaFormat;
@@ -38,7 +44,6 @@ struct SegmentHeader {
   int tc_offset = 0;
   int num_ref_pic_r0 = 0;
   int num_ref_pic_r1 = 0;
-  SegmentNum soc = static_cast<SegmentNum>(-1);
 
 private:
   static PicNum DocToPoc(PicNum sub_gop_length, PicNum doc);

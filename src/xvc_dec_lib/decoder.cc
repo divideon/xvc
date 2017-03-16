@@ -59,7 +59,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     if (output_bitdepth_ == 0) {
       output_bitdepth_ = curr_segment_header_.internal_bitdepth;
     }
-    max_tid_ = SegmentHeader::GetMaxTid(decoder_ticks_,
+    max_tid_ = SegmentHeader::GetFramerateMaxTid(decoder_ticks_,
                                         curr_segment_header_.bitstream_ticks,
                                         sub_gop_length_);
 

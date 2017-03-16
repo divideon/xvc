@@ -68,9 +68,9 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
 }
 
 bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
-  QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
-        pic_data_->GetBitdepth(), static_cast<int>(sub_gop_length),
-        pic_data_->GetTid());
+  double lambda = 0;
+  QP qp(pic_qp_, pic_data_->GetChromaFormat(),  pic_data_->GetBitdepth(),
+        lambda);
   pic_data_->Init(qp);
 
   EntropyDecoder entropy_decoder(bit_reader);

@@ -21,8 +21,8 @@ public:
     return (is_intra_pic ? 171 : 85) << (shift_quant - 9);
   }
 
-  QP(int qp, ChromaFormat chroma_format, PicturePredictionType pic_type,
-     int bitdepth, int sub_gop_length, int temporal_id, int chroma_offset = 0);
+  QP(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
+     int chroma_offset = 0);
   bool operator<(const QP &qp) const {
     return qp_raw_[0] < qp.qp_raw_[0];
   }
@@ -48,16 +48,19 @@ public:
   double GetLambda() const { return lambda_; }
   double GetLambdaSqrt() const { return lambda_sqrt_; }
 
+  static double CalculateLambda(int qp, PicturePredictionType pic_type,
+                                int sub_gop_length, int temporal_id,
+                                int max_temporal_id);
+
 private:
   static const int kChromaQpMax_ = 57;
   static const uint8_t kChromaScale_[kChromaQpMax_ + 1];
   static const int kNumScalingListRem_ = 6;
   static const int kFwdQuantScales_[kNumScalingListRem_];
   static const int kInvQuantScales_[kNumScalingListRem_];
-  static int GetChromaQP(int qp, ChromaFormat chroma_format, int bitdepth);
+  static int ScaleLumaQP(int qp, int bitdepth, double lambda);
+  static int ScaleChromaQP(int qp, ChromaFormat chroma_format, int bitdepth);
   static double GetChromaDistWeight(int qp, ChromaFormat chroma_format);
-  static double CalculateLambda(int qp, PicturePredictionType pic_type,
-                                int sub_gop_length, int temporal_id);
 
   std::array<int, constants::kMaxYuvComponents> qp_raw_;
   std::array<int, constants::kMaxYuvComponents> qp_bitdepth_;

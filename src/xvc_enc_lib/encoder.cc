@@ -83,7 +83,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
 
 
   if (poc_ == 0) {
-    EncodeOnePicture(pic_enc);
+    EncodeOnePicture(pic_enc, segment_header_.max_sub_gop_length);
     doc_ = 0;
   }
 
@@ -94,7 +94,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
       // the one that has doc = this->doc_ + 1.
       for (auto &pic : pic_encoders_) {
         if (pic->GetPicData()->GetDoc() == doc_ + 1) {
-          EncodeOnePicture(pic);
+          EncodeOnePicture(pic, segment_header_.max_sub_gop_length);
         }
       }
     }
@@ -133,7 +133,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   // Check if there are pictures left to encode.
   if (doc_ < poc_) {
     // Use a smaller Sub Gop for the pictures that have not been encoded yet.
-    segment_header_.max_sub_gop_length = poc_ - doc_;
+    PicNum sub_gop_length = poc_ - doc_;
     buffer_flag_ = 0;
     // Recount doc and tid for the pictures to be encoded.
     for (auto &pic : pic_encoders_) {
@@ -141,21 +141,21 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
       if (pd->GetPoc() > doc_) {
         PicNum doc =
           SegmentHeader::CalcDocFromPoc(pd->GetPoc(),
-                                        segment_header_.max_sub_gop_length,
+                                        sub_gop_length,
                                         sub_gop_start_poc_);
         int tid =
-          SegmentHeader::CalcTidFromDoc(doc, segment_header_.max_sub_gop_length,
+          SegmentHeader::CalcTidFromDoc(doc, sub_gop_length,
                                         sub_gop_start_poc_);
         pd->SetDoc(doc);
         pd->SetTid(tid);
       }
     }
-    for (PicNum i = 0; i < segment_header_.max_sub_gop_length; i++) {
+    for (PicNum i = 0; i < sub_gop_length; i++) {
       // Find next picture to encode by searching for
       // the one that has doc = this->doc_ + 1.
       for (auto &pic : pic_encoders_) {
         if (pic->GetPicData()->GetDoc() == doc_ + 1) {
-          EncodeOnePicture(pic);
+          EncodeOnePicture(pic, sub_gop_length);
         }
       }
     }
@@ -174,7 +174,8 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   return static_cast<int>(nal_units_.size());
 }
 
-void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
+void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
+                               PicNum sub_gop_length) {
   // Check if current picture is a tail picture.
   // This means that it will be sent before the key picture of the
   // next segment and then be buffered in the decoder to be decoded after
@@ -188,7 +189,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
 
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> *pic_bytes =
-    pic->Encode(segment_qp_, segment_header_.max_sub_gop_length, bflag,
+    pic->Encode(segment_header_, segment_qp_, sub_gop_length, bflag,
                 flat_lambda_);
 
   // When a picture has been encoded the picture data is put into

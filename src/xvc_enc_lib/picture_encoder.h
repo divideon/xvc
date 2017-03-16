@@ -14,6 +14,7 @@
 #include "xvc_common_lib/checksum.h"
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/syntax_writer.h"
@@ -28,8 +29,9 @@ public:
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
-  std::vector<uint8_t>* Encode(int segment_qp, PicNum sub_gop_length,
-                               int buffer_flag, bool flat_lambda);
+  std::vector<uint8_t>* Encode(const SegmentHeader &segment, int segment_qp,
+                               PicNum sub_gop_length, int buffer_flag,
+                               bool flat_lambda);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
 
 private:

@@ -14,6 +14,7 @@
 #include "xvc_common_lib/checksum.h"
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_dec_lib/bit_reader.h"
 #include "xvc_dec_lib/syntax_reader.h"
