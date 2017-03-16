@@ -29,8 +29,8 @@ public:
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   void DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                     PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
-                    SegmentNum soc, PicNum num_buffered_nals);
-  bool Decode(BitReader *bit_reader, int segment_qp, PicNum sub_gop_length);
+                    SegmentNum soc, int num_buffered_nals);
+  bool Decode(BitReader *bit_reader, PicNum sub_gop_length);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
 
 private:
@@ -39,6 +39,7 @@ private:
   std::shared_ptr<PictureData> pic_data_;
   Checksum checksum_;
   int first_peek_;
+  int pic_qp_ = -1;
 };
 
 }   // namespace xvc

@@ -84,6 +84,7 @@ const int kQuantShift = 14;
 const int kIQuantShift = 20;
 const int kMinAllowedQp = -64;
 const int kMaxAllowedQp = 63;
+const int kQpSignalBase = 64;
 
 // Residual coding
 const int kMaxNumC1Flags = 8;

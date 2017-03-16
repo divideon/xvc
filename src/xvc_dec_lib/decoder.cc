@@ -28,7 +28,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
   if (nal_unit_type == NalUnitType::kSegmentHeader) {
     // If there are old nal units buffered that are not tail pictures,
     // they are discarded before decoding the new segment.
-    if (nal_buffer_.size() > num_tail_pics_) {
+    if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
       num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());
       nal_buffer_.clear();
       num_tail_pics_ = 0;
@@ -145,8 +145,7 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                                      pic_dec->GetPicData()->GetRefPicLists());
 
   // Decode the picture.
-  if (!pic_dec->Decode(&pic_bit_reader, segment_header->base_qp,
-                       sub_gop_length_)) {
+  if (!pic_dec->Decode(&pic_bit_reader, sub_gop_length_)) {
     num_corrupted_pics_++;
   }
   if (num_corrupted_pics_ == 1) {
@@ -167,7 +166,7 @@ void Decoder::DecodeAllBufferedNals() {
 void Decoder::FlushBufferedTailPics() {
   // Return if there are still Nal Units waiting
   // to be decoded.
-  if (nal_buffer_.size() > num_tail_pics_) {
+  if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
     return;
   }
   // Preparing to start a new segment
@@ -219,7 +218,7 @@ void Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
     reinterpret_cast<char *>(&output_pic_bytes_[0]);
   // Decrease counter for how many decoded pictures are buffered.
   num_pics_in_buffer_--;
-  if (nal_buffer_.size() > num_tail_pics_ &&
+  if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_) &&
       num_pics_in_buffer_ - nal_buffer_.size() < pic_buffering_num_) {
     auto nal = nal_buffer_.front();
     DecodeOneBufferedNal(nal);

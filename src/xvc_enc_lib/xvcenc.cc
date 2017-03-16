@@ -125,7 +125,8 @@ extern "C" {
     if (param->sub_gop_length == 0) {
       param->sub_gop_length = !param->all_intra ? 16 : 1;
     }
-    xvc::Encoder *encoder = new xvc::Encoder(param->internal_bitdepth);
+    xvc::Encoder *encoder =
+      new xvc::Encoder(param->internal_bitdepth, param->qp);
     encoder->SetResolution(param->width, param->height);
     encoder->SetChromaFormat(param->chroma_format);
     encoder->SetInputBitdepth(param->input_bitdepth);
@@ -133,7 +134,6 @@ extern "C" {
     encoder->SetSubGopLength(param->sub_gop_length);
     encoder->SetPicBufferingNum(param->sub_gop_length +
                                 xvc::constants::kMaxNumLongTermPics);
-    encoder->SetQP(param->qp);
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
     if (param->beta_offset != 0 || param->tc_offset != 0) {

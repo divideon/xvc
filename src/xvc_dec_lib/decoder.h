@@ -75,7 +75,7 @@ private:
   PicNum sliding_window_length_ = 0;
   PicNum pic_buffering_num_ = 0;
   PicNum sub_gop_length_ = 0;
-  PicNum num_tail_pics_ = 0;
+  int num_tail_pics_ = 0;
   int output_width_ = 0;
   int output_height_ = 0;
   ChromaFormat output_chroma_format_ = ChromaFormat::kUndefinedChromaFormat;

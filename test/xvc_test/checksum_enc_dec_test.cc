@@ -45,13 +45,13 @@ protected:
 
   bool DecodePicture(const std::vector<uint8_t> &bitstream) {
     xvc::PicNum sub_gop_end_poc, sub_gop_start_poc, sub_gop_length;
-    xvc::PicNum num_buffered_nals = 0;
+    int num_buffered_nals = 0;
     xvc::SegmentNum soc = 0;
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
     pic_decoder_->DecodeHeader(&bit_reader, &sub_gop_end_poc,
                                &sub_gop_start_poc, &sub_gop_length, soc,
                                num_buffered_nals);
-    return pic_decoder_->Decode(&bit_reader, base_qp_, sub_gop_length);
+    return pic_decoder_->Decode(&bit_reader, sub_gop_length);
   }
 
   xvc::ChromaFormat chroma_format_ = xvc::ChromaFormat::k420;

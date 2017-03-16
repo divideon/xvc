@@ -31,7 +31,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     return Decoder::State::kBitstreamBitdepthTooHigh;
   }
   segment_header->bitstream_ticks = bit_reader->ReadBits(24);
-  segment_header->base_qp = bit_reader->ReadBits(7) - 64;
   segment_header->max_sub_gop_length = bit_reader->ReadBits(8);
 
   bit_reader->ReadBit();  // shorter_sub_gops_allowed

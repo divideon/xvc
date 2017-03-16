@@ -32,7 +32,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
                                   PicNum *sub_gop_start_poc,
                                   PicNum *sub_gop_length,
                                   SegmentNum soc,
-                                  PicNum num_buffered_nals) {
+                                  int num_buffered_nals) {
   // Start by reading the picture header data
   uint32_t header = bit_reader->ReadBits(8);
   NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
@@ -63,13 +63,12 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     *sub_gop_start_poc = *sub_gop_end_poc;
     *sub_gop_end_poc = pic_data_->GetPoc();
   }
+  pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bit_reader->SkipBits();
 }
 
-bool PictureDecoder::Decode(BitReader *bit_reader, int segment_qp,
-                            PicNum sub_gop_length) {
-  int pic_qp = pic_data_->DerivePictureQp(segment_qp);
-  QP qp(pic_qp, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
+bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
+  QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
         pic_data_->GetBitdepth(), static_cast<int>(sub_gop_length),
         pic_data_->GetTid());
   pic_data_->Init(qp);

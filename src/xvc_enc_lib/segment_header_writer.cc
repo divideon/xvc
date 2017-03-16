@@ -27,7 +27,6 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   bit_writer->WriteBits(segment_header->internal_bitdepth - 8, 4);
   bit_writer->WriteBits(static_cast<uint32_t>(constants::kTimeScale
                                               / framerate), 24);
-  bit_writer->WriteBits(segment_header->base_qp + 64, 7);
   bit_writer->WriteBits(
     static_cast<uint32_t>(segment_header->max_sub_gop_length), 8);
   bit_writer->WriteBit(1);  // shorter_sub_gops_allowed

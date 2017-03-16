@@ -70,13 +70,6 @@ void PictureData::Init(const QP &pic_qp) {
     pic_type == PicturePredictionType::kBi;
 }
 
-int PictureData::DerivePictureQp(int segment_qp) const {
-  if (GetPredictionType() == PicturePredictionType::kIntra) {
-    return segment_qp;
-  }
-  return segment_qp + tid_ + 1;
-}
-
 std::shared_ptr<YuvPicture>
 PictureData::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
                                   int height, int bitdepth) const {

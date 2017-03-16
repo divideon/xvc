@@ -35,7 +35,6 @@ public:
   // General
   PicturePredictionType GetPredictionType() const;
   const QP* GetPicQp() const { return pic_qp_.get(); }
-  int DerivePictureQp(int segment_qp) const;
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(

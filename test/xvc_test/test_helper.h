@@ -53,8 +53,9 @@ public:
 class EncoderHelper {
 protected:
   virtual void SetUp() {
-    encoder_ = new ::xvc::Encoder(8);
+    encoder_ = new ::xvc::Encoder(8, qp_);
     encoder_->SetChromaFormat(XVC_ENC_CHROMA_FORMAT_420);
+    encoder_->SetFramerate(30);
     encoder_->SetResolution(0, 0);
     encoder_->SetDeblock(1);
   }
@@ -80,6 +81,7 @@ protected:
     nal_units_.insert(nal_units_.end(), nal_units, nal_units + num_nals);
   }
 
+  static const int qp_ = 32;
   ::xvc::Encoder *encoder_;
   std::vector<xvc_enc_nal_unit> nal_units_;
 };

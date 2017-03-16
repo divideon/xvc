@@ -25,11 +25,12 @@ namespace xvc {
 
 class Encoder : public xvc_encoder {
 public:
-  explicit Encoder(int internal_bitdepth) {
+  Encoder(int internal_bitdepth, int base_qp) {
     segment_header_.codec_identifier = constants::kXvcCodecIdentifier;
     segment_header_.major_version = constants::kXvcMajorVersion;
     segment_header_.minor_version = constants::kXvcMinorVersion;
     segment_header_.internal_bitdepth = internal_bitdepth;
+    segment_header_.base_qp = base_qp;
   }
   int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
              bool output_rec, xvc_enc_pic_buffer *rec_pic);
@@ -53,7 +54,7 @@ public:
   void SetClosedGopInterval(PicNum interval) {
     closed_gop_interval_ = interval;
   }
-  void SetQP(int qp) { segment_header_.base_qp = qp; }
+  void SetQP(int qp) { segment_qp_ = qp; }
   void SetDeblock(int deblock) { segment_header_.deblock = deblock; }
   void SetBetaOffset(int offset) { segment_header_.beta_offset = offset; }
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
@@ -84,6 +85,7 @@ private:
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   bool all_intra_ = false;
   bool flat_lambda_ = false;
+  int segment_qp_ = -1;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter bit_writer_;

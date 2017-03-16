@@ -13,6 +13,7 @@
 
 #include "xvc_common_lib/deblocking_filter.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_common_lib/utils.h"
 #include "xvc_enc_lib/cu_encoder.h"
 #include "xvc_enc_lib/entropy_encoder.h"
 
@@ -30,16 +31,16 @@ PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
 std::vector<uint8_t>*
 PictureEncoder::Encode(int segment_qp, PicNum sub_gop_length, int buffer_flag,
                        bool flat_lambda) {
-  bit_writer_.Clear();
-  WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
-
   int lambda_sub_gop_length =
     !flat_lambda ? static_cast<int>(sub_gop_length) : 1;
   int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
-  int pic_qp = pic_data_->DerivePictureQp(segment_qp);
+  int pic_qp = DerivePictureQp(*pic_data_, segment_qp);
   QP qp(pic_qp, pic_data_->GetChromaFormat(), pic_data_->GetPredictionType(),
         pic_data_->GetBitdepth(), lambda_sub_gop_length, lambda_pic_tid);
   pic_data_->Init(qp);
+
+  bit_writer_.Clear();
+  WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
 
   EntropyEncoder entropy_encoder(&bit_writer_);
   entropy_encoder.Start();
@@ -79,6 +80,9 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
       bit_writer->WriteBits(static_cast<uint32_t>(sub_gop_length), 7);
     }
   }
+  int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
+  assert(pic_qp + constants::kQpSignalBase < (1 << 7));
+  bit_writer->WriteBits(pic_qp + constants::kQpSignalBase, 7);
   bit_writer->PadZeroBits();
 }
 
@@ -89,6 +93,16 @@ void PictureEncoder::WriteChecksum(BitWriter *bit_writer) {
   assert(hash.size() < UINT8_MAX);
   bit_writer->WriteByte(static_cast<uint8_t>(hash.size()));
   bit_writer->WriteBytes(&hash[0], hash.size());
+}
+
+int PictureEncoder::DerivePictureQp(const PictureData &pic_data,
+                                    int segment_qp) const {
+  int pic_qp = segment_qp;
+  if (pic_data.GetPredictionType() != PicturePredictionType::kIntra) {
+    pic_qp = segment_qp + pic_data.GetTid() + 1;
+  }
+  return util::Clip3(pic_qp, constants::kMinAllowedQp,
+                     constants::kMaxAllowedQp);
 }
 
 }   // namespace xvc
