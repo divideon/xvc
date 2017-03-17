@@ -126,8 +126,8 @@ extern "C" {
     if (lib_decoder->GetState() == xvc::Decoder::State::kNoSegmentHeader) {
       return XVC_DEC_NO_SEGMENT_HEADER_DECODED;
     }
-    if (lib_decoder->HasPictureReadyForOutput()) {
-      lib_decoder->GetDecodedPicture(pic_bytes);
+    if (lib_decoder->HasPictureReadyForOutput() &&
+        lib_decoder->GetDecodedPicture(pic_bytes)) {
       return XVC_DEC_OK;
     } else {
       return XVC_DEC_NO_DECODED_PIC;
@@ -142,8 +142,8 @@ extern "C" {
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
     if (lib_decoder->GetNumDecodedPics() > 0) {
       lib_decoder->FlushBufferedTailPics();
-      lib_decoder->GetDecodedPicture(pic_bytes);
-      return XVC_DEC_OK;
+      return lib_decoder->GetDecodedPicture(pic_bytes) ?
+        XVC_DEC_OK : XVC_DEC_NO_DECODED_PIC;
     } else {
       return XVC_DEC_NO_DECODED_PIC;
     }

@@ -13,15 +13,17 @@ namespace {
 class BitstreamVersioningTest : public ::xvc_test::EncoderDecoderHelper {
 public:
   bool Run(int major_version, int minor_version) {
-    EncodeFirstFrame(0, 0);
+    encoder_->SetResolution(0, 0);
+    EncodeFirstFrame();
     // Rewrite version directly in bitstream
-    uint8_t *segment_header = nal_units_[0].bytes;
+    auto nal = encoded_nal_units_[0];
+    uint8_t *segment_header = &nal[0];
     segment_header++;   // nal_header (1 byte)
     segment_header[3] = (major_version >> 8) & 0xFF;
     segment_header[4] = (major_version >> 0) & 0xFF;
     segment_header[5] = (minor_version >> 8) & 0xFF;
     segment_header[6] = (minor_version >> 0) & 0xFF;
-    return decoder_->DecodeNal(nal_units_[0].bytes, nal_units_[0].size);
+    return decoder_->DecodeNal(&nal[0], nal.size());
   }
 };
 

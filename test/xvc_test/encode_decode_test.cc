@@ -15,8 +15,8 @@ namespace {
 class EncodeDecodeTest : public ::xvc_test::EncoderDecoderHelper {
 protected:
   void EncodeDecode(int width, int height) {
-    EncodeFirstFrame(width, height);
-    DecodeSegmentHeader(nal_units_[0]);
+    EncodeFirstFrame();
+    DecodeSegmentHeader(encoded_nal_units_[0]);
     DecodeFirstPictureSuccess();
   }
 };

@@ -37,7 +37,7 @@ public:
 
   bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size);
   void DecodeOneBufferedNal(const std::vector<uint8_t> &nal);
-  void GetDecodedPicture(xvc_decoded_picture *dec_pic);
+  bool GetDecodedPicture(xvc_decoded_picture *dec_pic);
   void FlushBufferedTailPics();
   PicNum GetNumDecodedPics() { return num_pics_in_buffer_; }
   PicNum HasPictureReadyForOutput() {

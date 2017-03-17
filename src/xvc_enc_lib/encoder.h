@@ -30,6 +30,7 @@ public:
              bool output_rec, xvc_enc_pic_buffer *rec_pic);
   int Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
             xvc_enc_pic_buffer *rec_pic);
+  const SegmentHeader* GetCurrentSegment() const { return &segment_header_; }
 
   void SetResolution(int width, int height) {
     segment_header_.pic_width = width;

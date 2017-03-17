@@ -164,6 +164,7 @@
     <ClCompile Include="bitstream_versioning_test.cc" />
     <ClCompile Include="checksum_enc_dec_test.cc" />
     <ClCompile Include="decoder_api_test.cc" />
+    <ClCompile Include="decoder_resample_test.cc" />
     <ClCompile Include="encoder_api_test.cc" />
     <ClCompile Include="encode_decode_test.cc" />
     <ClCompile Include="residual_coding_test.cc" />
