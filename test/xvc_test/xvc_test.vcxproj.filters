@@ -32,6 +32,9 @@
     <ClCompile Include="checksum_enc_dec_test.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="residual_coding_test.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\googletest\include\gtest\gtest.h">

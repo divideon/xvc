@@ -166,6 +166,7 @@
     <ClCompile Include="decoder_api_test.cc" />
     <ClCompile Include="encoder_api_test.cc" />
     <ClCompile Include="encode_decode_test.cc" />
+    <ClCompile Include="residual_coding_test.cc" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\xvc_common_lib\xvc_common_lib.vcxproj">
