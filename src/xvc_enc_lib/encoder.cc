@@ -18,6 +18,14 @@
 
 namespace xvc {
 
+Encoder::Encoder(int internal_bitdepth, int base_qp)
+  : segment_qp_(base_qp) {
+  segment_header_.codec_identifier = constants::kXvcCodecIdentifier;
+  segment_header_.major_version = constants::kXvcMajorVersion;
+  segment_header_.minor_version = constants::kXvcMinorVersion;
+  segment_header_.internal_bitdepth = internal_bitdepth;
+}
+
 int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
                     bool output_rec, xvc_enc_pic_buffer *rec_pic) {
   nal_units_.clear();

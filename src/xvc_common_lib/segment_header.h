@@ -31,7 +31,6 @@ struct SegmentHeader {
   ChromaFormat chroma_format = ChromaFormat::kUndefinedChromaFormat;
   int internal_bitdepth = -1;
   int bitstream_ticks = 0;
-  int base_qp = -1;
   PicNum max_sub_gop_length = 0;
   bool open_gop = false;
   int deblock = -1;
