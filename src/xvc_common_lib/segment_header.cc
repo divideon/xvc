@@ -227,7 +227,7 @@ PicNum SegmentHeader::PocToDoc(PicNum sub_gop_length, PicNum poc) {
     return kPocToDoc64[poc];
   } else if (poc == 0) {
     return 0;
-  } else if (static_cast<int>(poc) == sub_gop_length) {
+  } else if (poc == sub_gop_length) {
     return 1;
   } else {
     return poc + 1;

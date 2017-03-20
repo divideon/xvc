@@ -383,8 +383,8 @@ void InterPrediction::ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
   const int mvshift = constants::kMvPrecisionShift;
   int pos_x = cu.GetPosX(comp);
   int pos_y = cu.GetPosY(comp);
-  int pic_min_x = (-constants::kMaxBlockSize - offset - pos_x + 1) << mvshift;
-  int pic_min_y = (-constants::kMaxBlockSize - offset - pos_y + 1) << mvshift;
+  int pic_min_x = -((constants::kMaxBlockSize + offset + pos_x - 1) << mvshift);
+  int pic_min_y = -((constants::kMaxBlockSize + offset + pos_y - 1) << mvshift);
   int pic_max_x = (ref_pic.GetWidth(comp) + offset - pos_x - 1) << mvshift;
   int pic_max_y = (ref_pic.GetHeight(comp) + offset - pos_y - 1) << mvshift;
   *mv_x = util::Clip3(*mv_x, pic_min_x, pic_max_x);

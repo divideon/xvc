@@ -371,15 +371,15 @@ InterSearch::TZSearch(const CodingUnit &cu, const QP &qp,
 
   // Check MV from previous CU search (can be either same or a different size)
   if (cu.GetDepth() != 0) {
-    int prev_subpel_x = prev_search.x << constants::kMvPrecisionShift;
-    int prev_subpel_y = prev_search.y << constants::kMvPrecisionShift;
+    int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
+    int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
     ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);
     MotionVector prev_fullpel(prev_subpel_x >> constants::kMvPrecisionShift,
                               prev_subpel_y >> constants::kMvPrecisionShift);
     change_min_max |= CheckCostBest(&state, prev_fullpel.x, prev_fullpel.y);
     if (change_min_max) {
-      int best_subpel_x = state.mv_best.x << constants::kMvPrecisionShift;
-      int best_subpel_y = state.mv_best.y << constants::kMvPrecisionShift;
+      int best_subpel_x = state.mv_best.x * (1 << constants::kMvPrecisionShift);
+      int best_subpel_y = state.mv_best.y * (1 << constants::kMvPrecisionShift);
       DetermineMinMaxMv(cu, ref_pic, best_subpel_x, best_subpel_y,
                         kSearchRangeUni, &fullsearch_min, &fullsearch_max);
     }
@@ -527,8 +527,8 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const QP &qp,
   SampleMetric metric = SampleMetric(MetricType::kSATD, qp, bitdepth_);
   uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
-  MotionVector mv_subpel(mv_fullpel.x << constants::kMvPrecisionShift,
-                         mv_fullpel.y << constants::kMvPrecisionShift);
+  MotionVector mv_subpel(mv_fullpel.x * (1 << constants::kMvPrecisionShift),
+                         mv_fullpel.y * (1 << constants::kMvPrecisionShift));
   Distortion best_cost = std::numeric_limits<Distortion>::max();
   int best_idx = 0;
 
@@ -720,8 +720,8 @@ Bits InterSearch::GetMvpBits(int mvp_idx, int num_mvp) {
 
 Bits InterSearch::GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
                              int mv_scale) {
-  int mvd_x = (mv_x << mv_scale) - mvp.x;
-  int mvd_y = (mv_y << mv_scale) - mvp.y;
+  int mvd_x = (mv_x * (1 << mv_scale)) - mvp.x;
+  int mvd_y = (mv_y * (1 << mv_scale)) - mvp.y;
   return GetNumExpGolombBits(mvd_x) + GetNumExpGolombBits(mvd_y);
 }
 

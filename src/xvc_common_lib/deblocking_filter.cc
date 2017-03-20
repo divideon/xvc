@@ -372,7 +372,7 @@ void DeblockingFilter::FilterChroma(Sample* src, ptrdiff_t step_size,
     Sample q0 = src[0];
     Sample q1 = src[offset];
 
-    int delta = util::Clip3((((q0 - p0) << 2) + p1 - q1 + 4) >> 3, -tc, tc);
+    int delta = util::Clip3((((q0 - p0) * 4) + p1 - q1 + 4) >> 3, -tc, tc);
     src[-offset] = util::ClipBD(p0 + delta, sample_max);
     src[0] = util::ClipBD(q0 - delta, sample_max);
     src += step_size;
