@@ -61,12 +61,14 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(1);  // inter_restrictions
     bit_writer->WriteBit(restr.disable_inter_mvp);
     bit_writer->WriteBit(restr.disable_inter_scaling_mvp);
+    bit_writer->WriteBit(restr.disable_inter_tmvp_merge);
     bit_writer->WriteBit(restr.disable_inter_merge_candidates);
     bit_writer->WriteBit(restr.disable_inter_merge_mode);
+    bit_writer->WriteBit(restr.disable_inter_merge_bipred);
     bit_writer->WriteBit(restr.disable_inter_skip_mode);
     bit_writer->WriteBit(restr.disable_inter_chroma_subpel);
     bit_writer->WriteBit(restr.disable_inter_mvd_greater_than_flags);
-    bit_writer->WriteBit(restr.disable_inter_biprediction);
+    bit_writer->WriteBit(restr.disable_inter_bipred);
   } else {
     bit_writer->WriteBit(0);  // inter_restrictions
   }

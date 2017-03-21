@@ -47,12 +47,20 @@ Restrictions::Restrictions() {
   disable_inter_scaling_mvp = true;
 #endif
 
+#if RESTRICTION_DISABLE_INTER_TMVP_MERGE
+  disable_inter_tmvp_merge = true;
+#endif
+
 #if RESTRICTION_DISABLE_INTER_MERGE_CANDIDATES
   disable_inter_merge_candidates = true;
 #endif
 
 #if RESTRICTION_DISABLE_INTER_MERGE_MODE
   disable_inter_merge_mode = true;
+#endif
+
+#if RESTRICTION_DISABLE_INTER_MERGE_BIPRED
+  disable_inter_merge_bipred = true;
 #endif
 
 #if RESTRICTION_DISABLE_INTER_SKIP_MODE
@@ -67,8 +75,8 @@ Restrictions::Restrictions() {
   disable_inter_mvd_greater_than_flags = true;
 #endif
 
-#if RESTRICTION_DISABLE_INTER_BIPREDICTION
-  disable_inter_biprediction = true;
+#if RESTRICTION_DISABLE_INTER_BIPRED
+  disable_inter_bipred = true;
 #endif
 
 #if RESTRICTION_DISABLE_TRANSFORM_ADAPTIVE_SCAN_ORDER

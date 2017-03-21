@@ -152,7 +152,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   const int posy = cu.GetPosY(YuvComponent::kY);
   const int width = cu.GetWidth(YuvComponent::kY);
   const int height = cu.GetHeight(YuvComponent::kY);
-  const bool pic_bi_pred = cu.GetPicType() == PicturePredictionType::kBi;
+  const bool pic_bipred = cu.GetPicType() == PicturePredictionType::kBi;
   const int kL0 = static_cast<int>(RefPicList::kL0);
   const int kL1 = static_cast<int>(RefPicList::kL1);
   auto can_merge = [&posx, &posy](int x1, int y1) {
@@ -215,12 +215,13 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   if (constants::kTemporalMvPrediction && num < static_cast<int>(list.size()) &&
+      !Restrictions::Get().disable_inter_tmvp_merge &&
       cu.GetPicData()->GetTmvpValid()) {
     bool found_any =
       GetTemporalMvPredictor(cu, RefPicList::kL0, 0, &list[num].mv[0]);
     list[num].ref_idx[0] = 0;
     list[num].inter_dir = InterDir::kL0;
-    if (pic_bi_pred &&
+    if (pic_bipred &&
         GetTemporalMvPredictor(cu, RefPicList::kL1, 0, &list[num].mv[1])) {
       list[num].ref_idx[1] = 0;
       list[num].inter_dir = found_any ? InterDir::kBi : InterDir::kL1;
@@ -233,7 +234,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
     }
   }
 
-  if (pic_bi_pred) {
+  if (pic_bipred && !Restrictions::Get().disable_inter_merge_bipred) {
     auto ref_pic_lists = cu.GetRefPicLists();
     int max_num_bi_cand = num * (num - 1);
     for (int i = 0; i < max_num_bi_cand &&
@@ -263,12 +264,12 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   auto ref_list = cu.GetRefPicLists();
-  int max_num_refs = !pic_bi_pred ? ref_list->GetNumRefPics(RefPicList::kL0) :
+  int max_num_refs = !pic_bipred ? ref_list->GetNumRefPics(RefPicList::kL0) :
     std::min(ref_list->GetNumRefPics(RefPicList::kL0),
              ref_list->GetNumRefPics(RefPicList::kL1));
   int ref_idx = 0;
   for (; num < static_cast<int>(list.size()); num++) {
-    list[num].inter_dir = pic_bi_pred ? InterDir::kBi : InterDir::kL0;
+    list[num].inter_dir = pic_bipred ? InterDir::kBi : InterDir::kL0;
     list[num].mv[kL0] = MotionVector(0, 0);
     list[num].mv[kL1] = MotionVector(0, 0);
     list[num].ref_idx[kL0] = ref_idx < max_num_refs ? ref_idx : 0;

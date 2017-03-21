@@ -32,12 +32,14 @@ public:
   static bool GetInterRestrictions() {
     return instance.disable_inter_mvp ||
       instance.disable_inter_scaling_mvp ||
+      instance.disable_inter_tmvp_merge ||
       instance.disable_inter_merge_candidates ||
       instance.disable_inter_merge_mode ||
+      instance.disable_inter_merge_bipred ||
       instance.disable_inter_skip_mode ||
       instance.disable_inter_chroma_subpel ||
       instance.disable_inter_mvd_greater_than_flags ||
-      instance.disable_inter_biprediction;
+      instance.disable_inter_bipred;
   }
 
   static bool GetTransformRestrictions() {
@@ -81,12 +83,14 @@ public:
   bool disable_intra_chroma_predictor = false;
   bool disable_inter_mvp = false;
   bool disable_inter_scaling_mvp = false;
+  bool disable_inter_tmvp_merge = false;
   bool disable_inter_merge_candidates = false;
   bool disable_inter_merge_mode = false;
+  bool disable_inter_merge_bipred = false;
   bool disable_inter_skip_mode = false;
   bool disable_inter_chroma_subpel = false;
   bool disable_inter_mvd_greater_than_flags = false;
-  bool disable_inter_biprediction = false;
+  bool disable_inter_bipred = false;
   bool disable_transform_adaptive_scan_order = false;
   bool disable_transform_residual_greater_than_flags = false;
   bool disable_transform_last_position = false;

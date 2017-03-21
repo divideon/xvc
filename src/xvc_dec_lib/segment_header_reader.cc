@@ -85,10 +85,16 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_inter_scaling_mvp = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_inter_tmvp_merge = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_inter_merge_candidates = true;
     }
     if (bit_reader->ReadBit()) {
       restr.disable_inter_merge_mode = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_inter_merge_bipred = true;
     }
     if (bit_reader->ReadBit()) {
       restr.disable_inter_skip_mode = true;
@@ -100,7 +106,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_inter_mvd_greater_than_flags = true;
     }
     if (bit_reader->ReadBit()) {
-      restr.disable_inter_biprediction = true;
+      restr.disable_inter_bipred = true;
     }
   }
 

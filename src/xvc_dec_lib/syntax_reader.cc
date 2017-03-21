@@ -80,6 +80,7 @@ void SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
       ((subblock_last_index + 1) << (subblock_shift + subblock_shift)) -
       pos_last_index + 1;
     if (Restrictions::Get().disable_transform_cbf &&
+        Restrictions::Get().disable_transform_subblock_csbf &&
         pos_last_x == 0 && pos_last_y == 0) {
       subblock_last_coeff_offset--;
     } else {
