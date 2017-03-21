@@ -32,7 +32,9 @@ public:
   static bool GetInterRestrictions() {
     return instance.disable_inter_mvp ||
       instance.disable_inter_scaling_mvp ||
+      instance.disable_inter_tmvp_mvp ||
       instance.disable_inter_tmvp_merge ||
+      instance.disable_inter_tmvp_ref_list_derivation ||
       instance.disable_inter_merge_candidates ||
       instance.disable_inter_merge_mode ||
       instance.disable_inter_merge_bipred ||
@@ -83,7 +85,9 @@ public:
   bool disable_intra_chroma_predictor = false;
   bool disable_inter_mvp = false;
   bool disable_inter_scaling_mvp = false;
+  bool disable_inter_tmvp_mvp = false;
   bool disable_inter_tmvp_merge = false;
+  bool disable_inter_tmvp_ref_list_derivation = false;
   bool disable_inter_merge_candidates = false;
   bool disable_inter_merge_mode = false;
   bool disable_inter_merge_bipred = false;

@@ -47,8 +47,16 @@ Restrictions::Restrictions() {
   disable_inter_scaling_mvp = true;
 #endif
 
+#if RESTRICTION_DISABLE_INTER_TMVP_MVP
+  disable_inter_tmvp_mvp = true;
+#endif
+
 #if RESTRICTION_DISABLE_INTER_TMVP_MERGE
   disable_inter_tmvp_merge = true;
+#endif
+
+#if RESTRICTION_DISABLE_INTER_TMVP_REF_LIST_DERIVATION
+  disable_inter_tmvp_ref_list_derivation = true;
 #endif
 
 #if RESTRICTION_DISABLE_INTER_MERGE_CANDIDATES

@@ -85,7 +85,13 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_inter_scaling_mvp = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_inter_tmvp_mvp = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_inter_tmvp_merge = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_inter_tmvp_ref_list_derivation = true;
     }
     if (bit_reader->ReadBit()) {
       restr.disable_inter_merge_candidates = true;

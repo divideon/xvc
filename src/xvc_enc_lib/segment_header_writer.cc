@@ -61,7 +61,9 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(1);  // inter_restrictions
     bit_writer->WriteBit(restr.disable_inter_mvp);
     bit_writer->WriteBit(restr.disable_inter_scaling_mvp);
+    bit_writer->WriteBit(restr.disable_inter_tmvp_mvp);
     bit_writer->WriteBit(restr.disable_inter_tmvp_merge);
+    bit_writer->WriteBit(restr.disable_inter_tmvp_ref_list_derivation);
     bit_writer->WriteBit(restr.disable_inter_merge_candidates);
     bit_writer->WriteBit(restr.disable_inter_merge_mode);
     bit_writer->WriteBit(restr.disable_inter_merge_bipred);

@@ -13,6 +13,7 @@
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/resample.h"
+#include "xvc_common_lib/restrictions.h"
 
 
 namespace xvc {
@@ -173,7 +174,8 @@ PicturePredictionType PictureData::GetPredictionType() const {
 RefPicList PictureData::DetermineTmvpRefList(int *tmvp_ref_idx) {
   const int ref_idx = 0;
   *tmvp_ref_idx = ref_idx;
-  if (GetPredictionType() != PicturePredictionType::kBi) {
+  if (GetPredictionType() != PicturePredictionType::kBi ||
+      Restrictions::Get().disable_inter_tmvp_ref_list_derivation) {
     return RefPicList::kL0;
   }
 #if HM_STRICT

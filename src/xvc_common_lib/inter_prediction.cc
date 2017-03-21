@@ -113,8 +113,8 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
     i = 1;
   }
 
-  if (constants::kTemporalMvPrediction && i < 2 &&
-      cu.GetPicData()->GetTmvpValid()) {
+  if (constants::kTemporalMvPrediction && cu.GetPicData()->GetTmvpValid() &&
+      !Restrictions::Get().disable_inter_tmvp_mvp && i < 2) {
     if (GetTemporalMvPredictor(cu, ref_list, ref_idx, &list[i])) {
       i++;
     }
