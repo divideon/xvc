@@ -236,8 +236,8 @@ double SegmentHeader::GetFramerate(int max_tid, int bitstream_ticks,
   return (1.0 * constants::kTimeScale) / (bitstream_ticks);
 }
 
-SegmentHeader::SegmentHeader(int width, int height, int internal_bitdepth,
-                             ChromaFormat chroma_format,
+SegmentHeader::SegmentHeader(int width, int height, int bitdepth,
+                             ChromaFormat chroma_fmt,
                              PicNum sub_gop_length)
   : codec_identifier(constants::kXvcCodecIdentifier),
   major_version(constants::kXvcMajorVersion),
@@ -245,8 +245,8 @@ SegmentHeader::SegmentHeader(int width, int height, int internal_bitdepth,
   soc(0),
   pic_width(width),
   pic_height(height),
-  chroma_format(chroma_format),
-  internal_bitdepth(internal_bitdepth),
+  chroma_format(chroma_fmt),
+  internal_bitdepth(bitdepth),
   max_sub_gop_length(sub_gop_length),
   open_gop(true),
   deblock(true),
