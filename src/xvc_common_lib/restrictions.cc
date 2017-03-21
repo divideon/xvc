@@ -67,6 +67,10 @@ Restrictions::Restrictions() {
   disable_inter_mvd_greater_than_flags = true;
 #endif
 
+#if RESTRICTION_DISABLE_INTER_BIPREDICTION
+  disable_inter_biprediction = true;
+#endif
+
 #if RESTRICTION_DISABLE_TRANSFORM_ADAPTIVE_SCAN_ORDER
   disable_transform_adaptive_scan_order = true;
 #endif
@@ -77,6 +81,10 @@ Restrictions::Restrictions() {
 
 #if RESTRICTION_DISABLE_TRANSFORM_LAST_POSITION
   disable_transform_last_position = true;
+#endif
+
+#if RESTRICTION_DISABLE_TRANSFORM_ROOT_CBF
+  disable_transform_root_cbf = true;
 #endif
 
 #if RESTRICTION_DISABLE_TRANSFORM_CBF

@@ -131,9 +131,10 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
 
 void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
                                 SyntaxReader *reader) {
-  bool signal_root_cbf = !cu->GetMergeFlag() ||
-    Restrictions::Get().disable_inter_skip_mode;
-  if (cu->IsInter() && signal_root_cbf) {
+  bool signal_root_cbf = cu->IsInter() &&
+    !Restrictions::Get().disable_transform_root_cbf &&
+    (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
+  if (signal_root_cbf) {
     if (util::IsLuma(comp)) {
       bool root_cbf = reader->ReadRootCbf();
       cu->SetRootCbf(root_cbf);
@@ -161,10 +162,14 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
     bool cbf_v = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
     cu->SetCbf(YuvComponent::kU, cbf_u);
     cu->SetCbf(YuvComponent::kV, cbf_v);
-    if (cbf_u || cbf_v) {
+    if (cbf_u || cbf_v || !signal_root_cbf) {
       cbf = reader->ReadCbf(*cu, comp);
     } else {
       cbf = true;   // implicitly signaled through root cbf
+    }
+    if (Restrictions::Get().disable_inter_skip_mode &&
+        cu->GetMergeFlag() && !cbf && !cbf_u && !cbf_v) {
+      cu->SetSkipFlag(true);
     }
   } else {
     cbf = cu->GetCbf(comp);   // signaled from luma

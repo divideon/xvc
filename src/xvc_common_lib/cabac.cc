@@ -263,7 +263,7 @@ kInitTransSubdivFlag[3][CabacContexts::kNumTransSubdivFlagCtx] = {
 };
 
 static const uint8_t
-kInitTransformskipFlag[3][2 * CabacContexts::kNumTransformskipFlagCtx] = {
+kInitTransformskipFlag[3][2 * CabacContexts::kNumTransformSkipFlagCtx] = {
   { 139,  139 },
   { 139,  139 },
   { 139,  139 },

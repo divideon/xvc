@@ -66,6 +66,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_inter_skip_mode);
     bit_writer->WriteBit(restr.disable_inter_chroma_subpel);
     bit_writer->WriteBit(restr.disable_inter_mvd_greater_than_flags);
+    bit_writer->WriteBit(restr.disable_inter_biprediction);
   } else {
     bit_writer->WriteBit(0);  // inter_restrictions
   }
@@ -74,6 +75,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_transform_adaptive_scan_order);
     bit_writer->WriteBit(restr.disable_transform_residual_greater_than_flags);
     bit_writer->WriteBit(restr.disable_transform_last_position);
+    bit_writer->WriteBit(restr.disable_transform_root_cbf);
     bit_writer->WriteBit(restr.disable_transform_cbf);
     bit_writer->WriteBit(restr.disable_transform_subblock_csbf);
     bit_writer->WriteBit(restr.disable_transform_adaptive_exp_golomb);

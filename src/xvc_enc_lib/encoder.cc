@@ -37,6 +37,8 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   pic_data->SetPoc(poc_);
   if (all_intra_) {
     pic_data->SetNalType(NalUnitType::kIntraPicture);
+  } else if (Restrictions::Get().disable_inter_biprediction) {
+    pic_data->SetNalType(NalUnitType::kPredictedPicture);
   } else {
     pic_data->SetNalType(NalUnitType::kBipredictedPicture);
   }

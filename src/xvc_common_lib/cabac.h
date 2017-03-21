@@ -34,44 +34,44 @@ private:
 
 struct CabacContexts {
 public:
-  static const int kNumSplitFlagCtx = 3;  // split flag
-  static const int kNumSkipFlagCtx = 3;   // skip flag
-  static const int kNumMergeFlagCtx = 1;   // merge flag
-  static const int kNumMergeIdxCtx = 1;  // merge index
-  static const int kNumPartSizeCtx = 4;   // partition size
-  static const int kNumPredModeCtx = 1;   // prediction mode
-  static const int kNumIntraPredCtx = 2;  // intra mode
+  static const int kNumSplitFlagCtx = 3;
+  static const int kNumSkipFlagCtx = 3;
+  static const int kNumMergeFlagCtx = 1;
+  static const int kNumMergeIdxCtx = 1;
+  static const int kNumPartSizeCtx = 4;
+  static const int kNumPredModeCtx = 1;
+  static const int kNumIntraPredCtx = 2;
   static const int kNumIntraPredCtxLuma = 1;
   static const int kNumIntraPredCtxChroma = 1;
-  static const int kNumInterDirCtx = 5;   // inter prediction direction
-  static const int kNumMvdCtx = 2;  // motion vector difference
-  static const int kNumRefIdxCtx = 2;  // reference index
-  static const int kNumTransSubdivFlagCtx = 3;  // transform subdivision flags
-  static const int kNumCuCbfCtx = 2;  // Cu Cbf
+  static const int kNumInterDirCtx = 5;
+  static const int kNumMvdCtx = 2;
+  static const int kNumRefIdxCtx = 2;
+  static const int kNumTransSubdivFlagCtx = 3;
+  static const int kNumCuCbfCtx = 2;
   static const int kNumCuCbfCtxLuma = 1;
   static const int kNumCuCbfCtxChroma = 1;
-  static const int kNumCuRootCbfCtx = 1;  // Cu Root Cbf
-  static const int kNumDeltaQpCtx = 3;  // dQp
-  static const int kNumSubblockCsbfCtx = 4;  // Subblock Csbf
+  static const int kNumCuRootCbfCtx = 1;
+  static const int kNumDeltaQpCtx = 3;
+  static const int kNumSubblockCsbfCtx = 4;
   static const int kNumSubblockCsbfCtxLuma = 2;
   static const int kNumSubblockCsbfCtxChroma = 2;
-  static const int kNumCoeffSigCtx = 42;   // sig flag
+  static const int kNumCoeffSigCtx = 42;
   static const int kNumCoeffSigCtxLuma = 27;
   static const int kNumCoeffSigCtxChroma = 15;
-  static const int kNumCoeffGreater1Ctx = 24;   // greater than 1 flag
+  static const int kNumCoeffGreater1Ctx = 24;
   static const int kNumCoeffGreater1CtxLuma = 16;
   static const int kNumCoeffGreater1CtxChroma = 8;
-  static const int kNumCoeffGreater2Ctx = 6;  // greater than 2 flag
+  static const int kNumCoeffGreater2Ctx = 6;
   static const int kNumCoeffGreater2CtxLuma = 4;
   static const int kNumCoeffGreater2CtxChroma = 2;
-  static const int kNumCoeffLastPosCtx = 18;  // last coefficient position
+  static const int kNumCoeffLastPosCtx = 18;
   static const int kNumCoeffLastPosCtxLuma = 15;
   static const int kNumCoeffLastPosCtxChroma = 3;
-  static const int kNumMvpIdxCtx = 1;   // mvp index
-  static const int kNumSaoMergeFlagCtx = 1;   // sao merge flags
-  static const int kNumSaoTypeIdxCtx = 1;   // sao type index
-  static const int kNumTransformskipFlagCtx = 1;  // transform skipping
-  static const int kNumTquantBypassFlagCtx = 1;   // cu transquant bypass
+  static const int kNumMvpIdxCtx = 1;
+  static const int kNumSaoMergeFlagCtx = 1;
+  static const int kNumSaoTypeIdxCtx = 1;
+  static const int kNumTransformSkipFlagCtx = 1;
+  static const int kNumTquantBypassFlagCtx = 1;
 
   void ResetStates(const QP &qp, PicturePredictionType pic_type);
 

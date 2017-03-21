@@ -79,9 +79,14 @@ void SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
     subblock_last_coeff_offset =
       ((subblock_last_index + 1) << (subblock_shift + subblock_shift)) -
       pos_last_index + 1;
-    coeff_num_non_zero = 1;
+    if (Restrictions::Get().disable_transform_cbf &&
+        pos_last_x == 0 && pos_last_y == 0) {
+      subblock_last_coeff_offset--;
+    } else {
+      subblock_coeff[0] = 1;
+      coeff_num_non_zero = 1;
+    }
     subblock_nz_coeff_pos[0] = static_cast<uint16_t>(pos_last);
-    subblock_coeff[0] = 1;
   }
 
   int c1 = 1;
@@ -406,7 +411,7 @@ bool SyntaxReader::ReadRootCbf() {
   return bin != 0;
 }
 
-  bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
+bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
   if (Restrictions::Get().disable_inter_skip_mode) {
     return false;
   }

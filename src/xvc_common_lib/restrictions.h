@@ -36,13 +36,15 @@ public:
       instance.disable_inter_merge_mode ||
       instance.disable_inter_skip_mode ||
       instance.disable_inter_chroma_subpel ||
-      instance.disable_inter_mvd_greater_than_flags;
+      instance.disable_inter_mvd_greater_than_flags ||
+      instance.disable_inter_biprediction;
   }
 
   static bool GetTransformRestrictions() {
     return instance.disable_transform_adaptive_scan_order ||
       instance.disable_transform_residual_greater_than_flags ||
       instance.disable_transform_last_position ||
+      instance.disable_transform_root_cbf ||
       instance.disable_transform_cbf ||
       instance.disable_transform_subblock_csbf ||
       instance.disable_transform_adaptive_exp_golomb;
@@ -84,9 +86,11 @@ public:
   bool disable_inter_skip_mode = false;
   bool disable_inter_chroma_subpel = false;
   bool disable_inter_mvd_greater_than_flags = false;
+  bool disable_inter_biprediction = false;
   bool disable_transform_adaptive_scan_order = false;
   bool disable_transform_residual_greater_than_flags = false;
   bool disable_transform_last_position = false;
+  bool disable_transform_root_cbf = false;
   bool disable_transform_cbf = false;
   bool disable_transform_subblock_csbf = false;
   bool disable_transform_adaptive_exp_golomb = false;

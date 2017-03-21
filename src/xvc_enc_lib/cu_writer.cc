@@ -115,9 +115,10 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
 
 void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
                                  SyntaxWriter *writer) const {
-  bool signal_root_cbf = !cu.GetMergeFlag() ||
-    Restrictions::Get().disable_inter_skip_mode;
-  if (cu.IsInter() && signal_root_cbf) {
+  bool signal_root_cbf = cu.IsInter() &&
+    !Restrictions::Get().disable_transform_root_cbf &&
+    (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
+  if (signal_root_cbf) {
     bool root_cbf = cu.GetRootCbf();
     if (util::IsLuma(comp)) {
       writer->WriteRootCbf(root_cbf);
@@ -134,9 +135,10 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
     writer->WriteCbf(cu, comp, cbf);
   } else if (util::IsLuma(comp)) {
     // For inter the luma comp will write all cbf flags
-    writer->WriteCbf(cu, YuvComponent::kU,  cu.GetCbf(YuvComponent::kU));
+    writer->WriteCbf(cu, YuvComponent::kU, cu.GetCbf(YuvComponent::kU));
     writer->WriteCbf(cu, YuvComponent::kV, cu.GetCbf(YuvComponent::kV));
-    if (cu.GetCbf(YuvComponent::kU) || cu.GetCbf(YuvComponent::kV)) {
+    if (cu.GetCbf(YuvComponent::kU) || cu.GetCbf(YuvComponent::kV) ||
+        !signal_root_cbf) {
       writer->WriteCbf(cu, comp, cbf);
     } else {
       assert(cbf);  // implicit signaling through root cbf

@@ -92,8 +92,13 @@ void SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
     subblock_last_coeff_offset =
       ((subblock_last_index + 1) << (subblock_shift + subblock_shift)) -
       pos_last_index + 1;
-    coeff_signs = last_coeff < 0;
-    coeff_num_non_zero = 1;
+    if (Restrictions::Get().disable_transform_cbf &&
+        pos_last_x == 0 && pos_last_y == 0) {
+      subblock_last_coeff_offset--;
+    } else {
+      coeff_num_non_zero = 1;
+      coeff_signs = last_coeff < 0;
+    }
     subblock_coeff[0] = static_cast<Coeff>(std::abs(last_coeff));
   }
 

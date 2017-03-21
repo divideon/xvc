@@ -99,6 +99,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     if (bit_reader->ReadBit()) {
       restr.disable_inter_mvd_greater_than_flags = true;
     }
+    if (bit_reader->ReadBit()) {
+      restr.disable_inter_biprediction = true;
+    }
   }
 
   int transform_restrictions = bit_reader->ReadBit();
@@ -113,6 +116,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     }
     if (bit_reader->ReadBit()) {
       restr.disable_transform_last_position = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_transform_root_cbf = true;
     }
     if (bit_reader->ReadBit()) {
       restr.disable_transform_cbf = true;
