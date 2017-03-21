@@ -53,7 +53,8 @@ int QP::ScaleLumaQP(int qp, int bitdepth, double lambda) {
   double lambda_ref = 0.57 * std::pow(2.0, qp_temp / 3.0);
   int qp_offset = static_cast<int>(
     std::floor((3.0 * log(lambda / lambda_ref) / log(2.0)) + 0.5));
-  return qp + qp_offset;
+  return util::Clip3(qp + qp_offset, constants::kMinAllowedQp,
+                     constants::kMaxAllowedQp);
 }
 
 int QP::ScaleChromaQP(int qp, ChromaFormat chroma_format, int bitdepth) {
