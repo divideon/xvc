@@ -58,11 +58,14 @@ public:
     return instance.disable_cabac_ctx_update ||
       instance.disable_cabac_split_flag_ctx ||
       instance.disable_cabac_skip_flag_ctx ||
+      instance.disable_cabac_inter_dir_ctx ||
       instance.disable_cabac_subblock_csbf_ctx ||
       instance.disable_cabac_coeff_sig_ctx ||
       instance.disable_cabac_coeff_greater1_ctx ||
       instance.disable_cabac_coeff_greater2_ctx ||
-      instance.disable_cabac_coeff_last_pos_ctx;
+      instance.disable_cabac_coeff_last_pos_ctx ||
+      instance.disable_cabac_init_per_pic_type ||
+      instance.disable_cabac_init_per_qp;
   }
 
   static bool GetDeblockRestrictions() {
@@ -105,11 +108,14 @@ public:
   bool disable_cabac_ctx_update = false;
   bool disable_cabac_split_flag_ctx = false;
   bool disable_cabac_skip_flag_ctx = false;
+  bool disable_cabac_inter_dir_ctx = false;
   bool disable_cabac_subblock_csbf_ctx = false;
   bool disable_cabac_coeff_sig_ctx = false;
   bool disable_cabac_coeff_greater1_ctx = false;
   bool disable_cabac_coeff_greater2_ctx = false;
   bool disable_cabac_coeff_last_pos_ctx = false;
+  bool disable_cabac_init_per_pic_type = false;
+  bool disable_cabac_init_per_qp = false;
   bool disable_deblock_strong_filter = false;
   bool disable_deblock_weak_filter = false;
   bool disable_deblock_chroma_filter = false;

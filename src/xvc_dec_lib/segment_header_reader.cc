@@ -157,6 +157,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_cabac_skip_flag_ctx = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_cabac_inter_dir_ctx = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_cabac_subblock_csbf_ctx = true;
     }
     if (bit_reader->ReadBit()) {
@@ -170,6 +173,12 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     }
     if (bit_reader->ReadBit()) {
       restr.disable_cabac_coeff_last_pos_ctx = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_cabac_init_per_pic_type = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_cabac_init_per_qp = true;
     }
   }
 

@@ -243,7 +243,8 @@ void SyntaxWriter::WriteEndOfSlice(bool end_of_slice) {
 
 void SyntaxWriter::WriteInterDir(const CodingUnit &cu, InterDir inter_dir) {
   assert(cu.GetPartitionType() == PartitionType::kSize2Nx2N);
-  ContextModel &ctx = ctx_.inter_dir[cu.GetDepth()];
+  int idx = Restrictions::Get().disable_cabac_inter_dir_ctx ? 0 : cu.GetDepth();
+  ContextModel &ctx = ctx_.inter_dir[idx];
   entropyenc_->EncodeBin(inter_dir == InterDir::kBi ? 1 : 0, &ctx);
   if (inter_dir != InterDir::kBi) {
     uint32_t bin = inter_dir == InterDir::kL0 ? 0 : 1;

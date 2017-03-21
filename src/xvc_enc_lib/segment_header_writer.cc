@@ -91,11 +91,14 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_cabac_ctx_update);
     bit_writer->WriteBit(restr.disable_cabac_split_flag_ctx);
     bit_writer->WriteBit(restr.disable_cabac_skip_flag_ctx);
+    bit_writer->WriteBit(restr.disable_cabac_inter_dir_ctx);
     bit_writer->WriteBit(restr.disable_cabac_subblock_csbf_ctx);
     bit_writer->WriteBit(restr.disable_cabac_coeff_sig_ctx);
     bit_writer->WriteBit(restr.disable_cabac_coeff_greater1_ctx);
     bit_writer->WriteBit(restr.disable_cabac_coeff_greater2_ctx);
     bit_writer->WriteBit(restr.disable_cabac_coeff_last_pos_ctx);
+    bit_writer->WriteBit(restr.disable_cabac_init_per_pic_type);
+    bit_writer->WriteBit(restr.disable_cabac_init_per_qp);
   } else {
     bit_writer->WriteBit(0);  // cabac_restrictions
   }

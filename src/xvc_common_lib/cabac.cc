@@ -293,7 +293,13 @@ inline static void Init(int qp, int slice_type,
 
 void CabacContexts::ResetStates(const QP &qp, PicturePredictionType pic_type) {
   int q = qp.GetQpRaw(YuvComponent::kY);
+  if (Restrictions::Get().disable_cabac_init_per_qp) {
+    q = 32;
+  }
   int s = static_cast<int>(pic_type);
+  if (Restrictions::Get().disable_cabac_init_per_pic_type) {
+    s = static_cast<int>(PicturePredictionType::kBi);
+  }
   Init(q, s, &cu_cbf_luma, &cu_cbf_chroma, kInitCuCbf);
   Init(q, s, &cu_part_size, kInitPartSize);
   Init(q, s, &cu_pred_mode, kInitPredMode);

@@ -127,6 +127,10 @@ Restrictions::Restrictions() {
   disable_cabac_skip_flag_ctx = true;
 #endif
 
+#if RESTRICTION_DISABLE_CABAC_INTER_DIR_CTX
+  disable_cabac_inter_dir_ctx = true;
+#endif
+
 #if RESTRICTION_DISABLE_CABAC_SUBBLOCK_CSBF_CTX
   disable_cabac_subblock_csbf_ctx = true;
 #endif
@@ -145,6 +149,14 @@ Restrictions::Restrictions() {
 
 #if RESTRICTION_DISABLE_CABAC_COEFF_LAST_POS_CTX
   disable_cabac_coeff_last_pos_ctx = true;
+#endif
+
+#if RESTRICTION_DISABLE_CABAC_INIT_PER_PIC_TYPE
+  disable_cabac_init_per_pic_type = true;
+#endif
+
+#if RESTRICTION_DISABLE_CABAC_INIT_PER_QP
+  disable_cabac_init_per_qp = true;
 #endif
 
 #if RESTRICTION_DISABLE_DEBLOCK_STRONG_FILTER
