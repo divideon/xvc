@@ -138,7 +138,7 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
     writer->WriteCbf(cu, YuvComponent::kU, cu.GetCbf(YuvComponent::kU));
     writer->WriteCbf(cu, YuvComponent::kV, cu.GetCbf(YuvComponent::kV));
     if (cu.GetCbf(YuvComponent::kU) || cu.GetCbf(YuvComponent::kV) ||
-        !signal_root_cbf) {
+        Restrictions::Get().disable_transform_root_cbf) {
       writer->WriteCbf(cu, comp, cbf);
     } else {
       assert(cbf);  // implicit signaling through root cbf

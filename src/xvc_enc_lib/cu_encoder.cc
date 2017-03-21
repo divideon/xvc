@@ -370,7 +370,8 @@ Distortion CuEncoder::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
     *out_dist_zero = sum_dist_zero;
   }
 
-  if (cu->GetRootCbf()) {
+  if (cu->GetRootCbf() && !(Restrictions::Get().disable_transform_cbf &&
+      Restrictions::Get().disable_transform_root_cbf)) {
     bool force_all_zero = SearchCbfAllZero(cu, qp, bitstream_writer,
                                            sum_dist_fast, sum_dist_zero);
     if (force_all_zero) {

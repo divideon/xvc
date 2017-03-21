@@ -162,7 +162,7 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
     bool cbf_v = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
     cu->SetCbf(YuvComponent::kU, cbf_u);
     cu->SetCbf(YuvComponent::kV, cbf_v);
-    if (cbf_u || cbf_v || !signal_root_cbf) {
+    if (cbf_u || cbf_v || Restrictions::Get().disable_transform_root_cbf) {
       cbf = reader->ReadCbf(*cu, comp);
     } else {
       cbf = true;   // implicitly signaled through root cbf
