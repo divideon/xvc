@@ -154,11 +154,11 @@ protected:
 class EncoderDecoderHelper
   : public ::testing::Test, public EncoderHelper, public DecoderHelper {
 protected:
-  virtual void SetUp() override {
+  void SetUp() override {
     EncoderHelper::SetUp();
     DecoderHelper::SetUp();
   }
-  virtual void TearDown() override {
+  void TearDown() override {
     EncoderHelper::TearDown();
     DecoderHelper::TearDown();
   }

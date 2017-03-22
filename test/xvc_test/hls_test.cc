@@ -32,7 +32,7 @@ public:
     // Rewrite version directly in bitstream
     auto nal = encoded_nal_units_[0];
     uint8_t *nal_unit_header = &nal[0];
-    nal_unit_header[0] |= (nal_rfe_value&3)<<6;
+    nal_unit_header[0] |= (nal_rfe_value & 3) << 6;
     return decoder_->DecodeNal(&nal[0], nal.size());
   }
 };

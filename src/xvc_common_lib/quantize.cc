@@ -6,6 +6,7 @@
 
 #include "xvc_common_lib/quantize.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cmath>
 
