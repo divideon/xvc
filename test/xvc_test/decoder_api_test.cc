@@ -45,6 +45,7 @@ TEST(DecoderAPI, ParamCheck) {
 
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   EXPECT_EQ(XVC_DEC_OK, api->parameters_check(params));
+  EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
 }
 
 TEST(DecoderAPI, DecoderCreate) {
@@ -54,7 +55,9 @@ TEST(DecoderAPI, DecoderCreate) {
 
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
+  EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_TRUE(decoder);
+  EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
 
 TEST(DecoderAPI, DecoderDecodeNal) {
@@ -68,12 +71,14 @@ TEST(DecoderAPI, DecoderDecodeNal) {
   xvc_decoder_parameters *params = api->parameters_create();
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
+  EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_decode_nal(decoder,
                                                               nullptr,
                                                               nal_size));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_decode_nal(decoder,
                                                               &nal_bytes_[0],
                                                               0));
+  EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
 
 TEST(DecoderAPI, DecoderGetDecodedPic) {
@@ -84,10 +89,12 @@ TEST(DecoderAPI, DecoderGetDecodedPic) {
   xvc_decoder_parameters *params = api->parameters_create();
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
+  EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_get_picture(decoder,
                                                                nullptr));
   EXPECT_EQ(XVC_DEC_NO_SEGMENT_HEADER_DECODED,
             api->decoder_get_picture(decoder, &decoded_pic));
+  EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
 
 TEST(DecoderAPI, DecoderFlush) {
@@ -98,8 +105,10 @@ TEST(DecoderAPI, DecoderFlush) {
   xvc_decoder_parameters *params = api->parameters_create();
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
+  EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_flush(decoder, nullptr));
   EXPECT_EQ(XVC_DEC_NO_DECODED_PIC, api->decoder_flush(decoder, &decoded_pic));
+  EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
 
 TEST(DecoderAPI, DecoderCheckConformance) {
@@ -110,9 +119,11 @@ TEST(DecoderAPI, DecoderCheckConformance) {
   xvc_decoder_parameters *params = api->parameters_create();
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
+  EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_check_conformance(decoder,
                                                                      nullptr));
   EXPECT_EQ(XVC_DEC_OK, api->decoder_check_conformance(decoder, &num));
+  EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
 
 }   // namespace

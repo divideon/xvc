@@ -124,6 +124,7 @@ TEST(EncoderAPI, ParamCheck) {
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_destroy(params));
 }
 
 TEST(EncoderAPI, EncoderCreate) {
@@ -139,7 +140,9 @@ TEST(EncoderAPI, EncoderCreate) {
   params->width = 176;
   params->height = 144;
   xvc_encoder *encoder = api->encoder_create(params);
-  EXPECT_TRUE(encoder);
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_destroy(params));
+  ASSERT_NE(encoder, nullptr);
+  EXPECT_EQ(XVC_ENC_OK, api->encoder_destroy(encoder));
 }
 
 TEST(EncoderAPI, EncoderEncode) {
@@ -157,6 +160,7 @@ TEST(EncoderAPI, EncoderEncode) {
   params->width = 176;
   params->height = 144;
   xvc_encoder *encoder = api->encoder_create(params);
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT, api->encoder_encode(encoder, nullptr,
                                                           &nal_units,
                                                           &num_nal_units,
@@ -169,6 +173,7 @@ TEST(EncoderAPI, EncoderEncode) {
                                                           &nal_units,
                                                           nullptr,
                                                           pic_recon_ptr));
+  EXPECT_EQ(XVC_ENC_OK, api->encoder_destroy(encoder));
 }
 
 
@@ -187,7 +192,7 @@ TEST(EncoderAPI, EncoderFlush) {
   params->width = 176;
   params->height = 144;
   xvc_encoder *encoder = api->encoder_create(params);
-  EXPECT_TRUE(encoder);
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT, api->encoder_flush(encoder,
                                                          nullptr,
                                                          &num_nal_units,
@@ -196,6 +201,7 @@ TEST(EncoderAPI, EncoderFlush) {
                                                          &nal_units,
                                                          nullptr,
                                                          pic_recon_ptr));
+  EXPECT_EQ(XVC_ENC_OK, api->encoder_destroy(encoder));
 }
 
 }   // namespace

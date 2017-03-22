@@ -89,7 +89,6 @@ protected:
     encoder_ = CreateEncoder(0, 0, 8, qp_);
   }
   virtual void TearDown() {
-    encoder_.release();
   }
 
   std::unique_ptr<xvc::Encoder>
@@ -155,11 +154,11 @@ protected:
 class EncoderDecoderHelper
   : public ::testing::Test, public EncoderHelper, public DecoderHelper {
 protected:
-  virtual void SetUp() {
+  virtual void SetUp() override {
     EncoderHelper::SetUp();
     DecoderHelper::SetUp();
   }
-  virtual void TearDown() {
+  virtual void TearDown() override {
     EncoderHelper::TearDown();
     DecoderHelper::TearDown();
   }

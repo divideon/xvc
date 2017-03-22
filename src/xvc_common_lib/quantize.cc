@@ -35,9 +35,12 @@ QP::QP(int qp_unscaled, ChromaFormat chroma_format, int bitdepth, double lambda,
   qp_raw_[0] = qp;
   qp_raw_[1] = ScaleChromaQP(qp + chroma_offset, chroma_format, bitdepth);
   qp_raw_[2] = ScaleChromaQP(qp + chroma_offset, chroma_format, bitdepth);
-  qp_bitdepth_[0] = qp_raw_[0] + kNumScalingListRem_ * (bitdepth - 8);
-  qp_bitdepth_[1] = qp_raw_[1] + kNumScalingListRem_ * (bitdepth - 8);
-  qp_bitdepth_[2] = qp_raw_[2] + kNumScalingListRem_ * (bitdepth - 8);
+  qp_bitdepth_[0] =
+    std::max(0, qp_raw_[0] + kNumScalingListRem_ * (bitdepth - 8));
+  qp_bitdepth_[1] =
+    std::max(0, qp_raw_[1] + kNumScalingListRem_ * (bitdepth - 8));
+  qp_bitdepth_[2] =
+    std::max(0, qp_raw_[2] + kNumScalingListRem_ * (bitdepth - 8));
   distortion_weight_[0] = 1.0;
   distortion_weight_[1] =
     GetChromaDistWeight(qp + chroma_offset, chroma_format);
