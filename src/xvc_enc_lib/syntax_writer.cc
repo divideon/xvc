@@ -373,6 +373,7 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
 
 void SyntaxWriter::WriteMergeFlag(bool merge) {
   if (Restrictions::Get().disable_inter_merge_mode) {
+    assert(!merge);
     return;
   }
   entropyenc_->EncodeBin(merge ? 1 : 0, &ctx_.inter_merge_flag[0]);
@@ -423,8 +424,10 @@ void SyntaxWriter::WriteRootCbf(bool root_cbf) {
   entropyenc_->EncodeBin(root_cbf != 0, &ctx_.cu_root_cbf[0]);
 }
 
-void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool flag) {
-  if (Restrictions::Get().disable_inter_skip_mode) {
+void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
+  if (Restrictions::Get().disable_inter_skip_mode ||
+      Restrictions::Get().disable_inter_merge_mode) {
+    assert(!skip_flag);
     return;
   }
   int offset = 0;
@@ -437,7 +440,7 @@ void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool flag) {
       offset++;
     }
   }
-  entropyenc_->EncodeBin(flag ? 1 : 0, &ctx_.cu_skip_flag[offset]);
+  entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx_.cu_skip_flag[offset]);
 }
 
 void SyntaxWriter::WriteSplitFlag(int depth, const CodingUnit *left,

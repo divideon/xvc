@@ -414,7 +414,8 @@ bool SyntaxReader::ReadRootCbf() {
 }
 
 bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
-  if (Restrictions::Get().disable_inter_skip_mode) {
+  if (Restrictions::Get().disable_inter_skip_mode ||
+      Restrictions::Get().disable_inter_merge_mode) {
     return false;
   }
   int offset = 0;
