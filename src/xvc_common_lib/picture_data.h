@@ -70,7 +70,7 @@ public:
   void MarkUsedInPic(CodingUnit *cu);
   void ClearMarkCuInPic(CodingUnit *cu);
 
-  // Higher layer syntax
+  // High level syntax
   void SetNalType(NalUnitType type) { nal_type_ = type; }
   NalUnitType GetNalType() const { return nal_type_; }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }

@@ -161,7 +161,7 @@
   <ItemGroup>
     <ClCompile Include="..\googletest\src\gtest-all.cc" />
     <ClCompile Include="..\googletest\src\gtest_main.cc" />
-    <ClCompile Include="bitstream_versioning_test.cc" />
+    <ClCompile Include="hls_test.cc" />
     <ClCompile Include="checksum_enc_dec_test.cc" />
     <ClCompile Include="decoder_api_test.cc" />
     <ClCompile Include="decoder_resample_test.cc" />

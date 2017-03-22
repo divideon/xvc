@@ -19,9 +19,14 @@
 namespace xvc {
 
 bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
-  // First check the Nal Unit Type
+  // First check the nal_rfe to see if the Nal Unit shall be ignored.
   BitReader bit_reader(nal_unit, nal_unit_size);
   uint8_t header = bit_reader.ReadByte();
+  int nal_rfe = ((header >> 6) & 3);
+  if (nal_rfe > 0) {
+    return false;
+  }
+  // Then check the Nal Unit Type
   NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
 
   // Perform different decoding processes depending on the Nal Unit Type
@@ -59,10 +64,11 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     if (output_bitdepth_ == 0) {
       output_bitdepth_ = curr_segment_header_.internal_bitdepth;
     }
-    max_tid_ = SegmentHeader::GetFramerateMaxTid(decoder_ticks_,
+    max_tid_ =
+      SegmentHeader::GetFramerateMaxTid(decoder_ticks_,
                                         curr_segment_header_.bitstream_ticks,
                                         sub_gop_length_);
-
+    return true;
   } else if (state_ == State::kNoSegmentHeader ||
              state_ == State::kDecoderVersionTooLow ||
              state_ == State::kBitstreamBitdepthTooHigh) {
@@ -102,8 +108,9 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
         nal_buffer_.pop_front();
       }
     }
+    return true;
   }
-  return true;
+  return false;
 }
 
 void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {

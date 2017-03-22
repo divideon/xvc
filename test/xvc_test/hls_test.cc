@@ -10,9 +10,9 @@
 
 namespace {
 
-class BitstreamVersioningTest : public ::xvc_test::EncoderDecoderHelper {
+class HlsTest : public ::xvc_test::EncoderDecoderHelper {
 public:
-  bool Run(int major_version, int minor_version) {
+  bool ChangeVersion(int major_version, int minor_version) {
     encoder_->SetResolution(0, 0);
     EncodeFirstFrame();
     // Rewrite version directly in bitstream
@@ -25,38 +25,62 @@ public:
     segment_header[6] = (minor_version >> 0) & 0xFF;
     return decoder_->DecodeNal(&nal[0], nal.size());
   }
+
+  bool ChangeNalRfeValue(int nal_rfe_value) {
+    encoder_->SetResolution(0, 0);
+    EncodeFirstFrame();
+    // Rewrite version directly in bitstream
+    auto nal = encoded_nal_units_[0];
+    uint8_t *nal_unit_header = &nal[0];
+    nal_unit_header[0] |= (nal_rfe_value&3)<<6;
+    return decoder_->DecodeNal(&nal[0], nal.size());
+  }
 };
 
-TEST_F(BitstreamVersioningTest, RecvSameVersion) {
-  EXPECT_TRUE(Run(xvc::constants::kXvcMajorVersion,
+TEST_F(HlsTest, RecvSameVersion) {
+  EXPECT_TRUE(ChangeVersion(xvc::constants::kXvcMajorVersion,
                   xvc::constants::kXvcMinorVersion));
   ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
   DecodeFirstPictureSuccess();
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
 }
 
-TEST_F(BitstreamVersioningTest, RecvLargerMajorVersion) {
-  EXPECT_FALSE(Run(xvc::constants::kXvcMajorVersion + 1,
+TEST_F(HlsTest, RecvLargerMajorVersion) {
+  EXPECT_FALSE(ChangeVersion(xvc::constants::kXvcMajorVersion + 1,
                   xvc::constants::kXvcMinorVersion));
   ASSERT_EQ(::xvc::Decoder::State::kDecoderVersionTooLow, decoder_->GetState());
   DecodeFirstPictureFailed();
   EXPECT_EQ(::xvc::Decoder::State::kDecoderVersionTooLow, decoder_->GetState());
 }
 
-TEST_F(BitstreamVersioningTest, RecvLowerMajorVersion) {
-  EXPECT_TRUE(Run(xvc::constants::kXvcMajorVersion - 1,
+TEST_F(HlsTest, RecvLowerMajorVersion) {
+  EXPECT_TRUE(ChangeVersion(xvc::constants::kXvcMajorVersion - 1,
                   xvc::constants::kXvcMinorVersion));
   ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
   DecodeFirstPictureSuccess();
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
 }
 
-TEST_F(BitstreamVersioningTest, RecvLargerMinorVersion) {
-  EXPECT_TRUE(Run(xvc::constants::kXvcMajorVersion,
+TEST_F(HlsTest, RecvLargerMinorVersion) {
+  EXPECT_TRUE(ChangeVersion(xvc::constants::kXvcMajorVersion,
                   xvc::constants::kXvcMinorVersion + 1));
   ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
   DecodeFirstPictureSuccess();
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
+}
+
+TEST_F(HlsTest, RecvRfeZero) {
+  EXPECT_TRUE(ChangeNalRfeValue(0));
+  ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
+  DecodeFirstPictureSuccess();
+  EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
+}
+
+TEST_F(HlsTest, RecvRfeOne) {
+  EXPECT_FALSE(ChangeNalRfeValue(1));
+  ASSERT_EQ(::xvc::Decoder::State::kNoSegmentHeader, decoder_->GetState());
+  DecodeFirstPictureFailed();
+  EXPECT_EQ(::xvc::Decoder::State::kNoSegmentHeader, decoder_->GetState());
 }
 
 }   // namespace
