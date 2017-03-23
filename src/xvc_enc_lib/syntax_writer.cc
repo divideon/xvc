@@ -427,7 +427,6 @@ void SyntaxWriter::WriteRootCbf(bool root_cbf) {
 void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
   if (Restrictions::Get().disable_inter_skip_mode ||
       Restrictions::Get().disable_inter_merge_mode) {
-    assert(!skip_flag);
     return;
   }
   int offset = 0;

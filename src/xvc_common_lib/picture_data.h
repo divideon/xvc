@@ -90,7 +90,7 @@ public:
     return &ref_pic_lists_;
   }
   bool GetTmvpValid() const { return tmvp_valid_; }
-  RefPicList GetTmvpRefList() const { return tmvp_ref_list_inv_; }
+  RefPicList GetTmvpRefList() const { return tmvp_ref_list_; }
   int GetTmvpRefIdx() const { return tmvp_ref_idx_; }
   void SetDeblock(bool deblock) { deblock_ = deblock; }
   bool GetDeblock() const { return deblock_; }
@@ -133,7 +133,7 @@ private:
   OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
   ReferencePictureLists ref_pic_lists_;
   bool tmvp_valid_ = false;
-  RefPicList tmvp_ref_list_inv_ = RefPicList::kTotalNumber;
+  RefPicList tmvp_ref_list_ = RefPicList::kTotalNumber;
   int tmvp_ref_idx_ = -1;
   bool deblock_ = true;
   int beta_offset_ = 0;
