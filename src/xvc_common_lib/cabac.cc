@@ -6,6 +6,8 @@
 
 #include "xvc_common_lib/cabac.h"
 
+#include <algorithm>
+
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/utils.h"
 
@@ -98,9 +100,9 @@ kInitCuTransquantBypassFlag[3][CabacContexts::kNumTquantBypassFlagCtx] = {
 
 static const uint8_t
 kInitSplitFlag[3][CabacContexts::kNumSplitFlagCtx] = {
-  { 107,  139,  126, },
-  { 107,  139,  126, },
-  { 139,  141,  157, },
+  { 107,  139,  126, 255, 0, },
+  { 107,  139,  126, 255, 0, },
+  { 139,  141,  157, 255, 0, },
 };
 
 static const uint8_t
@@ -321,7 +323,46 @@ void CabacContexts::ResetStates(const QP &qp, PicturePredictionType pic_type) {
   Init(q, s, &coeff_last_pos_y_luma, &coeff_last_pos_y_chroma, kInitLastPos);
 }
 
-ContextModel &CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
+ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu) {
+  int offset = 0;
+  const CodingUnit *left = cu.GetCodingUnitLeft();
+  const CodingUnit *above = cu.GetCodingUnitAbove();
+  if (!Restrictions::Get().disable_cabac_split_flag_ctx) {
+    if (left) {
+      offset += left->GetDepth() > cu.GetDepth();
+    }
+    if (above) {
+      offset += above->GetDepth() > cu.GetDepth();
+    }
+  }
+  if (!Restrictions::Get().disable_ext) {
+    int min_depth = constants::kMaxCuDepth;
+    int max_depth = 0;
+    auto update_min_max = [&min_depth, &max_depth](const CodingUnit *tmp) {
+      if (tmp) {
+        min_depth = std::min(min_depth, tmp->GetDepth());
+        max_depth = std::max(max_depth, tmp->GetDepth());
+      } else {
+        min_depth = 0;
+        max_depth = constants::kMaxCuDepth;
+      }
+    };
+    update_min_max(cu.GetCodingUnitLeft());
+    // update_min_max(cu.GetCodingUnitLeftBelow());
+    update_min_max(cu.GetCodingUnitAbove());
+    // update_min_max(cu.GetCodingUnitAboveRight());
+    min_depth = std::max(0, min_depth - 1);
+    max_depth = std::min(constants::kMaxCuDepth, max_depth + 1);
+    if (cu.GetDepth() < min_depth) {
+      offset = 3;
+    } else if (cu.GetDepth() >= max_depth + 1) {
+      offset = 4;
+    }
+  }
+  return cu_split_flag[offset];
+}
+
+ContextModel& CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
                                                 const uint8_t *sublock_csbf,
                                                 int posx, int posy, int width,
                                                 int height,
@@ -343,7 +384,7 @@ ContextModel &CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
   return ctx_base[right | below];
 }
 
-ContextModel &CabacContexts::GetCoeffSigCtx(YuvComponent comp,
+ContextModel& CabacContexts::GetCoeffSigCtx(YuvComponent comp,
                                             int pattern_sig_ctx,
                                             ScanOrder scan_order, int posx,
                                             int posy, int log2size) {
@@ -378,7 +419,7 @@ ContextModel &CabacContexts::GetCoeffSigCtx(YuvComponent comp,
   return ctx_base[comp_offset + offset + cnt];
 }
 
-ContextModel &CabacContexts::GetCoeffGreaterThan1Ctx(YuvComponent comp,
+ContextModel& CabacContexts::GetCoeffGreaterThan1Ctx(YuvComponent comp,
                                                      int ctx_set, int c1) {
   ContextModel *ctx_base =
     util::IsLuma(comp) ? &coeff_greater1_luma[0] : &coeff_greater1_chroma[0];
@@ -388,7 +429,7 @@ ContextModel &CabacContexts::GetCoeffGreaterThan1Ctx(YuvComponent comp,
   return ctx_base[4 * ctx_set + c1];
 }
 
-ContextModel &CabacContexts::GetCoeffGreaterThan2Ctx(YuvComponent comp,
+ContextModel& CabacContexts::GetCoeffGreaterThan2Ctx(YuvComponent comp,
                                                      int ctx_set) {
   ContextModel *ctx_base =
     util::IsLuma(comp) ? &coeff_greater2_luma[0] : &coeff_greater2_chroma[0];
@@ -398,7 +439,7 @@ ContextModel &CabacContexts::GetCoeffGreaterThan2Ctx(YuvComponent comp,
   return ctx_base[ctx_set];
 }
 
-ContextModel &CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width,
+ContextModel& CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width,
                                                 int height, int pos,
                                                 bool is_pos_x) {
   if (util::IsLuma(comp)) {

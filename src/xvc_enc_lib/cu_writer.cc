@@ -15,9 +15,7 @@ void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
   bool split = cu.IsSplit();
   if (cu.GetDepth() < constants::kMaxCuDepth) {
     if (cu.IsFullyWithinPicture()) {
-      const CodingUnit *left = cu.GetCodingUnitLeft();
-      const CodingUnit *above = cu.GetCodingUnitAbove();
-      writer->WriteSplitFlag(cu.GetDepth(), left, above, split);
+      writer->WriteSplitFlag(cu, split);
     } else {
       assert(split);
     }

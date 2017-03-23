@@ -133,9 +133,7 @@ Distortion CuEncoder::CompressSplitCu(CodingUnit *cu,
   }
   *frac_bits_before_split = rdo_writer->GetFractionalBits();
   if (cu->IsFullyWithinPicture()) {
-    const CodingUnit *left = cu->GetCodingUnitLeft();
-    const CodingUnit *above = cu->GetCodingUnitAbove();
-    rdo_writer->WriteSplitFlag(cu->GetDepth(), left, above, true);
+    rdo_writer->WriteSplitFlag(*cu, true);
   }
   return dist;
 }
@@ -199,9 +197,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
     cu_writer_.WriteComponent(*cu, comp, writer);
   }
   if (cu->GetDepth() < constants::kMaxCuDepth) {
-    const CodingUnit *left = cu->GetCodingUnitLeft();
-    const CodingUnit *above = cu->GetCodingUnitAbove();
-    writer->WriteSplitFlag(cu->GetDepth(), left, above, false);
+    writer->WriteSplitFlag(*cu, false);
   }
   return best_cost.dist;
 }

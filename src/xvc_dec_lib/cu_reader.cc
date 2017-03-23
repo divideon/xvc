@@ -12,13 +12,10 @@
 namespace xvc {
 
 void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
-  int depth = cu->GetDepth();
   bool split;
   if (cu->GetDepth() < constants::kMaxCuDepth) {
     if (cu->IsFullyWithinPicture()) {
-      const CodingUnit *left = cu->GetCodingUnitLeft();
-      const CodingUnit *above = cu->GetCodingUnitAbove();
-      split = reader->ReadSplitFlag(depth, left, above);
+      split = reader->ReadSplitFlag(*cu);
     } else {
       split = true;
     }

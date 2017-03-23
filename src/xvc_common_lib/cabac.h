@@ -34,7 +34,7 @@ private:
 
 struct CabacContexts {
 public:
-  static const int kNumSplitFlagCtx = 3;
+  static const int kNumSplitFlagCtx = 5;
   static const int kNumSkipFlagCtx = 3;
   static const int kNumMergeFlagCtx = 1;
   static const int kNumMergeIdxCtx = 1;
@@ -75,17 +75,18 @@ public:
 
   void ResetStates(const QP &qp, PicturePredictionType pic_type);
 
-  ContextModel &GetSubblockCsbfCtx(YuvComponent comp,
+  ContextModel& GetSplitFlagCtx(const CodingUnit &cu);
+  ContextModel& GetSubblockCsbfCtx(YuvComponent comp,
                                    const uint8_t *sig_sublock, int posx,
                                    int posy, int width, int height,
                                    int *pattern_sig_ctx);
-  ContextModel &GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
+  ContextModel& GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
                                ScanOrder scan_order, int posx, int posy,
                                int log2size);
-  ContextModel &GetCoeffGreaterThan1Ctx(YuvComponent comp, int ctx_set,
+  ContextModel& GetCoeffGreaterThan1Ctx(YuvComponent comp, int ctx_set,
                                         int c1);
-  ContextModel &GetCoeffGreaterThan2Ctx(YuvComponent comp, int ctx_set);
-  ContextModel &GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
+  ContextModel& GetCoeffGreaterThan2Ctx(YuvComponent comp, int ctx_set);
+  ContextModel& GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
                                    int pos, bool is_pos_x);
 
   std::array<ContextModel, kNumCuCbfCtxLuma> cu_cbf_luma;

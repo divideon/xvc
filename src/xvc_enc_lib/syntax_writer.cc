@@ -442,18 +442,8 @@ void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
   entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx_.cu_skip_flag[offset]);
 }
 
-void SyntaxWriter::WriteSplitFlag(int depth, const CodingUnit *left,
-                                  const CodingUnit *above, bool split) {
-  int offset = 0;
-  if (!Restrictions::Get().disable_cabac_split_flag_ctx) {
-    if (left) {
-      offset += left->GetDepth() > depth;
-    }
-    if (above) {
-      offset += above->GetDepth() > depth;
-    }
-  }
-  ContextModel &ctx = ctx_.cu_split_flag[offset];
+void SyntaxWriter::WriteSplitFlag(const CodingUnit &cu, bool split) {
+  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu);
   entropyenc_->EncodeBin(split ? 1 : 0, &ctx);
 }
 

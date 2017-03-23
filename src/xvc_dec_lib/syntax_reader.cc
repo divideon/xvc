@@ -432,18 +432,8 @@ bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
   return bin != 0;
 }
 
-bool SyntaxReader::ReadSplitFlag(int depth, const CodingUnit *left,
-                                 const CodingUnit *above) {
-  int offset = 0;
-  if (!Restrictions::Get().disable_cabac_split_flag_ctx) {
-    if (left) {
-      offset += left->GetDepth() > depth;
-    }
-    if (above) {
-      offset += above->GetDepth() > depth;
-    }
-  }
-  ContextModel &ctx = ctx_.cu_split_flag[offset];
+bool SyntaxReader::ReadSplitFlag(const CodingUnit &cu) {
+  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu);
   return entropydec_->DecodeBin(&ctx) != 0;
 }
 

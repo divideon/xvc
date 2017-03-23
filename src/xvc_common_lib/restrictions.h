@@ -79,7 +79,7 @@ public:
       instance.disable_deblock_depending_on_qp;
   }
 
-  static bool GetNextGenRestrictions() {
+  static bool GetExtRestrictions() {
     return instance.disable_ext;
   }
 

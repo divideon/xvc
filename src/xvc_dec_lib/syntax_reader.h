@@ -37,8 +37,7 @@ public:
   PredictionMode ReadPredMode();
   bool ReadRootCbf();
   bool ReadSkipFlag(const CodingUnit &cu);
-  bool ReadSplitFlag(int depth, const CodingUnit *left,
-                     const CodingUnit *above);
+  bool ReadSplitFlag(const CodingUnit &cu);
 
 private:
   void ReadCoeffLastPos(int width, int height, YuvComponent comp,

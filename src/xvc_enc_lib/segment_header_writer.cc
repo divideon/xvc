@@ -114,7 +114,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // deblock_restrictions
   }
-  if (Restrictions::GetNextGenRestrictions()) {
+  if (Restrictions::GetExtRestrictions()) {
     bit_writer->WriteBit(1);
     bit_writer->WriteBit(restr.disable_ext);
   } else {

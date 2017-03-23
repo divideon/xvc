@@ -48,8 +48,7 @@ public:
   void WritePredMode(PredictionMode pred_mode);
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
-  void WriteSplitFlag(int depth, const CodingUnit *left,
-                      const CodingUnit *above, bool split);
+  void WriteSplitFlag(const CodingUnit &cu, bool split);
 
 protected:
   void WriteCoeffLastPos(int width, int height, YuvComponent comp,
