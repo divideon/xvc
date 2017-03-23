@@ -82,8 +82,8 @@ PictureEncoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
 void PictureEncoder::WriteHeader(const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
                                  BitWriter *bit_writer) {
-  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()) << 1,
-                        8);  // Nal Unit header
+  // Nal Unit header
+  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()) << 1, 8);
   bit_writer->WriteBits(buffer_flag, 1);
   bit_writer->WriteBits(pic_data.GetTid(), 3);
   if (pic_data.GetTid() == 0) {

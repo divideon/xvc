@@ -33,6 +33,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   // The open gop flag is set to 0 if the tail pictures
   // do not predict from the Intra picture in the next segment.
   bit_writer->WriteBit(open_gop);
+  bit_writer->WriteBits(segment_header->num_ref_pics, 4);
   assert(segment_header->deblock >= 0);
   assert(segment_header->deblock <= 3);
   bit_writer->WriteBits(segment_header->deblock, 2);
@@ -41,8 +42,6 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBits(segment_header->beta_offset + (1 << (d - 1)), d);
     bit_writer->WriteBits(segment_header->tc_offset + (1 << (d - 1)), d);
   }
-  bit_writer->WriteBits(0, 4);  // num_ref_pic_r0
-  bit_writer->WriteBits(0, 4);  // num_ref_pic_r1
 
   auto &restr = Restrictions::Get();
   if (Restrictions::GetIntraRestrictions()) {

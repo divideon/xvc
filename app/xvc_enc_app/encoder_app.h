@@ -21,7 +21,8 @@ namespace xvc_app {
 class EncoderApp {
 public:
   EncoderApp() : cli_(), xvc_api_(nullptr), params_(nullptr),
-    encoder_(nullptr) {}
+    encoder_(nullptr) {
+  }
   ~EncoderApp();
   void ReadArguments(int argc, const char *argv[]);
   bool CheckParameters();
@@ -61,11 +62,11 @@ private:
     int sub_gop_length = -1;
     int max_keypic_distance = -1;
     int closed_gop = -1;
-    int qp = -1;
+    int num_ref_pics = -1;
     int deblock = -1;
     int beta_offset = std::numeric_limits<int>::min();
     int tc_offset = std::numeric_limits<int>::min();
-    int all_intra = -1;
+    int qp = -1;
     int flat_lambda = -1;
     int verbose = 0;
   } cli_;

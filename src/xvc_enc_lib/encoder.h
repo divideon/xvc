@@ -39,6 +39,9 @@ public:
   void SetChromaFormat(xvc_enc_chroma_format format) {
     segment_header_.chroma_format = ChromaFormat(format);
   }
+  void SetNumRefPics(int num) {
+    segment_header_.num_ref_pics = num;
+  }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
@@ -49,11 +52,10 @@ public:
   void SetClosedGopInterval(PicNum interval) {
     closed_gop_interval_ = interval;
   }
-  void SetQP(int qp) { segment_qp_ = qp; }
   void SetDeblock(int deblock) { segment_header_.deblock = deblock; }
   void SetBetaOffset(int offset) { segment_header_.beta_offset = offset; }
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
-  void SetAllIntra(bool all_intra) { all_intra_ = all_intra; }
+  void SetQP(int qp) { segment_qp_ = qp; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
 
 private:
@@ -79,9 +81,8 @@ private:
   PicNum pic_buffering_num_ = 1;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
-  bool all_intra_ = false;
-  bool flat_lambda_ = false;
   int segment_qp_ = -1;
+  bool flat_lambda_ = false;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter bit_writer_;

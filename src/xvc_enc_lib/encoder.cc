@@ -35,7 +35,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   auto pic_data = pic_enc->GetPicData();
   pic_data->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   pic_data->SetPoc(poc_);
-  if (all_intra_) {
+  if (segment_header_.num_ref_pics == 0) {
     pic_data->SetNalType(NalUnitType::kIntraPicture);
   } else if (Restrictions::Get().disable_inter_bipred) {
     pic_data->SetNalType(NalUnitType::kPredictedPicture);
@@ -107,6 +107,10 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     return n1.buffer_flag > n2.buffer_flag;
   });
 
+  // Increase encoder poc counter by one for each call to Encode.
+  // poc_ is initialized to 0.
+  poc_++;
+
   rec_pic->pic = nullptr;
   rec_pic->size = 0;
   // If enough pictures have been encoded, the reconstructed picture
@@ -114,9 +118,6 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   if (poc_ >= segment_header_.max_sub_gop_length) {
     ReconstructOnePicture(output_rec, rec_pic);
   }
-  // Increase encoder poc counter by one for each call to Encode.
-  // poc_ is initialized to 0.
-  poc_++;
 
   if (nal_units_.size() > 0) {
     *nal_units = &nal_units_[0];
@@ -183,7 +184,8 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
   int bflag = (buffer_flag_ &&
     (pic->GetPicData()->GetNalType() != NalUnitType::kIntraAccessPicture));
 
-  ReferenceListSorter<PictureEncoder> ref_list_sorter(prev_segment_open_gop_);
+  ReferenceListSorter<PictureEncoder>
+    ref_list_sorter(prev_segment_open_gop_, segment_header_.num_ref_pics);
   ref_list_sorter.PrepareRefPicLists(pic->GetPicData(), pic_encoders_,
                                      pic->GetPicData()->GetRefPicLists());
 

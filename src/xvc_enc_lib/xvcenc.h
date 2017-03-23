@@ -26,6 +26,7 @@ extern "C" {
     XVC_ENC_QP_OUT_OF_RANGE,
     XVC_ENC_SUB_GOP_LENGTH_TOO_LARGE,
     XVC_ENC_DEBLOCKING_SETTINGS_INVALID,
+    XVC_ENC_TOO_MANY_REF_PICS,
     XVC_ENC_INVALID_PARAMETER,
   };
 
@@ -73,11 +74,11 @@ extern "C" {
     uint32_t sub_gop_length;
     uint32_t max_keypic_distance;
     int closed_gop;
-    int qp;
+    int num_ref_pics;
     int deblock;
     int beta_offset;
     int tc_offset;
-    int all_intra;
+    int qp;
     int flat_lambda;
   } xvc_encoder_parameters;
 

@@ -88,7 +88,7 @@ extern "C" {
     xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder_api,
                                         xvc_decoded_picture *pic_bytes);
     xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder_api,
-                                            int *num);
+                                                    int *num);
   } xvc_decoder_api;
 
 

@@ -72,7 +72,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
 
 bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
   double lambda = 0;
-  QP qp(pic_qp_, pic_data_->GetChromaFormat(),  pic_data_->GetBitdepth(),
+  QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
   pic_data_->Init(qp);
 

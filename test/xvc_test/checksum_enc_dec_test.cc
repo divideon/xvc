@@ -17,11 +17,30 @@ namespace {
 
 class ChecksumEncDecTest : public ::testing::TestWithParam<int> {
 protected:
+  xvc::SegmentHeader SegmentHeaderHelper(int width, int height, int bitdepth,
+                                         xvc::ChromaFormat chroma_fmt,
+                                         xvc::PicNum sub_gop_length) {
+    xvc::SegmentHeader sh;
+    sh.codec_identifier = xvc::constants::kXvcCodecIdentifier;
+    sh.major_version = xvc::constants::kXvcMajorVersion;
+    sh.minor_version = xvc::constants::kXvcMinorVersion;
+    sh.soc = 0;
+    sh.pic_width = width;
+    sh.pic_height = height;
+    sh.chroma_format = chroma_fmt;
+    sh.internal_bitdepth = bitdepth;
+    sh.max_sub_gop_length = sub_gop_length;
+    sh.open_gop = true;
+    sh.num_ref_pics = 1;
+    sh.deblock = true;
+    return sh;
+  }
+
   void SetUp() override {
     const xvc::PicNum sub_gop_length = 1;
     int internal_bitdepth = GetParam();
-    segment_ = xvc::SegmentHeader(kPicWidth, kPicHeight, internal_bitdepth,
-                                  xvc::ChromaFormat::k420, sub_gop_length);
+    segment_ = SegmentHeaderHelper(kPicWidth, kPicHeight, internal_bitdepth,
+                                   xvc::ChromaFormat::k420, sub_gop_length);
     input_bitdepth_ = segment_.internal_bitdepth;
     int mask = (1 << input_bitdepth_) - 1;
     for (int i = 0; i < static_cast<int>(input_pic_.size()); i++) {

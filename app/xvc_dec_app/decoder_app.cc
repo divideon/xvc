@@ -286,8 +286,8 @@ void DecoderApp::PrintPictureInfo(xvc_dec_pic_stats pic_stats) {
     std::cout << "   QP:" << std::setw(6) << pic_stats.qp;
     if (pic_stats.l0[0] >= 0 || pic_stats.l1[0] >= 0) {
       std::cout << "  RefPics: L0: { ";
-      int length = sizeof(pic_stats.l0) / sizeof(pic_stats.l0[0]);
-      for (int i = 0; i < length; i++) {
+      int length_l0 = sizeof(pic_stats.l0) / sizeof(pic_stats.l0[0]);
+      for (int i = 0; i < length_l0; i++) {
         if (pic_stats.l0[i] > -1) {
           if (i > 0) {
             std::cout << ", ";
@@ -296,7 +296,8 @@ void DecoderApp::PrintPictureInfo(xvc_dec_pic_stats pic_stats) {
         }
       }
       std::cout << " } L1: { ";
-      for (int i = 0; i < 5; i++) {
+      int length_l1 = sizeof(pic_stats.l1) / sizeof(pic_stats.l1[0]);
+      for (int i = 0; i < length_l1; i++) {
         if (pic_stats.l1[i] > -1) {
           if (i > 0) {
             std::cout << ", ";

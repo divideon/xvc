@@ -122,16 +122,16 @@ private:
   ResidualBufferStorage bipred_orig_buffer_;
   SampleBufferStorage bipred_pred_buffer_;
   // Mapping of ref_idx from L1 to L0 when POC is same
-  std::array<int, constants::kNumPicsInRefPicLists> same_poc_in_l0_mapping_;
+  std::array<int, constants::kMaxNumRefPics> same_poc_in_l0_mapping_;
   // Best uni-prediction motion estimation result for a single CU
-  std::array<std::array<MotionVector, constants::kNumPicsInRefPicLists>,
+  std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> unipred_best_mv_;
-  std::array<std::array<int, constants::kNumPicsInRefPicLists>,
+  std::array<std::array<int, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> unipred_best_mvp_idx_;
-  std::array<std::array<Distortion, constants::kNumPicsInRefPicLists>,
+  std::array<std::array<Distortion, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> unipred_best_dist_;
   // Best fullpel search mv per ref list, ref idx and picture
-  std::array<std::array<MotionVector, constants::kNumPicsInRefPicLists>,
+  std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> previous_fullpel_;
 };
 

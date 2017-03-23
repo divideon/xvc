@@ -50,7 +50,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
       sliding_window_length_ = sub_gop_length_ + 1;
     }
     pic_buffering_num_ =
-      sliding_window_length_ + constants::kMaxNumLongTermPics;
+      sliding_window_length_ + curr_segment_header_.num_ref_pics;
 
     if (output_width_ == 0) {
       output_width_ = curr_segment_header_.pic_width;
@@ -147,7 +147,8 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                         num_tail_pics_);
 
   ReferenceListSorter<PictureDecoder>
-    ref_list_sorter(prev_segment_header_.open_gop);
+    ref_list_sorter(prev_segment_header_.open_gop,
+                    segment_header->num_ref_pics);
   ref_list_sorter.PrepareRefPicLists(pic_dec->GetPicData(), pic_decoders_,
                                      pic_dec->GetPicData()->GetRefPicLists());
 

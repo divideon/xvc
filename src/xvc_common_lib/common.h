@@ -94,11 +94,8 @@ const int kCoeffRemainBinReduction = 3;
 // Deblocking
 const int kDeblockOffsetBits = 6;
 
-// Picture buffer management
-// TODO(dev): Consider allowing the encoder to signal a smaller value.
-const int kMaxNumLongTermPics = 2;
-// Must be smaller than or equal to kMaxNumLongTermPics.
-const int kNumPicsInRefPicLists = 2;
+// Maximum number of reference pictures per reference picture list
+const int kMaxNumRefPics = 5;
 
 // High-level syntax
 const int kTimeScale = 90000;

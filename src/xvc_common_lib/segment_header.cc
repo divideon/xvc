@@ -174,8 +174,7 @@ int SegmentHeader::GetMaxTid(PicNum sub_gop_length) {
       kDocToTid[static_cast<int>(sub_gop_length)].begin(),
       kDocToTid[static_cast<int>(sub_gop_length)].end());
   } else {
-    assert(0);
-    return 0;
+    return 1;
   }
 }
 
@@ -234,24 +233,6 @@ double SegmentHeader::GetFramerate(int max_tid, int bitstream_ticks,
     return (1.0 * constants::kTimeScale) / (sub_gop_length * bitstream_ticks);
   }
   return (1.0 * constants::kTimeScale) / (bitstream_ticks);
-}
-
-SegmentHeader::SegmentHeader(int width, int height, int bitdepth,
-                             ChromaFormat chroma_fmt,
-                             PicNum sub_gop_length)
-  : codec_identifier(constants::kXvcCodecIdentifier),
-  major_version(constants::kXvcMajorVersion),
-  minor_version(constants::kXvcMinorVersion),
-  soc(0),
-  pic_width(width),
-  pic_height(height),
-  chroma_format(chroma_fmt),
-  internal_bitdepth(bitdepth),
-  max_sub_gop_length(sub_gop_length),
-  open_gop(true),
-  deblock(true),
-  num_ref_pic_r0(constants::kNumPicsInRefPicLists),
-  num_ref_pic_r1(constants::kNumPicsInRefPicLists) {
 }
 
 PicNum SegmentHeader::DocToPoc(PicNum sub_gop_length, PicNum doc) {

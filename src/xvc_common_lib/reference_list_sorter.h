@@ -19,8 +19,9 @@ namespace xvc {
 template<class T>
 class ReferenceListSorter {
 public:
-  explicit ReferenceListSorter(bool prev_segment_open_gop)
-    : prev_segment_open_gop_(prev_segment_open_gop) {
+  explicit ReferenceListSorter(bool prev_segment_open_gop, int num_ref_pics)
+    : prev_segment_open_gop_(prev_segment_open_gop),
+    num_ref_pics_(num_ref_pics) {
   }
 
   void PrepareRefPicLists(std::shared_ptr<PictureData> curr_pic,
@@ -45,7 +46,7 @@ private:
     int last_added_tid = curr_pic->GetTid();
     int ref_idx = start_idx;
 
-    while (ref_idx < constants::kNumPicsInRefPicLists) {
+    while (ref_idx < num_ref_pics_) {
       PicNum highest_poc_plus1 = 0;
       std::shared_ptr<const T> pic_enc_dec;
       for (auto &pic : pic_buffer) {
@@ -64,8 +65,8 @@ private:
       last_added_tid = pic_enc_dec->GetPicData()->GetTid();
       last_added_poc = highest_poc_plus1 - 1;
       rpl->SetRefPic(ref_pic_list, ref_idx, pic_enc_dec->GetPicData()->GetPoc(),
-                      pic_enc_dec->GetPicData(),
-                      pic_enc_dec->GetRecPic());
+                     pic_enc_dec->GetPicData(),
+                     pic_enc_dec->GetRecPic());
       ref_idx++;
     }
     return ref_idx;
@@ -79,7 +80,7 @@ private:
     int last_added_tid = curr_pic->GetTid();
     int ref_idx = start_idx;
 
-    while (ref_idx < constants::kNumPicsInRefPicLists) {
+    while (ref_idx < num_ref_pics_) {
       PicNum lowest_poc = std::numeric_limits<PicNum>::max();
       std::shared_ptr<const T> pic_enc_dec;
       for (auto &pic : pic_buffer) {
@@ -112,14 +113,15 @@ private:
           curr_pic->GetBitdepth());
       }
       rpl->SetRefPic(ref_pic_list, ref_idx, pic_enc_dec->GetPicData()->GetPoc(),
-                      pic_enc_dec->GetPicData(),
-                      pic_enc_dec->GetRecPic());
+                     pic_enc_dec->GetPicData(),
+                     pic_enc_dec->GetRecPic());
       ref_idx++;
     }
     return ref_idx;
   }
 
   bool prev_segment_open_gop_;
+  int num_ref_pics_;
 };
 
 }   // namespace xvc

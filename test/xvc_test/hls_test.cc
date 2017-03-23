@@ -39,7 +39,7 @@ public:
 
 TEST_F(HlsTest, RecvSameVersion) {
   EXPECT_TRUE(ChangeVersion(xvc::constants::kXvcMajorVersion,
-                  xvc::constants::kXvcMinorVersion));
+                            xvc::constants::kXvcMinorVersion));
   ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
   DecodeFirstPictureSuccess();
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
@@ -47,7 +47,7 @@ TEST_F(HlsTest, RecvSameVersion) {
 
 TEST_F(HlsTest, RecvLargerMajorVersion) {
   EXPECT_FALSE(ChangeVersion(xvc::constants::kXvcMajorVersion + 1,
-                  xvc::constants::kXvcMinorVersion));
+                             xvc::constants::kXvcMinorVersion));
   ASSERT_EQ(::xvc::Decoder::State::kDecoderVersionTooLow, decoder_->GetState());
   DecodeFirstPictureFailed();
   EXPECT_EQ(::xvc::Decoder::State::kDecoderVersionTooLow, decoder_->GetState());
@@ -55,7 +55,7 @@ TEST_F(HlsTest, RecvLargerMajorVersion) {
 
 TEST_F(HlsTest, RecvLowerMajorVersion) {
   EXPECT_TRUE(ChangeVersion(xvc::constants::kXvcMajorVersion - 1,
-                  xvc::constants::kXvcMinorVersion));
+                            xvc::constants::kXvcMinorVersion));
   ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
   DecodeFirstPictureSuccess();
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
@@ -63,7 +63,7 @@ TEST_F(HlsTest, RecvLowerMajorVersion) {
 
 TEST_F(HlsTest, RecvLargerMinorVersion) {
   EXPECT_TRUE(ChangeVersion(xvc::constants::kXvcMajorVersion,
-                  xvc::constants::kXvcMinorVersion + 1));
+                            xvc::constants::kXvcMinorVersion + 1));
   ASSERT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded, decoder_->GetState());
   DecodeFirstPictureSuccess();
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());

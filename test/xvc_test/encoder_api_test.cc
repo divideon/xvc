@@ -100,6 +100,14 @@ TEST(EncoderAPI, ParamCheck) {
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->num_ref_pics = 5;
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
+
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->num_ref_pics = 6;
+  EXPECT_EQ(XVC_ENC_TOO_MANY_REF_PICS, api->parameters_check(params));
+
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
   params->deblock = 0;
   params->beta_offset = 2;
   EXPECT_EQ(XVC_ENC_DEBLOCKING_SETTINGS_INVALID, api->parameters_check(params));

@@ -35,14 +35,13 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
 
   bit_reader->ReadBit();  // shorter_sub_gops_allowed
   segment_header->open_gop = bit_reader->ReadBit() == 1;
+  segment_header->num_ref_pics = bit_reader->ReadBits(4);  // num_ref_pics
   segment_header->deblock = bit_reader->ReadBits(2);  // deblock
   if (segment_header->deblock == 3) {
     int d = constants::kDeblockOffsetBits;
     segment_header->beta_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
     segment_header->tc_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
   }
-  bit_reader->ReadBits(4);  // num_ref_pic_r0
-  bit_reader->ReadBits(4);  // num_ref_pic_r1
 
   // This is the only place where Restrictions::GetRW is allowed to be called.
   auto &restr = Restrictions::GetRW();

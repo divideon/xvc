@@ -68,16 +68,16 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       cli_.max_keypic_distance = std::stoi(std::string(argv[++i]));
     } else if (arg == "-closed-gop") {
       cli_.closed_gop = std::stoi(std::string(argv[++i]));
-    } else if (arg == "-qp") {
-      cli_.qp = std::stoi(std::string(argv[++i]));
+    } else if (arg == "-num-ref-pics") {
+      cli_.num_ref_pics = std::stoi(std::string(argv[++i]));
     } else if (arg == "-deblock") {
       cli_.deblock = std::stoi(std::string(argv[++i]));
     } else if (arg == "-beta-offset") {
       cli_.beta_offset = std::stoi(std::string(argv[++i]));
     } else if (arg == "-tc-offset") {
       cli_.tc_offset = std::stoi(std::string(argv[++i]));
-    } else if (arg == "-all-intra") {
-      cli_.all_intra = std::stoi(std::string(argv[++i]));
+    } else if (arg == "-qp") {
+      cli_.qp = std::stoi(std::string(argv[++i]));
     } else if (arg == "-flat-lambda") {
       cli_.flat_lambda = std::stoi(std::string(argv[++i]));
     } else if (arg == "-verbose") {
@@ -203,8 +203,8 @@ void EncoderApp::CreateAndConfigureApi() {
   if (cli_.closed_gop != -1) {
     params_->closed_gop = cli_.closed_gop;
   }
-  if (cli_.qp != -1) {
-    params_->qp = cli_.qp;
+  if (cli_.num_ref_pics != -1) {
+    params_->num_ref_pics = cli_.num_ref_pics;
   }
   if (cli_.deblock != -1) {
     params_->deblock = cli_.deblock;
@@ -215,8 +215,8 @@ void EncoderApp::CreateAndConfigureApi() {
   if (cli_.tc_offset != std::numeric_limits<int>::min()) {
     params_->tc_offset = cli_.tc_offset;
   }
-  if (cli_.all_intra >= 0) {
-    params_->all_intra = cli_.all_intra;
+  if (cli_.qp != -1) {
+    params_->qp = cli_.qp;
   }
   if (cli_.flat_lambda >= 0) {
     params_->flat_lambda = cli_.flat_lambda;
@@ -325,7 +325,7 @@ void EncoderApp::MainEncoderLoop() {
     if (rec_stream_.is_open() && rec_pic_ptr &&
         rec_pic_ptr->size > 0) {
       rec_stream_.write(reinterpret_cast<char *>(rec_pic_ptr->pic),
-                                rec_pic_ptr->size);
+                        rec_pic_ptr->size);
     }
 
     // Jump forward in the input file if temporal subsampling is applied.
@@ -384,11 +384,11 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -sub-gop-length <int>" << std::endl;
   std::cout << "  -max-keypic-distance <int>" << std::endl;
   std::cout << "  -closed-gop <int>" << std::endl;
-  std::cout << "  -qp <int>" << std::endl;
+  std::cout << "  -num-ref-pics <int>" << std::endl;
   std::cout << "  -deblock <0/1>" << std::endl;
   std::cout << "  -beta-offset <int>" << std::endl;
   std::cout << "  -tc-offset <int>" << std::endl;
-  std::cout << "  -all-intra <0/1>" << std::endl;
+  std::cout << "  -qp <int>" << std::endl;
   std::cout << "  -verbose <0/1>" << std::endl;
 }
 
@@ -408,8 +408,8 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
   if (nal_unit.stats.nal_unit_type < 16) {
     if (nal_unit.stats.l0[0] >= 0 || nal_unit.stats.l1[0] >= 0) {
       std::cout << "  RefPics: L0: { ";
-      int length = sizeof(nal_unit.stats.l0) / sizeof(nal_unit.stats.l0[0]);
-      for (int i = 0; i < length; i++) {
+      int length_l0 = sizeof(nal_unit.stats.l0) / sizeof(nal_unit.stats.l0[0]);
+      for (int i = 0; i < length_l0; i++) {
         if (nal_unit.stats.l0[i] > -1) {
           if (i > 0) {
             std::cout << ", ";
@@ -418,7 +418,8 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
         }
       }
       std::cout << " } L1: { ";
-      for (int i = 0; i < 5; i++) {
+      int length_l1 = sizeof(nal_unit.stats.l1) / sizeof(nal_unit.stats.l1[0]);
+      for (int i = 0; i < length_l1; i++) {
         if (nal_unit.stats.l1[i] > -1) {
           if (i > 0) {
             std::cout << ", ";

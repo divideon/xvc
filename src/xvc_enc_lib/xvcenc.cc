@@ -42,11 +42,11 @@ extern "C" {
     param->sub_gop_length = 0;
     param->max_keypic_distance = 640;
     param->closed_gop = 0;
-    param->qp = 32;
+    param->num_ref_pics = 2;
     param->deblock = 1;
     param->beta_offset = 0;
     param->tc_offset = 0;
-    param->all_intra = 0;
+    param->qp = 32;
     param->flat_lambda = 0;
     return XVC_ENC_OK;
   }
@@ -81,16 +81,21 @@ extern "C" {
         param->framerate > xvc::constants::kTimeScale) {
       return XVC_ENC_FRAMERATE_OUT_OF_RANGE;
     }
-    if (param->qp > xvc::constants::kMaxAllowedQp ||
-        param->qp < xvc::constants::kMinAllowedQp) {
-      return XVC_ENC_QP_OUT_OF_RANGE;
-    }
     if (param->sub_gop_length > xvc::constants::kMaxSubGopLength) {
       return XVC_ENC_SUB_GOP_LENGTH_TOO_LARGE;
     }
     if (param->max_keypic_distance &&
         param->sub_gop_length > param->max_keypic_distance) {
       return XVC_ENC_SUB_GOP_LENGTH_TOO_LARGE;
+    }
+    if (param->closed_gop < 0) {
+      return XVC_ENC_INVALID_PARAMETER;
+    }
+    if (param->num_ref_pics > xvc::constants::kMaxNumRefPics) {
+      return XVC_ENC_TOO_MANY_REF_PICS;
+    }
+    if (param->num_ref_pics < 0) {
+      return XVC_ENC_INVALID_PARAMETER;
     }
     if (param->deblock == 0 &&
       (param->beta_offset || param->tc_offset)) {
@@ -99,18 +104,13 @@ extern "C" {
     int d = xvc::constants::kDeblockOffsetBits - 1;
     if ((param->beta_offset >= (1 << d)) ||
       (param->beta_offset < -(1 << d)) ||
-         (param->tc_offset >= (1 << d)) ||
-         (param->tc_offset < -(1 << d))) {
+        (param->tc_offset >= (1 << d)) ||
+        (param->tc_offset < -(1 << d))) {
       return XVC_ENC_DEBLOCKING_SETTINGS_INVALID;
     }
-    if (param->closed_gop < 0) {
-      return XVC_ENC_INVALID_PARAMETER;
-    }
-    if (param->closed_gop < 0) {
-      return XVC_ENC_INVALID_PARAMETER;
-    }
-    if (param->all_intra < 0 || param->all_intra > 1) {
-      return XVC_ENC_INVALID_ARGUMENT;
+    if (param->qp > xvc::constants::kMaxAllowedQp ||
+        param->qp < xvc::constants::kMinAllowedQp) {
+      return XVC_ENC_QP_OUT_OF_RANGE;
     }
     if (param->flat_lambda < 0 || param->flat_lambda > 1) {
       return XVC_ENC_INVALID_ARGUMENT;
@@ -123,7 +123,7 @@ extern "C" {
       return nullptr;
     }
     if (param->sub_gop_length == 0) {
-      param->sub_gop_length = !param->all_intra ? 16 : 1;
+      param->sub_gop_length = param->num_ref_pics > 0 ? 16 : 1;
     }
     xvc::Encoder *encoder =
       new xvc::Encoder(param->internal_bitdepth, param->qp);
@@ -132,8 +132,8 @@ extern "C" {
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetFramerate(param->framerate);
     encoder->SetSubGopLength(param->sub_gop_length);
-    encoder->SetPicBufferingNum(param->sub_gop_length +
-                                xvc::constants::kMaxNumLongTermPics);
+    encoder->SetNumRefPics(param->num_ref_pics);
+    encoder->SetPicBufferingNum(param->sub_gop_length + param->num_ref_pics);
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
     if (param->beta_offset != 0 || param->tc_offset != 0) {
@@ -141,7 +141,6 @@ extern "C" {
     } else {
       encoder->SetDeblock(param->deblock);
     }
-    encoder->SetAllIntra(param->all_intra != 0);
     encoder->SetFlatLambda(param->flat_lambda != 0);
 
     // Calculate what intra-period i.e. Gop-length i.e. segment-length to use.
@@ -218,7 +217,7 @@ extern "C" {
       case XVC_ENC_SIZE_NOT_POSITIVE:
         return "Error. The input width and height must be positive.";
       case XVC_ENC_SIZE_NOT_MULTIPLE_OF_BLOCKSIZE:
-        return "Error. The input resolution is not a multiple of 16";
+        return "Error. The input resolution is not a multiple of 8.";
       case XVC_ENC_UNSUPPORTED_CHROMA_FORMAT:
         return "Error. Unsupported chroma format.";
       case XVC_ENC_BITDEPTH_OUT_OF_RANGE:
@@ -228,7 +227,7 @@ extern "C" {
           " lower bitdepth than what is requested. Please recompile the xvc"
           " library with higher bitdepth.";
       case XVC_ENC_FRAMERATE_OUT_OF_RANGE:
-        return  "Error. Framerate must be between 0.0054 fps and 90,000 fps,"
+        return  "Error. Framerate must be between 0.0054 fps and 90000 fps,"
           " inclusive.";
       case XVC_ENC_QP_OUT_OF_RANGE:
         return  "Error. QP must be between -64 and 63, inclusive.";
@@ -238,6 +237,8 @@ extern "C" {
         return  "Error. Beta offset and tc offset must be in the range from"
           " -32 to 31, inclusive and deblock must be set to 1 when beta offset"
           " and/or tc offset is used.";
+      case XVC_ENC_TOO_MANY_REF_PICS:
+        return  "Error. Maximum allowed number of reference pictures is 5.";
       case XVC_ENC_INVALID_PARAMETER:
         return  "Error. Invalid parameter. Please check the encoder"
           " parameters.";
