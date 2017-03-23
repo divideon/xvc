@@ -83,8 +83,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
     } else if (arg == "-verbose") {
       cli_.verbose = std::stoi(std::string(argv[++i]));
     } else {
-      std::cerr << "Warning: Unknown argument " << arg << " ignored."
-        << std::endl;
+      std::cerr << "Error: Unknown argument: " << arg << std::endl;
+      std::exit(1);
     }
   }
 }
