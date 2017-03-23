@@ -472,8 +472,8 @@ void InterSearch::FullpelNeighborPointSearch(SearchState *state) {
   MotionVector mv_base = state->mv_best;
   switch (state->last_position) {
     case Up::index + Left::index:
-      CheckCost1<Up>(state, mv_base.x, mv_base.y - r, r);
       CheckCost1<Left>(state, mv_base.x - r, mv_base.y, r);
+      CheckCost1<Up>(state, mv_base.x, mv_base.y - r, r);
       break;
 
     case Up::index:
@@ -487,8 +487,8 @@ void InterSearch::FullpelNeighborPointSearch(SearchState *state) {
       break;
 
     case Left::index:
-      CheckCost2<Up, Left>(state, mv_base.x - r, mv_base.y - r, r);
       CheckCost2<Down, Left>(state, mv_base.x - r, mv_base.y + r, r);
+      CheckCost2<Up, Left>(state, mv_base.x - r, mv_base.y - r, r);
       break;
 
     case Right::index:
