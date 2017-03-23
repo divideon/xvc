@@ -29,17 +29,23 @@ static const std::array<uint8_t, constants::kMaxAllowedQp + 1> kBetaTable = {
 };
 
 void DeblockingFilter::DeblockPicture() {
+  bool has_secondary_tree = pic_data_->HasSecondaryCuTree();
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
-    DeblockCtu(rsaddr, Direction::kVertical);
+    DeblockCtu(rsaddr, CuTree::Primary, Direction::kVertical);
+    if (has_secondary_tree) {
+      DeblockCtu(rsaddr, CuTree::Secondary, Direction::kVertical);
+    }
   }
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
-    DeblockCtu(rsaddr, Direction::kHorizontal);
+    DeblockCtu(rsaddr, CuTree::Primary, Direction::kHorizontal);
+    if (has_secondary_tree) {
+      DeblockCtu(rsaddr, CuTree::Secondary, Direction::kHorizontal);
+    }
   }
 }
 
-void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
-  const CuTree cu_tree = CuTree::Primary;
+void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir) {
   const YuvComponent luma = YuvComponent::kY;
   const YuvComponent chroma = YuvComponent::kU;
   const CodingUnit *cu = pic_data_->GetCtu(CuTree::Primary, rsaddr);
@@ -49,6 +55,10 @@ void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
   int chroma_scale_y = 1 << rec_pic_->GetSizeShiftY(chroma);
   int height_in_8x8 = cu->GetHeight(luma) >> 3;
   int width_in_8x8 = cu->GetWidth(luma) >> 3;
+  bool deblock_luma = cu_tree == CuTree::Primary;
+  bool deblock_chroma = pic_data_->GetNumComponents() > 1 &&
+    (!pic_data_->HasSecondaryCuTree() || cu_tree == CuTree::Secondary) &&
+    !Restrictions::Get().disable_deblock_chroma_filter;
 
   for (int i = 0; i < height_in_8x8; i++) {
     for (int j = 0; j < width_in_8x8; j++) {
@@ -84,10 +94,11 @@ void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
         qp = 32;
       }
       // TODO(dev): Add check for if a PU (CU) is coded losslessly
-      FilterEdgeLuma(x, y, dir, boundary_strength, qp);
+      if (deblock_luma) {
+        FilterEdgeLuma(x, y, dir, boundary_strength, qp);
+      }
 
-      if (boundary_strength == 2 && pic_data_->GetNumComponents() > 1 &&
-          !Restrictions::Get().disable_deblock_chroma_filter) {
+      if (deblock_chroma && boundary_strength == 2) {
         int chroma_qp = (cu_p->GetQp(chroma) + cu_q->GetQp(chroma) + 1) >> 1;
         if (Restrictions::Get().disable_deblock_depending_on_qp) {
           qp = 31;

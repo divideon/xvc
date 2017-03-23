@@ -71,6 +71,12 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   CompressCu(&ctu, &rdo_writer);
   pic_data_.SetCtu(CuTree::Primary, rsaddr, ctu);
+  if (pic_data_.HasSecondaryCuTree()) {
+    RdoSyntaxWriter rdo_writer2(*bitstream_writer);
+    CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
+    CompressCu(&ctu2, &rdo_writer2);
+    pic_data_.SetCtu(CuTree::Secondary, rsaddr, ctu2);
+  }
 
   WriteCtu(rsaddr, bitstream_writer);
 }
@@ -195,8 +201,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
   cu->SetRootCbf(cu->GetHasAnyCbf());
   pic_data_.MarkUsedInPic(cu);
 
-  for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
-    const YuvComponent comp = YuvComponent(c);
+  for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     cu_writer_.WriteComponent(*cu, comp, writer);
   }
   if (cu->GetDepth() < constants::kMaxCuDepth) {
@@ -211,8 +216,7 @@ CuEncoder::CompressIntra(CodingUnit *cu, const QP &qp,
   cu->SetPredMode(PredictionMode::kIntra);
   cu->SetSkipFlag(false);
   Distortion dist = 0;
-  for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
-    const YuvComponent comp = YuvComponent(c);
+  for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     if (util::IsLuma(comp)) {
       IntraMode best_mode = SearchIntraLuma(cu, comp, qp, writer);
       cu->SetIntraModeLuma(best_mode);
@@ -707,8 +711,7 @@ CuEncoder::ComputeDistCostNoSplit(const CodingUnit &cu, const QP &qp,
                                   const SyntaxWriter &bitstream_writer,
                                   Distortion ssd) {
   RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-  for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
-    const YuvComponent comp = YuvComponent(c);
+  for (YuvComponent comp : pic_data_.GetComponents(cu.GetCuTree())) {
     cu_writer_.WriteComponent(cu, comp, &rdo_writer);
   }
   Bits bits = rdo_writer.GetNumWrittenBits();
@@ -720,6 +723,10 @@ void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
   writer->ResetBitCounting();
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   cu_writer_.WriteCu(*ctu, writer);
+  if (pic_data_.HasSecondaryCuTree()) {
+    CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
+    cu_writer_.WriteCu(*ctu2, writer);
+  }
 #if HM_STRICT
   writer->WriteEndOfSlice(false);
 #endif

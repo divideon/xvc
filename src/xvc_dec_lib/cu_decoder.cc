@@ -36,11 +36,20 @@ void CuDecoder::DecodeCtu(int rsaddr, SyntaxReader *reader) {
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   pic_data_.ClearMarkCuInPic(ctu);
   DecompressCu(ctu);
+  if (pic_data_.HasSecondaryCuTree()) {
+    CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
+    pic_data_.ClearMarkCuInPic(ctu2);
+    DecompressCu(ctu2);
+  }
 }
 
 void CuDecoder::ReadCtu(int rsaddr, SyntaxReader * reader) {
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   cu_reader_.ReadCu(ctu, reader);
+  if (pic_data_.HasSecondaryCuTree()) {
+    CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
+    cu_reader_.ReadCu(ctu2, reader);
+  }
 #if HM_STRICT
   if (reader->ReadEndOfSlice()) {
     assert(0);
@@ -58,8 +67,7 @@ void CuDecoder::DecompressCu(CodingUnit *cu) {
   } else {
     pic_data_.MarkUsedInPic(cu);
     cu->SetQp(pic_qp_);
-    for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
-      const YuvComponent comp = YuvComponent(c);
+    for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
       DecompressComponent(cu, comp, cu->GetQp());
     }
   }

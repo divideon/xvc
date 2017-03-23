@@ -49,8 +49,12 @@ public:
   ChromaFormat GetChromaFormat() const { return chroma_fmt_; }
   int GetChromaShiftX() const { return chroma_shift_x_; }
   int GetChromaShiftY() const { return chroma_shift_y_; }
+  bool HasSecondaryCuTree() { return num_cu_trees_ > 1; }
   int GetNumComponents() const {
     return util::GetNumComponents(chroma_fmt_);
+  }
+  const std::vector<YuvComponent>& GetComponents(CuTree cu_tree) const {
+    return cu_tree_components_[static_cast<int>(cu_tree)];
   }
 
   // CU data
@@ -123,6 +127,8 @@ private:
     constants::kMaxNumCuTrees> ctu_rs_list_;
   std::array<std::vector<CodingUnit*>,
     constants::kMaxNumCuTrees> cu_pic_table_;
+  std::array<std::vector<YuvComponent>,
+    constants::kMaxNumCuTrees> cu_tree_components_;
   ptrdiff_t cu_pic_stride_;
   int pic_width_;
   int pic_height_;
@@ -130,6 +136,7 @@ private:
   ChromaFormat chroma_fmt_;
   int chroma_shift_x_;
   int chroma_shift_y_;
+  int num_cu_trees_;
   int ctu_num_x_;
   int ctu_num_y_;
   PicNum poc_ = 0;

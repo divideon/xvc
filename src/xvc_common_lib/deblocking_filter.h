@@ -30,7 +30,7 @@ public:
   void DeblockPicture();
 
 private:
-  void DeblockCtu(int rsaddr, Direction dir);
+  void DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir);
 
   int GetBoundaryStrength(const CodingUnit &cu_p, const CodingUnit &cu_q);
 

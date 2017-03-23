@@ -32,8 +32,7 @@ void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
   } else {
     cu->SetSplit(false);
     pic_data_->MarkUsedInPic(cu);
-    for (int c = 0; c < pic_data_->GetNumComponents(); c++) {
-      const YuvComponent comp = YuvComponent(c);
+    for (YuvComponent comp : pic_data_->GetComponents(cu->GetCuTree())) {
       ReadComponent(cu, comp, reader);
     }
   }

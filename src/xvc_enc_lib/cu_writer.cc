@@ -30,8 +30,7 @@ void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
       }
     }
   } else {
-    for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
-      const YuvComponent comp = YuvComponent(c);
+    for (YuvComponent comp : pic_data_.GetComponents(cu.GetCuTree())) {
       WriteComponent(cu, comp, writer);
     }
   }

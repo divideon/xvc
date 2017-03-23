@@ -23,6 +23,7 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
   chroma_fmt_(chroma_format),
   chroma_shift_x_(util::GetChromaShiftX(chroma_format)),
   chroma_shift_y_(util::GetChromaShiftY(chroma_format)),
+  num_cu_trees_(1),
   ctu_num_x_((pic_width_ + constants::kCtuSize - 1) /
              constants::kCtuSize),
   ctu_num_y_((pic_height_ + constants::kCtuSize - 1) /
@@ -38,7 +39,6 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
               cu_pic_table_[tree_idx].end(), nullptr);
   }
   AllocateAllCtu(CuTree::Primary);
-  AllocateAllCtu(CuTree::Secondary);
 }
 
 PictureData::~PictureData() {
@@ -50,6 +50,16 @@ PictureData::~PictureData() {
 }
 
 void PictureData::Init(const QP &pic_qp) {
+  if (!Restrictions::Get().disable_ext && IsIntraPic()) {
+    num_cu_trees_ = 2;
+    cu_tree_components_[0] = { YuvComponent::kY };
+    cu_tree_components_[1] = { YuvComponent::kU, YuvComponent::kV };
+  } else {
+    num_cu_trees_ = 1;
+    cu_tree_components_[0] = { YuvComponent::kY, YuvComponent::kU,
+      YuvComponent::kV };
+    cu_tree_components_[1] = {};
+  }
   pic_qp_.reset(new QP(pic_qp));
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     std::fill(cu_pic_table_[tree_idx].begin(),
@@ -57,6 +67,10 @@ void PictureData::Init(const QP &pic_qp) {
     for (CodingUnit *ctu : ctu_rs_list_[tree_idx]) {
       ReleaseSubCuRecursively(ctu);
     }
+  }
+  if (num_cu_trees_ > 1 &&
+      ctu_rs_list_[static_cast<int>(CuTree::Secondary)].empty()) {
+    AllocateAllCtu(CuTree::Secondary);
   }
   tmvp_ref_list_ = DetermineTmvpRefList(&tmvp_ref_idx_);
   PicturePredictionType pic_type =
