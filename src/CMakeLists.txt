@@ -11,6 +11,10 @@ if(EXPERIMENTAL)
   add_definitions(-DHM_STRICT=0)
 endif()
 
+if(ENABLE_ASSERTIONS)
+  add_definitions(-UNDEBUG)
+endif()
+
 if(MSVC)
   set(cxx_base_flags /GS /W4 /WX /Za)
   set(cxx_exception_flags "-EHsc")
