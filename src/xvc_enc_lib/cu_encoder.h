@@ -66,7 +66,7 @@ private:
   RdoCost ComputeDistCostNoSplit(const CodingUnit &cu, const QP &qp,
                                  const SyntaxWriter &bitstream_writer,
                                  Distortion ssd);
-  void WriteCtu(CodingUnit *ctu, SyntaxWriter *writer);
+  void WriteCtu(int rsaddr, SyntaxWriter *writer);
 
   const Sample min_pel_;
   const Sample max_pel_;
@@ -86,7 +86,8 @@ private:
   CoeffBufferStorage temp_coeff_;
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxCuDepth + 2> temp_cu_state_;
-  std::array<CodingUnit*, constants::kMaxCuDepth + 1> rdo_temp_cu_;
+  std::array<std::array<CodingUnit*, constants::kMaxCuDepth + 1>,
+    constants::kMaxNumCuTrees> rdo_temp_cu_;
 };
 
 }   // namespace xvc

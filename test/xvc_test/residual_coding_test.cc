@@ -31,7 +31,7 @@ protected:
 
   void Encode(std::vector<uint8_t> *bitstream) {
     xvc::PictureData pic_data(chroma_format, width_, height_, bitdepth);
-    xvc::CodingUnit cu(pic_data, 0, 0, 0, width_, height_);
+    xvc::CodingUnit cu(pic_data, cu_tree, 0, 0, 0, width_, height_);
     cu.SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitWriter bit_writer;
     xvc::EntropyEncoder entropyenc(&bit_writer);
@@ -45,7 +45,7 @@ protected:
 
   void Decode(const std::vector<uint8_t> &bitstream) {
     xvc::PictureData pic_data(chroma_format, width_, height_, bitdepth);
-    xvc::CodingUnit cu(pic_data, 0, 0, 0, width_, height_);
+    xvc::CodingUnit cu(pic_data, cu_tree, 0, 0, 0, width_, height_);
     cu.SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
     xvc::EntropyDecoder entropydec(&bit_reader);
@@ -80,6 +80,7 @@ protected:
   constexpr static int kMaxWidth = 16;
   constexpr static int kMaxHeight = 16;
   constexpr static ptrdiff_t coeff_stride = kMaxWidth << 1;
+  const xvc::CuTree cu_tree = xvc::CuTree::Primary;
   const xvc::YuvComponent comp = xvc::YuvComponent::kY;
   const int bitdepth = 8;
   const xvc::PicturePredictionType pic_type = xvc::PicturePredictionType::kBi;

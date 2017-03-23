@@ -17,9 +17,10 @@
 
 namespace xvc {
 
-CodingUnit::CodingUnit(const PictureData &pic_data, int depth,
+CodingUnit::CodingUnit(const PictureData &pic_data, CuTree cu_tree, int depth,
                        int pic_x, int pic_y, int width, int height)
-  : pos_x_(pic_x),
+  : cu_tree_(cu_tree),
+  pos_x_(pic_x),
   pos_y_(pic_y),
   width_(width),
   height_(height),
@@ -99,7 +100,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAbove() const {
   if (posy == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(posx, posy - constants::kMinBlockSize);
+  return pic_data_.GetCuAt(cu_tree_, posx, posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAboveIfSameCtu() const {
@@ -108,7 +109,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveIfSameCtu() const {
   if ((posy % constants::kCtuSize) == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(posx, posy - constants::kMinBlockSize);
+  return pic_data_.GetCuAt(cu_tree_, posx, posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAboveLeft() const {
@@ -117,7 +118,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveLeft() const {
   if (posx == 0 || posy == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(posx - constants::kMinBlockSize,
+  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize,
                            posy - constants::kMinBlockSize);
 }
 
@@ -127,7 +128,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveCorner() const {
   if (posy == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(right - constants::kMinBlockSize,
+  return pic_data_.GetCuAt(cu_tree_, right - constants::kMinBlockSize,
                            posy - constants::kMinBlockSize);
 }
 
@@ -138,7 +139,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveRight() const {
     return nullptr;
   }
   // Padding in table will guard for y going out-of-bounds
-  return pic_data_.GetCuAt(right, posy - constants::kMinBlockSize);
+  return pic_data_.GetCuAt(cu_tree_, right, posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitLeft() const {
@@ -147,7 +148,7 @@ const CodingUnit* CodingUnit::GetCodingUnitLeft() const {
   if (posx == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(posx - constants::kMinBlockSize, posy);
+  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize, posy);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitLeftCorner() const {
@@ -156,7 +157,7 @@ const CodingUnit* CodingUnit::GetCodingUnitLeftCorner() const {
   if (posx == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(posx - constants::kMinBlockSize,
+  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize,
                            bottom - constants::kMinBlockSize);
 }
 
@@ -167,7 +168,7 @@ const CodingUnit* CodingUnit::GetCodingUnitLeftBelow() const {
     return nullptr;
   }
   // Padding in table will guard for y going out-of-bounds
-  return pic_data_.GetCuAt(posx - constants::kMinBlockSize, bottom);
+  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize, bottom);
 }
 
 int CodingUnit::GetCuSizeAboveRight(YuvComponent comp) const {
@@ -208,16 +209,16 @@ void CodingUnit::SplitQuad() {
   int sub_height = GetHeight(YuvComponent::kY) >> 1;
   int sub_depth = GetDepth() + 1;
   sub_cu_list_[0] =
-    pic_data_.CreateCu(sub_depth, pos_x_ + sub_width * 0,
+    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 0,
                        pos_y_ + sub_height * 0, sub_width, sub_height);
   sub_cu_list_[1] =
-    pic_data_.CreateCu(sub_depth, pos_x_ + sub_width * 1,
+    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 1,
                        pos_y_ + sub_height * 0, sub_width, sub_height);
   sub_cu_list_[2] =
-    pic_data_.CreateCu(sub_depth, pos_x_ + sub_width * 0,
+    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 0,
                        pos_y_ + sub_height * 1, sub_width, sub_height);
   sub_cu_list_[3] =
-    pic_data_.CreateCu(sub_depth, pos_x_ + sub_width * 1,
+    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 1,
                        pos_y_ + sub_height * 1, sub_width, sub_height);
   split_ = true;
 }

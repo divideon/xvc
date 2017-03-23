@@ -49,6 +49,11 @@ enum YuvComponent {
   kV = 2,
 };
 
+enum class CuTree {
+  Primary = 0,
+  Secondary = 1,
+};
+
 namespace constants {
 
 // xvc version
@@ -58,6 +63,7 @@ const uint32_t kXvcMinorVersion = 0;
 
 // Picture
 const int kMaxYuvComponents = 3;
+const int kMaxNumCuTrees = 2;
 
 // CU limits
 const int kCtuSize = 64;

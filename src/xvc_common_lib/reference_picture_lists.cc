@@ -61,14 +61,15 @@ ReferencePictureLists::GetRefPicTid(RefPicList ref_list, int ref_idx) const {
 
 const CodingUnit*
 ReferencePictureLists::GetCodingUnitAt(RefPicList ref_list, int index,
-                                       int posx, int posy) const {
+                                       CuTree cu_tree, int posx,
+                                       int posy) const {
   std::shared_ptr<const PictureData> pic_data;
   if (ref_list == RefPicList::kL0) {
     pic_data = l0_[index].data;
   } else {
     pic_data = l1_[index].data;
   }
-  return pic_data->GetCuAt(posx, posy);
+  return pic_data->GetCuAt(cu_tree, posx, posy);
 }
 
 void

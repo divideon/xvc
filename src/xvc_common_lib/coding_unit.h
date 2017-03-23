@@ -43,10 +43,11 @@ public:
     std::array<int8_t, 2> mvp_idx;
   };
 
-  CodingUnit(const PictureData &pic_data, int depth, int pic_x, int pic_y,
-             int width, int height);
+  CodingUnit(const PictureData &pic_data, CuTree cu_tree, int depth,
+             int pic_x, int pic_y, int width, int height);
 
   // General
+  CuTree GetCuTree() const { return cu_tree_; }
   int GetPosX(YuvComponent comp) const {
     return comp == YuvComponent::kY ? pos_x_ : pos_x_ >> chroma_shift_x_;
   }
@@ -174,6 +175,7 @@ public:
   void LoadStateFrom(const InterState &state);
 
 private:
+  CuTree cu_tree_;
   int pos_x_;
   int pos_y_;
   int width_;

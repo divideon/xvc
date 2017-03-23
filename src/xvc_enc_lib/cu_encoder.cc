@@ -45,31 +45,34 @@ CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
   temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
   temp_resi_(kBufferStride_, constants::kMaxBlockSize),
   temp_coeff_(kBufferStride_, constants::kMaxBlockSize) {
-  for (int depth = 0; depth < static_cast<int>(rdo_temp_cu_.size()); depth++) {
-    int width = constants::kMaxBlockSize >> depth;
-    int height = constants::kMaxBlockSize >> depth;
-    rdo_temp_cu_[depth] = pic_data_.CreateCu(depth, -1, -1, width, height);
+  for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
+    const CuTree cu_tree = static_cast<CuTree>(tree_idx);
+    const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
+    for (int depth = 0; depth < max_depth; depth++) {
+      int width = constants::kMaxBlockSize >> depth;
+      int height = constants::kMaxBlockSize >> depth;
+      rdo_temp_cu_[tree_idx][depth] =
+        pic_data_.CreateCu(cu_tree, depth, -1, -1, width, height);
+    }
   }
 }
 
 CuEncoder::~CuEncoder() {
-  for (int depth = 0; depth < static_cast<int>(rdo_temp_cu_.size()); depth++) {
-    pic_data_.ReleaseCu(rdo_temp_cu_[depth]);
+  for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
+    const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
+    for (int depth = 0; depth < max_depth; depth++) {
+      pic_data_.ReleaseCu(rdo_temp_cu_[tree_idx][depth]);
+    }
   }
 }
 
 void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
   RdoSyntaxWriter rdo_writer(*bitstream_writer);
-  CodingUnit *pic_ctu = pic_data_.GetCtu(rsaddr);
-  CompressCu(&pic_ctu, &rdo_writer);
-  CodingUnit *old_ctu = pic_data_.SetCtu(rsaddr, pic_ctu);
+  CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
+  CompressCu(&ctu, &rdo_writer);
+  pic_data_.SetCtu(CuTree::Primary, rsaddr, ctu);
 
-  WriteCtu(pic_ctu, bitstream_writer);
-  if (old_ctu) {
-    // Ensure this CU will be freed at some point
-    assert(std::find(rdo_temp_cu_.begin(), rdo_temp_cu_.end(), old_ctu) !=
-           rdo_temp_cu_.end());
-  }
+  WriteCtu(rsaddr, bitstream_writer);
 }
 
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
@@ -152,7 +155,8 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
     best_cost = CompressIntra(cu, qp, *writer);
   } else {
     // Inter pic type
-    CodingUnit *temp_cu = rdo_temp_cu_[cu->GetDepth()];
+    const int cu_tree = static_cast<int>(cu->GetCuTree());
+    CodingUnit *temp_cu = rdo_temp_cu_[cu_tree][cu->GetDepth()];
     temp_cu->SetPosition(cu->GetPosX(YuvComponent::kY),
                          cu->GetPosY(YuvComponent::kY));
     temp_cu->SetQp(qp);
@@ -164,7 +168,6 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
       if (cost < best_cost) {
         best_cost = cost;
         temp_cu->SaveStateTo(best_state, rec_pic_);
-        std::swap(*best_cu, rdo_temp_cu_[cu->GetDepth()]);
         std::swap(cu, temp_cu);
       }
     }
@@ -173,7 +176,6 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
     if (cost < best_cost) {
       best_cost = cost;
       temp_cu->SaveStateTo(best_state, rec_pic_);
-      std::swap(*best_cu, rdo_temp_cu_[cu->GetDepth()]);
       std::swap(cu, temp_cu);
     }
 
@@ -182,11 +184,12 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
       if (cost < best_cost) {
         best_cost = cost;
         temp_cu->SaveStateTo(best_state, rec_pic_);
-        std::swap(*best_cu, rdo_temp_cu_[cu->GetDepth()]);
         std::swap(cu, temp_cu);
       }
     }
 
+    *best_cu = cu;
+    rdo_temp_cu_[cu_tree][cu->GetDepth()] = temp_cu;
     cu->LoadStateFrom(*best_state, &rec_pic_);
   }
   cu->SetRootCbf(cu->GetHasAnyCbf());
@@ -713,8 +716,9 @@ CuEncoder::ComputeDistCostNoSplit(const CodingUnit &cu, const QP &qp,
   return RdoCost(cost, ssd);
 }
 
-void CuEncoder::WriteCtu(CodingUnit *ctu, SyntaxWriter *writer) {
+void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
   writer->ResetBitCounting();
+  CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   cu_writer_.WriteCu(*ctu, writer);
 #if HM_STRICT
   writer->WriteEndOfSlice(false);

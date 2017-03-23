@@ -31,17 +31,21 @@ CuDecoder::CuDecoder(const QP &pic_qp, YuvPicture *decoded_pic,
 }
 
 void CuDecoder::DecodeCtu(int rsaddr, SyntaxReader *reader) {
-  CodingUnit *cu = pic_data_.GetCtu(rsaddr);
+  ReadCtu(rsaddr, reader);
 
-  cu_reader_.ReadCu(cu, reader);
+  CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
+  pic_data_.ClearMarkCuInPic(ctu);
+  DecompressCu(ctu);
+}
+
+void CuDecoder::ReadCtu(int rsaddr, SyntaxReader * reader) {
+  CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
+  cu_reader_.ReadCu(ctu, reader);
 #if HM_STRICT
   if (reader->ReadEndOfSlice()) {
     assert(0);
   }
 #endif
-
-  pic_data_.ClearMarkCuInPic(cu);
-  DecompressCu(cu);
 }
 
 void CuDecoder::DecompressCu(CodingUnit *cu) {

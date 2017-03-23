@@ -29,6 +29,7 @@ public:
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
+  void ReadCtu(int rsaddr, SyntaxReader *reader);
   void DecompressCu(CodingUnit *cu);
   void DecompressComponent(CodingUnit *cu, YuvComponent comp, const QP &qp);
 

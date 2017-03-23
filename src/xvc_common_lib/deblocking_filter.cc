@@ -39,9 +39,10 @@ void DeblockingFilter::DeblockPicture() {
 }
 
 void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
-  const CodingUnit *cu = pic_data_->GetCtu(rsaddr);
-  YuvComponent luma = YuvComponent::kY;
-  YuvComponent chroma = YuvComponent::kU;
+  const CuTree cu_tree = CuTree::Primary;
+  const YuvComponent luma = YuvComponent::kY;
+  const YuvComponent chroma = YuvComponent::kU;
+  const CodingUnit *cu = pic_data_->GetCtu(CuTree::Primary, rsaddr);
   int pos_x = cu->GetPosX(luma);
   int pos_y = cu->GetPosY(luma);
   int chroma_scale_x = 1 << rec_pic_->GetSizeShiftX(chroma);
@@ -54,7 +55,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
       int x = pos_x + (j << 3);
       int y = pos_y + (i << 3);
       // cu_q is the current coding unit
-      const CodingUnit *cu_q = pic_data_->GetCuAt(x, y);
+      const CodingUnit *cu_q = pic_data_->GetCuAt(cu_tree, x, y);
       if (cu_q == nullptr) {
         continue;
       }
@@ -63,9 +64,9 @@ void DeblockingFilter::DeblockCtu(int rsaddr, Direction dir) {
       // of the edge that is evaluated (might be the same cu).
       const CodingUnit *cu_p = nullptr;
       if (dir == Direction::kVertical) {
-        cu_p = pic_data_->GetCuAt(x - 1, y);
+        cu_p = pic_data_->GetCuAt(cu_tree, x - 1, y);
       } else if (dir == Direction::kHorizontal) {
-        cu_p = pic_data_->GetCuAt(x, y - 1);
+        cu_p = pic_data_->GetCuAt(cu_tree, x, y - 1);
       }
       if (cu_p == nullptr || (cu_p->GetPosX(luma) == cu_q->GetPosX(luma) &&
                               cu_p->GetPosY(luma) == cu_q->GetPosY(luma))) {

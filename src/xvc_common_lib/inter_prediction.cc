@@ -488,7 +488,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
     // Including picture out of bounds check
     const CodingUnit *col_cu =
       ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
-                                    col_x, col_y);
+                                    cu.GetCuTree(), col_x, col_y);
     if (col_cu && get_temporal_mv(col_cu, tmvp_mv_ref_list, mv_out)) {
       return true;
     }
@@ -503,7 +503,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   }
   const CodingUnit *col_cu =
     ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
-                                  col_x, col_y);
+                                  cu.GetCuTree(), col_x, col_y);
   if (get_temporal_mv(col_cu, tmvp_mv_ref_list, mv_out)) {
     return true;
   }

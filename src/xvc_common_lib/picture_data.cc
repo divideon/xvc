@@ -27,36 +27,36 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
              constants::kCtuSize),
   ctu_num_y_((pic_height_ + constants::kCtuSize - 1) /
              constants::kCtuSize) {
-  int depth = 0;
-  for (int y = 0; y < ctu_num_y_; y++) {
-    for (int x = 0; x < ctu_num_x_; x++) {
-      ctu_list_.push_back(new CodingUnit(*this, depth,
-                                         x * constants::kCtuSize,
-                                         y * constants::kCtuSize,
-                                         constants::kCtuSize,
-                                         constants::kCtuSize));
-    }
-  }
   int num_cu_pic_x = (pic_width_ + constants::kMaxBlockSize - 1) /
     constants::kMinBlockSize;
   int num_cu_pic_y = (pic_height_ + constants::kMaxBlockSize - 1) /
     constants::kMinBlockSize;
   cu_pic_stride_ = num_cu_pic_x + 1;
-  cu_pic_table_.resize(cu_pic_stride_ * (num_cu_pic_y + 1));
-  std::fill(cu_pic_table_.begin(), cu_pic_table_.end(), nullptr);
+  for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
+    cu_pic_table_[tree_idx].resize(cu_pic_stride_ * (num_cu_pic_y + 1));
+    std::fill(cu_pic_table_[tree_idx].begin(),
+              cu_pic_table_[tree_idx].end(), nullptr);
+  }
+  AllocateAllCtu(CuTree::Primary);
+  AllocateAllCtu(CuTree::Secondary);
 }
 
 PictureData::~PictureData() {
-  for (CodingUnit *ctu : ctu_list_) {
-    ReleaseCu(ctu);
+  for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
+    for (CodingUnit *ctu : ctu_rs_list_[tree_idx]) {
+      ReleaseCu(ctu);
+    }
   }
 }
 
 void PictureData::Init(const QP &pic_qp) {
   pic_qp_.reset(new QP(pic_qp));
-  std::fill(cu_pic_table_.begin(), cu_pic_table_.end(), nullptr);
-  for (CodingUnit *ctu : ctu_list_) {
-    ReleaseSubCuRecursively(ctu);
+  for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
+    std::fill(cu_pic_table_[tree_idx].begin(),
+              cu_pic_table_[tree_idx].end(), nullptr);
+    for (CodingUnit *ctu : ctu_rs_list_[tree_idx]) {
+      ReleaseSubCuRecursively(ctu);
+    }
   }
   tmvp_ref_list_ = DetermineTmvpRefList(&tmvp_ref_idx_);
   PicturePredictionType pic_type =
@@ -65,21 +65,21 @@ void PictureData::Init(const QP &pic_qp) {
     pic_type == PicturePredictionType::kBi;
 }
 
-CodingUnit* PictureData::SetCtu(int rsaddr, CodingUnit *cu) {
-  if (ctu_list_[rsaddr] == cu) {
+CodingUnit* PictureData::SetCtu(CuTree cu_tree, int rsaddr, CodingUnit *cu) {
+  if (ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr] == cu) {
     return nullptr;
   }
-  CodingUnit *old = ctu_list_[rsaddr];
-  ctu_list_[rsaddr] = cu;
+  CodingUnit *old = ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr];
+  ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr] = cu;
   return old;
 }
 
-CodingUnit *PictureData::CreateCu(int depth, int posx, int posy, int width,
-                                  int height) const {
+CodingUnit *PictureData::CreateCu(CuTree cu_tree, int depth, int posx,
+                                  int posy, int width, int height) const {
   if (posx >= pic_width_ || posy >= pic_height_) {
     return nullptr;
   }
-  return new CodingUnit(*this, depth, posx, posy, width, height);
+  return new CodingUnit(*this, cu_tree, depth, posx, posy, width, height);
 }
 
 void PictureData::ReleaseCu(CodingUnit *cu) const {
@@ -88,25 +88,27 @@ void PictureData::ReleaseCu(CodingUnit *cu) const {
 }
 
 void PictureData::MarkUsedInPic(CodingUnit *cu) {
-  int index_x = cu->GetPosX(YuvComponent::kY) / constants::kMinBlockSize;
-  int index_y = cu->GetPosY(YuvComponent::kY) / constants::kMinBlockSize;
-  int num_x = cu->GetWidth(YuvComponent::kY) / constants::kMinBlockSize;
-  int num_y = cu->GetHeight(YuvComponent::kY) / constants::kMinBlockSize;
+  const int cu_tree = static_cast<int>(cu->GetCuTree());
+  const int index_x = cu->GetPosX(YuvComponent::kY) / constants::kMinBlockSize;
+  const int index_y = cu->GetPosY(YuvComponent::kY) / constants::kMinBlockSize;
+  const int num_x = cu->GetWidth(YuvComponent::kY) / constants::kMinBlockSize;
+  const int num_y = cu->GetHeight(YuvComponent::kY) / constants::kMinBlockSize;
   for (int y = 0; y < num_y; y++) {
     CodingUnit **ptr =
-      &cu_pic_table_[(index_y + y) * cu_pic_stride_ + index_x];
+      &cu_pic_table_[cu_tree][(index_y + y) * cu_pic_stride_ + index_x];
     std::fill(ptr, ptr + num_x, cu);
   }
 }
 
 void PictureData::ClearMarkCuInPic(CodingUnit *cu) {
-  int index_x = cu->GetPosX(YuvComponent::kY) / constants::kMinBlockSize;
-  int index_y = cu->GetPosY(YuvComponent::kY) / constants::kMinBlockSize;
-  int num_x = cu->GetWidth(YuvComponent::kY) / constants::kMinBlockSize;
-  int num_y = cu->GetHeight(YuvComponent::kY) / constants::kMinBlockSize;
+  const int cu_tree = static_cast<int>(cu->GetCuTree());
+  const int index_x = cu->GetPosX(YuvComponent::kY) / constants::kMinBlockSize;
+  const int index_y = cu->GetPosY(YuvComponent::kY) / constants::kMinBlockSize;
+  const int num_x = cu->GetWidth(YuvComponent::kY) / constants::kMinBlockSize;
+  const int num_y = cu->GetHeight(YuvComponent::kY) / constants::kMinBlockSize;
   for (int y = 0; y < num_y; y++) {
     CodingUnit **ptr =
-      &cu_pic_table_[(index_y + y) * cu_pic_stride_ + index_x];
+      &cu_pic_table_[cu_tree][(index_y + y) * cu_pic_stride_ + index_x];
     std::fill(ptr, ptr + num_x, nullptr);
   }
 }
@@ -151,6 +153,22 @@ RefPicList PictureData::DetermineTmvpRefList(int *tmvp_ref_idx) {
     }
   }
   return (tid_l1 >= tid_l0) ? RefPicList::kL1 : RefPicList::kL0;
+}
+
+void PictureData::AllocateAllCtu(CuTree cu_tree) {
+  const int depth = 0;
+  int tree_idx = static_cast<int>(cu_tree);
+  assert(ctu_rs_list_[tree_idx].empty());
+  for (int y = 0; y < ctu_num_y_; y++) {
+    for (int x = 0; x < ctu_num_x_; x++) {
+      ctu_rs_list_[tree_idx].push_back(
+        new CodingUnit(*this, cu_tree, depth,
+                       x * constants::kCtuSize,
+                       y * constants::kCtuSize,
+                       constants::kCtuSize,
+                       constants::kCtuSize));
+    }
+  }
 }
 
 void PictureData::ReleaseSubCuRecursively(CodingUnit *cu) const {

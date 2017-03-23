@@ -54,18 +54,23 @@ public:
   }
 
   // CU data
-  CodingUnit *GetCtu(int rsaddr) { return ctu_list_[rsaddr]; }
-  const CodingUnit *GetCtu(int rsaddr) const { return ctu_list_[rsaddr]; }
-  CodingUnit* SetCtu(int rsaddr, CodingUnit *cu);
+  CodingUnit *GetCtu(CuTree cu_tree, int rsaddr) {
+    return ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr];
+  }
+  const CodingUnit *GetCtu(CuTree cu_tree, int rsaddr) const {
+    return ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr];
+  }
+  CodingUnit* SetCtu(CuTree cu_tree, int rsaddr, CodingUnit *cu);
   int GetNumberOfCtu() const {
-    return static_cast<int>(ctu_list_.size());
+    return static_cast<int>(ctu_rs_list_[0].size());
   }
-  const CodingUnit *GetCuAt(int posx, int posy) const {
-    return cu_pic_table_[(posy / constants::kMinBlockSize) * cu_pic_stride_ +
-      (posx / constants::kMinBlockSize)];
+  const CodingUnit *GetCuAt(CuTree cu_tree, int posx, int posy) const {
+    ptrdiff_t cu_idx = (posy / constants::kMinBlockSize) * cu_pic_stride_ +
+      (posx / constants::kMinBlockSize);
+    return cu_pic_table_[static_cast<int>(cu_tree)][cu_idx];
   }
-  CodingUnit *CreateCu(int depth, int posx, int posy, int width,
-                       int height) const;
+  CodingUnit *CreateCu(CuTree cu_tree, int depth, int posx, int posy,
+                       int width, int height) const;
   void ReleaseCu(CodingUnit *cu) const;
   void MarkUsedInPic(CodingUnit *cu);
   void ClearMarkCuInPic(CodingUnit *cu);
@@ -111,10 +116,13 @@ public:
 
 private:
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
+  void AllocateAllCtu(CuTree cu_tree);
   void ReleaseSubCuRecursively(CodingUnit *cu) const;
 
-  std::vector<CodingUnit*> ctu_list_;
-  std::vector<CodingUnit*> cu_pic_table_;
+  std::array<std::vector<CodingUnit*>,
+    constants::kMaxNumCuTrees> ctu_rs_list_;
+  std::array<std::vector<CodingUnit*>,
+    constants::kMaxNumCuTrees> cu_pic_table_;
   ptrdiff_t cu_pic_stride_;
   int pic_width_;
   int pic_height_;
