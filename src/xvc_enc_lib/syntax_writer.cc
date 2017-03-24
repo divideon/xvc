@@ -498,7 +498,7 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
   }
 }
 
-void SyntaxWriter::WriteCoeffRemainExpGolomb(Coeff code_number,
+void SyntaxWriter::WriteCoeffRemainExpGolomb(uint32_t code_number,
                                              uint32_t golomb_rice_k) {
   if (code_number < (constants::kCoeffRemainBinReduction << golomb_rice_k)) {
     uint32_t length = code_number >> golomb_rice_k;
@@ -508,7 +508,7 @@ void SyntaxWriter::WriteCoeffRemainExpGolomb(Coeff code_number,
   } else {
     uint32_t length = golomb_rice_k;
     code_number -= (constants::kCoeffRemainBinReduction << golomb_rice_k);
-    while (code_number >= (1 << length)) {
+    while (code_number >= (1u << length)) {
       code_number -= (1 << (length++));
     }
     int num_bins =

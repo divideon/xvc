@@ -43,7 +43,7 @@ private:
   void ReadCoeffLastPos(int width, int height, YuvComponent comp,
                         ScanOrder scan_order, uint32_t *pos_last_x,
                         uint32_t *pos_last_y);
-  Coeff ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k);
+  uint32_t ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k);
   uint32_t ReadExpGolomb(uint32_t golomb_rice_k);
   uint32_t ReadUnaryMaxSymbol(uint32_t max_val, ContextModel *ctx_start,
                               ContextModel *ctx_rest);

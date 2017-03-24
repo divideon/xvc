@@ -54,7 +54,7 @@ protected:
   void WriteCoeffLastPos(int width, int height, YuvComponent comp,
                          ScanOrder scan_order, int last_pos_x,
                          int last_pos_y);
-  void WriteCoeffRemainExpGolomb(Coeff abs_level, uint32_t golomb_rice_k);
+  void WriteCoeffRemainExpGolomb(uint32_t abs_level, uint32_t golomb_rice_k);
   void WriteExpGolomb(uint32_t abs_level, uint32_t golomb_rice_k);
   void WriteUnaryMaxSymbol(uint32_t symbol, uint32_t max_val,
                            ContextModel *ctx_start, ContextModel *ctx_rest);

@@ -486,7 +486,7 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
   *out_pos_last_y = pos_last_y;
 }
 
-Coeff SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
+uint32_t SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
   uint32_t prefix = 0;
   uint32_t code_word;
   while ((code_word = entropydec_->DecodeBypass()) != 0) {
@@ -494,13 +494,12 @@ Coeff SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
   }
   if (prefix < constants::kCoeffRemainBinReduction) {
     code_word = entropydec_->DecodeBypassBins(golomb_rice_k);
-    return static_cast<Coeff>((prefix << golomb_rice_k) + code_word);
+    return (prefix << golomb_rice_k) + code_word;
   } else {
     code_word = entropydec_->DecodeBypassBins(
       prefix - constants::kCoeffRemainBinReduction + golomb_rice_k);
-    return static_cast<Coeff>(
-      (((1 << (prefix - constants::kCoeffRemainBinReduction)) +
-        constants::kCoeffRemainBinReduction - 1) << golomb_rice_k) + code_word);
+    return (((1 << (prefix - constants::kCoeffRemainBinReduction)) +
+        constants::kCoeffRemainBinReduction - 1) << golomb_rice_k) + code_word;
   }
 }
 

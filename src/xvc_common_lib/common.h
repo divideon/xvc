@@ -53,8 +53,8 @@ namespace constants {
 
 // xvc version
 const uint32_t kXvcCodecIdentifier = 7894627;
-const int kXvcMajorVersion = 1;
-const int kXvcMinorVersion = 0;
+const uint32_t kXvcMajorVersion = 1;
+const uint32_t kXvcMinorVersion = 0;
 
 // Picture
 const int kMaxYuvComponents = 3;
@@ -89,7 +89,7 @@ const int kQpSignalBase = 64;
 // Residual coding
 const int kMaxNumC1Flags = 8;
 const int kSubblockShift = 2;
-const int kCoeffRemainBinReduction = 3;
+const uint32_t kCoeffRemainBinReduction = 3;
 
 // Deblocking
 const int kDeblockOffsetBits = 6;
@@ -101,7 +101,7 @@ const int kMaxNumRefPics = 5;
 const int kTimeScale = 90000;
 const int kMaxTid = 8;
 const int kFrameRateBitDepth = 24;
-const int kMaxSubGopLength = 64;
+const PicNum kMaxSubGopLength = 64;
 
 // Min and Max
 const int16_t kInt16Max = INT16_MAX;

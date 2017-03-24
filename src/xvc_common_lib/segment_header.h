@@ -24,9 +24,9 @@ struct SegmentHeader {
   static double GetFramerate(int max_tid, int bitstream_ticks,
                              PicNum sub_gop_length);
 
-  int codec_identifier = -1;
-  int major_version = -1;
-  int minor_version = -1;
+  uint32_t codec_identifier = static_cast<uint32_t>(-1);
+  uint32_t major_version = static_cast<uint32_t>(-1);
+  uint32_t minor_version = static_cast<uint32_t>(-1);
   SegmentNum soc = static_cast<SegmentNum>(-1);
   int pic_width = 0;
   int pic_height = 0;

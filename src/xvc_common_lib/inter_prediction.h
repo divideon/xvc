@@ -21,7 +21,7 @@ typedef std::array<MotionVector,
 struct MergeCandidate {
   InterDir inter_dir = InterDir::kL0;
   std::array<MotionVector, static_cast<int>(RefPicList::kTotalNumber)> mv;
-  std::array<int, static_cast<int>(RefPicList::kTotalNumber)> ref_idx = { 0 };
+  std::array<int, static_cast<int>(RefPicList::kTotalNumber)> ref_idx = { {0} };
 };
 
 struct InterMergeCandidateList
