@@ -57,6 +57,7 @@ public:
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
   void SetQP(int qp) { segment_qp_ = qp; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
+  void SetRestrictedMode(bool restricted);
 
 private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,

@@ -46,10 +46,11 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   // This is the only place where Restrictions::GetRW is allowed to be called.
   auto &restr = Restrictions::GetRW();
 
+  // Note! Override the value of the restriction flags only if the flag is
+  // set to true in the bitstream.
+
   int intra_restrictions = bit_reader->ReadBit();
   if (intra_restrictions) {
-    // Override the value of the restriction flags only if the flag is
-    // set to true in the bitstream.
     if (bit_reader->ReadBit()) {
       restr.disable_intra_ref_padding = true;
     }
@@ -75,8 +76,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
 
   int inter_restrictions = bit_reader->ReadBit();
   if (inter_restrictions) {
-    // Override the value of the restriction flags only if the flag is
-    // set to true in the bitstream.
     if (bit_reader->ReadBit()) {
       restr.disable_inter_mvp = true;
     }
@@ -117,8 +116,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
 
   int transform_restrictions = bit_reader->ReadBit();
   if (transform_restrictions) {
-    // Override the value of the restriction flags only if the flag is
-    // set to true in the bitstream.
     if (bit_reader->ReadBit()) {
       restr.disable_transform_adaptive_scan_order = true;
     }
@@ -144,8 +141,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
 
   int cabac_restrictions = bit_reader->ReadBit();
   if (cabac_restrictions) {
-    // Override the value of the restriction flags only if the flag is
-    // set to true in the bitstream.
     if (bit_reader->ReadBit()) {
       restr.disable_cabac_ctx_update = true;
     }
@@ -183,8 +178,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
 
   int deblock_restrictions = bit_reader->ReadBit();
   if (deblock_restrictions) {
-    // Override the value of the restriction flags only if the flag is
-    // set to true in the bitstream.
     if (bit_reader->ReadBit()) {
       restr.disable_deblock_strong_filter = true;
     }
@@ -208,6 +201,13 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     }
     if (bit_reader->ReadBit()) {
       restr.disable_deblock_depending_on_qp = true;
+    }
+  }
+
+  int ext_restrictions = bit_reader->ReadBit();
+  if (ext_restrictions) {
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext = true;
     }
   }
 

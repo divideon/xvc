@@ -192,4 +192,8 @@ Restrictions::Restrictions() {
 #endif
 }
 
+void Restrictions::EnableRestrictedMode() {
+  disable_ext = true;
+}
+
 }  // namespace xvc

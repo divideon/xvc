@@ -79,6 +79,10 @@ public:
       instance.disable_deblock_depending_on_qp;
   }
 
+  static bool GetNextGenRestrictions() {
+    return instance.disable_ext;
+  }
+
   bool disable_intra_ref_padding = false;
   bool disable_intra_ref_sample_filter = false;
   bool disable_intra_dc_post_filter = false;
@@ -124,19 +128,23 @@ public:
   bool disable_deblock_initial_sample_decision = false;
   bool disable_deblock_two_samples_weak_filter = false;
   bool disable_deblock_depending_on_qp = false;
+  bool disable_ext = false;
 
 private:
   // The GetRW function shall be used only when there is a need to
   // modify the restriction flags.
   // It shall not be called anywhere in the code except for
-  // in the segment header read function in the decoder.
+  // 1. in the segment header read function in the decoder and
+  // 2. the SetRestrictedMode in the encoder class.
   // For this reason, the GetRW function is private and only
-  // accessible by the friend class SegmentHeaderReader.
+  // accessible by its friend classes.
   friend class SegmentHeaderReader;
+  friend class Encoder;
   static Restrictions instance;
   static Restrictions& GetRW() { return instance; }
 
   Restrictions();
+  void EnableRestrictedMode();
 } Restrictions;
 
 }   // namespace xvc

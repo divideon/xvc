@@ -43,6 +43,7 @@ extern "C" {
     param->max_keypic_distance = 640;
     param->closed_gop = 0;
     param->num_ref_pics = 2;
+    param->restricted = 0;
     param->deblock = 1;
     param->beta_offset = 0;
     param->tc_offset = 0;
@@ -97,6 +98,9 @@ extern "C" {
     if (param->num_ref_pics < 0) {
       return XVC_ENC_INVALID_PARAMETER;
     }
+    if (param->restricted < 0 || param->restricted > 1) {
+      return XVC_ENC_INVALID_PARAMETER;
+    }
     if (param->deblock == 0 &&
       (param->beta_offset || param->tc_offset)) {
       return XVC_ENC_DEBLOCKING_SETTINGS_INVALID;
@@ -113,7 +117,7 @@ extern "C" {
       return XVC_ENC_QP_OUT_OF_RANGE;
     }
     if (param->flat_lambda < 0 || param->flat_lambda > 1) {
-      return XVC_ENC_INVALID_ARGUMENT;
+      return XVC_ENC_INVALID_PARAMETER;
     }
     return XVC_ENC_OK;
   }
@@ -134,6 +138,7 @@ extern "C" {
     encoder->SetSubGopLength(param->sub_gop_length);
     encoder->SetNumRefPics(param->num_ref_pics);
     encoder->SetPicBufferingNum(param->sub_gop_length + param->num_ref_pics);
+    encoder->SetRestrictedMode(param->restricted != 0);
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
     if (param->beta_offset != 0 || param->tc_offset != 0) {

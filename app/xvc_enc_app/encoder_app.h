@@ -63,6 +63,7 @@ private:
     int max_keypic_distance = -1;
     int closed_gop = -1;
     int num_ref_pics = -1;
+    int restricted = -1;
     int deblock = -1;
     int beta_offset = std::numeric_limits<int>::min();
     int tc_offset = std::numeric_limits<int>::min();

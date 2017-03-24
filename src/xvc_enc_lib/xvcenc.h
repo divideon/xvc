@@ -75,6 +75,7 @@ extern "C" {
     uint32_t max_keypic_distance;
     int closed_gop;
     int num_ref_pics;
+    int restricted;
     int deblock;
     int beta_offset;
     int tc_offset;

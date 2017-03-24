@@ -175,6 +175,14 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   return static_cast<int>(nal_units_.size());
 }
 
+void Encoder::SetRestrictedMode(bool restricted) {
+  assert(poc_ == 0);
+  if (restricted) {
+    Restrictions &restrictions = Restrictions::GetRW();
+    restrictions.EnableRestrictedMode();
+  }
+}
+
 void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
                                PicNum sub_gop_length) {
   // Check if current picture is a tail picture.
