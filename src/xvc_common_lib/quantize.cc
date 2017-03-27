@@ -95,7 +95,6 @@ double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
     hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
     hierarchical_factor *= 0.8;
   }
-#if HM_STRICT
   if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra) {
     static const std::array<double, 5> temporal_factor = { {
         0.6, 0.2, 0.33, 0.33, 0.4
@@ -104,7 +103,6 @@ double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
       temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
     return temporal_factor[temporal_id] * hierarchical_factor * lambda;
   }
-#endif
   return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
 }
 

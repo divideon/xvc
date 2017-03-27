@@ -307,7 +307,7 @@ void EncoderApp::MainEncoderLoop() {
     }
 
     // Loop through all Nal Units that were received and write to file
-    // the Nal Unit length followed by the actual Nal Unit .
+    // the Nal Unit length followed by the actual Nal Unit.
     for (int i = 0; i < num_nal_units; i++) {
       nal_size[0] = nal_units[i].size & 0xFF;
       nal_size[1] = (nal_units[i].size >> 8) & 0xFF;

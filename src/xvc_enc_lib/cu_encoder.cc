@@ -356,8 +356,8 @@ Distortion CuEncoder::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
 #endif
     bool force_comp_zero = false;
     if (!Restrictions::Get().disable_transform_cbf) {
-      force_comp_zero = SearchCompCbfZero(cu, qp, comp, bitstream_writer,
-                                          dist_fast, dist_zero);
+      force_comp_zero = EvalCbfZero(cu, qp, comp, bitstream_writer,
+                                    dist_fast, dist_zero);
     }
     final_dist += force_comp_zero ? dist_zero : dist_orig;
     sum_dist_zero += dist_zero;
@@ -371,9 +371,9 @@ Distortion CuEncoder::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
   }
 
   if (cu->GetRootCbf() && !(Restrictions::Get().disable_transform_cbf &&
-      Restrictions::Get().disable_transform_root_cbf)) {
-    bool force_all_zero = SearchCbfAllZero(cu, qp, bitstream_writer,
-                                           sum_dist_fast, sum_dist_zero);
+                            Restrictions::Get().disable_transform_root_cbf)) {
+    bool force_all_zero = EvalRootCbfZero(cu, qp, bitstream_writer,
+                                          sum_dist_fast, sum_dist_zero);
     if (force_all_zero) {
       for (int c = 0; c < constants::kMaxYuvComponents; c++) {
         cbf_modified[c] |= cu->GetCbf(YuvComponent(c));
@@ -424,11 +424,11 @@ Distortion CuEncoder::CompressSkipOnly(CodingUnit *cu, const QP &qp,
   return sum_dist;
 }
 
-bool CuEncoder::SearchCompCbfZero(CodingUnit *cu, const QP &qp,
-                                  YuvComponent comp,
-                                  const SyntaxWriter &rdo_writer,
-                                  Distortion dist_non_zero,
-                                  Distortion dist_zero) {
+bool CuEncoder::EvalCbfZero(CodingUnit *cu, const QP &qp,
+                            YuvComponent comp,
+                            const SyntaxWriter &rdo_writer,
+                            Distortion dist_non_zero,
+                            Distortion dist_zero) {
   if (!cu->GetCbf(comp)) {
     return false;
   }
@@ -453,10 +453,10 @@ bool CuEncoder::SearchCompCbfZero(CodingUnit *cu, const QP &qp,
   return false;
 }
 
-bool CuEncoder::SearchCbfAllZero(CodingUnit *cu, const QP &qp,
-                                 const SyntaxWriter &bitstream_writer,
-                                 Distortion sum_dist_non_zero,
-                                 Distortion sum_dist_zero) {
+bool CuEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
+                                const SyntaxWriter &bitstream_writer,
+                                Distortion sum_dist_non_zero,
+                                Distortion sum_dist_zero) {
   RdoSyntaxWriter rdo_writer_nonzero(bitstream_writer, 0);
   // TODO(Dev) Investigate gains of correct root cbf signaling
 #if HM_STRICT
@@ -698,9 +698,7 @@ CuEncoder::ComputeDistCostNoSplit(const CodingUnit &cu, const QP &qp,
 }
 
 void CuEncoder::WriteCtu(CodingUnit *ctu, SyntaxWriter *writer) {
-#if HM_STRICT
   writer->ResetBitCounting();
-#endif
   cu_writer_.WriteCu(*ctu, writer);
 #if HM_STRICT
   writer->WriteEndOfSlice(false);
