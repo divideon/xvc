@@ -34,7 +34,7 @@ public:
   void DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                     PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
                     SegmentNum soc, int num_buffered_nals);
-  bool Decode(BitReader *bit_reader, PicNum sub_gop_length, int max_tid);
+  bool Decode(BitReader *bit_reader, int max_tid);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
     ChromaFormat chroma_format, int width, int height, int bitdepth) const;
