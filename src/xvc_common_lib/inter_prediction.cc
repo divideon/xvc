@@ -155,16 +155,11 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   const bool pic_bipred = cu.GetPicType() == PicturePredictionType::kBi;
   const int kL0 = static_cast<int>(RefPicList::kL0);
   const int kL1 = static_cast<int>(RefPicList::kL1);
-  auto can_merge = [&posx, &posy](int x1, int y1) {
-    return ((x1 >> kMergeLevelShift) != (posx >> kMergeLevelShift)) ||
-      ((y1 >> kMergeLevelShift) != (posy >> kMergeLevelShift));
-  };
   InterMergeCandidateList list;
   int num = 0;
 
   const CodingUnit *left = cu.GetCodingUnitLeftCorner();
-  bool has_a1 = left && left->IsInter() &&
-    can_merge(posx - 1, posy + height - 1);
+  bool has_a1 = left && left->IsInter();
   if (has_a1) {
     list[num] = GetMergeCandidateFromCu(*left);
     if (num++ == merge_cand_idx) {
@@ -173,8 +168,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   const CodingUnit *above = cu.GetCodingUnitAboveCorner();
-  bool has_b1 = above && above->IsInter() &&
-    can_merge(posx + width - 1, posy - 1);
+  bool has_b1 = above && above->IsInter();
   if (has_b1 && (!has_a1 || HasDifferentMotion(*left, *above))) {
     list[num] = GetMergeCandidateFromCu(*above);
     if (num++ == merge_cand_idx) {
@@ -183,8 +177,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   const CodingUnit *above_right = cu.GetCodingUnitAboveRight();
-  bool has_b0 = above_right && above_right->IsInter() &&
-    can_merge(posx + width, posy - 1);
+  bool has_b0 = above_right && above_right->IsInter();
   if (has_b0 && (!has_b1 || HasDifferentMotion(*above, *above_right))) {
     list[num] = GetMergeCandidateFromCu(*above_right);
     if (num++ == merge_cand_idx) {
@@ -193,8 +186,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   const CodingUnit *left_below = cu.GetCodingUnitLeftBelow();
-  bool has_a0 = left_below && left_below->IsInter() &&
-    can_merge(posx - 1, posy + height);
+  bool has_a0 = left_below && left_below->IsInter();
   if (has_a0 && (!has_a1 || HasDifferentMotion(*left, *left_below))) {
     list[num] = GetMergeCandidateFromCu(*left_below);
     if (num++ == merge_cand_idx) {
@@ -203,8 +195,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   const CodingUnit *above_left = cu.GetCodingUnitAboveLeft();
-  bool has_b2 = above_left && above_left->IsInter() &&
-    can_merge(posx - 1, posy - 1);
+  bool has_b2 = above_left && above_left->IsInter();
   if (has_b2 && num < 4
       && (!has_a1 || HasDifferentMotion(*left, *above_left))
       && (!has_b1 || HasDifferentMotion(*above, *above_left))) {
