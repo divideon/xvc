@@ -600,7 +600,8 @@ IntraChromaMode
 CuEncoder::SearchIntraChroma(CodingUnit *cu, YuvComponent comp,
                              const QP &qp,
                              const SyntaxWriter &bitstream_writer) {
-  IntraMode luma_mode = cu->GetIntraMode(YuvComponent::kY);
+  const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
+  IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
   IntraPredictorChroma chroma_modes =
     intra_pred_.GetPredictorsChroma(luma_mode);
   IntraChromaMode best_mode = IntraChromaMode::kDMChroma;

@@ -193,10 +193,15 @@ int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
 
 IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
   if (util::IsLuma(comp)) {
+    assert(cu_tree_ == CuTree::Primary);
     return intra_mode_luma_;
   }
   if (intra_mode_chroma_ == IntraChromaMode::kDMChroma) {
-    return intra_mode_luma_;
+    if (cu_tree_ == CuTree::Primary) {
+      return intra_mode_luma_;
+    }
+    const CodingUnit *luma_cu = pic_data_.GetLumaCu(this);
+    return luma_cu->intra_mode_luma_;
   }
   assert(static_cast<int>(intra_mode_chroma_) < IntraMode::kTotalNumber);
   return static_cast<IntraMode>(intra_mode_chroma_);

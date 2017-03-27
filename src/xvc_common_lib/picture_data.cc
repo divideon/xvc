@@ -88,6 +88,14 @@ CodingUnit* PictureData::SetCtu(CuTree cu_tree, int rsaddr, CodingUnit *cu) {
   return old;
 }
 
+const CodingUnit* PictureData::GetLumaCu(const CodingUnit *cu) const {
+  if (cu->GetCuTree() == CuTree::Primary) {
+    return cu;
+  }
+  return GetCuAt(CuTree::Primary, cu->GetPosX(YuvComponent::kY),
+                 cu->GetPosY(YuvComponent::kY));
+}
+
 CodingUnit *PictureData::CreateCu(CuTree cu_tree, int depth, int posx,
                                   int posy, int width, int height) const {
   if (posx >= pic_width_ || posy >= pic_height_) {

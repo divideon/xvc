@@ -82,7 +82,8 @@ void CuReader::ReadIntraPrediction(CodingUnit *cu, YuvComponent comp,
     IntraMode intra_mode = reader->ReadIntraMode(mpm);
     cu->SetIntraModeLuma(intra_mode);
   } else if (util::IsFirstChroma(comp)) {
-    IntraMode luma_mode = cu->GetIntraMode(YuvComponent::kY);
+    const CodingUnit *luma_cu = pic_data_->GetLumaCu(cu);
+    IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
     IntraPredictorChroma chroma_pred =
       intra_pred_.GetPredictorsChroma(luma_mode);
     IntraChromaMode chroma_mode = IntraChromaMode::kDMChroma;

@@ -67,7 +67,8 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
 
 void CuWriter::WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
                                     SyntaxWriter *writer) const {
-  IntraMode luma_mode = cu.GetIntraMode(YuvComponent::kY);
+  const CodingUnit *luma_cu = pic_data_.GetLumaCu(&cu);
+  IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
   if (util::IsLuma(comp)) {
     IntraPredictorLuma mpm = intra_pred_->GetPredictorLuma(cu);
     writer->WriteIntraMode(luma_mode, mpm);

@@ -68,12 +68,13 @@ public:
   int GetNumberOfCtu() const {
     return static_cast<int>(ctu_rs_list_[0].size());
   }
-  const CodingUnit *GetCuAt(CuTree cu_tree, int posx, int posy) const {
+  const CodingUnit* GetCuAt(CuTree cu_tree, int posx, int posy) const {
     ptrdiff_t cu_idx = (posy / constants::kMinBlockSize) * cu_pic_stride_ +
       (posx / constants::kMinBlockSize);
     return cu_pic_table_[static_cast<int>(cu_tree)][cu_idx];
   }
-  CodingUnit *CreateCu(CuTree cu_tree, int depth, int posx, int posy,
+  const CodingUnit* GetLumaCu(const CodingUnit *cu) const;
+  CodingUnit* CreateCu(CuTree cu_tree, int depth, int posx, int posy,
                        int width, int height) const;
   void ReleaseCu(CodingUnit *cu) const;
   void MarkUsedInPic(CodingUnit *cu);
