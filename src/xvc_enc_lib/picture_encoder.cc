@@ -67,7 +67,11 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   entropy_encoder.Finish();
   WriteChecksum(&bit_writer_);
 
-  rec_pic_->PadBorder();
+  int max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
+  int pic_tid = pic_data_->GetTid();
+  if (pic_tid == 0 || pic_tid < max_tid) {
+    rec_pic_->PadBorder();
+  }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   return bit_writer_.GetBytes();
 }

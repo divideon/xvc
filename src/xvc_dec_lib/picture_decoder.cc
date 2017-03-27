@@ -70,7 +70,8 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   bit_reader->SkipBits();
 }
 
-bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
+bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length,
+                            int max_tid) {
   double lambda = 0;
   QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
@@ -96,8 +97,10 @@ bool PictureDecoder::Decode(BitReader *bit_reader, PicNum sub_gop_length) {
     assert(0);
   }
   entropy_decoder.Finish();
-
-  rec_pic_->PadBorder();
+  int pic_tid = pic_data_->GetTid();
+  if (pic_tid == 0 || pic_tid < max_tid) {
+    rec_pic_->PadBorder();
+  }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   return ValidateChecksum(bit_reader);
 }

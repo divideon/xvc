@@ -662,22 +662,27 @@ Distortion CuEncoder::CompressComponent(CodingUnit *cu, YuvComponent comp,
   }
   cu->SetCbf(comp, cbf);
 
-  // Dequant
-  const int shift_iquant = constants::kIQuantShift
-    - constants::kQuantShift - transform_shift;
-  quantize_.Inverse(comp, qp, shift_iquant, width, height, cu_coeff,
-                    cu_coeff_stride, temp_coeff_.GetDataPtr(),
-                    temp_coeff_.GetStride());
-
-  // Inv transform
-  inv_transform_.Transform(width, temp_coeff_.GetDataPtr(),
-                           temp_coeff_.GetStride(), temp_resi_.GetDataPtr(),
-                           temp_resi_.GetStride());
-
-  // Reconstruct
   SampleBuffer reco_buffer = rec_pic_.GetSampleBuffer(comp, cu_x, cu_y);
-  reco_buffer.AddClip(width, height, temp_pred_, temp_resi_,
-                      min_pel_, max_pel_);
+  if (cbf) {
+    // Dequant
+    const int shift_iquant = constants::kIQuantShift
+      - constants::kQuantShift - transform_shift;
+    quantize_.Inverse(comp, qp, shift_iquant, width, height, cu_coeff,
+                      cu_coeff_stride, temp_coeff_.GetDataPtr(),
+                      temp_coeff_.GetStride());
+
+    // Inv transform
+    inv_transform_.Transform(width, temp_coeff_.GetDataPtr(),
+                             temp_coeff_.GetStride(), temp_resi_.GetDataPtr(),
+                             temp_resi_.GetStride());
+
+    // Reconstruct
+    reco_buffer.AddClip(width, height, temp_pred_, temp_resi_,
+                        min_pel_, max_pel_);
+  } else {
+    reco_buffer.CopyFrom(width, height, temp_pred_);
+  }
+
 
   SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
   return metric.CompareSample(*cu, comp, orig_pic_, reco_buffer);

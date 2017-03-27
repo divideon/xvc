@@ -10,6 +10,7 @@
 
 #include "googletest/include/gtest/gtest.h"
 
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_dec_lib/picture_decoder.h"
 #include "xvc_enc_lib/picture_encoder.h"
 
@@ -76,7 +77,8 @@ protected:
     pic_decoder_->DecodeHeader(&bit_reader, &sub_gop_end_poc,
                                &sub_gop_start_poc, &sub_gop_length,
                                segment_.soc, num_buffered_nals);
-    return pic_decoder_->Decode(&bit_reader, sub_gop_length);
+    int max_tid = xvc::SegmentHeader::GetMaxTid(sub_gop_length);
+    return pic_decoder_->Decode(&bit_reader, sub_gop_length, max_tid);
   }
 
   static const int kPicWidth = 16;
