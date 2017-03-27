@@ -148,10 +148,6 @@ static bool HasDifferentMotion(const CodingUnit &cu1, const CodingUnit &cu2) {
 
 InterMergeCandidateList
 InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
-  const int posx = cu.GetPosX(YuvComponent::kY);
-  const int posy = cu.GetPosY(YuvComponent::kY);
-  const int width = cu.GetWidth(YuvComponent::kY);
-  const int height = cu.GetHeight(YuvComponent::kY);
   const bool pic_bipred = cu.GetPicType() == PicturePredictionType::kBi;
   const int kL0 = static_cast<int>(RefPicList::kL0);
   const int kL1 = static_cast<int>(RefPicList::kL1);
