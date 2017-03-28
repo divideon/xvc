@@ -13,6 +13,7 @@
 
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/reference_picture_lists.h"
+#include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
 
@@ -32,7 +33,9 @@ public:
       return;
     }
     int num_l0 = FillLowerPoc(RefPicList::kL0, 0, curr_pic, pic_buffer, rpl);
-    FillHigherPoc(RefPicList::kL0, num_l0, curr_pic, pic_buffer, rpl);
+    if (Restrictions::Get().disable_ext_ref_list_l0_trim) {
+      FillHigherPoc(RefPicList::kL0, num_l0, curr_pic, pic_buffer, rpl);
+    }
     int num_l1 = FillHigherPoc(RefPicList::kL1, 0, curr_pic, pic_buffer, rpl);
     FillLowerPoc(RefPicList::kL1, num_l1, curr_pic, pic_buffer, rpl);
   }

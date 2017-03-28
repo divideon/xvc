@@ -192,18 +192,40 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_DEBLOCK_DEPENDING_ON_QP
   disable_deblock_depending_on_qp = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT
+  disable_ext = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_TMVP_FULL_RESOLUTION
+  disable_ext_tmvp_full_resolution = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_TMVP_EXCLUDE_INTRA_FROM_REF_LIST
+  disable_ext_tmvp_exclude_intra_from_ref_list = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_REF_LIST_L0_TRIM
+  disable_ext_ref_list_l0_trim = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_IMPLICIT_PARTITION_TYPE
+  disable_ext_implicit_partition_type = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
   if (mode == RestrictedMode::kUnrestricted) {
     return;
   }
-  // if (mode == RestrictedMode::kModeA || mode == RestrictedMode::kModeB) {
-  //  // Restrictions that apply to both Mode A and Mode B.
-  // }
+  if (mode == RestrictedMode::kModeA || mode == RestrictedMode::kModeB) {
+    disable_ext_tmvp_full_resolution = true;
+    disable_ext_tmvp_exclude_intra_from_ref_list = true;
+    disable_ext_ref_list_l0_trim = true;
+  }
   if (mode == RestrictedMode::kModeA) {
-    // Restrictions that are specific to Mode A.
     disable_ext = true;
+    disable_ext_implicit_partition_type = true;
   }
 }
 

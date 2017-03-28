@@ -51,11 +51,9 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
     } else {
       assert(cu.GetPredMode() == PredictionMode::kIntra);
     }
-#if HM_STRICT
-    if (Restrictions::Get().disable_ext) {
+    if (Restrictions::Get().disable_ext_implicit_partition_type) {
       writer->WritePartitionType(cu, cu.GetPartitionType());
     }
-#endif
   } else if (cu.GetSkipFlag()) {
     return;
   }

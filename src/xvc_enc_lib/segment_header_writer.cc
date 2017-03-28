@@ -117,6 +117,10 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   if (Restrictions::GetExtRestrictions()) {
     bit_writer->WriteBit(1);
     bit_writer->WriteBit(restr.disable_ext);
+    bit_writer->WriteBit(restr.disable_ext_tmvp_full_resolution);
+    bit_writer->WriteBit(restr.disable_ext_tmvp_exclude_intra_from_ref_list);
+    bit_writer->WriteBit(restr.disable_ext_ref_list_l0_trim);
+    bit_writer->WriteBit(restr.disable_ext_implicit_partition_type);
   } else {
     bit_writer->WriteBit(0);  // ext_restrictions
   }

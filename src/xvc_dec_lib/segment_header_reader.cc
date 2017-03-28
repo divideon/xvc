@@ -209,6 +209,18 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     if (bit_reader->ReadBit()) {
       restr.disable_ext = true;
     }
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext_tmvp_full_resolution = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext_tmvp_exclude_intra_from_ref_list = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext_ref_list_l0_trim = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext_implicit_partition_type = true;
+    }
   }
 
   segment_header->soc = segment_counter;

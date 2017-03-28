@@ -481,10 +481,10 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   int col_y = cu.GetPosY(comp) + cu.GetHeight(comp);
   if ((cu.GetPosY(comp) / constants::kMaxBlockSize) ==
     (col_y / constants::kMaxBlockSize)) {
-#if HM_STRICT
-    col_x = ((col_x >> 4) << 4);
-    col_y = ((col_y >> 4) << 4);
-#endif
+    if (Restrictions::Get().disable_ext_tmvp_full_resolution) {
+      col_x = ((col_x >> 4) << 4);
+      col_y = ((col_y >> 4) << 4);
+    }
     // Including picture out of bounds check
     const CodingUnit *col_cu =
       ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
@@ -497,10 +497,10 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   // Center CU
   col_x = cu.GetPosX(comp) + cu.GetWidth(comp) / 2;
   col_y = cu.GetPosY(comp) + cu.GetHeight(comp) / 2;
-#if HM_STRICT
-  col_x = ((col_x >> 4) << 4);
-  col_y = ((col_y >> 4) << 4);
-#endif
+  if (Restrictions::Get().disable_ext_tmvp_full_resolution) {
+    col_x = ((col_x >> 4) << 4);
+    col_y = ((col_y >> 4) << 4);
+  }
   const CodingUnit *col_cu =
     ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
                                   col_x, col_y);

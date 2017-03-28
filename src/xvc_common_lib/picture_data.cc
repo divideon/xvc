@@ -140,16 +140,16 @@ RefPicList PictureData::DetermineTmvpRefList(int *tmvp_ref_idx) {
   }
   int tid_l0 = ref_pic_lists_.GetRefPicTid(RefPicList::kL0, ref_idx);
   int tid_l1 = ref_pic_lists_.GetRefPicTid(RefPicList::kL1, ref_idx);
-#if !HM_STRICT
-  if (ref_pic_lists_.GetRefPicType(RefPicList::kL0, ref_idx) ==
-  PicturePredictionType::kIntra) {
-    return RefPicList::kL1;
-}
-  if (ref_pic_lists_.GetRefPicType(RefPicList::kL1, ref_idx) ==
-      PicturePredictionType::kIntra) {
-    return RefPicList::kL0;
+  if (!Restrictions::Get().disable_ext_tmvp_exclude_intra_from_ref_list) {
+    if (ref_pic_lists_.GetRefPicType(RefPicList::kL0, ref_idx) ==
+        PicturePredictionType::kIntra) {
+      return RefPicList::kL1;
+    }
+    if (ref_pic_lists_.GetRefPicType(RefPicList::kL1, ref_idx) ==
+        PicturePredictionType::kIntra) {
+      return RefPicList::kL0;
+    }
   }
-#endif
   return (tid_l1 >= tid_l0) ? RefPicList::kL1 : RefPicList::kL0;
 }
 

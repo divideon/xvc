@@ -59,12 +59,10 @@ void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,
       cu->SetPredMode(PredictionMode::kIntra);
       cu->SetSkipFlag(false);
     }
-#if HM_STRICT
-    if (Restrictions::Get().disable_ext) {
+    if (Restrictions::Get().disable_ext_implicit_partition_type) {
       PartitionType partition_type = reader->ReadPartitionType(*cu);
       cu->SetPartitionType(partition_type);
     }
-#endif
   } else if (cu->GetSkipFlag()) {
     cu->SetCbf(comp, false);
     return;

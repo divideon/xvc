@@ -87,7 +87,11 @@ public:
   }
 
   static bool GetExtRestrictions() {
-    return instance.disable_ext;
+    return instance.disable_ext ||
+      instance.disable_ext_tmvp_full_resolution ||
+      instance.disable_ext_tmvp_exclude_intra_from_ref_list ||
+      instance.disable_ext_ref_list_l0_trim ||
+      instance.disable_ext_implicit_partition_type;
   }
 
   bool disable_intra_ref_padding = false;
@@ -136,6 +140,10 @@ public:
   bool disable_deblock_two_samples_weak_filter = false;
   bool disable_deblock_depending_on_qp = false;
   bool disable_ext = false;
+  bool disable_ext_tmvp_full_resolution = false;
+  bool disable_ext_tmvp_exclude_intra_from_ref_list = false;
+  bool disable_ext_ref_list_l0_trim = false;
+  bool disable_ext_implicit_partition_type = false;
 
 private:
   // The GetRW function shall be used only when there is a need to
