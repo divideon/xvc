@@ -70,8 +70,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       cli_.closed_gop = std::stoi(std::string(argv[++i]));
     } else if (arg == "-num-ref-pics") {
       cli_.num_ref_pics = std::stoi(std::string(argv[++i]));
-    } else if (arg == "-restricted") {
-      cli_.restricted = std::stoi(std::string(argv[++i]));
+    } else if (arg == "-restricted-mode") {
+      cli_.restricted_mode = std::stoi(std::string(argv[++i]));
     } else if (arg == "-deblock") {
       cli_.deblock = std::stoi(std::string(argv[++i]));
     } else if (arg == "-beta-offset") {
@@ -208,8 +208,8 @@ void EncoderApp::CreateAndConfigureApi() {
   if (cli_.num_ref_pics != -1) {
     params_->num_ref_pics = cli_.num_ref_pics;
   }
-  if (cli_.restricted != -1) {
-    params_->restricted = cli_.restricted;
+  if (cli_.restricted_mode != -1) {
+    params_->restricted_mode = cli_.restricted_mode;
   }
   if (cli_.deblock != -1) {
     params_->deblock = cli_.deblock;

@@ -10,6 +10,13 @@
 
 namespace xvc {
 
+enum class RestrictedMode {
+  kUnrestricted = 0,
+  kModeA = 1,
+  kModeB = 2,
+  kTotalNumber = 3,
+};
+
 // The Restrictions struct is used globally in the xvc namespace to check if
 // any features should be disabled anywhere in the encoding/decoding process.
 // In the first official version of xvc all the disable flags are equal to
@@ -144,7 +151,7 @@ private:
   static Restrictions& GetRW() { return instance; }
 
   Restrictions();
-  void EnableRestrictedMode();
+  void EnableRestrictedMode(RestrictedMode mode);
 } Restrictions;
 
 }   // namespace xvc

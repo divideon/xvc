@@ -175,12 +175,10 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   return static_cast<int>(nal_units_.size());
 }
 
-void Encoder::SetRestrictedMode(bool restricted) {
+void Encoder::SetRestrictedMode(int mode) {
   assert(poc_ == 0);
-  if (restricted) {
-    Restrictions &restrictions = Restrictions::GetRW();
-    restrictions.EnableRestrictedMode();
-  }
+  Restrictions &restrictions = Restrictions::GetRW();
+  restrictions.EnableRestrictedMode(RestrictedMode(mode));
 }
 
 void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,

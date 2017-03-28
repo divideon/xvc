@@ -14,6 +14,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/picture_encoder.h"
@@ -57,7 +58,7 @@ public:
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
   void SetQP(int qp) { segment_qp_ = qp; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
-  void SetRestrictedMode(bool restricted);
+  void SetRestrictedMode(int mode);
 
 private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,

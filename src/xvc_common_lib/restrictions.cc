@@ -6,6 +6,8 @@
 
 #include "xvc_common_lib/restrictions.h"
 
+#include <cassert>
+
 namespace xvc {
 
 Restrictions Restrictions::instance;
@@ -192,8 +194,17 @@ Restrictions::Restrictions() {
 #endif
 }
 
-void Restrictions::EnableRestrictedMode() {
-  disable_ext = true;
+void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
+  if (mode == RestrictedMode::kUnrestricted) {
+    return;
+  }
+  // if (mode == RestrictedMode::kModeA || mode == RestrictedMode::kModeB) {
+  //  // Restrictions that apply to both Mode A and Mode B.
+  // }
+  if (mode == RestrictedMode::kModeA) {
+    // Restrictions that are specific to Mode A.
+    disable_ext = true;
+  }
 }
 
 }  // namespace xvc
