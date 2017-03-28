@@ -208,7 +208,8 @@ void SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
         Coeff base_level = static_cast<Coeff>(
           (i < max_num_c1_flags) ? (2 + first_coeff_greater2) : 1);
         if (subblock_coeff[i] == base_level) {
-          subblock_coeff[i] += ReadCoeffRemainExpGolomb(golomb_rice_k);
+          subblock_coeff[i] +=
+            static_cast<Coeff>(ReadCoeffRemainExpGolomb(golomb_rice_k));
           if (subblock_coeff[i] > 3 * (1 << golomb_rice_k) &&
               !Restrictions::Get().disable_transform_adaptive_exp_golomb) {
             golomb_rice_k = std::min(golomb_rice_k + 1, (uint32_t)4);
