@@ -113,7 +113,7 @@ uint64_t SampleMetric::ComputeSSE(int width, int height,
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int diff = sample1[x] - sample2[x];
-#if HM_STRICT
+#if !HM_STRICT
       ssd += (diff*diff) >> shift;
 #else
       ssd += diff * diff;
@@ -122,7 +122,7 @@ uint64_t SampleMetric::ComputeSSE(int width, int height,
     sample1 += stride1;
     sample2 += stride2;
   }
-#if !HM_STRICT
+#if HM_STRICT
   ssd >>= shift;
 #endif
   return ssd;
