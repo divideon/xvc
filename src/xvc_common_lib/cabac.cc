@@ -362,6 +362,20 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu) {
   return cu_split_flag[offset];
 }
 
+ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit & cu) {
+  if (Restrictions::Get().disable_cabac_inter_dir_ctx) {
+    return inter_dir[0];
+  }
+  int idx = std::min(cu.GetDepth(), static_cast<int>(inter_dir.size()) - 1);
+  if (!Restrictions::Get().disable_ext) {
+    static const int kMaxSize128Log2 = 7;
+    int log2_size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
+                     util::SizeToLog2(cu.GetHeight(YuvComponent::kY)) + 1) >> 1;
+    idx = util::Clip3(kMaxSize128Log2 - log2_size, 0, 3);
+  }
+  return inter_dir[idx];
+}
+
 ContextModel& CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
                                                 const uint8_t *sublock_csbf,
                                                 int posx, int posy, int width,

@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/utils.h"
 #include "xvc_enc_lib/cu_writer.h"
 
@@ -370,7 +371,8 @@ InterSearch::TZSearch(const CodingUnit &cu, const QP &qp,
   state.last_range_ = 0;
 
   // Check MV from previous CU search (can be either same or a different size)
-  if (cu.GetDepth() != 0) {
+  // TODO(PH) Consider always using?
+  if (cu.GetDepth() != 0 && Restrictions::Get().disable_ext) {
     int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
     int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
     ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);

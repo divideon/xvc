@@ -274,8 +274,7 @@ IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
 
 InterDir SyntaxReader::ReadInterDir(const CodingUnit &cu) {
   assert(cu.GetPartitionType() == PartitionType::kSize2Nx2N);
-  int idx = Restrictions::Get().disable_cabac_inter_dir_ctx ? 0 : cu.GetDepth();
-  ContextModel &ctx = ctx_.inter_dir[idx];
+  ContextModel &ctx = ctx_.GetInterDirBiCtx(cu);
   if (entropydec_->DecodeBin(&ctx) != 0) {
     return InterDir::kBi;
   }
