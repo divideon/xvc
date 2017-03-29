@@ -56,7 +56,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir) {
   int height_in_8x8 = cu->GetHeight(luma) >> 3;
   int width_in_8x8 = cu->GetWidth(luma) >> 3;
   bool deblock_luma = cu_tree == CuTree::Primary;
-  bool deblock_chroma = pic_data_->GetNumComponents() > 1 &&
+  bool deblock_chroma = pic_data_->GetMaxNumComponents() > 1 &&
     (!pic_data_->HasSecondaryCuTree() || cu_tree == CuTree::Secondary) &&
     !Restrictions::Get().disable_deblock_chroma_filter;
 

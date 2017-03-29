@@ -240,7 +240,7 @@ void CodingUnit::UnSplit() {
 
 void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
                              const YuvPicture &rec_pic) {
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     int posx = GetPosX(comp);
     int posy = GetPosY(comp);
@@ -256,7 +256,7 @@ void CodingUnit::SaveStateTo(TransformState *dst_state,
                              const YuvPicture &rec_pic) {
   dst_state->cbf = cbf_;
   SaveStateTo(static_cast<ReconstructionState*>(dst_state), rec_pic);
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     // Coeff
     if (cbf_[c]) {
@@ -274,7 +274,7 @@ void CodingUnit::SaveStateTo(InterState *state) {
 
 void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
                                YuvPicture *rec_pic) {
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     int posx = GetPosX(comp);
     int posy = GetPosY(comp);
@@ -288,7 +288,7 @@ void CodingUnit::LoadStateFrom(const TransformState &src_state,
                                YuvPicture *rec_pic) {
   cbf_ = src_state.cbf;
   LoadStateFrom(static_cast<const ReconstructionState&>(src_state), rec_pic);
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     if (src_state.cbf[c]) {
       coeff_[c].resize(GetCoeffStride() * GetHeight(comp));

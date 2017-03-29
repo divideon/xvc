@@ -50,8 +50,8 @@ public:
   int GetChromaShiftX() const { return chroma_shift_x_; }
   int GetChromaShiftY() const { return chroma_shift_y_; }
   bool HasSecondaryCuTree() { return num_cu_trees_ > 1; }
-  int GetNumComponents() const {
-    return util::GetNumComponents(chroma_fmt_);
+  int GetMaxNumComponents() const {
+    return max_num_components_;
   }
   const std::vector<YuvComponent>& GetComponents(CuTree cu_tree) const {
     return cu_tree_components_[static_cast<int>(cu_tree)];
@@ -135,6 +135,7 @@ private:
   int pic_height_;
   int bitdepth_;
   ChromaFormat chroma_fmt_;
+  int max_num_components_;
   int chroma_shift_x_;
   int chroma_shift_y_;
   int num_cu_trees_;

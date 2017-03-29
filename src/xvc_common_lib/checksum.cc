@@ -13,9 +13,10 @@
 namespace xvc {
 
 void Checksum::HashPicture(const YuvPicture &pic) {
+  int num_components = util::GetNumComponents(pic.GetChromaFormat());
   switch (method_) {
     case Method::kCRC:
-      for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+      for (int c = 0; c < num_components; c++) {
         YuvComponent comp = YuvComponent(c);
         CalculateCRC(pic.GetSamplePtr(comp, 0, 0), pic.GetBitdepth(),
                      pic.GetWidth(comp), pic.GetHeight(comp),
@@ -24,7 +25,7 @@ void Checksum::HashPicture(const YuvPicture &pic) {
       break;
 
     case Method::kMD5:
-      for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+      for (int c = 0; c < num_components; c++) {
         YuvComponent comp = YuvComponent(c);
         CalculateMD5(pic.GetSamplePtr(comp, 0, 0), pic.GetBitdepth(),
                      pic.GetWidth(comp), pic.GetHeight(comp),

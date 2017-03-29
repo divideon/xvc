@@ -343,7 +343,7 @@ Distortion CuEncoder::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
   Distortion sum_dist_zero = 0;
   Distortion sum_dist_fast = 0;
 
-  for (int c = 0; c < pic_data_.GetNumComponents(); c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     Distortion dist_orig = CompressComponent(cu, comp, qp);
     Distortion dist_zero =
@@ -411,7 +411,7 @@ Distortion CuEncoder::CompressSkipOnly(CodingUnit *cu, const QP &qp,
 
   SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
   Distortion sum_dist = 0;
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     int posx = cu->GetPosX(comp);
     int posy = cu->GetPosY(comp);
@@ -463,7 +463,7 @@ bool CuEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
   RdoSyntaxWriter rdo_writer_nonzero(bitstream_writer, 0);
   // TODO(Dev) Investigate gains of correct root cbf signaling
 #if HM_STRICT
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     const YuvComponent comp = YuvComponent(c);
     bool cbf = cu->GetCbf(comp);
     rdo_writer_nonzero.WriteCbf(*cu, comp, cbf);
@@ -473,7 +473,7 @@ bool CuEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
     }
   }
 #else
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
     cu_writer_.WriteCoefficients(*cu, YuvComponent(c), &rdo_writer_nonzero);
   }
 #endif

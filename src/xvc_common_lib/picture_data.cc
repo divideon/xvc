@@ -21,6 +21,7 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
   pic_height_(height),
   bitdepth_(bitdepth),
   chroma_fmt_(chroma_format),
+  max_num_components_(util::GetNumComponents(chroma_format)),
   chroma_shift_x_(util::GetChromaShiftX(chroma_format)),
   chroma_shift_y_(util::GetChromaShiftY(chroma_format)),
   num_cu_trees_(1),
@@ -50,14 +51,19 @@ PictureData::~PictureData() {
 }
 
 void PictureData::Init(const QP &pic_qp) {
-  if (!Restrictions::Get().disable_ext && IsIntraPic()) {
+  if (!Restrictions::Get().disable_ext && IsIntraPic() &&
+      max_num_components_ > 1) {
     num_cu_trees_ = 2;
     cu_tree_components_[0] = { YuvComponent::kY };
     cu_tree_components_[1] = { YuvComponent::kU, YuvComponent::kV };
-  } else {
+  } else if (max_num_components_ > 1) {
     num_cu_trees_ = 1;
     cu_tree_components_[0] = { YuvComponent::kY, YuvComponent::kU,
       YuvComponent::kV };
+    cu_tree_components_[1] = {};
+  } else {
+    num_cu_trees_ = 1;
+    cu_tree_components_[0] = { YuvComponent::kY };
     cu_tree_components_[1] = {};
   }
   pic_qp_.reset(new QP(pic_qp));
