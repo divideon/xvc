@@ -7,6 +7,7 @@
 #ifndef XVC_COMMON_LIB_TRANSFORM_H_
 #define XVC_COMMON_LIB_TRANSFORM_H_
 
+#include <array>
 #include <vector>
 
 #include "xvc_common_lib/coding_unit.h"
@@ -83,8 +84,8 @@ private:
 
 class TransformHelper {
 public:
-  static const uint8_t kLastPosGroupIdx[32];
-  static const uint8_t kLastPosMinInGroup[10];
+  static const std::array<uint8_t, 128> kLastPosGroupIdx;
+  static const std::array<uint8_t, 14> kLastPosMinInGroup;
 
   static ScanOrder DetermineScanOrder(const CodingUnit & cu,
                                       YuvComponent comp);

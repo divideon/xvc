@@ -86,12 +86,8 @@ PicNum CodingUnit::GetRefPoc(RefPicList ref_list) const {
 }
 
 bool CodingUnit::IsFullyWithinPicture() const {
-  int posx = pos_x_;
-  int posy = pos_y_;
-  int width = width_;
-  int height = height_;
-  return posx + width <= pic_data_.GetPictureWidth(YuvComponent::kY) &&
-    posy + height <= pic_data_.GetPictureHeight(YuvComponent::kY);
+  return pos_x_ + width_ <= pic_data_.GetPictureWidth(YuvComponent::kY) &&
+    pos_y_ + height_ <= pic_data_.GetPictureHeight(YuvComponent::kY);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAbove() const {

@@ -90,6 +90,7 @@ const std::array<std::array<const uint8_t, 4>, 1 <<
 } };
 
 static const uint8_t kNotUsed = 0;
+static const uint8_t kDef = 154;  // TODO(PH) Used but value not determined
 
 static const uint8_t
 kInitCuTransquantBypassFlag[3][CabacContexts::kNumTquantBypassFlagCtx] = {
@@ -192,10 +193,13 @@ kInitCuRootCbf[3][CabacContexts::kNumCuRootCbfCtx] = {
 static const uint8_t
 kInitLastPos[3][CabacContexts::kNumCoeffLastPosCtx] = {
   { 125, 110, 124, 110, 95, 94, 125, 111, 111, 79, 125, 126, 111, 111, 79,
+  126, 111, 111, 79, kDef, kDef, kDef, kDef, kDef, kDef,
   108, 123, 93 },
   { 125, 110, 94, 110, 95, 79, 125, 111, 110, 78, 110, 111, 111, 95, 94,
+  111, 111, 95, 94, kDef, kDef, kDef, kDef, kDef, kDef,
   108, 123, 108 },
   { 110, 110, 124, 125, 140, 153, 125, 127, 140, 109, 111, 143, 127, 111, 79,
+  143, 127, 111, 79, kDef, kDef, kDef, kDef, kDef, kDef,
   108, 123, 63 },
 };
 
@@ -273,8 +277,8 @@ kInitTransformskipFlag[3][2 * CabacContexts::kNumTransformSkipFlagCtx] = {
 
 template <size_t N>
 inline static void Init(int qp, int slice_type,
-                           std::array<ContextModel, N> *ctx,
-                           const uint8_t init_state[3][N]) {
+                        std::array<ContextModel, N> *ctx,
+                        const uint8_t init_state[3][N]) {
   for (size_t i = 0; i < N; i++) {
     (*ctx)[i].Init(qp, init_state[slice_type][i]);
   }
@@ -282,9 +286,9 @@ inline static void Init(int qp, int slice_type,
 
 template <size_t N, size_t M>
 inline static void Init(int qp, int slice_type,
-                           std::array<ContextModel, N> *ctx_luma,
-                           std::array<ContextModel, M> *ctx_chroma,
-                           const uint8_t init_state[3][N + M]) {
+                        std::array<ContextModel, N> *ctx_luma,
+                        std::array<ContextModel, M> *ctx_chroma,
+                        const uint8_t init_state[3][N + M]) {
   for (size_t i = 0; i < N; i++) {
     (*ctx_luma)[i].Init(qp, init_state[slice_type][i]);
   }
@@ -453,17 +457,28 @@ ContextModel& CabacContexts::GetCoeffGreaterThan2Ctx(YuvComponent comp,
   return ctx_base[ctx_set];
 }
 
-ContextModel& CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width,
-                                                int height, int pos,
-                                                bool is_pos_x) {
+ContextModel&
+CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
+                                  int pos, bool is_pos_x) {
+  const int size = is_pos_x ? width : height;
   if (util::IsLuma(comp)) {
     auto &ctx_base = is_pos_x ? coeff_last_pos_x_luma : coeff_last_pos_y_luma;
     if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx) {
       return ctx_base[0];
     }
-    int offset =
-      util::SizeLog2Bits(width) * 3 + ((util::SizeLog2Bits(width) + 1) >> 2);
-    int shift = (util::SizeLog2Bits(width) + 3) >> 2;
+    int offset, shift;
+    if (!Restrictions::Get().disable_ext) {
+      static const std::array<uint8_t, 8> kOffsetMappingExt = {
+        0, 0, 0, 3, 6, 10, 15, 21   // 1, 2, 4, 8, 16, 32, 64, 128
+      };
+      const int size_log2 = util::SizeToLog2(size);
+      offset = kOffsetMappingExt[size_log2];
+      shift = (size_log2 + 1) >> 2;
+    } else {
+      const int size_bits = util::SizeLog2Bits(size);
+      offset = size_bits * 3 + ((size_bits + 1) >> 2);
+      shift = (size_bits + 3) >> 2;
+    }
     return ctx_base[offset + (pos >> shift)];
   } else {
     auto &ctx_base =
@@ -472,7 +487,12 @@ ContextModel& CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width,
       return ctx_base[0];
     }
     int offset = 0;
-    int shift = util::SizeLog2Bits(width);
+    int shift;
+    if (!Restrictions::Get().disable_ext) {
+      shift = util::Clip3(size >> 3, 0, 2);
+    } else {
+      shift = util::SizeLog2Bits(size);
+    }
     return ctx_base[offset + (pos >> shift)];
   }
 }

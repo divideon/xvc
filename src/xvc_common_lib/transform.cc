@@ -357,14 +357,19 @@ const uint16_t kScanOrder32x32Diag[32 * 32] = {
   988, 957, 926, 1020, 989, 958, 927, 1021, 990, 959, 1022, 991, 1023
 };
 
-const uint8_t TransformHelper::kLastPosGroupIdx[32] = {
+const std::array<uint8_t, 128> TransformHelper::kLastPosGroupIdx = { {
   0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9,
-  9, 9, 9, 9, 9, 9
-};
+  9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+  10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 13,
+  13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
+  13, 13, 13, 13
+} };
 
-const uint8_t TransformHelper::kLastPosMinInGroup[10] = {
-  0, 1, 2, 3, 4, 6, 8, 12, 16, 24
-};
+const std::array<uint8_t, 14> TransformHelper::kLastPosMinInGroup = { {
+  0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
+} };
 
 void InverseTransform::Transform(int size, const Coeff *coeff,
                                  ptrdiff_t coeff_stride, Residual *resi,

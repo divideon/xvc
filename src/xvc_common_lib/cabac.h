@@ -64,8 +64,8 @@ public:
   static const int kNumCoeffGreater2Ctx = 6;
   static const int kNumCoeffGreater2CtxLuma = 4;
   static const int kNumCoeffGreater2CtxChroma = 2;
-  static const int kNumCoeffLastPosCtx = 18;
-  static const int kNumCoeffLastPosCtxLuma = 15;
+  static const int kNumCoeffLastPosCtx = 28;
+  static const int kNumCoeffLastPosCtxLuma = 25;
   static const int kNumCoeffLastPosCtxChroma = 3;
   static const int kNumMvpIdxCtx = 1;
   static const int kNumSaoMergeFlagCtx = 1;
