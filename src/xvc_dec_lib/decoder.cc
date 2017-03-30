@@ -131,20 +131,15 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                                  segment_header->pic_width,
                                  segment_header->pic_height,
                                  segment_header->internal_bitdepth);
-  auto pic_data = pic_dec->GetPicData();
-  pic_data->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
-  pic_data->SetDoc(doc_);
-  pic_data->SetPoc(SegmentHeader::CalcPocFromDoc(doc_, sub_gop_length_,
-                                                 sub_gop_start_poc_));
-
-  pic_data->SetDeblock(segment_header->deblock > 0);
-  pic_data->SetBetaOffset(segment_header->beta_offset);
-  pic_data->SetTcOffset(segment_header->tc_offset);
 
   // Decode the picture header
   pic_dec->DecodeHeader(&pic_bit_reader, &sub_gop_end_poc_,
-                        &sub_gop_start_poc_, &sub_gop_length_, soc_,
+                        &sub_gop_start_poc_, &sub_gop_length_, doc_, soc_,
                         num_tail_pics_);
+  auto pic_data = pic_dec->GetPicData();
+  pic_data->SetDeblock(segment_header->deblock > 0);
+  pic_data->SetBetaOffset(segment_header->beta_offset);
+  pic_data->SetTcOffset(segment_header->tc_offset);
 
   ReferenceListSorter<PictureDecoder>
     ref_list_sorter(prev_segment_header_.open_gop,

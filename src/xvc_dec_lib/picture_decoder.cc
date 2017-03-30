@@ -34,6 +34,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
                                   PicNum *sub_gop_end_poc,
                                   PicNum *sub_gop_start_poc,
                                   PicNum *sub_gop_length,
+                                  PicNum doc,
                                   SegmentNum soc,
                                   int num_buffered_nals) {
   // Start by reading the picture header data
@@ -52,22 +53,27 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     PicNum length = bit_reader->ReadBits(7);
     if (length > 0 && num_buffered_nals == 0) {
       *sub_gop_length = length;
-      PicNum poc = *sub_gop_end_poc + *sub_gop_length;
-      pic_data_->SetPoc(poc);
-      pic_data_->SetDoc(SegmentHeader::CalcDocFromPoc(poc, *sub_gop_length,
-                                                      *sub_gop_end_poc));
     } else if (soc > 0) {
       *sub_gop_length = num_buffered_nals + 1;
-      PicNum poc = *sub_gop_end_poc + *sub_gop_length;
-      pic_data_->SetPoc(poc);
-      pic_data_->SetDoc(SegmentHeader::CalcDocFromPoc(poc, *sub_gop_length,
-                                                      *sub_gop_end_poc));
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
     *sub_gop_end_poc = pic_data_->GetPoc();
   }
   pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bit_reader->SkipBits();
+
+  pic_data_->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  while (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
+         != pic_data_->GetTid()) {
+    if (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
+        == 0 && doc > 1) {
+      *sub_gop_start_poc += *sub_gop_length;
+    }
+    doc++;
+  }
+  pic_data_->SetDoc(doc);
+  pic_data_->SetPoc(SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length,
+                                                  *sub_gop_start_poc));
 }
 
 bool PictureDecoder::Decode(BitReader *bit_reader, int max_tid) {

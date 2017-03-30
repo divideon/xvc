@@ -133,31 +133,22 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   poc_--;
   // Check if there are pictures left to encode.
   if (doc_ < poc_) {
-    // Use a smaller Sub Gop for the pictures that have not been encoded yet.
-    PicNum sub_gop_length = poc_ - doc_;
     buffer_flag_ = 0;
-    // Recount doc and tid for the pictures to be encoded.
-    for (auto &pic : pic_encoders_) {
-      auto pd = pic->GetPicData();
-      if (pd->GetPoc() > doc_) {
-        PicNum doc =
-          SegmentHeader::CalcDocFromPoc(pd->GetPoc(),
-                                        sub_gop_length,
-                                        sub_gop_start_poc_);
-        int tid =
-          SegmentHeader::CalcTidFromDoc(doc, sub_gop_length,
-                                        sub_gop_start_poc_);
-        pd->SetDoc(doc);
-        pd->SetTid(tid);
-      }
-    }
-    for (PicNum i = 0; i < sub_gop_length; i++) {
+    PicNum pics_to_encode = poc_ - doc_;
+    PicNum num_encoded = 0;
+    while (num_encoded < pics_to_encode) {
       // Find next picture to encode by searching for
       // the one that has doc = this->doc_ + 1.
+      bool found = false;
       for (auto &pic : pic_encoders_) {
         if (pic->GetPicData()->GetDoc() == doc_ + 1) {
-          EncodeOnePicture(pic, sub_gop_length);
+          EncodeOnePicture(pic, segment_header_.max_sub_gop_length);
+          found = true;
+          num_encoded++;
         }
+      }
+      if (!found) {
+        doc_++;
       }
     }
   }
