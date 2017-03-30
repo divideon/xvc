@@ -57,7 +57,8 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
       *sub_gop_length = num_buffered_nals + 1;
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
-    *sub_gop_end_poc = pic_data_->GetPoc();
+    *sub_gop_end_poc = SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length,
+                                                     *sub_gop_start_poc);
   }
   pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bit_reader->SkipBits();
