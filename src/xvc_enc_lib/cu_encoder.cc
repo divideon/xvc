@@ -84,10 +84,12 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
                                  RdoSyntaxWriter *writer) {
   const QP &qp = pic_qp_;
-  int depth = (*best_cu)->GetDepth();
-  bool do_split = depth < constants::kMaxCuDepth;
-  bool do_full = (*best_cu)->IsFullyWithinPicture() &&
-    (*best_cu)->GetWidth(YuvComponent::kY) <= constants::kMaxTransformSize;
+  const int kMaxTrSize = !Restrictions::Get().disable_ext ? 64 : 32;
+  const int depth = (*best_cu)->GetDepth();
+  const bool do_split = depth < constants::kMaxCuDepth;
+  const bool do_full = (*best_cu)->IsFullyWithinPicture() &&
+    (*best_cu)->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
+    (*best_cu)->GetHeight(YuvComponent::kY) <= kMaxTrSize;
   assert(do_split || do_full);
   if (!do_split) {
     return CompressNoSplit(best_cu, writer);
@@ -658,7 +660,7 @@ Distortion CuEncoder::CompressComponent(CodingUnit *cu, YuvComponent comp,
   temp_resi_orig_.Subtract(width, height, orig_buffer, temp_pred_);
 
   // Transform
-  fwd_transform_.Transform(width, temp_resi_orig_.GetDataPtr(),
+  fwd_transform_.Transform(width, height, temp_resi_orig_.GetDataPtr(),
                            temp_resi_orig_.GetStride(),
                            temp_coeff_.GetDataPtr(),
                            temp_coeff_.GetStride());
@@ -691,7 +693,7 @@ Distortion CuEncoder::CompressComponent(CodingUnit *cu, YuvComponent comp,
                       temp_coeff_.GetStride());
 
     // Inv transform
-    inv_transform_.Transform(width, temp_coeff_.GetDataPtr(),
+    inv_transform_.Transform(width, height, temp_coeff_.GetDataPtr(),
                              temp_coeff_.GetStride(), temp_resi_.GetDataPtr(),
                              temp_resi_.GetStride());
 

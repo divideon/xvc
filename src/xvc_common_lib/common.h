@@ -73,7 +73,6 @@ const int kMinBlockSize = (kCtuSize >> kMaxCuDepth);
 const int kQuadSplit = 4;
 
 // Transform
-const int kMaxTransformSize = 32;
 static_assert(kMinBlockSize >= 8, "Minimum CU size is 8");
 
 // Prediction

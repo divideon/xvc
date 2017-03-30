@@ -25,11 +25,9 @@ enum class ScanOrder : int {
 class InverseTransform {
 public:
   explicit InverseTransform(int bitdepth) : bitdepth_(bitdepth) {}
-  void Transform(int size, const Coeff *coeff, ptrdiff_t coeff_stride,
-                 Residual *resi, ptrdiff_t resi_stride,
+  void Transform(int width, int height, const Coeff *coeff,
+                 ptrdiff_t coeff_stride, Residual *resi, ptrdiff_t resi_stride,
                  bool dst_transform = false);
-  void TransformDST(int size, const Coeff *coeff, ptrdiff_t coeff_stride,
-                    Residual *resi, ptrdiff_t resi_stride);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
@@ -47,6 +45,9 @@ private:
   void InvPartialTransform32(int shift, int lines,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
+  void InvPartialTransform64(int shift, int lines,
+                             const Coeff *in, ptrdiff_t in_stride,
+                             Coeff *out, ptrdiff_t out_stride);
 
   int bitdepth_;
   std::array<Coeff, kBufferStride_ * kBufferStride_> coeff_temp_;
@@ -55,11 +56,9 @@ private:
 class ForwardTransform {
 public:
   explicit ForwardTransform(int bitdepth) : bitdepth_(bitdepth) {}
-  void Transform(int size, const Residual *resi, ptrdiff_t resi_stride,
-                 Coeff *coeff, ptrdiff_t coeff_stride,
+  void Transform(int width, int height, const Residual *resi,
+                 ptrdiff_t resi_stride, Coeff *coeff, ptrdiff_t coeff_stride,
                  bool dst_transform = false);
-  void TransformDST(int size, const Residual *resi, ptrdiff_t resi_stride,
-                    Coeff *coeff, ptrdiff_t coeff_stride);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
@@ -75,6 +74,9 @@ private:
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
   void FwdPartialTransform32(int shift, int lines,
+                             const Coeff *in, ptrdiff_t in_stride,
+                             Coeff *out, ptrdiff_t out_stride);
+  void FwdPartialTransform64(int shift, int lines,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
 

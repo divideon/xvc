@@ -111,7 +111,7 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
                     temp_coeff_.GetStride());
 
   // Inverse transform
-  inv_transform_.Transform(width, temp_coeff_.GetDataPtr(),
+  inv_transform_.Transform(width, height, temp_coeff_.GetDataPtr(),
                            temp_coeff_.GetStride(), temp_resi_.GetDataPtr(),
                            temp_resi_.GetStride());
 
