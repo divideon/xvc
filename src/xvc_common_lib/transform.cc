@@ -6,6 +6,7 @@
 
 #include "xvc_common_lib/transform.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -564,7 +565,7 @@ const std::array<uint8_t, 14> TransformHelper::kLastPosMinInGroup = { {
 void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                                  ptrdiff_t coeff_stride, Residual *resi,
                                  ptrdiff_t resi_stride, bool dst_transform) {
-  const int shift1 = 7 + (height >= 64 ? 2 : 0);;
+  const int shift1 = 7 + (height >= 64 ? 2 : 0);
   switch (height) {
     case 4:
       if (dst_transform) {
@@ -588,7 +589,9 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                             &coeff_temp_[0], kBufferStride_);
       break;
     case 64:
-      InvPartialTransform64(shift1, width, coeff, coeff_stride,
+      InvPartialTransform64(shift1, width,
+                            constants::kZeroOutHighFreqLargeTransforms,
+                            coeff, coeff_stride,
                             &coeff_temp_[0], kBufferStride_);
       break;
     default:
@@ -619,7 +622,8 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                             resi, resi_stride);
       break;
     case 64:
-      InvPartialTransform64(shift2, height, &coeff_temp_[0], kBufferStride_,
+      InvPartialTransform64(shift2, height, false,
+                            &coeff_temp_[0], kBufferStride_,
                             resi, resi_stride);
       break;
     default:
@@ -855,6 +859,7 @@ InverseTransform::InvPartialTransform32(int shift, int lines,
 
 void
 InverseTransform::InvPartialTransform64(int shift, int lines,
+                                        bool zero_height,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
@@ -863,8 +868,10 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
   int EEO[8], EEE[8];
   int EEEO[4], EEEE[4];
   int EEEEO[2], EEEEE[2];
+  const int max_lines = zero_height ? 32 : 64;
+  const int tx_lines = std::min(max_lines, lines);
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 32; k++) {
       O[k] =
         kInvTransform64[1][k] * in[1 * in_stride] +
@@ -882,23 +889,26 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
         kInvTransform64[25][k] * in[25 * in_stride] +
         kInvTransform64[27][k] * in[27 * in_stride] +
         kInvTransform64[29][k] * in[29 * in_stride] +
-        kInvTransform64[31][k] * in[31 * in_stride] +
-        kInvTransform64[33][k] * in[33 * in_stride] +
-        kInvTransform64[35][k] * in[35 * in_stride] +
-        kInvTransform64[37][k] * in[37 * in_stride] +
-        kInvTransform64[39][k] * in[39 * in_stride] +
-        kInvTransform64[41][k] * in[41 * in_stride] +
-        kInvTransform64[43][k] * in[43 * in_stride] +
-        kInvTransform64[45][k] * in[45 * in_stride] +
-        kInvTransform64[47][k] * in[47 * in_stride] +
-        kInvTransform64[49][k] * in[49 * in_stride] +
-        kInvTransform64[51][k] * in[51 * in_stride] +
-        kInvTransform64[53][k] * in[53 * in_stride] +
-        kInvTransform64[55][k] * in[55 * in_stride] +
-        kInvTransform64[57][k] * in[57 * in_stride] +
-        kInvTransform64[59][k] * in[59 * in_stride] +
-        kInvTransform64[61][k] * in[61 * in_stride] +
-        kInvTransform64[63][k] * in[63 * in_stride];
+        kInvTransform64[31][k] * in[31 * in_stride];
+      if (!constants::kZeroOutHighFreqLargeTransforms) {
+        O[k] +=
+          kInvTransform64[33][k] * in[33 * in_stride] +
+          kInvTransform64[35][k] * in[35 * in_stride] +
+          kInvTransform64[37][k] * in[37 * in_stride] +
+          kInvTransform64[39][k] * in[39 * in_stride] +
+          kInvTransform64[41][k] * in[41 * in_stride] +
+          kInvTransform64[43][k] * in[43 * in_stride] +
+          kInvTransform64[45][k] * in[45 * in_stride] +
+          kInvTransform64[47][k] * in[47 * in_stride] +
+          kInvTransform64[49][k] * in[49 * in_stride] +
+          kInvTransform64[51][k] * in[51 * in_stride] +
+          kInvTransform64[53][k] * in[53 * in_stride] +
+          kInvTransform64[55][k] * in[55 * in_stride] +
+          kInvTransform64[57][k] * in[57 * in_stride] +
+          kInvTransform64[59][k] * in[59 * in_stride] +
+          kInvTransform64[61][k] * in[61 * in_stride] +
+          kInvTransform64[63][k] * in[63 * in_stride];
+      }
     }
     for (int k = 0; k < 16; k++) {
       EO[k] =
@@ -909,42 +919,56 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
         kInvTransform64[18][k] * in[18 * in_stride] +
         kInvTransform64[22][k] * in[22 * in_stride] +
         kInvTransform64[26][k] * in[26 * in_stride] +
-        kInvTransform64[30][k] * in[30 * in_stride] +
-        kInvTransform64[34][k] * in[34 * in_stride] +
-        kInvTransform64[38][k] * in[38 * in_stride] +
-        kInvTransform64[42][k] * in[42 * in_stride] +
-        kInvTransform64[46][k] * in[46 * in_stride] +
-        kInvTransform64[50][k] * in[50 * in_stride] +
-        kInvTransform64[54][k] * in[54 * in_stride] +
-        kInvTransform64[58][k] * in[58 * in_stride] +
-        kInvTransform64[62][k] * in[62 * in_stride];
+        kInvTransform64[30][k] * in[30 * in_stride];
+      if (!constants::kZeroOutHighFreqLargeTransforms) {
+        EO[k] += kInvTransform64[34][k] * in[34 * in_stride] +
+          kInvTransform64[38][k] * in[38 * in_stride] +
+          kInvTransform64[42][k] * in[42 * in_stride] +
+          kInvTransform64[46][k] * in[46 * in_stride] +
+          kInvTransform64[50][k] * in[50 * in_stride] +
+          kInvTransform64[54][k] * in[54 * in_stride] +
+          kInvTransform64[58][k] * in[58 * in_stride] +
+          kInvTransform64[62][k] * in[62 * in_stride];
+      }
     }
     for (int k = 0; k < 8; k++) {
       EEO[k] =
         kInvTransform64[4][k] * in[4 * in_stride] +
         kInvTransform64[12][k] * in[12 * in_stride] +
         kInvTransform64[20][k] * in[20 * in_stride] +
-        kInvTransform64[28][k] * in[28 * in_stride] +
-        kInvTransform64[36][k] * in[36 * in_stride] +
-        kInvTransform64[44][k] * in[44 * in_stride] +
-        kInvTransform64[52][k] * in[52 * in_stride] +
-        kInvTransform64[60][k] * in[60 * in_stride];
+        kInvTransform64[28][k] * in[28 * in_stride];
+      if (!constants::kZeroOutHighFreqLargeTransforms) {
+        EEO[k] += kInvTransform64[36][k] * in[36 * in_stride] +
+          kInvTransform64[44][k] * in[44 * in_stride] +
+          kInvTransform64[52][k] * in[52 * in_stride] +
+          kInvTransform64[60][k] * in[60 * in_stride];
+      }
     }
     for (int k = 0; k < 4; k++) {
       EEEO[k] =
         kInvTransform64[8][k] * in[8 * in_stride] +
-        kInvTransform64[24][k] * in[24 * in_stride] +
-        kInvTransform64[40][k] * in[40 * in_stride] +
-        kInvTransform64[56][k] * in[56 * in_stride];
+        kInvTransform64[24][k] * in[24 * in_stride];
+      if (!constants::kZeroOutHighFreqLargeTransforms) {
+        EEEO[k] += kInvTransform64[40][k] * in[40 * in_stride] +
+          kInvTransform64[56][k] * in[56 * in_stride];
+      }
     }
-    EEEEO[0] = kInvTransform64[16][0] * in[16 * in_stride] +
-      kInvTransform64[48][0] * in[48 * in_stride];
-    EEEEO[1] = kInvTransform64[16][1] * in[16 * in_stride] +
-      kInvTransform64[48][1] * in[48 * in_stride];
-    EEEEE[0] = kInvTransform64[0][0] * in[0] +
-      kInvTransform64[32][0] * in[32 * in_stride];
-    EEEEE[1] = kInvTransform64[0][1] * in[0] +
-      kInvTransform64[32][1] * in[32 * in_stride];
+    EEEEO[0] = kInvTransform64[16][0] * in[16 * in_stride];
+    if (!constants::kZeroOutHighFreqLargeTransforms) {
+      EEEEO[0] += kInvTransform64[48][0] * in[48 * in_stride];
+    }
+    EEEEO[1] = kInvTransform64[16][1] * in[16 * in_stride];
+    if (!constants::kZeroOutHighFreqLargeTransforms) {
+      EEEEO[1] += kInvTransform64[48][1] * in[48 * in_stride];
+    }
+    EEEEE[0] = kInvTransform64[0][0] * in[0];
+    if (!constants::kZeroOutHighFreqLargeTransforms) {
+      EEEEE[0] += kInvTransform64[32][0] * in[32 * in_stride];
+    }
+    EEEEE[1] = kInvTransform64[0][1] * in[0];
+    if (!constants::kZeroOutHighFreqLargeTransforms) {
+      EEEEE[1] += kInvTransform64[32][1] * in[32 * in_stride];
+    }
     EEEE[0] = EEEEE[0] + EEEEO[0];
     EEEE[1] = EEEEE[1] + EEEEO[1];
     EEEE[2] = EEEEE[1] - EEEEO[1];
@@ -969,6 +993,12 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
     }
     in++;
     out += out_stride;
+  }
+  if (zero_height) {
+    for (int y = tx_lines; y < lines; y++) {
+      memset(out, 0, sizeof(Coeff) * 64);
+      out += out_stride;
+    }
   }
 }
 
@@ -1000,8 +1030,13 @@ void ForwardTransform::Transform(int width, int height, const Residual *resi,
                             &coeff_temp_[0], kBufferStride_);
       break;
     case 64:
-      FwdPartialTransform64(shift1, height, resi, resi_stride,
-                            &coeff_temp_[0], kBufferStride_);
+      if (constants::kZeroOutHighFreqLargeTransforms) {
+        FwdPartialTransform64<false, true>(shift1, height, resi, resi_stride,
+                                           &coeff_temp_[0], kBufferStride_);
+      } else {
+        FwdPartialTransform64<false, false>(shift1, height, resi, resi_stride,
+                                            &coeff_temp_[0], kBufferStride_);
+      }
       break;
     default:
       assert(0);
@@ -1032,8 +1067,15 @@ void ForwardTransform::Transform(int width, int height, const Residual *resi,
                             coeff, coeff_stride);
       break;
     case 64:
-      FwdPartialTransform64(shift2, width, &coeff_temp_[0], kBufferStride_,
-                            coeff, coeff_stride);
+      if (constants::kZeroOutHighFreqLargeTransforms) {
+        FwdPartialTransform64<true, true>(shift2, width,
+                                          &coeff_temp_[0], kBufferStride_,
+                                          coeff, coeff_stride);
+      } else {
+        FwdPartialTransform64<false, false>(shift2, width,
+                                            &coeff_temp_[0], kBufferStride_,
+                                            coeff, coeff_stride);
+      }
       break;
     default:
       assert(0);
@@ -1258,6 +1300,7 @@ ForwardTransform::FwdPartialTransform32(int shift, int lines,
   }
 }
 
+template<bool ZeroWdt, bool ZeroHgt>
 void
 ForwardTransform::FwdPartialTransform64(int shift, int lines,
                                         const Coeff *in, ptrdiff_t in_stride,
@@ -1268,8 +1311,11 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
   int EEE[8], EEO[8];
   int EEEE[4], EEEO[4];
   int EEEEE[2], EEEEO[2];
+  const int tx_lines = ZeroHgt ? 32 : 64;
+  const int tx_cols = ZeroWdt ? std::min(32, lines) : lines;
+  Coeff *orig_out = out;
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_cols; y++) {
     for (int k = 0; k < 32; k++) {
       E[k] = in[k] + in[63 - k];
       O[k] = in[k] - in[63 - k];
@@ -1294,17 +1340,19 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
                            kFwdTransform64[0][1] * EEEEE[1] + add) >> shift;
     out[16 * out_stride] = (kFwdTransform64[16][0] * EEEEO[0] +
                             kFwdTransform64[16][1] * EEEEO[1] + add) >> shift;
-    out[32 * out_stride] = (kFwdTransform64[32][0] * EEEEE[0] +
-                            kFwdTransform64[32][1] * EEEEE[1] + add) >> shift;
-    out[48 * out_stride] = (kFwdTransform64[48][0] * EEEEO[0] +
-                            kFwdTransform64[48][1] * EEEEO[1] + add) >> shift;
-    for (int k = 8; k < 64; k += 16) {
+    if (tx_lines > 32) {
+      out[32 * out_stride] = (kFwdTransform64[32][0] * EEEEE[0] +
+                              kFwdTransform64[32][1] * EEEEE[1] + add) >> shift;
+      out[48 * out_stride] = (kFwdTransform64[48][0] * EEEEO[0] +
+                              kFwdTransform64[48][1] * EEEEO[1] + add) >> shift;
+    }
+    for (int k = 8; k < tx_lines; k += 16) {
       out[k*out_stride] = (kFwdTransform64[k][0] * EEEO[0] +
                            kFwdTransform64[k][1] * EEEO[1] +
                            kFwdTransform64[k][2] * EEEO[2] +
                            kFwdTransform64[k][3] * EEEO[3] + add) >> shift;
     }
-    for (int k = 4; k < 64; k += 8) {
+    for (int k = 4; k < tx_lines; k += 8) {
       out[k*out_stride] = (kFwdTransform64[k][0] * EEO[0] +
                            kFwdTransform64[k][1] * EEO[1] +
                            kFwdTransform64[k][2] * EEO[2] +
@@ -1314,7 +1362,7 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
                            kFwdTransform64[k][6] * EEO[6] +
                            kFwdTransform64[k][7] * EEO[7] + add) >> shift;
     }
-    for (int k = 2; k < 64; k += 4) {
+    for (int k = 2; k < tx_lines; k += 4) {
       out[k*out_stride] = (kFwdTransform64[k][0] * EO[0] +
                            kFwdTransform64[k][1] * EO[1] +
                            kFwdTransform64[k][2] * EO[2] +
@@ -1332,7 +1380,7 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
                            kFwdTransform64[k][14] * EO[14] +
                            kFwdTransform64[k][15] * EO[15] + add) >> shift;
     }
-    for (int k = 1; k < 64; k += 2) {
+    for (int k = 1; k < tx_lines; k += 2) {
       out[k*out_stride] = (kFwdTransform64[k][0] * O[0] +
                            kFwdTransform64[k][1] * O[1] +
                            kFwdTransform64[k][2] * O[2] +
@@ -1368,6 +1416,20 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
     }
     in += in_stride;
     out++;
+  }
+  if (ZeroWdt) {
+    Coeff *tmp = orig_out;
+    for (int y = 0; y < tx_cols; y++) {
+      memset(tmp + tx_lines, 0, sizeof(Coeff)*tx_lines);
+      tmp += out_stride;
+    }
+  }
+  if (ZeroHgt) {
+    Coeff *tmp = orig_out + tx_lines * out_stride;
+    for (int y = tx_lines; y < lines; y++) {
+      std::memset(tmp, 0, sizeof(Coeff) * 64);
+      tmp += out_stride;
+    }
   }
 }
 

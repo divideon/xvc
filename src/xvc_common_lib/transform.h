@@ -45,7 +45,7 @@ private:
   void InvPartialTransform32(int shift, int lines,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform64(int shift, int lines,
+  void InvPartialTransform64(int shift, int lines, bool skip_full_height,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
 
@@ -76,6 +76,7 @@ private:
   void FwdPartialTransform32(int shift, int lines,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
+  template<bool ZeroWdt, bool ZeroHgt>
   void FwdPartialTransform64(int shift, int lines,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
