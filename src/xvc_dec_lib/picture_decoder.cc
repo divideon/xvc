@@ -56,28 +56,26 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     } else if (soc > 0) {
       *sub_gop_length = num_buffered_nals + 1;
     }
+    *sub_gop_start_poc = *sub_gop_end_poc;
   }
   pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bit_reader->SkipBits();
 
+  // Ensure that Sub Gop start is updated to include the current doc.
+  if (doc > *sub_gop_start_poc + *sub_gop_length) {
+    *sub_gop_start_poc += *sub_gop_length;
+  }
+
   // The tid in the segment header can differ from the expected tid if:
-  //  1. Temporal layers have been removed.
+  //  1. Temporal layers have been removed, or
   //  2. The Sub Gop is incomplete (i.e. at the end of a stream)
   // Figure out the correct doc to use by stepping until the tids are equal.
   while (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
          != pic_data_->GetTid()) {
-    // If the expected tid is 0, the start poc needs to be increased
-    // so that tid comparisons are performed in the right Sub Gop.
-    if (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
-        == 0 && doc > 1) {
-      *sub_gop_start_poc += *sub_gop_length;
-    }
     doc++;
   }
 
-  // Update info on where the current Sub Gop starts and ends.
   if (tid == 0) {
-    *sub_gop_start_poc = *sub_gop_end_poc;
     *sub_gop_end_poc =
       SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
   }
