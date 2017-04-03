@@ -33,11 +33,22 @@ bool SyntaxReader::ReadCbf(const CodingUnit &cu, YuvComponent comp) {
 
 void SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                                     Coeff *dst_coeff, ptrdiff_t dst_stride) {
+  if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
+    ReadCoeffSubblock<1>(cu, comp, dst_coeff, dst_stride);
+  } else {
+    ReadCoeffSubblock<constants::kSubblockShift>(cu, comp,
+                                                 dst_coeff, dst_stride);
+  }
+}
+
+template<int SubBlockShift>
+void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                                     Coeff *dst_coeff, ptrdiff_t dst_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int log2size = util::SizeToLog2(width);
   const int total_coeff = width*height;
-  const int subblock_shift = constants::kSubblockShift;
+  const int subblock_shift = SubBlockShift;
   const int subblock_size = 1 << (subblock_shift * 2);
   ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
   const uint16_t *scan_table =
@@ -498,8 +509,9 @@ uint32_t SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
   } else {
     code_word = entropydec_->DecodeBypassBins(
       prefix - constants::kCoeffRemainBinReduction + golomb_rice_k);
-    return (((1 << (prefix - constants::kCoeffRemainBinReduction)) +
-        constants::kCoeffRemainBinReduction - 1) << golomb_rice_k) + code_word;
+    return code_word +
+      (((1 << (prefix - constants::kCoeffRemainBinReduction)) +
+        constants::kCoeffRemainBinReduction - 1) << golomb_rice_k);
   }
 }
 

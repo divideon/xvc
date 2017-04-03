@@ -51,6 +51,9 @@ public:
   void WriteSplitFlag(const CodingUnit &cu, bool split);
 
 protected:
+  template<int SubBlockShift>
+  void WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                          const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteCoeffLastPos(int width, int height, YuvComponent comp,
                          ScanOrder scan_order, int last_pos_x,
                          int last_pos_y);

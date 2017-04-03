@@ -40,6 +40,9 @@ public:
   bool ReadSplitFlag(const CodingUnit &cu);
 
 private:
+  template<int SubBlockShift>
+  void ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                         Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   void ReadCoeffLastPos(int width, int height, YuvComponent comp,
                         ScanOrder scan_order, uint32_t *pos_last_x,
                         uint32_t *pos_last_y);

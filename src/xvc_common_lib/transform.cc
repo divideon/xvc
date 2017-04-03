@@ -1536,6 +1536,8 @@ const uint16_t *TransformHelper::GetScanTable(int width, int height,
                                               ScanOrder scan_order) {
   assert(width == height);
   switch (width) {
+    case 2:
+      return kScanOrder2x2[static_cast<int>(scan_order)];
     case 4:
       return kScanOrder4x4[static_cast<int>(scan_order)];
     case 8:
@@ -1557,6 +1559,8 @@ const uint16_t *TransformHelper::GetScanTableSubblock(int width, int height,
                                                       ScanOrder scan_order) {
   assert(width == height);
   switch (width) {
+    case 2:
+      return kScanOrder2x2[static_cast<int>(ScanOrder::kDiagonal)];
     case 4:
       return kScanOrder2x2[static_cast<int>(ScanOrder::kDiagonal)];
     case 8:

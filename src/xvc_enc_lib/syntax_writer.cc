@@ -36,13 +36,25 @@ void SyntaxWriter::WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf) {
 }
 
 void SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
-                                     const Coeff *src_coeff,
+                                     const Coeff *coeff,
                                      ptrdiff_t src_coeff_stride) {
+  if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
+    WriteCoeffSubblock<1>(cu, comp, coeff, src_coeff_stride);
+  } else {
+    WriteCoeffSubblock<constants::kSubblockShift>(cu, comp, coeff,
+                                                  src_coeff_stride);
+  }
+}
+
+template<int SubBlockShift>
+void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                                      const Coeff *src_coeff,
+                                      ptrdiff_t src_coeff_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int log2size = util::SizeToLog2(width);
   const int total_coeff = width*height;
-  const int subblock_shift = constants::kSubblockShift;
+  const int subblock_shift = SubBlockShift;
   const int subblock_size = 1 << (subblock_shift * 2);
   ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
   const uint16_t *scan_table = TransformHelper::GetScanTable(width, height,
