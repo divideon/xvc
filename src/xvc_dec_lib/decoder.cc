@@ -134,7 +134,8 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
 
   // Decode the picture header
   pic_dec->DecodeHeader(&pic_bit_reader, &sub_gop_end_poc_,
-                        &sub_gop_start_poc_, &sub_gop_length_, doc_, soc_,
+                        &sub_gop_start_poc_, &sub_gop_length_,
+                        segment_header->max_sub_gop_length, doc_, soc_,
                         num_tail_pics_);
   auto pic_data = pic_dec->GetPicData();
   pic_data->SetDeblock(segment_header->deblock > 0);

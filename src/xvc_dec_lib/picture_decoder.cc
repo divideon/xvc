@@ -34,6 +34,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
                                   PicNum *sub_gop_end_poc,
                                   PicNum *sub_gop_start_poc,
                                   PicNum *sub_gop_length,
+                                  PicNum max_sub_gop_length,
                                   PicNum doc,
                                   SegmentNum soc,
                                   int num_buffered_nals) {
@@ -57,12 +58,17 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
       *sub_gop_length = num_buffered_nals + 1;
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
+  } else if (max_sub_gop_length > *sub_gop_length) {
+    *sub_gop_length = max_sub_gop_length;
   }
   pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bit_reader->SkipBits();
 
   // Ensure that Sub Gop start is updated to include the current doc.
-  if (doc > *sub_gop_start_poc + *sub_gop_length) {
+  if (doc > *sub_gop_end_poc) {
+    *sub_gop_start_poc = *sub_gop_end_poc;
+  }
+  while (doc > *sub_gop_start_poc + *sub_gop_length) {
     *sub_gop_start_poc += *sub_gop_length;
   }
 
