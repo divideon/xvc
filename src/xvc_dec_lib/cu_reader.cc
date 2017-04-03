@@ -13,9 +13,10 @@ namespace xvc {
 
 void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
   bool split;
-  if (cu->GetDepth() < constants::kMaxCuDepth) {
+  int max_depth = pic_data_->GetMaxDepth(cu->GetCuTree());
+  if (cu->GetDepth() < max_depth) {
     if (cu->IsFullyWithinPicture()) {
-      split = reader->ReadSplitFlag(*cu);
+      split = reader->ReadSplitFlag(*cu, max_depth);
     } else {
       split = true;
     }

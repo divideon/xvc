@@ -56,6 +56,10 @@ public:
   const std::vector<YuvComponent>& GetComponents(CuTree cu_tree) const {
     return cu_tree_components_[static_cast<int>(cu_tree)];
   }
+  int GetMaxDepth(CuTree cu_tree) const {
+    return cu_tree == CuTree::Primary ?
+      constants::kMaxCuDepth : constants::kMaxCuDepth + 1;
+  }
 
   // CU data
   CodingUnit *GetCtu(CuTree cu_tree, int rsaddr) {

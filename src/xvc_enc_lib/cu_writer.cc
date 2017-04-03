@@ -13,9 +13,10 @@ namespace xvc {
 
 void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
   bool split = cu.IsSplit();
-  if (cu.GetDepth() < constants::kMaxCuDepth) {
+  int max_depth = pic_data_.GetMaxDepth(cu.GetCuTree());
+  if (cu.GetDepth() < max_depth) {
     if (cu.IsFullyWithinPicture()) {
-      writer->WriteSplitFlag(cu, split);
+      writer->WriteSplitFlag(cu, max_depth, split);
     } else {
       assert(split);
     }

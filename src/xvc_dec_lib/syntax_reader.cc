@@ -398,6 +398,8 @@ int SyntaxReader::ReadMergeIdx() {
 PartitionType SyntaxReader::ReadPartitionType(const CodingUnit &cu) {
   if (cu.GetPredMode() == PredictionMode::kIntra) {
     PartitionType part_type = PartitionType::kSize2Nx2N;
+    // Signaling partition type for lowest level assumes single CU tree
+    assert(cu.GetCuTree() == CuTree::Primary);
     if (cu.GetDepth() == constants::kMaxCuDepth) {
       uint32_t bin = entropydec_->DecodeBin(&ctx_.cu_part_size[0]);
       part_type =
@@ -443,8 +445,8 @@ bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
   return bin != 0;
 }
 
-bool SyntaxReader::ReadSplitFlag(const CodingUnit &cu) {
-  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu);
+bool SyntaxReader::ReadSplitFlag(const CodingUnit &cu, int max_depth) {
+  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
   return entropydec_->DecodeBin(&ctx) != 0;
 }
 

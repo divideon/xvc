@@ -86,7 +86,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
   const QP &qp = pic_qp_;
   const int kMaxTrSize = !Restrictions::Get().disable_ext ? 64 : 32;
   const int depth = (*best_cu)->GetDepth();
-  const bool do_split = depth < constants::kMaxCuDepth;
+  const bool do_split = depth < pic_data_.GetMaxDepth((*best_cu)->GetCuTree());
   const bool do_full = (*best_cu)->IsFullyWithinPicture() &&
     (*best_cu)->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
     (*best_cu)->GetHeight(YuvComponent::kY) <= kMaxTrSize;
@@ -133,7 +133,6 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
 Distortion CuEncoder::CompressSplitCu(CodingUnit *cu,
                                       RdoSyntaxWriter *rdo_writer,
                                       Bits *frac_bits_before_split) {
-  assert(cu->GetDepth() < constants::kMaxCuDepth);
   cu->SplitQuad();
   pic_data_.ClearMarkCuInPic(cu);
   Distortion dist = 0;
@@ -144,7 +143,9 @@ Distortion CuEncoder::CompressSplitCu(CodingUnit *cu,
   }
   *frac_bits_before_split = rdo_writer->GetFractionalBits();
   if (cu->IsFullyWithinPicture()) {
-    rdo_writer->WriteSplitFlag(*cu, true);
+    int max_depth = pic_data_.GetMaxDepth(cu->GetCuTree());
+    assert(cu->GetDepth() < max_depth);
+    rdo_writer->WriteSplitFlag(*cu, max_depth, true);
   }
   return dist;
 }
@@ -206,8 +207,9 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
   for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     cu_writer_.WriteComponent(*cu, comp, writer);
   }
-  if (cu->GetDepth() < constants::kMaxCuDepth) {
-    writer->WriteSplitFlag(*cu, false);
+  int max_depth = pic_data_.GetMaxDepth(cu->GetCuTree());
+  if (cu->GetDepth() < max_depth) {
+    writer->WriteSplitFlag(*cu, max_depth, false);
   }
   return best_cost.dist;
 }

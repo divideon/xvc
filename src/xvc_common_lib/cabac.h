@@ -75,7 +75,7 @@ public:
 
   void ResetStates(const QP &qp, PicturePredictionType pic_type);
 
-  ContextModel& GetSplitFlagCtx(const CodingUnit &cu);
+  ContextModel& GetSplitFlagCtx(const CodingUnit &cu, int max_depth);
   ContextModel& GetInterDirBiCtx(const CodingUnit &cu);
   ContextModel& GetSubblockCsbfCtx(YuvComponent comp,
                                    const uint8_t *sig_sublock, int posx,

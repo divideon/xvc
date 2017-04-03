@@ -67,15 +67,20 @@ const int kMaxNumCuTrees = 2;
 
 // CU limits
 const int kCtuSize = 64;
+// CU size and depth for luma
 const int kMaxCuDepth = 3;
+const int kMinCuSize = (kCtuSize >> kMaxCuDepth);
+
+// Actual storage required (to allow for deeper chroma CU trees)
 const int kMaxBlockSize = kCtuSize;
-const int kMinBlockSize = (kCtuSize >> kMaxCuDepth);
+const int kMaxBlockDepth = kMaxCuDepth + 1;
+const int kMinBlockSize = (kMaxBlockSize >> kMaxBlockDepth);
+
 const int kQuadSplit = 4;
 
 // Transform
 const int kTransformExtendedPrecision = 2;
 const bool kZeroOutHighFreqLargeTransforms = true;
-static_assert(kMinBlockSize >= 8, "Minimum CU size is 8");
 
 // Prediction
 const int kNumIntraMPM = 3;

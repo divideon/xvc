@@ -408,6 +408,8 @@ void SyntaxWriter::WriteMergeIdx(int merge_idx) {
 void SyntaxWriter::WritePartitionType(const CodingUnit &cu,
                                       PartitionType type) {
   if (cu.GetPredMode() == PredictionMode::kIntra) {
+    // Signaling partition type for lowest level assumes single CU tree
+    assert(cu.GetCuTree() == CuTree::Primary);
     if (cu.GetDepth() == constants::kMaxCuDepth) {
       uint32_t bin = type == PartitionType::kSize2Nx2N ? 1 : 0;
       entropyenc_->EncodeBin(bin, &ctx_.cu_part_size[0]);
@@ -453,8 +455,9 @@ void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
   entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx_.cu_skip_flag[offset]);
 }
 
-void SyntaxWriter::WriteSplitFlag(const CodingUnit &cu, bool split) {
-  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu);
+void SyntaxWriter::WriteSplitFlag(const CodingUnit &cu, int max_depth,
+                                  bool split) {
+  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
   entropyenc_->EncodeBin(split ? 1 : 0, &ctx);
 }
 

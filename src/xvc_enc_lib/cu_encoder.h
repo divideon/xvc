@@ -85,8 +85,8 @@ private:
   ResidualBufferStorage temp_resi_;
   CoeffBufferStorage temp_coeff_;
   std::array<CodingUnit::ReconstructionState,
-    constants::kMaxCuDepth + 2> temp_cu_state_;
-  std::array<std::array<CodingUnit*, constants::kMaxCuDepth + 1>,
+    constants::kMaxBlockDepth + 2> temp_cu_state_;
+  std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 1>,
     constants::kMaxNumCuTrees> rdo_temp_cu_;
 };
 

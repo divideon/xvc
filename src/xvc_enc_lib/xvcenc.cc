@@ -61,8 +61,8 @@ extern "C" {
         param->height <= 0) {
       return XVC_ENC_SIZE_NOT_POSITIVE;
     }
-    if (param->width % xvc::constants::kMinBlockSize ||
-        param->height % xvc::constants::kMinBlockSize) {
+    if (param->width % xvc::constants::kMinCuSize ||
+        param->height % xvc::constants::kMinCuSize) {
       return XVC_ENC_SIZE_NOT_MULTIPLE_OF_BLOCKSIZE;
     }
     if (param->chroma_format < XVC_ENC_CHROMA_FORMAT_MONOCHROME ||

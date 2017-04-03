@@ -48,7 +48,7 @@ public:
   void WritePredMode(PredictionMode pred_mode);
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
-  void WriteSplitFlag(const CodingUnit &cu, bool split);
+  void WriteSplitFlag(const CodingUnit &cu, int max_depth, bool split);
 
 protected:
   template<int SubBlockShift>

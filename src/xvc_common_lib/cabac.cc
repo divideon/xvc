@@ -327,7 +327,8 @@ void CabacContexts::ResetStates(const QP &qp, PicturePredictionType pic_type) {
   Init(q, s, &coeff_last_pos_y_luma, &coeff_last_pos_y_chroma, kInitLastPos);
 }
 
-ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu) {
+ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
+                                             int pic_max_depth) {
   int offset = 0;
   const CodingUnit *left = cu.GetCodingUnitLeft();
   const CodingUnit *above = cu.GetCodingUnitAbove();
@@ -340,15 +341,16 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu) {
     }
   }
   if (!Restrictions::Get().disable_ext) {
-    int min_depth = constants::kMaxCuDepth;
+    int min_depth = pic_max_depth;
     int max_depth = 0;
-    auto update_min_max = [&min_depth, &max_depth](const CodingUnit *tmp) {
+    auto update_min_max =
+      [&min_depth, &max_depth, pic_max_depth](const CodingUnit *tmp) {
       if (tmp) {
         min_depth = std::min(min_depth, tmp->GetDepth());
         max_depth = std::max(max_depth, tmp->GetDepth());
       } else {
         min_depth = 0;
-        max_depth = constants::kMaxCuDepth;
+        max_depth = pic_max_depth;
       }
     };
     update_min_max(cu.GetCodingUnitLeft());
@@ -356,7 +358,7 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu) {
     update_min_max(cu.GetCodingUnitAbove());
     // update_min_max(cu.GetCodingUnitAboveRight());
     min_depth = std::max(0, min_depth - 1);
-    max_depth = std::min(constants::kMaxCuDepth, max_depth + 1);
+    max_depth = std::min(pic_max_depth, max_depth + 1);
     if (cu.GetDepth() < min_depth) {
       offset = 3;
     } else if (cu.GetDepth() >= max_depth + 1) {
