@@ -23,6 +23,11 @@
 
 namespace xvc {
 
+static const int16_t kInvTransform2[2][2] = {
+  { 256, 256 },
+  { 256, -256 },
+};
+
 static const int16_t kInvTransform4[4][4] = {
   { 64, 64, 64, 64 },
   { 83, 36, -36, -83 },
@@ -192,6 +197,11 @@ static const int16_t kInvTransform64[64][64] = {
   { 27,-79,130,-178,223,-262,296,-323,344,-357,362,-359,349,-331,306,-274,236,-194,147,-97,44,9,-62,114,-163,208,-250,285,-315,338,-353,361,-361,353,-338,315,-285,250,-208,163,-114,62,-9,-44,97,-147,194,-236,274,-306,331,-349,359,-362,357,-344,323,-296,262,-223,178,-130,79,-27 },   // NOLINT
   { 18,-53,88,-122,155,-186,216,-243,268,-291,311,-327,341,-351,358,-362,362,-358,351,-341,327,-311,291,-268,243,-216,186,-155,122,-88,53,-18,-18,53,-88,122,-155,186,-216,243,-268,291,-311,327,-341,351,-358,362,-362,358,-351,341,-327,311,-291,268,-243,216,-186,155,-122,88,-53,18 },   // NOLINT
   { 9,-27,44,-62,79,-97,114,-130,147,-163,178,-194,208,-223,236,-250,262,-274,285,-296,306,-315,323,-331,338,-344,349,-353,357,-359,361,-362,362,-361,359,-357,353,-349,344,-338,331,-323,315,-306,296,-285,274,-262,250,-236,223,-208,194,-178,163,-147,130,-114,97,-79,62,-44,27,-9 },   // NOLINT
+};
+
+static const int16_t kFwdTransform2[2][2] = {
+  { 256, 256 },
+  { 256, -256 },
 };
 
 static const int16_t kFwdTransform4[4][4] = {
@@ -565,8 +575,13 @@ const std::array<uint8_t, 14> TransformHelper::kLastPosMinInGroup = { {
 void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                                  ptrdiff_t coeff_stride, Residual *resi,
                                  ptrdiff_t resi_stride, bool dst_transform) {
-  const int shift1 = 7 + (height >= 64 ? 2 : 0);
+  const int shift1 = 7 +
+    (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (height) {
+    case 2:
+      InvPartialTransform2(shift1, width, coeff, coeff_stride,
+                           &coeff_temp_[0], kBufferStride_);
+      break;
     case 4:
       if (dst_transform) {
         InvPartialDST4(shift1, coeff, coeff_stride,
@@ -598,8 +613,13 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
       assert(0);
       break;
   }
-  const int shift2 = 20 - bitdepth_ + (width >= 64 ? 2 : 0);
+  const int shift2 = 20 - bitdepth_ +
+    (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (width) {
+    case 2:
+      InvPartialTransform2(shift2, height, &coeff_temp_[0], kBufferStride_,
+                           resi, resi_stride);
+      break;
     case 4:
       if (dst_transform) {
         InvPartialDST4(shift2, &coeff_temp_[0], kBufferStride_, resi,
@@ -651,6 +671,27 @@ void InverseTransform::InvPartialDST4(int shift,
                                 in[3 * in_stride]) + add) >> shift,
                          constants::kInt16Min, constants::kInt16Max);
     out[3] = util::Clip3((55 * c[0] + 29 * c[2] - c[3] + add) >> shift,
+                         constants::kInt16Min, constants::kInt16Max);
+    in++;
+    out += out_stride;
+  }
+}
+
+void
+InverseTransform::InvPartialTransform2(int shift, int lines,
+                                       const Coeff *in, ptrdiff_t in_stride,
+                                       Coeff *out, ptrdiff_t out_stride) {
+  const int add = 1 << (shift - 1);
+  int O[1], E[1];
+
+  for (int y = 0; y < lines; y++) {
+    O[0] = kInvTransform2[1][0] * in[0 * in_stride] -
+      kInvTransform2[1][0] * in[1 * in_stride];
+    E[0] = kInvTransform2[0][0] * in[0 * in_stride] +
+      kInvTransform2[0][0] * in[1 * in_stride];
+    out[0] = util::Clip3((E[0] + add) >> shift,
+                         constants::kInt16Min, constants::kInt16Max);
+    out[1] = util::Clip3((O[0] + add) >> shift,
                          constants::kInt16Min, constants::kInt16Max);
     in++;
     out += out_stride;
@@ -1006,8 +1047,12 @@ void ForwardTransform::Transform(int width, int height, const Residual *resi,
                                  ptrdiff_t resi_stride, Coeff *coeff,
                                  ptrdiff_t coeff_stride, bool dst_transform) {
   const int shift1 = util::SizeToLog2(width) + bitdepth_ - 9 +
-    (width >= 64 ? 2 : 0);
+    (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (width) {
+    case 2:
+      FwdPartialTransform2(shift1, height, resi, resi_stride,
+                           &coeff_temp_[0], kBufferStride_);
+      break;
     case 4:
       if (dst_transform) {
         FwdPartialDST4(1 + bitdepth_ - 8, resi, resi_stride, &coeff_temp_[0],
@@ -1043,8 +1088,12 @@ void ForwardTransform::Transform(int width, int height, const Residual *resi,
       break;
   }
   const int shift2 = util::SizeToLog2(height) + 6 +
-    (height >= 64 ? 2 : 0);
+    (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (height) {
+    case 2:
+      FwdPartialTransform2(shift2, width, &coeff_temp_[0], kBufferStride_,
+                           coeff, coeff_stride);
+      break;
     case 4:
       if (dst_transform) {
         FwdPartialDST4(shift2, &coeff_temp_[0], kBufferStride_,
@@ -1098,6 +1147,23 @@ void ForwardTransform::FwdPartialDST4(int shift,
     out[1 * out_stride] = (74 * (in[0] + in[1] - in[3]) + add) >> shift;
     out[2 * out_stride] = (29 * c[2] + 55 * c[0] - c[3] + add) >> shift;
     out[3 * out_stride] = (55 * c[2] - 29 * c[1] + c[3] + add) >> shift;
+    in += in_stride;
+    out++;
+  }
+}
+
+void
+ForwardTransform::FwdPartialTransform2(int shift, int lines,
+                                       const Coeff *in, ptrdiff_t in_stride,
+                                       Coeff *out, ptrdiff_t out_stride) {
+  const int add = 1 << (shift - 1);
+  int E[1], O[1];
+
+  for (int y = 0; y < lines; y++) {
+    E[0] = in[0] + in[1];
+    O[0] = in[0] - in[1];
+    out[0 * out_stride] = (kFwdTransform2[0][0] * E[0] + add) >> shift;
+    out[1 * out_stride] = (kFwdTransform2[1][0] * O[0] + add) >> shift;
     in += in_stride;
     out++;
   }

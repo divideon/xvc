@@ -73,6 +73,7 @@ const int kMinBlockSize = (kCtuSize >> kMaxCuDepth);
 const int kQuadSplit = 4;
 
 // Transform
+const int kTransformExtendedPrecision = 2;
 const bool kZeroOutHighFreqLargeTransforms = true;
 static_assert(kMinBlockSize >= 8, "Minimum CU size is 8");
 

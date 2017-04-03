@@ -33,6 +33,9 @@ private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   void InvPartialDST4(int shift, const Coeff *in,
                       ptrdiff_t in_stride, Coeff *out, ptrdiff_t out_stride);
+  void InvPartialTransform2(int shift, int lines,
+                            const Coeff *in, ptrdiff_t in_stride,
+                            Coeff *out, ptrdiff_t out_stride);
   void InvPartialTransform4(int shift, int lines,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
@@ -64,6 +67,9 @@ private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   void FwdPartialDST4(int shift, const Coeff *in, ptrdiff_t in_stride,
                       Coeff *out, ptrdiff_t out_stride);
+  void FwdPartialTransform2(int shift, int lines,
+                            const Coeff *in, ptrdiff_t in_stride,
+                            Coeff *out, ptrdiff_t out_stride);
   void FwdPartialTransform4(int shift, int lines,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
