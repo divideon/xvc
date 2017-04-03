@@ -78,7 +78,7 @@ protected:
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
     pic_decoder_->DecodeHeader(&bit_reader, &sub_gop_end_poc,
                                &sub_gop_start_poc, &sub_gop_length,
-                               sub_gop_length, doc,
+                               sub_gop_length, sub_gop_length, doc,
                                segment_.soc, num_buffered_nals);
     int max_tid = xvc::SegmentHeader::GetMaxTid(sub_gop_length);
     return pic_decoder_->Decode(&bit_reader, max_tid);

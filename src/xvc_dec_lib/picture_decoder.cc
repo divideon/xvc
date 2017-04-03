@@ -35,6 +35,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
                                   PicNum *sub_gop_start_poc,
                                   PicNum *sub_gop_length,
                                   PicNum max_sub_gop_length,
+                                  PicNum prev_sub_gop_length,
                                   PicNum doc,
                                   SegmentNum soc,
                                   int num_buffered_nals) {
@@ -52,10 +53,12 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   pic_data_->SetTid(tid);
   if (tid == 0) {
     PicNum length = bit_reader->ReadBits(7);
-    if (length > 0 && num_buffered_nals == 0) {
+    if (num_buffered_nals) {
+      *sub_gop_length = prev_sub_gop_length;
+    } else if (length > 0) {
       *sub_gop_length = length;
-    } else if (soc > 0) {
-      *sub_gop_length = num_buffered_nals + 1;
+    } else if (doc > 0) {
+      *sub_gop_length = 1;
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
   } else if (!buffer_flag && max_sub_gop_length > *sub_gop_length) {
@@ -71,6 +74,9 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   while (doc > *sub_gop_start_poc + *sub_gop_length) {
     *sub_gop_start_poc += *sub_gop_length;
   }
+  if (doc > 0 && doc <= *sub_gop_start_poc) {
+    doc = *sub_gop_start_poc + 1;
+  }
 
   // The tid in the segment header can differ from the expected tid if:
   //  1. Temporal layers have been removed, or
@@ -79,6 +85,9 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   while (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
          != pic_data_->GetTid()) {
     doc++;
+    if (doc > *sub_gop_end_poc) {
+      *sub_gop_start_poc = *sub_gop_end_poc;
+    }
   }
 
   if (tid == 0) {
