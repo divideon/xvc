@@ -58,7 +58,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
       *sub_gop_length = num_buffered_nals + 1;
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
-  } else if (max_sub_gop_length > *sub_gop_length) {
+  } else if (!buffer_flag && max_sub_gop_length > *sub_gop_length) {
     *sub_gop_length = max_sub_gop_length;
   }
   pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
