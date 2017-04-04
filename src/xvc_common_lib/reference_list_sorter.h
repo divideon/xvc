@@ -115,9 +115,8 @@ private:
           curr_pic->GetPictureHeight(YuvComponent::kY),
           curr_pic->GetBitdepth());
       }
-      rpl->SetRefPic(ref_pic_list, ref_idx, pic_enc_dec->GetPicData()->GetPoc(),
-                     pic_enc_dec->GetPicData(),
-                     pic_enc_dec->GetRecPic());
+      rpl->SetRefPic(ref_pic_list, ref_idx, ref_data->GetPoc(),
+                     ref_data, ref_pic);
       ref_idx++;
     }
     return ref_idx;
