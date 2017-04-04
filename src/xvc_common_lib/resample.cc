@@ -207,7 +207,7 @@ static int GetFilterFromScale(int scale) {
 }
 
 template <typename T>
-uint16_t FilterHor(T* src, int sub_pel, int shift, int scale_factor) {
+uint16_t FilterHor(const T* src, int sub_pel, int shift, int scale_factor) {
   int sum = 0;
   if (scale_factor < 65536) {
     // Upsampling.
@@ -230,7 +230,7 @@ uint16_t FilterHor(T* src, int sub_pel, int shift, int scale_factor) {
 }
 
 template <typename T>
-T FilterVer(uint16_t* src, int sub_pel, int shift, int stride, T max,
+T FilterVer(const uint16_t* src, int sub_pel, int shift, int stride, T max,
             int scale_factor) {
   int sum = 0;
   if (scale_factor < 65536) {
@@ -255,9 +255,9 @@ T FilterVer(uint16_t* src, int sub_pel, int shift, int stride, T max,
 template <typename T, typename U>
 void Resample(uint8_t *dst_start, int dst_width, int dst_height,
               ptrdiff_t dst_stride, int dst_bitdepth,
-              uint8_t *src_start, int src_width, int src_height,
+              const uint8_t *src_start, int src_width, int src_height,
               ptrdiff_t src_stride, int src_bitdepth) {
-  T* src = reinterpret_cast<T*>(src_start);
+  const T* src = reinterpret_cast<const T*>(src_start);
   U* dst = reinterpret_cast<U *>(dst_start);
 
   int tmp_pad = 8;
@@ -304,13 +304,15 @@ void Resample(uint8_t *dst_start, int dst_width, int dst_height,
 
 template void Resample<Sample, uint8_t>(uint8_t *dst_start, int dst_width,
                                         int dst_height, ptrdiff_t dst_stride,
-                                        int dst_bitdepth, uint8_t *src_start,
+                                        int dst_bitdepth,
+                                        const uint8_t *src_start,
                                         int src_width, int src_height,
                                         ptrdiff_t src_stride, int src_bitdepth);
 
 template void Resample<Sample, uint16_t>(uint8_t *dst_start, int dst_width,
                                          int dst_height, ptrdiff_t dst_stride,
-                                         int dst_bitdepth, uint8_t *src_start,
+                                         int dst_bitdepth,
+                                         const uint8_t *src_start,
                                          int src_width, int src_height,
                                          ptrdiff_t src_stride,
                                          int src_bitdepth);

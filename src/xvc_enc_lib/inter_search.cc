@@ -237,7 +237,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp,
                          mvp_list[mvp_idx], mv_start, pred, pred_stride, &dist);
     }
     mvp_idx = EvalFinalMvpIdx(*cu, mvp_list, mv_subpel, mvp_idx);
-    if (!bipred || kHasMultipleIterationsBi) {
+    if (!bipred || kMaxIterationsBi > 1) {
       unipred_best_mv_[static_cast<int>(ref_list)][ref_idx] = mv_subpel;
       unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx] = mvp_idx;
       unipred_best_dist_[static_cast<int>(ref_list)][ref_idx] = dist;
