@@ -84,7 +84,8 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
                                  RdoSyntaxWriter *writer) {
   const QP &qp = pic_qp_;
-  const int kMaxTrSize = !Restrictions::Get().disable_ext ? 64 : 32;
+  const int kMaxTrSize =
+    !Restrictions::Get().disable_ext_transform_size_64 ? 64 : 32;
   const int depth = (*best_cu)->GetDepth();
   const bool do_split = depth < pic_data_.GetMaxDepth((*best_cu)->GetCuTree());
   const bool do_full = (*best_cu)->IsFullyWithinPicture() &&
@@ -561,7 +562,7 @@ IntraMode CuEncoder::SearchIntraLuma(CodingUnit *cu, YuvComponent comp,
   int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
   int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
   int num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
-  if (Restrictions::Get().disable_ext) {
+  if (Restrictions::Get().disable_ext_alt_num_intra_fast_modes) {
     num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
   }
   for (int i = 0; i < mpm.num_neighbor_modes; i++) {

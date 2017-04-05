@@ -93,7 +93,14 @@ public:
       instance.disable_ext_tmvp_full_resolution ||
       instance.disable_ext_tmvp_exclude_intra_from_ref_list ||
       instance.disable_ext_ref_list_l0_trim ||
-      instance.disable_ext_implicit_partition_type;
+      instance.disable_ext_implicit_partition_type ||
+      instance.disable_ext_cabac_alt_split_flag_ctx ||
+      instance.disable_ext_cabac_alt_inter_dir_ctx ||
+      instance.disable_ext_cabac_alt_last_pos_ctx ||
+      instance.disable_ext_two_cu_trees ||
+      instance.disable_ext_transform_size_64 ||
+      instance.disable_ext_alt_num_intra_fast_modes ||
+      instance.disable_ext_reuse_mv_candidates;
   }
 
   bool disable_intra_ref_padding = false;
@@ -148,6 +155,13 @@ public:
   bool disable_ext_tmvp_exclude_intra_from_ref_list = false;
   bool disable_ext_ref_list_l0_trim = false;
   bool disable_ext_implicit_partition_type = false;
+  bool disable_ext_cabac_alt_split_flag_ctx = false;
+  bool disable_ext_cabac_alt_inter_dir_ctx = false;
+  bool disable_ext_cabac_alt_last_pos_ctx = false;
+  bool disable_ext_two_cu_trees = false;
+  bool disable_ext_transform_size_64 = false;
+  bool disable_ext_alt_num_intra_fast_modes = false;
+  bool disable_ext_reuse_mv_candidates = false;
 
 private:
   // The GetRW function shall be used only when there is a need to

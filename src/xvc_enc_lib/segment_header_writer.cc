@@ -123,6 +123,13 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_ext_tmvp_exclude_intra_from_ref_list);
     bit_writer->WriteBit(restr.disable_ext_ref_list_l0_trim);
     bit_writer->WriteBit(restr.disable_ext_implicit_partition_type);
+    bit_writer->WriteBit(restr.disable_ext_cabac_alt_split_flag_ctx);
+    bit_writer->WriteBit(restr.disable_ext_cabac_alt_inter_dir_ctx);
+    bit_writer->WriteBit(restr.disable_ext_cabac_alt_last_pos_ctx);
+    bit_writer->WriteBit(restr.disable_ext_two_cu_trees);
+    bit_writer->WriteBit(restr.disable_ext_transform_size_64);
+    bit_writer->WriteBit(restr.disable_ext_alt_num_intra_fast_modes);
+    bit_writer->WriteBit(restr.disable_ext_reuse_mv_candidates);
   } else {
     bit_writer->WriteBit(0);  // ext_restrictions
   }

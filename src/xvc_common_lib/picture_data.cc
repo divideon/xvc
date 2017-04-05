@@ -51,7 +51,7 @@ PictureData::~PictureData() {
 }
 
 void PictureData::Init(const QP &pic_qp) {
-  if (!Restrictions::Get().disable_ext && IsIntraPic() &&
+  if (!Restrictions::Get().disable_ext_two_cu_trees && IsIntraPic() &&
       max_num_components_ > 1) {
     num_cu_trees_ = 2;
     cu_tree_components_[0] = { YuvComponent::kY };

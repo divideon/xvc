@@ -340,7 +340,7 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
       offset += above->GetDepth() > cu.GetDepth();
     }
   }
-  if (!Restrictions::Get().disable_ext) {
+  if (!Restrictions::Get().disable_ext_cabac_alt_split_flag_ctx) {
     int min_depth = pic_max_depth;
     int max_depth = 0;
     auto update_min_max =
@@ -373,7 +373,7 @@ ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit & cu) {
     return inter_dir[0];
   }
   int idx = std::min(cu.GetDepth(), static_cast<int>(inter_dir.size()) - 1);
-  if (!Restrictions::Get().disable_ext) {
+  if (!Restrictions::Get().disable_ext_cabac_alt_inter_dir_ctx) {
     static const int kMaxSize128Log2 = 7;
     int log2_size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
                      util::SizeToLog2(cu.GetHeight(YuvComponent::kY)) + 1) >> 1;
@@ -469,7 +469,7 @@ CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
       return ctx_base[0];
     }
     int offset, shift;
-    if (!Restrictions::Get().disable_ext) {
+    if (!Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
       static const std::array<uint8_t, 8> kOffsetMappingExt = {
         0, 0, 0, 3, 6, 10, 15, 21   // 1, 2, 4, 8, 16, 32, 64, 128
       };
@@ -490,7 +490,7 @@ CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
     }
     int offset = 0;
     int shift;
-    if (!Restrictions::Get().disable_ext) {
+    if (!Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
       shift = util::Clip3(size >> 3, 0, 2);
     } else {
       shift = util::SizeLog2Bits(size);

@@ -220,6 +220,34 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_EXT_IMPLICIT_PARTITION_TYPE
   disable_ext_implicit_partition_type = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT_CABAC_ALT_SPLIT_FLAG_CTX
+  disable_ext_cabac_alt_split_flag_ctx = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_ALT_INTER_DIR_CTX
+  disable_ext_cabac_alt_inter_dir_ctx = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_CABAC_ALT_LAST_POS_CTX
+  disable_ext_cabac_alt_last_pos_ctx = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_TWO_CU_TREES
+  disable_ext_two_cu_trees = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_TRANSFORM_SIZE_64
+  disable_ext_transform_size_64 = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_ALT_NUM_INTRA_FAST_MODES
+  disable_ext_alt_num_intra_fast_modes = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT_REUSE_MV_CANDIDATES
+  disable_ext_reuse_mv_candidates = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
@@ -234,6 +262,13 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
   if (mode == RestrictedMode::kModeA) {
     disable_ext = true;
     disable_ext_implicit_partition_type = true;
+    disable_ext_cabac_alt_split_flag_ctx = true;
+    disable_ext_cabac_alt_inter_dir_ctx = false;
+    disable_ext_cabac_alt_last_pos_ctx = false;
+    disable_ext_two_cu_trees = true;
+    disable_ext_transform_size_64 = true;
+    disable_ext_alt_num_intra_fast_modes = true;
+    disable_ext_reuse_mv_candidates = true;
   }
 }
 

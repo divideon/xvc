@@ -372,7 +372,8 @@ InterSearch::TZSearch(const CodingUnit &cu, const QP &qp,
 
   // Check MV from previous CU search (can be either same or a different size)
   // TODO(PH) Consider always using?
-  if (cu.GetDepth() != 0 && Restrictions::Get().disable_ext) {
+  if (cu.GetDepth() != 0 &&
+      Restrictions::Get().disable_ext_reuse_mv_candidates) {
     int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
     int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
     ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);
