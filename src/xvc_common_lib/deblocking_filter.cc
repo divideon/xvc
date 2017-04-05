@@ -285,7 +285,7 @@ void DeblockingFilter::FilterLumaWeak(Sample* src_ptr, ptrdiff_t step_size,
     int32_t delta = (9 * (q0 - p0) - 3 * (q1 - p1) + 8) >> 4;
 
     if (std::abs(delta) >= threashold &&
-        !Restrictions::Get().disable_deblock_initial_sample_decision) {
+        !Restrictions::Get().disable_deblock_weak_sample_decision) {
       src += step_size;
       continue;
     }

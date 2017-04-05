@@ -83,6 +83,7 @@ public:
       instance.disable_deblock_boundary_strength_zero ||
       instance.disable_deblock_boundary_strength_one ||
       instance.disable_deblock_initial_sample_decision ||
+      instance.disable_deblock_weak_sample_decision ||
       instance.disable_deblock_two_samples_weak_filter ||
       instance.disable_deblock_depending_on_qp;
   }
@@ -139,6 +140,7 @@ public:
   bool disable_deblock_boundary_strength_zero = false;
   bool disable_deblock_boundary_strength_one = false;
   bool disable_deblock_initial_sample_decision = false;
+  bool disable_deblock_weak_sample_decision = false;
   bool disable_deblock_two_samples_weak_filter = false;
   bool disable_deblock_depending_on_qp = false;
   bool disable_ext = false;

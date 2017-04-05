@@ -110,6 +110,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_deblock_boundary_strength_zero);
     bit_writer->WriteBit(restr.disable_deblock_boundary_strength_one);
     bit_writer->WriteBit(restr.disable_deblock_initial_sample_decision);
+    bit_writer->WriteBit(restr.disable_deblock_weak_sample_decision);
     bit_writer->WriteBit(restr.disable_deblock_two_samples_weak_filter);
     bit_writer->WriteBit(restr.disable_deblock_depending_on_qp);
   } else {

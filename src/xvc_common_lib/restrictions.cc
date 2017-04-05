@@ -189,6 +189,10 @@ Restrictions::Restrictions() {
   disable_deblock_initial_sample_decision = true;
 #endif
 
+#if RESTRICTION_DISABLE_DEBLOCK_WEAK_SAMPLE_DECISION
+  disable_deblock_weak_sample_decision = true;
+#endif
+
 #if RESTRICTION_DISABLE_DEBLOCK_TWO_SAMPLES_WEAK_FILTER
   disable_deblock_two_samples_weak_filter = true;
 #endif

@@ -200,6 +200,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_deblock_initial_sample_decision = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_deblock_weak_sample_decision = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_deblock_two_samples_weak_filter = true;
     }
     if (bit_reader->ReadBit()) {
