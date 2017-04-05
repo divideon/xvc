@@ -23,36 +23,26 @@ namespace xvc {
 
 class InterSearch : public InterPrediction {
 public:
-  enum class SearchMethod { TZSearch, FullSearch };
-  struct Left { static const int index = -1; };
-  struct Right { static const int index = 1; };
-  struct Up { static const int index = -3; };
-  struct Down { static const int index = 3; };
-  struct SearchState;
-
   InterSearch(int bitdepth, const YuvPicture &orig_pic,
               const ReferencePictureLists &ref_pic_list,
               const SpeedSettings &speed_settings);
-  void Search(CodingUnit *cu, const QP &qp,
-              PicturePredictionType pic_type,
-              const SyntaxWriter &bitstream_writer,
-              SampleBuffer *pred_buffer);
+
+  void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
+                    const SyntaxWriter &bitstream_writer,
+                    SampleBuffer *pred_buffer);
 
 private:
+  enum class SearchMethod { TZSearch, FullSearch };
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
 
-  template<typename TOrig> class DistortionWrapper;
   Distortion SearchBiIterative(CodingUnit *cu, const QP &qp,
-                               PicturePredictionType pic_type,
                                const SyntaxWriter &bitstream_writer,
                                InterDir best_uni_dir,
                                Sample *pred_buf, ptrdiff_t pred_stride,
                                CodingUnit::InterState *best_state);
   template<typename TOrig>
-  Distortion SearchRefIdx(CodingUnit *cu, const QP &qp,
-                          PicturePredictionType pic_type,
-                          RefPicList ref_list,
+  Distortion SearchRefIdx(CodingUnit *cu, const QP &qp, RefPicList ref_list,
                           const SyntaxWriter &bitstream_writer,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *pred, ptrdiff_t pred_stride,
@@ -73,13 +63,6 @@ private:
                           const MotionVector &mvp, const YuvPicture &ref_pic,
                           const MotionVector &mv_min,
                           const MotionVector &mv_max);
-  MotionVector TZSearch(const CodingUnit &cu, const QP &qp,
-                        const MotionVector &mvp, const YuvPicture &ref_pic,
-                        const MotionVector &mv_min, const MotionVector &mv_max,
-                        const MotionVector &prev_search);
-  bool FullpelDiamondSearch(SearchState *state, const MotionVector &mv_base,
-                            int range);
-  void FullpelNeighborPointSearch(SearchState *state);
   template<typename TOrig>
   MotionVector SubpelSearch(const CodingUnit &cu, const QP &qp,
                             const YuvPicture &ref_pic, const MotionVector &mvp,
@@ -93,9 +76,6 @@ private:
                                  SampleMetric *metric, int mv_x, int mv_y,
                                  const DataBuffer<TOrig> &orig_buffer,
                                  Sample *pred_buf, ptrdiff_t pred_buf_stride);
-  void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
-                         int center_x, int center_y, int search_range,
-                         MotionVector *mv_min, MotionVector *mv_max);
   int EvalStartMvp(const CodingUnit &cu, const QP &qp,
                    const InterPredictorList &mvp_list,
                    const YuvPicture &ref_pic, Sample *pred_buf,
@@ -103,19 +83,13 @@ private:
   int EvalFinalMvpIdx(const CodingUnit &cu,
                       const InterPredictorList &mvp_list,
                       const MotionVector &mv_final, int mvp_idx_start);
-  Distortion GetCost(SearchState *state, int mv_x, int mv_y);
-  bool CheckCostBest(SearchState *state, int mv_x, int mv_y);
-  Bits GetInterPredBits(const CodingUnit &cu,
-                        const SyntaxWriter &bitstream_writer,
-                        PicturePredictionType pic_pred_type);
-  Bits GetMvpBits(int mvp_idx, int num_mvp);
-  Bits GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y, int mv_scale);
-  Bits GetNumExpGolombBits(int mvd);
-  template<class Dir>
-  bool CheckCost1(SearchState *state, int mv_x, int mv_y, int range);
-  template<class Dir1, class Dir2>
-  bool CheckCost2(SearchState *state, int mv_x, int mv_y, int range);
   MetricType GetFullpelMetric(const CodingUnit &cu);
+  Bits GetInterPredBits(const CodingUnit &cu,
+                        const SyntaxWriter &bitstream_writer);
+  static Bits GetMvpBits(int mvp_idx, int num_mvp);
+  static Bits GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
+                         int mv_scale);
+  static Bits GetNumExpGolombBits(int mvd);
 
   int bitdepth_;
   const YuvPicture &orig_pic_;
@@ -134,6 +108,7 @@ private:
   // Best fullpel search mv per ref list, ref idx and picture
   std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> previous_fullpel_;
+  friend class TZSearch;
 };
 
 }   // namespace xvc

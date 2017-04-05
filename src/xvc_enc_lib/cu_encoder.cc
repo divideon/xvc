@@ -234,8 +234,10 @@ CuEncoder::CompressIntra(CodingUnit *cu, const QP &qp,
 CuEncoder::RdoCost
 CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
                          const SyntaxWriter &bitstream_writer) {
-  PicturePredictionType pic_pred_type = pic_data_.GetPredictionType();
-  inter_search_.Search(cu, qp, pic_pred_type, bitstream_writer, &temp_pred_);
+  bool uni_pred_only =
+    pic_data_.GetPredictionType() == PicturePredictionType::kUni;
+  inter_search_.SearchMotion(cu, qp, uni_pred_only, bitstream_writer,
+                             &temp_pred_);
   Distortion dist = CompressAndEvalCbf(cu, qp, bitstream_writer);
   return ComputeDistCostNoSplit(*cu, qp, bitstream_writer, dist);
 }

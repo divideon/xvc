@@ -53,6 +53,9 @@
     <ClInclude Include="intra_search.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inter_tz_search.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu_encoder.cc">
@@ -92,6 +95,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="intra_search.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="inter_tz_search.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

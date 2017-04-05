@@ -379,6 +379,24 @@ void InterPrediction::ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
   *mv_y = util::Clip3(*mv_y, pic_min_y, pic_max_y);
 }
 
+void
+InterPrediction::DetermineMinMaxMv(const CodingUnit &cu,
+                                   const YuvPicture &ref_pic,
+                                   int center_x, int center_y, int search_range,
+                                   MotionVector *mv_min, MotionVector *mv_max) {
+  const int mvscale = constants::kMvPrecisionShift;
+  ClipMV(cu, ref_pic, &center_x, &center_y);
+  int search_range_qpel = search_range << mvscale;
+  int search_min_x = center_x - search_range_qpel;
+  int search_min_y = center_y - search_range_qpel;
+  int search_max_x = center_x + search_range_qpel;
+  int search_max_y = center_y + search_range_qpel;
+  ClipMV(cu, ref_pic, &search_min_x, &search_min_y);
+  ClipMV(cu, ref_pic, &search_max_x, &search_max_y);
+  *mv_min = MotionVector(search_min_x >> mvscale, search_min_y >> mvscale);
+  *mv_max = MotionVector(search_max_x >> mvscale, search_max_y >> mvscale);
+}
+
 void InterPrediction::ScaleMv(PicNum poc_current1, PicNum poc_ref1,
                               PicNum poc_current2, PicNum poc_ref2,
                               MotionVector *mv) {
