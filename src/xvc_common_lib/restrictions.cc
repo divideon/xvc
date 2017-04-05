@@ -263,8 +263,8 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext = true;
     disable_ext_implicit_partition_type = true;
     disable_ext_cabac_alt_split_flag_ctx = true;
-    disable_ext_cabac_alt_inter_dir_ctx = false;
-    disable_ext_cabac_alt_last_pos_ctx = false;
+    disable_ext_cabac_alt_inter_dir_ctx = true;
+    disable_ext_cabac_alt_last_pos_ctx = true;
     disable_ext_two_cu_trees = true;
     disable_ext_transform_size_64 = true;
     disable_ext_alt_num_intra_fast_modes = true;
