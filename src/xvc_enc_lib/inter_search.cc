@@ -26,11 +26,13 @@ static const std::array<std::pair<int8_t, int8_t>, 9> kSquareXYQpel = { {
   {0, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {1, 1}
 } };
 
-InterSearch::InterSearch(int bitdepth, const YuvPicture &orig_pic,
+InterSearch::InterSearch(int bitdepth, int max_components,
+                         const YuvPicture &orig_pic,
                          const ReferencePictureLists &ref_pic_list,
                          const SpeedSettings &speed_settings)
   : InterPrediction(bitdepth),
   bitdepth_(bitdepth),
+  max_components_(max_components),
   orig_pic_(orig_pic),
   speed_settings_(speed_settings),
   bipred_orig_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize),
@@ -92,6 +94,120 @@ void InterSearch::SearchMotion(CodingUnit *cu, const QP &qp,
   } else {
     cu->LoadStateFrom(state_l1_unique_poc);
   }
+}
+
+Distortion
+InterSearch::SearchMergeCbf(CodingUnit *cu, const QP &qp,
+                            const SyntaxWriter &bitstream_writer,
+                            const InterMergeCandidateList &merge_list,
+                            int merge_idx, bool force_skip,
+                            TransformEncoder *encoder, YuvPicture *rec_pic) {
+  cu->SetPredMode(PredictionMode::kInter);
+  cu->SetMergeFlag(true);
+  cu->SetSkipFlag(!force_skip ? false : true);
+  cu->SetMergeIdx(merge_idx);
+  ApplyMerge(cu, merge_list, merge_idx);
+  Distortion dist;
+  if (!force_skip) {
+    dist = CompressAndEvalCbf(cu, qp, bitstream_writer, encoder, rec_pic);
+  } else {
+    dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
+  }
+  return dist;
+}
+
+Distortion
+InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
+                                const SyntaxWriter &bitstream_writer,
+                                TransformEncoder *encoder,
+                                YuvPicture *rec_pic) {
+  SampleMetric metric(MetricType::kSSE, qp, bitdepth_);
+  std::array<bool, constants::kMaxYuvComponents> cbf_modified = { false };
+  Distortion final_dist = 0;
+  Distortion sum_dist_zero = 0;
+  Distortion sum_dist_fast = 0;
+
+  for (int c = 0; c < max_components_; c++) {
+    const YuvComponent comp = YuvComponent(c);
+    SampleBuffer &pred_buffer = encoder->GetPredBuffer();
+    MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
+                       pred_buffer.GetStride());
+    Distortion dist_orig =
+      encoder->TransformAndReconstruct(cu, comp, qp, orig_pic_, rec_pic);
+    Distortion dist_zero =
+      metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer());
+    Distortion dist_fast = dist_orig;
+    // TODO(Dev) Investigate trade-off with using clipped samples for rdo
+#if HM_STRICT
+    if (cu->GetCbf(comp)) {
+      dist_fast = encoder->GetResidualDist(*cu, comp, &metric);
+    }
+#endif
+    bool force_comp_zero = false;
+    if (!Restrictions::Get().disable_transform_cbf) {
+      force_comp_zero = encoder->EvalCbfZero(cu, qp, comp, bitstream_writer,
+                                             dist_fast, dist_zero);
+    }
+    final_dist += force_comp_zero ? dist_zero : dist_orig;
+    sum_dist_zero += dist_zero;
+    sum_dist_fast += force_comp_zero ? dist_zero : dist_fast;
+    cbf_modified[c] = force_comp_zero;
+  }
+  cu->SetRootCbf(cu->GetHasAnyCbf());
+  cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetRootCbf());
+
+  if (cu->GetRootCbf() && !(Restrictions::Get().disable_transform_cbf &&
+                            Restrictions::Get().disable_transform_root_cbf)) {
+    bool zero_root_cbf =
+      encoder->EvalRootCbfZero(cu, qp, bitstream_writer, sum_dist_fast,
+                               sum_dist_zero);
+    if (zero_root_cbf) {
+      for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+        cbf_modified[c] |= cu->GetCbf(YuvComponent(c));
+      }
+      final_dist = sum_dist_zero;
+    }
+  }
+
+  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+    if (!cbf_modified[c]) {
+      continue;
+    }
+    YuvComponent comp = YuvComponent(c);
+    cu->SetCbf(comp, false);
+    // TODO(Dev) Faster to save and reuse predicition buffers
+    Sample *reco = rec_pic->GetSamplePtr(comp, cu->GetPosX(comp),
+                                         cu->GetPosY(comp));
+    ptrdiff_t reco_stride = rec_pic->GetStride(comp);
+    MotionCompensation(*cu, comp, reco, reco_stride);
+  }
+  cu->SetRootCbf(cu->GetHasAnyCbf());
+  cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetRootCbf());
+  return final_dist;
+}
+
+Distortion
+InterSearch::CompressSkipOnly(CodingUnit *cu, const QP &qp,
+                              const SyntaxWriter &bitstream_writer,
+                              TransformEncoder *encoder, YuvPicture *rec_pic) {
+  assert(cu->GetPredMode() == PredictionMode::kInter);
+  cu->SetSkipFlag(true);
+  cu->SetRootCbf(false);
+
+  SampleMetric metric(MetricType::kSSE, qp, rec_pic->GetBitdepth());
+  Distortion sum_dist = 0;
+  for (int c = 0; c < max_components_; c++) {
+    const YuvComponent comp = YuvComponent(c);
+    int posx = cu->GetPosX(comp);
+    int posy = cu->GetPosY(comp);
+    SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, posx, posy);
+    MotionCompensation(*cu, comp, reco_buffer.GetDataPtr(),
+                       reco_buffer.GetStride());
+    cu->SetCbf(comp, false);
+    Distortion dist = metric.CompareSample(*cu, comp, orig_pic_, reco_buffer);
+    sum_dist += dist;
+  }
+  return sum_dist;
 }
 
 Distortion

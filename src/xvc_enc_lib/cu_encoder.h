@@ -43,23 +43,9 @@ private:
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressMerge(CodingUnit *cu, const QP &qp,
                         const SyntaxWriter &bitstream_writer);
-  Distortion CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
+  RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
                                 const SyntaxWriter &bitstream_writer,
-                                Distortion *out_dist_zero = nullptr);
-  Distortion CompressSkipOnly(CodingUnit *cu, const QP &qp,
-                              const SyntaxWriter &bitstream_writer,
-                              bool calc_distortion = true);
-  bool EvalCbfZero(CodingUnit *cu, const QP &qp, YuvComponent comp,
-                   const SyntaxWriter &bitstream_writer,
-                   Distortion dist_non_zero, Distortion dist_zero);
-  bool EvalRootCbfZero(CodingUnit *cu, const QP &qp,
-                       const SyntaxWriter &bitstream_writer,
-                       Distortion sum_dist_non_zero,
-                       Distortion sum_dist_zero);
-  Distortion CompressComponent(CodingUnit *cu, YuvComponent comp, const QP &qp);
-  RdoCost ComputeDistCostNoSplit(const CodingUnit &cu, const QP &qp,
-                                 const SyntaxWriter &bitstream_writer,
-                                 Distortion ssd);
+                                Distortion ssd);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
 
   const QP &pic_qp_;

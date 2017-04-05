@@ -28,11 +28,10 @@ public:
                                     const SyntaxWriter &bitstream_writer,
                                     TransformEncoder *encoder,
                                     YuvPicture *rec_pic);
-
-private:
   Distortion CompressIntra(CodingUnit *cu, YuvComponent comp, const QP &qp,
                            TransformEncoder *encoder, YuvPicture *rec_pic);
 
+private:
   const PictureData &pic_data_;
   const YuvPicture &orig_pic_;
   const SpeedSettings &speed_settings_;

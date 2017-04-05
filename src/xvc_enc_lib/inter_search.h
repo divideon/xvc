@@ -18,24 +18,36 @@
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
+#include "xvc_enc_lib/transform_encoder.h"
 
 namespace xvc {
 
 class InterSearch : public InterPrediction {
 public:
-  InterSearch(int bitdepth, const YuvPicture &orig_pic,
+  InterSearch(int bitdepth, int max_components, const YuvPicture &orig_pic,
               const ReferencePictureLists &ref_pic_list,
               const SpeedSettings &speed_settings);
 
   void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
                     const SyntaxWriter &bitstream_writer,
                     SampleBuffer *pred_buffer);
+  Distortion SearchMergeCbf(CodingUnit *cu, const QP &qp,
+                            const SyntaxWriter &bitstream_writer,
+                            const InterMergeCandidateList &merge_list,
+                            int merge_idx, bool force_skip,
+                            TransformEncoder *encoder, YuvPicture *rec_pic);
+  Distortion CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
+                                const SyntaxWriter &bitstream_writer,
+                                TransformEncoder *encoder, YuvPicture *rec_pic);
 
 private:
   enum class SearchMethod { TZSearch, FullSearch };
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
 
+  Distortion CompressSkipOnly(CodingUnit *cu, const QP &qp,
+                              const SyntaxWriter &bitstream_writer,
+                              TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion SearchBiIterative(CodingUnit *cu, const QP &qp,
                                const SyntaxWriter &bitstream_writer,
                                InterDir best_uni_dir,
@@ -91,7 +103,8 @@ private:
                          int mv_scale);
   static Bits GetNumExpGolombBits(int mvd);
 
-  int bitdepth_;
+  const int bitdepth_;
+  const int max_components_;
   const YuvPicture &orig_pic_;
   const SpeedSettings &speed_settings_;
   ResidualBufferStorage bipred_orig_buffer_;

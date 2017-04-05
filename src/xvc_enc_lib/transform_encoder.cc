@@ -7,19 +7,20 @@
 #include "xvc_enc_lib/transform_encoder.h"
 
 #include "xvc_common_lib/restrictions.h"
-#include "xvc_enc_lib/sample_metric.h"
 
 namespace xvc {
 
-TransformEncoder::TransformEncoder(int bitdepth, const YuvPicture &orig_pic)
-  : temp_pred_(kBufferStride_, constants::kMaxBlockSize),
-  temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
-  temp_resi_(kBufferStride_, constants::kMaxBlockSize),
-  min_pel_(0),
+TransformEncoder::TransformEncoder(int bitdepth, int num_components,
+                                   const YuvPicture &orig_pic)
+  : min_pel_(0),
   max_pel_((1 << bitdepth) - 1),
+  num_components_(num_components),
   inv_transform_(bitdepth),
   fwd_transform_(bitdepth),
   quantize_(),
+  temp_pred_(kBufferStride_, constants::kMaxBlockSize),
+  temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
+  temp_resi_(kBufferStride_, constants::kMaxBlockSize),
   temp_coeff_(kBufferStride_, constants::kMaxBlockSize) {
 }
 
@@ -85,6 +86,90 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
 
   SampleMetric metric(MetricType::kSSE, qp, rec_pic->GetBitdepth());
   return metric.CompareSample(*cu, comp, orig_pic, reco_buffer);
+}
+
+bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const QP &qp,
+                                   YuvComponent comp,
+                                   const SyntaxWriter &rdo_writer,
+                                   Distortion dist_non_zero,
+                                   Distortion dist_zero) {
+  if (!cu->GetCbf(comp)) {
+    return false;
+  }
+  RdoSyntaxWriter non_zero_writer(rdo_writer, 0);
+  non_zero_writer.WriteCbf(*cu, comp, true);
+  non_zero_writer.WriteCoefficients(*cu, comp, cu->GetCoeff(comp),
+                                    cu->GetCoeffStride());
+  Bits non_zero_bits = non_zero_writer.GetNumWrittenBits();
+
+  RdoSyntaxWriter zero_writer(rdo_writer, 0);
+  zero_writer.WriteCbf(*cu, comp, false);
+  Bits bits_zero = zero_writer.GetNumWrittenBits();
+
+  Cost cost_non_zero = dist_non_zero +
+    static_cast<Cost>(non_zero_bits * qp.GetLambda() + 0.5);
+  Cost cost_zero = dist_zero +
+    static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);
+  if (cost_zero < cost_non_zero) {
+    cu->SetCbf(comp, false);
+    return true;
+  }
+  return false;
+}
+
+bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
+                                       const SyntaxWriter &bitstream_writer,
+                                       Distortion sum_dist_non_zero,
+                                       Distortion sum_dist_zero) {
+  RdoSyntaxWriter rdo_writer_nonzero(bitstream_writer, 0);
+  // TODO(Dev) Investigate gains of correct root cbf signaling
+#if HM_STRICT
+  for (int c = 0; c < num_components_; c++) {
+    const YuvComponent comp = YuvComponent(c);
+    bool cbf = cu->GetCbf(comp);
+    rdo_writer_nonzero.WriteCbf(*cu, comp, cbf);
+    if (cbf) {
+      rdo_writer_nonzero.WriteCoefficients(*cu, comp, cu->GetCoeff(comp),
+                                           cu->GetCoeffStride());
+    }
+  }
+#else
+  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
+    cu_writer_.WriteCoefficients(*cu, YuvComponent(c), &rdo_writer_nonzero);
+  }
+#endif
+  Bits bits_non_zero = rdo_writer_nonzero.GetNumWrittenBits();
+
+  // TODO(Dev) Investigate gains of correct start state
+#if HM_STRICT
+  RdoSyntaxWriter rdo_writer_zero(rdo_writer_nonzero, 0);
+#else
+  RdoSyntaxWriter rdo_writer_zero(bitstream_writer, 0);
+#endif
+  // TODO(Dev) Investigate gains of using correct skip syntax
+#if HM_STRICT
+  rdo_writer_zero.WriteRootCbf(false);
+#else
+  if (cu->GetSkipFlag()) {
+    rdo_writer_zero.WriteSkipFlag(*cu, true);
+  } else {
+    rdo_writer_zero.WriteRootCbf(false);
+  }
+#endif
+  Bits bits_zero = rdo_writer_zero.GetNumWrittenBits();
+
+  Cost cost_zero = sum_dist_zero +
+    static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);
+  Cost cost_non_zero = sum_dist_non_zero +
+    static_cast<Cost>(bits_non_zero * qp.GetLambda() + 0.5);
+  return cost_zero < cost_non_zero;
+}
+
+Distortion
+TransformEncoder::GetResidualDist(const CodingUnit &cu, YuvComponent comp,
+                                  SampleMetric *metric) {
+  return metric->CompareShort(comp, cu.GetWidth(comp), cu.GetHeight(comp),
+                              temp_resi_orig_, temp_resi_);
 }
 
 }   // namespace xvc

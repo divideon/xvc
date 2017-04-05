@@ -11,30 +11,41 @@
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/transform.h"
 #include "xvc_common_lib/yuv_pic.h"
+#include "xvc_enc_lib/sample_metric.h"
+#include "xvc_enc_lib/syntax_writer.h"
 
 namespace xvc {
 
 class TransformEncoder {
 public:
-  TransformEncoder(int bitdepth, const YuvPicture &orig_pic);
+  TransformEncoder(int bitdepth, int num_components,
+                   const YuvPicture &orig_pic);
 
   SampleBuffer& GetPredBuffer() { return temp_pred_; }
   Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                                      const QP &qp, const YuvPicture &orig_pic,
                                      YuvPicture *rec_pic);
-
-protected:
-  SampleBufferStorage temp_pred_;
-  ResidualBufferStorage temp_resi_orig_;
-  ResidualBufferStorage temp_resi_;
+  bool EvalCbfZero(CodingUnit *cu, const QP &qp, YuvComponent comp,
+                   const SyntaxWriter &bitstream_writer,
+                   Distortion dist_non_zero, Distortion dist_zero);
+  bool EvalRootCbfZero(CodingUnit *cu, const QP &qp,
+                       const SyntaxWriter &bitstream_writer,
+                       Distortion sum_dist_non_zero,
+                       Distortion sum_dist_zero);
+  Distortion GetResidualDist(const CodingUnit &cu, YuvComponent comp,
+                             SampleMetric *metric);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   const Sample min_pel_;
   const Sample max_pel_;
+  const int num_components_;
   InverseTransform inv_transform_;
   ForwardTransform fwd_transform_;
   Quantize quantize_;
+  SampleBufferStorage temp_pred_;
+  ResidualBufferStorage temp_resi_orig_;
+  ResidualBufferStorage temp_resi_;
   CoeffBufferStorage temp_coeff_;
 };
 
