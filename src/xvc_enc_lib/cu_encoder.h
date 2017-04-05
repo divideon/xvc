@@ -10,12 +10,13 @@
 #include <memory>
 #include <vector>
 
-#include "xvc_common_lib/intra_prediction.h"
+
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/inter_search.h"
+#include "xvc_enc_lib/intra_search.h"
 #include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
@@ -55,11 +56,6 @@ private:
                        const SyntaxWriter &bitstream_writer,
                        Distortion sum_dist_non_zero,
                        Distortion sum_dist_zero);
-  IntraMode SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const QP &qp,
-                            const SyntaxWriter &bitstream_writer);
-  IntraChromaMode SearchIntraChroma(CodingUnit *cu, YuvComponent comp,
-                                    const QP &qp,
-                                    const SyntaxWriter &bitstream_writer);
   Distortion CompressComponent(CodingUnit *cu, YuvComponent comp, const QP &qp);
   RdoCost ComputeDistCostNoSplit(const CodingUnit &cu, const QP &qp,
                                  const SyntaxWriter &bitstream_writer,
@@ -72,7 +68,7 @@ private:
   YuvPicture &rec_pic_;
   PictureData &pic_data_;
   InterSearch inter_search_;
-  IntraPrediction intra_pred_;
+  IntraSearch intra_search_;
   CuWriter cu_writer_;
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;

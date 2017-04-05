@@ -18,6 +18,7 @@ class TransformEncoder {
 public:
   TransformEncoder(int bitdepth, const YuvPicture &orig_pic);
 
+  SampleBuffer& GetPredBuffer() { return temp_pred_; }
   Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                                      const QP &qp, const YuvPicture &orig_pic,
                                      YuvPicture *rec_pic);

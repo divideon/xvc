@@ -166,6 +166,7 @@
     <ClInclude Include="cu_encoder.h" />
     <ClInclude Include="cu_writer.h" />
     <ClInclude Include="inter_search.h" />
+    <ClInclude Include="intra_search.h" />
     <ClInclude Include="sample_metric.h" />
     <ClInclude Include="encoder.h" />
     <ClInclude Include="entropy_encoder.h" />
@@ -181,6 +182,7 @@
     <ClCompile Include="cu_encoder.cc" />
     <ClCompile Include="cu_writer.cc" />
     <ClCompile Include="inter_search.cc" />
+    <ClCompile Include="intra_search.cc" />
     <ClCompile Include="sample_metric.cc" />
     <ClCompile Include="encoder.cc" />
     <ClCompile Include="entropy_encoder.cc" />
