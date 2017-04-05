@@ -97,6 +97,10 @@ Restrictions::Restrictions() {
   disable_transform_residual_greater_than_flags = true;
 #endif
 
+#if RESTRICTION_DISABLE_TRANSFORM_RESIDUAL_GREATER2
+  disable_transform_residual_greater2 = true;
+#endif
+
 #if RESTRICTION_DISABLE_TRANSFORM_LAST_POSITION
   disable_transform_last_position = true;
 #endif

@@ -54,6 +54,7 @@ public:
   static bool GetTransformRestrictions() {
     return instance.disable_transform_adaptive_scan_order ||
       instance.disable_transform_residual_greater_than_flags ||
+      instance.disable_transform_residual_greater2 ||
       instance.disable_transform_last_position ||
       instance.disable_transform_root_cbf ||
       instance.disable_transform_cbf ||
@@ -115,6 +116,7 @@ public:
   bool disable_inter_bipred = false;
   bool disable_transform_adaptive_scan_order = false;
   bool disable_transform_residual_greater_than_flags = false;
+  bool disable_transform_residual_greater2 = false;
   bool disable_transform_last_position = false;
   bool disable_transform_root_cbf = false;
   bool disable_transform_cbf = false;

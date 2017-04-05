@@ -77,6 +77,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(1);  // transform_restrictions
     bit_writer->WriteBit(restr.disable_transform_adaptive_scan_order);
     bit_writer->WriteBit(restr.disable_transform_residual_greater_than_flags);
+    bit_writer->WriteBit(restr.disable_transform_residual_greater2);
     bit_writer->WriteBit(restr.disable_transform_last_position);
     bit_writer->WriteBit(restr.disable_transform_root_cbf);
     bit_writer->WriteBit(restr.disable_transform_cbf);

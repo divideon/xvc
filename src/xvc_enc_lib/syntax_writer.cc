@@ -206,7 +206,8 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       entropyenc_->EncodeBin(greater_than_1, &ctx);
       if (greater_than_1) {
         c1 = 0;
-        if (first_c2_idx == -1) {
+        if (first_c2_idx == -1 &&
+            !Restrictions::Get().disable_transform_residual_greater2) {
           first_c2_idx = i;
         }
       } else if (c1 < 3 && c1 > 0) {
@@ -227,7 +228,8 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
 
     // abs level remaining
     if (c1 == 0 || coeff_num_non_zero > max_num_c1_flags) {
-      int first_coeff_greater2 = 1;
+      int first_coeff_greater2 =
+        Restrictions::Get().disable_transform_residual_greater2 ? 0 : 1;
       uint32_t golomb_rice_k = 0;
       for (int i = 0; i < coeff_num_non_zero; i++) {
         Coeff base_level = static_cast<Coeff>(

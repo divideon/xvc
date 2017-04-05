@@ -123,6 +123,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_transform_residual_greater_than_flags = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_transform_residual_greater2 = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_transform_last_position = true;
     }
     if (bit_reader->ReadBit()) {

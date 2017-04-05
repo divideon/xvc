@@ -7,6 +7,7 @@
 #ifndef XVC_COMMON_LIB_UTILS_H_
 #define XVC_COMMON_LIB_UTILS_H_
 
+#include <algorithm>
 #include <cassert>
 
 #include "xvc_common_lib/common.h"
@@ -25,9 +26,8 @@ constexpr bool IsFirstChroma(YuvComponent comp) {
 
 template <typename T, typename U>
 static T Clip3(U value, T min, T max) {
-  if (value < min) return min;
-  if (value > max) return max;
-  return static_cast<T>(value);
+  return static_cast<T>(std::min(std::max(value, static_cast<U>(min)),
+                                 static_cast<U>(max)));
 }
 
 template <typename T>
