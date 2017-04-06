@@ -137,15 +137,26 @@ void Quantize::Inverse(YuvComponent comp, const QP &qp, int shift, int width,
                        int height, const Coeff *in, ptrdiff_t in_stride,
                        Coeff *out, ptrdiff_t out_stride) {
   int scale = qp.GetInvScale(comp);
-  int offset = (1 << (shift - 1));
-
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      int coeff = ((in[x] * scale) + offset) >> shift;
-      out[x] = util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
+  if (shift > 0) {
+    int offset = (1 << (shift - 1));
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        int coeff = ((in[x] * scale) + offset) >> shift;
+        out[x] = util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
+      }
+      in += in_stride;
+      out += out_stride;
     }
-    in += in_stride;
-    out += out_stride;
+  } else {
+    int inv_shift = -shift;
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        int coeff = ((in[x] * scale)) << inv_shift;
+        out[x] = util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
+      }
+      in += in_stride;
+      out += out_stride;
+    }
   }
 }
 
