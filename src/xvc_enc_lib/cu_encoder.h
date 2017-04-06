@@ -32,11 +32,12 @@ public:
 
 private:
   struct RdoCost;
-  Distortion CompressCu(CodingUnit **cu, RdoSyntaxWriter *rdo_writer);
-  Distortion CompressSplitCu(CodingUnit *cu, RdoSyntaxWriter *rdo_writer,
-                             Bits *frac_bits_before_split);
-  Distortion CompressNoSplit(CodingUnit **cu, RdoSyntaxWriter *rdo_writer);
-
+  Distortion CompressCu(CodingUnit **cu, int rdo_depth,
+                        RdoSyntaxWriter *rdo_writer);
+  RdoCost CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
+                          SplitType split_type, RdoSyntaxWriter *rdo_writer);
+  Distortion CompressNoSplit(CodingUnit **cu, int rdo_depth,
+                             RdoSyntaxWriter *rdo_writer);
   RdoCost CompressIntra(CodingUnit *cu, const QP &qp,
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressInter(CodingUnit *cu, const QP &qp,
@@ -56,9 +57,10 @@ private:
   InterSearch inter_search_;
   IntraSearch intra_search_;
   CuWriter cu_writer_;
+  // +2 for allow access to one depth lower than smallest CU in RDO
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;
-  std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 1>,
+  std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 2>,
     constants::kMaxNumCuTrees> rdo_temp_cu_;
 };
 

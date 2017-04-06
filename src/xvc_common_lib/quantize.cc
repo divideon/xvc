@@ -118,8 +118,8 @@ int Quantize::Forward(const CodingUnit &cu, YuvComponent comp, const QP &qp,
   const int shift = constants::kQuantShift + qp.GetQpPer(comp) +
     transform_shift + (width != height ? 7 : 0);
   const int scale = qp.GetFwdScale(comp) * (width != height ? 181 : 1);
-  const int offset =
-    (pic_type == PicturePredictionType::kIntra ? 171 : 85) << (shift - 9);
+  const int64_t offset =
+    (pic_type == PicturePredictionType::kIntra ? 171ull : 85ull) << (shift - 9);
   Coeff delta[constants::kMaxBlockSize * constants::kMaxBlockSize];
   ptrdiff_t delta_stride = constants::kMaxBlockSize;
 

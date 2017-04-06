@@ -45,10 +45,8 @@ CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
     const CuTree cu_tree = static_cast<CuTree>(tree_idx);
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
     for (int depth = 0; depth < max_depth; depth++) {
-      int width = constants::kMaxBlockSize >> depth;
-      int height = constants::kMaxBlockSize >> depth;
       rdo_temp_cu_[tree_idx][depth] =
-        pic_data_.CreateCu(cu_tree, depth, -1, -1, width, height);
+        pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
     }
   }
 }
@@ -65,104 +63,178 @@ CuEncoder::~CuEncoder() {
 void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
   RdoSyntaxWriter rdo_writer(*bitstream_writer);
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  CompressCu(&ctu, &rdo_writer);
+  CompressCu(&ctu, 0, &rdo_writer);
   pic_data_.SetCtu(CuTree::Primary, rsaddr, ctu);
   if (pic_data_.HasSecondaryCuTree()) {
     RdoSyntaxWriter rdo_writer2(*bitstream_writer);
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    CompressCu(&ctu2, &rdo_writer2);
+    CompressCu(&ctu2, 0, &rdo_writer2);
     pic_data_.SetCtu(CuTree::Secondary, rsaddr, ctu2);
   }
 
   WriteCtu(rsaddr, bitstream_writer);
 }
 
-Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
+Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                                  RdoSyntaxWriter *writer) {
   const QP &qp = pic_qp_;
   const int kMaxTrSize =
     !Restrictions::Get().disable_ext_transform_size_64 ? 64 : 32;
-  const int depth = (*best_cu)->GetDepth();
-  const bool do_split = depth < pic_data_.GetMaxDepth((*best_cu)->GetCuTree());
-  const bool do_full = (*best_cu)->IsFullyWithinPicture() &&
-    (*best_cu)->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
-    (*best_cu)->GetHeight(YuvComponent::kY) <= kMaxTrSize;
-  assert(do_split || do_full);
-  if (!do_split) {
-    return CompressNoSplit(best_cu, writer);
-  }
-  Bits start_bits = writer->GetNumWrittenBits();
+  CodingUnit *cu = *best_cu;  // Invariant: cu always points to *best_cu
+  const int cu_tree = static_cast<int>(cu->GetCuTree());
+  const int depth = cu->GetDepth();
+  const int max_binary_depth = pic_data_.GetMaxBinaryDepth(cu->GetCuTree());
+  const bool do_quad_split = cu->GetBinaryDepth() == 0 &&
+    depth < pic_data_.GetMaxDepth(cu->GetCuTree());
+  const bool can_binary_split = cu->IsFullyWithinPicture() &&
+    !Restrictions::Get().disable_ext &&
+    cu->GetBinaryDepth() < max_binary_depth &&
+    cu->GetHeight(YuvComponent::kY) <= constants::kMaxBinarySplitSize &&
+    cu->GetWidth(YuvComponent::kY) <= constants::kMaxBinarySplitSize;
+  const bool do_hor_split = can_binary_split &&
+    cu->GetHeight(YuvComponent::kY) > constants::kMinBinarySplitSize;
+  const bool do_ver_split = can_binary_split &&
+    cu->GetWidth(YuvComponent::kY) > constants::kMinBinarySplitSize;
+  const bool do_full = cu->IsFullyWithinPicture() &&
+    cu->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
+    cu->GetHeight(YuvComponent::kY) <= kMaxTrSize;
+  const bool do_split_any = do_quad_split || do_hor_split || do_ver_split;
+  assert(do_full || do_split_any);
 
-  Distortion full_dist = std::numeric_limits<Distortion>::max();
-  Cost full_cost = std::numeric_limits<Cost>::max();
-  CodingUnit::ReconstructionState *fullcu_state = &temp_cu_state_[depth];
-  RdoSyntaxWriter fullcu_writer(*writer);
+  if (!do_split_any) {
+    return CompressNoSplit(best_cu, rdo_depth, writer);
+  }
+  RdoCost best_cost(std::numeric_limits<Cost>::max());
+  CodingUnit::ReconstructionState *best_state = &temp_cu_state_[rdo_depth];
+  RdoSyntaxWriter best_writer(*writer);
+  CodingUnit **temp_cu = &rdo_temp_cu_[cu_tree][rdo_depth];
+  (*temp_cu)->InitializeFrom(*cu);
+
+  // First eval without CU split
   if (do_full) {
-    full_dist = CompressNoSplit(best_cu, &fullcu_writer);
-    Bits full_bits = fullcu_writer.GetNumWrittenBits() - start_bits;
-    full_cost =
-      full_dist + static_cast<Cost>(full_bits * qp.GetLambda() + 0.5);
-    (*best_cu)->SaveStateTo(fullcu_state, rec_pic_);
+    Bits start_bits = writer->GetNumWrittenBits();
+    best_cost.dist = CompressNoSplit(best_cu, rdo_depth, &best_writer);
+    cu = *best_cu;
+    Bits full_bits = best_writer.GetNumWrittenBits() - start_bits;
+    best_cost.cost =
+      best_cost.dist + static_cast<Cost>(full_bits * qp.GetLambda() + 0.5);
+    cu->SaveStateTo(best_state, rec_pic_);
   }
 
-  // After full and split CU have been evaluated best_cu will not change
-  CodingUnit *cu = *best_cu;
-  RdoSyntaxWriter splitcu_writer(*writer);
-  Bits frac_bits_before_split = 0;
-  Distortion split_dist =
-    CompressSplitCu(cu, &splitcu_writer, &frac_bits_before_split);
-  Bits split_bits = splitcu_writer.GetNumWrittenBits() - start_bits;
-  Cost split_cost =
-    split_dist + static_cast<Cost>(split_bits * qp.GetLambda() + 0.5);
-  if (split_cost < full_cost) {
-    *writer = splitcu_writer;
-    return split_dist;
-  }
-
-  // No split case
-  cu->UnSplit();
-  cu->LoadStateFrom(*fullcu_state, &rec_pic_);
-  pic_data_.MarkUsedInPic(cu);
-  *writer = fullcu_writer;
-  return full_dist;
-}
-
-Distortion CuEncoder::CompressSplitCu(CodingUnit *cu,
-                                      RdoSyntaxWriter *rdo_writer,
-                                      Bits *frac_bits_before_split) {
-  cu->Split(SplitType::kQuad);
-  pic_data_.ClearMarkCuInPic(cu);
-  Distortion dist = 0;
-  for (auto &sub_cu : cu->GetSubCu()) {
-    if (sub_cu) {
-      dist += CompressCu(&sub_cu, rdo_writer);
+  // Horizontal split
+  if (do_hor_split) {
+    RdoSyntaxWriter splitcu_writer(*writer);
+    RdoCost split_cost =
+      CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kHorizontal,
+                      &splitcu_writer);
+    if (split_cost.cost < best_cost.cost) {
+      std::swap(*best_cu, *temp_cu);
+      cu = *best_cu;
+      if (!do_quad_split && !do_ver_split) {
+        // No more split evaluations
+        *writer = splitcu_writer;
+        return split_cost.dist;
+      }
+      best_cost = split_cost;
+      best_writer = splitcu_writer;
+      cu->SaveStateTo(best_state, rec_pic_);
+    } else {
+      // Restore (previous) best state
+      cu->LoadStateFrom(*best_state, &rec_pic_);
+      pic_data_.MarkUsedInPic(cu);
     }
   }
-  *frac_bits_before_split = rdo_writer->GetFractionalBits();
-  cu_writer_.WriteSplit(*cu, rdo_writer);
-  return dist;
+
+  // Vertical split
+  if (do_ver_split) {
+    RdoSyntaxWriter splitcu_writer(*writer);
+    RdoCost split_cost =
+      CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kVertical,
+                      &splitcu_writer);
+    if (split_cost.cost < best_cost.cost) {
+      std::swap(*best_cu, *temp_cu);
+      cu = *best_cu;
+      if (!do_quad_split) {
+        // No more split evaluations
+        *writer = splitcu_writer;
+        return split_cost.dist;
+      }
+      best_cost = split_cost;
+      best_writer = splitcu_writer;
+      cu->SaveStateTo(best_state, rec_pic_);
+    } else {
+      // Restore (previous) best state
+      cu->LoadStateFrom(*best_state, &rec_pic_);
+      pic_data_.MarkUsedInPic(cu);
+    }
+  }
+
+  // Quad split
+  if (do_quad_split) {
+    RdoSyntaxWriter splitcu_writer(*writer);
+    RdoCost split_cost =
+      CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kQuad,
+                      &splitcu_writer);
+    if (split_cost.cost < best_cost.cost) {
+      std::swap(*best_cu, *temp_cu);
+      cu = *best_cu;
+      // No more split evaluations
+      *writer = splitcu_writer;
+      return split_cost.dist;
+    } else {
+      // Restore (previous) best state
+      cu->LoadStateFrom(*best_state, &rec_pic_);
+      pic_data_.MarkUsedInPic(cu);
+    }
+  }
+
+  *writer = best_writer;
+  return best_cost.dist;
 }
 
-Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
+CuEncoder::RdoCost
+CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
+                           SplitType split_type, RdoSyntaxWriter *rdo_writer) {
+  if (cu->GetSplit() != SplitType::kNone) {
+    cu->UnSplit();
+  }
+  cu->Split(split_type);
+  pic_data_.ClearMarkCuInPic(cu);
+  Distortion dist = 0;
+  Bits start_bits = rdo_writer->GetNumWrittenBits();
+  for (auto &sub_cu : cu->GetSubCu()) {
+    if (sub_cu) {
+      dist += CompressCu(&sub_cu, rdo_depth + 1, rdo_writer);
+    }
+  }
+  cu_writer_.WriteSplit(*cu, rdo_writer);
+  Bits bits = rdo_writer->GetNumWrittenBits() - start_bits;
+  Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+  return RdoCost(cost, dist);
+}
+
+Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                       RdoSyntaxWriter *writer) {
   const QP &qp = pic_qp_;
   RdoCost best_cost(std::numeric_limits<Cost>::max());
   CodingUnit::ReconstructionState *best_state =
-    &temp_cu_state_[(*best_cu)->GetDepth() + 1];
+    &temp_cu_state_[rdo_depth + 1];
   CodingUnit *cu = *best_cu;
+  if (cu->GetSplit() != SplitType::kNone) {
+    cu->UnSplit();
+  }
   cu->SetQp(qp);
-  cu->SetSplit(SplitType::kNone);
 
   if (pic_data_.IsIntraPic()) {
     best_cost = CompressIntra(cu, qp, *writer);
   } else {
     // Inter pic type
     const int cu_tree = static_cast<int>(cu->GetCuTree());
-    CodingUnit *temp_cu = rdo_temp_cu_[cu_tree][cu->GetDepth()];
-    temp_cu->SetPosition(cu->GetPosX(YuvComponent::kY),
-                         cu->GetPosY(YuvComponent::kY));
-    temp_cu->SetQp(qp);
-    temp_cu->SetSplit(SplitType::kNone);
+    CodingUnit *temp_cu = rdo_temp_cu_[cu_tree][rdo_depth + 1];
+    temp_cu->InitializeFrom(*cu);
+    if (temp_cu->GetSplit() != SplitType::kNone) {
+      temp_cu->UnSplit();
+    }
 
     RdoCost cost;
     if (!Restrictions::Get().disable_inter_merge_mode) {
@@ -191,7 +263,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
     }
 
     *best_cu = cu;
-    rdo_temp_cu_[cu_tree][cu->GetDepth()] = temp_cu;
+    rdo_temp_cu_[cu_tree][rdo_depth + 1] = temp_cu;
     cu->LoadStateFrom(*best_state, &rec_pic_);
   }
   cu->SetRootCbf(cu->GetHasAnyCbf());

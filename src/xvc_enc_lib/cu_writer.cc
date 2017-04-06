@@ -41,7 +41,7 @@ void CuWriter::WriteSplit(const CodingUnit & cu, SyntaxWriter * writer) const {
   if (split_type != SplitType::kQuad && !Restrictions::Get().disable_ext) {
     int width = cu.GetWidth(YuvComponent::kY);
     int height = cu.GetHeight(YuvComponent::kY);
-    if (binary_depth < constants::kMaxBinarySplitDepth &&
+    if (binary_depth < pic_data_.GetMaxBinaryDepth(cu.GetCuTree()) &&
         (width >= constants::kMinBinarySplitSize ||
          height >= constants::kMinBinarySplitSize) &&
          (width <= constants::kMaxBinarySplitSize &&

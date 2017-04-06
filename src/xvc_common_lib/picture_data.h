@@ -58,7 +58,11 @@ public:
   }
   int GetMaxDepth(CuTree cu_tree) const {
     return cu_tree == CuTree::Primary ?
-      constants::kMaxCuDepth : constants::kMaxCuDepth + 1;
+      constants::kMaxCuDepth : constants::kMaxCuDepthChroma;
+  }
+  int GetMaxBinaryDepth(CuTree cu_tree) const {
+    return IsIntraPic() && cu_tree == CuTree::Primary ?
+      constants::kMaxBinarySplitDepth : 0;
   }
 
   // CU data

@@ -54,7 +54,6 @@ public:
   int GetPosY(YuvComponent comp) const {
     return comp == YuvComponent::kY ? pos_y_ : pos_y_ >> chroma_shift_y_;
   }
-  void SetPosition(int posx, int posy);
   int GetDepth() const { return depth_; }
   int GetBinaryDepth() const;
   int GetWidth(YuvComponent comp) const {
@@ -78,6 +77,7 @@ public:
   const QP& GetQp() const;
   void SetQp(const QP &qp);
   int GetQp(YuvComponent comp) const;
+  void InitializeFrom(const CodingUnit &cu);
 
   // Picture related data
   const PictureData* GetPicData() const;
@@ -176,20 +176,20 @@ public:
   void LoadStateFrom(const InterState &state);
 
 private:
-  CuTree cu_tree_;
+  const PictureData &pic_data_;
+  const int chroma_shift_x_;
+  const int chroma_shift_y_;
+  const CuTree cu_tree_;
   int pos_x_;
   int pos_y_;
   int width_;
   int height_;
-  int chroma_shift_x_;
-  int chroma_shift_y_;
+  int depth_;
   std::array<bool, constants::kMaxYuvComponents> cbf_;
   std::array<std::vector<Coeff>, constants::kMaxYuvComponents> coeff_;
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
-  const PictureData &pic_data_;
   const QP *qp_;
   SplitType split_state_;
-  int depth_;
   PredictionMode pred_mode_;
   bool root_cbf_;
   // Intra

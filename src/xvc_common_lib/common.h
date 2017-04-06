@@ -67,16 +67,21 @@ const int kMaxNumCuTrees = 2;
 const int kCtuSize = 64;
 // CU size and depth for luma
 const int kMaxCuDepth = 3;
+const int kMaxCuDepthChroma = kMaxCuDepth + 1;
 const int kMinCuSize = (kCtuSize >> kMaxCuDepth);
 // Binary split
 const int kMaxBinarySplitDepth = 0;
+const int kMaxBinarySplitDepthChroma = 0;
 const int kMaxBinarySplitSize = 32;
 const int kMinBinarySplitSize = 4;
 
 // Actual storage required (to allow for deeper chroma CU trees)
 const int kMaxBlockSize = kCtuSize;
-const int kMaxBlockDepth = kMaxCuDepth + 1;
-const int kMinBlockSize = (kMaxBlockSize >> kMaxBlockDepth);
+const int kMaxBlockDepthLuma = kMaxCuDepth + kMaxBinarySplitDepth;
+const int kMaxBlockDepthChroma = kMaxCuDepthChroma + kMaxBinarySplitDepthChroma;
+const int kMaxBlockDepth = kMaxBlockDepthLuma > kMaxBlockDepthChroma ?
+kMaxBlockDepthLuma : kMaxBlockDepthChroma;
+const int kMinBlockSize = kMaxBlockSize >> kMaxBlockDepth;
 
 const int kQuadSplit = 4;
 

@@ -494,7 +494,7 @@ SplitType SyntaxReader::ReadSplitBinary(const CodingUnit & cu) {
     (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
   ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
   uint32_t bin2 = entropydec_->DecodeBin(&ctx2);
-  return bin2 != 0 ? SplitType::kHorizontal : SplitType::kVertical;
+  return bin2 != 0 ? SplitType::kVertical : SplitType::kHorizontal;
 }
 
 SplitType SyntaxReader::ReadSplitQuad(const CodingUnit &cu, int max_depth) {

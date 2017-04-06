@@ -39,7 +39,6 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
     std::fill(cu_pic_table_[tree_idx].begin(),
               cu_pic_table_[tree_idx].end(), nullptr);
   }
-  AllocateAllCtu(CuTree::Primary);
 }
 
 PictureData::~PictureData() {
@@ -73,6 +72,9 @@ void PictureData::Init(const QP &pic_qp) {
     for (CodingUnit *ctu : ctu_rs_list_[tree_idx]) {
       ReleaseSubCuRecursively(ctu);
     }
+  }
+  if (ctu_rs_list_[static_cast<int>(CuTree::Primary)].empty()) {
+    AllocateAllCtu(CuTree::Primary);
   }
   if (num_cu_trees_ > 1 &&
       ctu_rs_list_[static_cast<int>(CuTree::Secondary)].empty()) {
@@ -116,6 +118,14 @@ void PictureData::ReleaseCu(CodingUnit *cu) const {
 }
 
 void PictureData::MarkUsedInPic(CodingUnit *cu) {
+  if (cu->GetSplit() != SplitType::kNone) {
+    for (CodingUnit *sub_cu : cu->GetSubCu()) {
+      if (sub_cu) {
+        MarkUsedInPic(sub_cu);
+      }
+    }
+    return;
+  }
   const int cu_tree = static_cast<int>(cu->GetCuTree());
   const int index_x = cu->GetPosX(YuvComponent::kY) / constants::kMinBlockSize;
   const int index_y = cu->GetPosY(YuvComponent::kY) / constants::kMinBlockSize;

@@ -19,19 +19,19 @@ namespace xvc {
 
 CodingUnit::CodingUnit(const PictureData &pic_data, CuTree cu_tree, int depth,
                        int pic_x, int pic_y, int width, int height)
-  : cu_tree_(cu_tree),
+  : pic_data_(pic_data),
+  chroma_shift_x_(pic_data.GetChromaShiftX()),
+  chroma_shift_y_(pic_data.GetChromaShiftY()),
+  cu_tree_(cu_tree),
   pos_x_(pic_x),
   pos_y_(pic_y),
   width_(width),
   height_(height),
-  chroma_shift_x_(pic_data.GetChromaShiftX()),
-  chroma_shift_y_(pic_data.GetChromaShiftY()),
+  depth_(depth),
   cbf_({ { false, false, false } }),
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
-  pic_data_(pic_data),
   qp_(nullptr),
   split_state_(SplitType::kNone),
-  depth_(depth),
   pred_mode_(PredictionMode::kIntra),
   root_cbf_(false),
   intra_mode_luma_(IntraMode::kInvalid),
@@ -39,14 +39,11 @@ CodingUnit::CodingUnit(const PictureData &pic_data, CuTree cu_tree, int depth,
   inter_() {
   ptrdiff_t coeff_stride = GetCoeffStride();
   for (int c = 0; c < constants::kMaxYuvComponents; c++) {
-    int comp_height = GetHeight(YuvComponent(c));
-    coeff_[c].resize(coeff_stride * comp_height);
+    YuvComponent comp = YuvComponent(c);
+    int comp_height = util::ScaleSizeY(constants::kMaxBlockSize,
+                                       pic_data_.GetChromaFormat(), comp);
+    coeff_[static_cast<int>(comp)].resize(comp_height * coeff_stride);
   }
-}
-
-void CodingUnit::SetPosition(int posx, int posy) {
-  pos_x_ = posx;
-  pos_y_ = posy;
 }
 
 int CodingUnit::GetBinaryDepth() const {
@@ -65,6 +62,16 @@ void CodingUnit::SetQp(const QP &qp) {
 
 int CodingUnit::GetQp(YuvComponent comp) const {
   return qp_->GetQpRaw(comp);
+}
+
+void CodingUnit::InitializeFrom(const CodingUnit &cu) {
+  assert(cu_tree_ == cu.cu_tree_);
+  pos_x_ = cu.pos_x_;
+  pos_y_ = cu.pos_y_;
+  width_ = cu.width_;
+  height_ = cu.height_;
+  depth_ = cu.depth_;
+  qp_ = cu.qp_;
 }
 
 const PictureData* CodingUnit::GetPicData() const {
