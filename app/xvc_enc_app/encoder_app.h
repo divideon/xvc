@@ -69,6 +69,8 @@ private:
     int tc_offset = std::numeric_limits<int>::min();
     int qp = -1;
     int flat_lambda = -1;
+    int speed_mode = -1;
+    std::string explicit_speed_settings;
     int verbose = 0;
   } cli_;
 

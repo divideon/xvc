@@ -81,6 +81,8 @@ extern "C" {
     int tc_offset;
     int qp;
     int flat_lambda;
+    int speed_mode;
+    char* explicit_speed_settings;
   } xvc_encoder_parameters;
 
   typedef struct xvc_encoder_api {

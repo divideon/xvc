@@ -24,7 +24,7 @@ enum class RestrictedMode {
 // initialized to true.
 typedef struct Restrictions {
 public:
-  static const Restrictions &Get() { return instance; }
+  static const Restrictions& Get() { return instance; }
 
   static bool GetIntraRestrictions() {
     return instance.disable_intra_ref_padding ||

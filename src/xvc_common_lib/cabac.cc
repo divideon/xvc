@@ -354,9 +354,7 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
       }
     };
     update_min_max(cu.GetCodingUnitLeft());
-    // update_min_max(cu.GetCodingUnitLeftBelow());
     update_min_max(cu.GetCodingUnitAbove());
-    // update_min_max(cu.GetCodingUnitAboveRight());
     min_depth = std::max(0, min_depth - 1);
     max_depth = std::min(pic_max_depth, max_depth + 1);
     if (cu.GetDepth() < min_depth) {

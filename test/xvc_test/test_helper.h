@@ -92,7 +92,7 @@ protected:
   }
 
   std::unique_ptr<xvc::Encoder>
-  CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
+    CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
     std::unique_ptr<xvc::Encoder> encoder(
       new xvc::Encoder(internal_bitdepth, qp));
     encoder->SetResolution(width, height);
@@ -101,6 +101,9 @@ protected:
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);
     encoder->SetDeblock(1);
+    xvc::SpeedSettings speed_settings;
+    speed_settings.Initialize(xvc::SpeedMode::kSlow);
+    encoder->SetSpeedSettings(std::move(speed_settings));
     return encoder;
   }
 
@@ -111,7 +114,7 @@ protected:
     size_t plane_samples =
       segment->pic_width * segment->pic_height * sample_size;
     std::vector<uint8_t> pic_bytes(plane_samples *
-                                       ::xvc::constants::kMaxYuvComponents);
+                                   ::xvc::constants::kMaxYuvComponents);
     if (bitdepth == 8) {
       std::fill(pic_bytes.begin(), pic_bytes.end(),
                 static_cast<uint8_t>(fill_sample));

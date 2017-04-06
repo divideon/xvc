@@ -18,6 +18,7 @@
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/picture_encoder.h"
+#include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/xvcenc.h"
 
 struct xvc_encoder {};
@@ -60,6 +61,9 @@ public:
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
   void SetRestrictedMode(int mode);
 
+  const SpeedSettings& GetSpeedSettings() { return speed_settings; }
+  void SetSpeedSettings(SpeedSettings &&s) { speed_settings = s; }
+
 private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
                         PicNum sub_gop_length);
@@ -85,6 +89,7 @@ private:
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   int segment_qp_ = -1;
   bool flat_lambda_ = false;
+  SpeedSettings speed_settings;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter bit_writer_;

@@ -82,6 +82,10 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       cli_.qp = std::stoi(std::string(argv[++i]));
     } else if (arg == "-flat-lambda") {
       cli_.flat_lambda = std::stoi(std::string(argv[++i]));
+    } else if (arg == "-speed-mode") {
+      cli_.speed_mode = std::stoi(std::string(argv[++i]));
+    } else if (arg == "-explicit-speed-settings") {
+      cli_.explicit_speed_settings = std::string(argv[++i]);
     } else if (arg == "-verbose") {
       cli_.verbose = std::stoi(std::string(argv[++i]));
     } else {
@@ -225,6 +229,12 @@ void EncoderApp::CreateAndConfigureApi() {
   }
   if (cli_.flat_lambda >= 0) {
     params_->flat_lambda = cli_.flat_lambda;
+  }
+  if (cli_.speed_mode != -1) {
+    params_->speed_mode = cli_.speed_mode;
+  }
+  if (!cli_.explicit_speed_settings.empty()) {
+    params_->explicit_speed_settings = &cli_.explicit_speed_settings[0];
   }
   xvc_enc_return_code ret = xvc_api_->parameters_check(params_);
   if (ret != XVC_ENC_OK) {
@@ -394,6 +404,7 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -beta-offset <int>" << std::endl;
   std::cout << "  -tc-offset <int>" << std::endl;
   std::cout << "  -qp <int>" << std::endl;
+  std::cout << "  -speed-mode <int>" << std::endl;
   std::cout << "  -verbose <0/1>" << std::endl;
 }
 

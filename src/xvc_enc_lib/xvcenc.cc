@@ -9,9 +9,12 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <sstream>
+#include <string>
 
 #include "xvc_common_lib/common.h"
 #include "xvc_enc_lib/encoder.h"
+#include "xvc_enc_lib/speed_settings.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,6 +52,8 @@ extern "C" {
     param->tc_offset = 0;
     param->qp = 32;
     param->flat_lambda = 0;
+    param->speed_mode = -1;
+    param->explicit_speed_settings = nullptr;
     return XVC_ENC_OK;
   }
 
@@ -120,15 +125,75 @@ extern "C" {
     if (param->flat_lambda < 0 || param->flat_lambda > 1) {
       return XVC_ENC_INVALID_PARAMETER;
     }
+    if (param->speed_mode < -1 ||
+        param->speed_mode >= static_cast<int>(xvc::SpeedMode::kTotalNumber)) {
+      return XVC_ENC_INVALID_PARAMETER;
+    }
     return XVC_ENC_OK;
+  }
+
+  void xvc_enc_set_speed_mode(xvc::Encoder *encoder,
+                              xvc_encoder_parameters *param) {
+    xvc::SpeedSettings speed_settings;
+
+    if (param->speed_mode >= 0) {
+      // If speed mode has been set explictly
+      speed_settings.Initialize(xvc::SpeedMode(param->speed_mode));
+    } else if (param->restricted_mode) {
+      // If restricted mode has been set explictly
+      speed_settings.Initialize(xvc::RestrictedMode(param->restricted_mode));
+    } else {
+      speed_settings.Initialize(xvc::SpeedMode::kSlow);
+    }
+
+    // Explicit speed settings override the settings
+    if (param->explicit_speed_settings) {
+      std::string expl_values(param->explicit_speed_settings);
+      std::string setting;
+      std::stringstream stream(expl_values);
+      while (stream >> setting) {
+        if (setting == "eval_prev_mv_search_result") {
+          stream >> speed_settings.eval_prev_mv_search_result;
+        } else if (setting == "fast_intra_mode_eval_level") {
+          stream >> speed_settings.fast_intra_mode_eval_level;
+        } else if (setting == "bipred_refinement_iterations") {
+          stream >> speed_settings.bipred_refinement_iterations;
+        } else if (setting == "fast_merge_rdo") {
+          stream >> speed_settings.fast_merge_rdo;
+        }
+      }
+    }
+
+    encoder->SetSpeedSettings(std::move(speed_settings));
+  }
+
+
+
+  void xvc_enc_set_segment_length(xvc::Encoder *encoder,
+                                  xvc_encoder_parameters *param) {
+    xvc::PicNum segment_length = 1;
+    if (param->max_keypic_distance == 0) {
+      segment_length = ((std::numeric_limits<xvc::PicNum>::max() /
+                         param->sub_gop_length) * param->sub_gop_length);
+    } else {
+      segment_length =
+        (param->max_keypic_distance / param->sub_gop_length) *
+        param->sub_gop_length;
+    }
+    encoder->SetSegmentLength(segment_length);
+
+    if (param->closed_gop > 0) {
+      encoder->SetClosedGopInterval(segment_length*param->closed_gop);
+    } else {
+      encoder->SetClosedGopInterval(((std::numeric_limits<xvc::PicNum>::max() /
+                                      param->sub_gop_length) *
+                                     param->sub_gop_length));
+    }
   }
 
   xvc_encoder* xvc_enc_encoder_create(xvc_encoder_parameters *param) {
     if (xvc_enc_parameters_check(param) != XVC_ENC_OK) {
       return nullptr;
-    }
-    if (param->sub_gop_length == 0) {
-      param->sub_gop_length = param->num_ref_pics > 0 ? 16 : 1;
     }
     xvc::Encoder *encoder =
       new xvc::Encoder(param->internal_bitdepth, param->qp);
@@ -136,6 +201,9 @@ extern "C" {
     encoder->SetChromaFormat(param->chroma_format);
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetFramerate(param->framerate);
+    if (param->sub_gop_length == 0) {
+      param->sub_gop_length = param->num_ref_pics > 0 ? 16 : 1;
+    }
     encoder->SetSubGopLength(param->sub_gop_length);
     encoder->SetNumRefPics(param->num_ref_pics);
     encoder->SetPicBufferingNum(param->sub_gop_length + param->num_ref_pics);
@@ -149,24 +217,9 @@ extern "C" {
     }
     encoder->SetFlatLambda(param->flat_lambda != 0);
 
-    // Calculate what intra-period i.e. Gop-length i.e. segment-length to use.
-    xvc::PicNum segment_length = 1;
-    if (param->max_keypic_distance == 0) {
-      segment_length = ((std::numeric_limits<xvc::PicNum>::max() /
-                         param->sub_gop_length) * param->sub_gop_length);
-    } else {
-      segment_length =
-        (param->max_keypic_distance / param->sub_gop_length) *
-        param->sub_gop_length;
-    }
-    encoder->SetSegmentLength(segment_length);
-    if (param->closed_gop > 0) {
-      encoder->SetClosedGopInterval(segment_length*param->closed_gop);
-    } else {
-      encoder->SetClosedGopInterval(((std::numeric_limits<xvc::PicNum>::max() /
-                                      param->sub_gop_length) *
-                                     param->sub_gop_length));
-    }
+    xvc_enc_set_speed_mode(encoder, param);
+    xvc_enc_set_segment_length(encoder, param);
+
     return encoder;
   }
 
