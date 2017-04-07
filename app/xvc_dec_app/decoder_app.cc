@@ -9,6 +9,7 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 namespace xvc_app {
@@ -30,7 +31,7 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
     std::exit(0);
   }
 
-  for (int i = 1; i < argc - 1; i++) {
+  for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "-h") {
       PrintUsage();
@@ -40,20 +41,22 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
     } else if (arg == "-output-file") {
       cli_.output_file = argv[++i];
     } else if (arg == "-output-width") {
-      cli_.output_width = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.output_width;
     } else if (arg == "-output-height") {
-      cli_.output_height = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.output_height;
     } else if (arg == "-output-chroma-format") {
-      cli_.output_chroma_format = static_cast<xvc_dec_chroma_format>(
-        std::stoi(std::string(argv[++i])));
+      int tmp;
+      std::stringstream(argv[++i]) >> tmp;
+      cli_.output_chroma_format = static_cast<xvc_dec_chroma_format>(tmp);
     } else if (arg == "-output-bitdepth") {
-      cli_.output_bitdepth = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.output_bitdepth;
     } else if (arg == "-max-framerate") {
-      cli_.max_framerate = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.max_framerate;
     } else if (arg == "-verbose") {
-      cli_.verbose = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.verbose;
     } else {
       std::cerr << "Unknown argument: " << arg << std::endl;
+      PrintUsage();
       std::exit(1);
     }
   }
@@ -107,6 +110,7 @@ void DecoderApp::CreateAndConfigureApi() {
   if (xvc_api_->parameters_check(params_) != XVC_DEC_OK) {
     std::cout << "Error. Invalid parameters. Please check the values of the"
       " command line parameters." << std::endl;
+    PrintUsage();
     std::exit(1);
   }
   decoder_ = xvc_api_->decoder_create(params_);
@@ -227,7 +231,7 @@ int DecoderApp::CheckConformance() {
 }
 
 void DecoderApp::PrintUsage() {
-  std::cout << "Usage: -bitstream-file <string>"
+  std::cout << std::endl << "Usage: -bitstream-file <string>"
     " -output-file <string>  [Optional parameters]" << std::endl;
   std::cout << std::endl << "Optional parameters:" << std::endl;
   std::cout << "  -output-width <int>" << std::endl;

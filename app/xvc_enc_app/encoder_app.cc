@@ -9,6 +9,7 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #include "xvc_enc_app/y4m.h"
@@ -31,8 +32,7 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
     PrintUsage();
     std::exit(0);
   }
-
-  for (int i = 1; i < argc - 1; i++) {
+  for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "-h") {
       PrintUsage();
@@ -44,52 +44,54 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
     } else if (arg == "-rec-file") {
       cli_.rec_file = argv[++i];
     } else if (arg == "-input-width") {
-      cli_.width = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.width;
     } else if (arg == "-input-height") {
-      cli_.height = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.height;
     } else if (arg == "-input-chroma-format") {
-      cli_.chroma_format = static_cast<xvc_enc_chroma_format>(
-        std::stoi(std::string(argv[++i])));
+      int tmp;
+      std::stringstream(argv[++i]) >> tmp;
+      cli_.chroma_format = static_cast<xvc_enc_chroma_format>(tmp);
     } else if (arg == "-input-bitdepth") {
-      cli_.input_bitdepth = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.input_bitdepth;
     } else if (arg == "-internal-bitdepth") {
-      cli_.internal_bitdepth = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.internal_bitdepth;
     } else if (arg == "-framerate") {
-      cli_.framerate = std::stof(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.framerate;
     } else if (arg == "-skip-pictures") {
-      cli_.skip_pictures = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.skip_pictures;
     } else if (arg == "-temporal-subsample") {
-      cli_.temporal_subsample = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.temporal_subsample;
     } else if (arg == "-max-pictures") {
-      cli_.max_num_pictures = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.max_num_pictures;
     } else if (arg == "-sub-gop-length") {
-      cli_.sub_gop_length = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.sub_gop_length;
     } else if (arg == "-max-keypic-distance") {
-      cli_.max_keypic_distance = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.max_keypic_distance;
     } else if (arg == "-closed-gop") {
-      cli_.closed_gop = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.closed_gop;
     } else if (arg == "-num-ref-pics") {
-      cli_.num_ref_pics = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.num_ref_pics;
     } else if (arg == "-restricted-mode") {
-      cli_.restricted_mode = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.restricted_mode;
     } else if (arg == "-deblock") {
-      cli_.deblock = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.deblock;
     } else if (arg == "-beta-offset") {
-      cli_.beta_offset = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.beta_offset;
     } else if (arg == "-tc-offset") {
-      cli_.tc_offset = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.tc_offset;
     } else if (arg == "-qp") {
-      cli_.qp = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.qp;
     } else if (arg == "-flat-lambda") {
-      cli_.flat_lambda = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.flat_lambda;
     } else if (arg == "-speed-mode") {
-      cli_.speed_mode = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.speed_mode;
     } else if (arg == "-explicit-speed-settings") {
-      cli_.explicit_speed_settings = std::string(argv[++i]);
+      cli_.explicit_speed_settings = argv[++i];
     } else if (arg == "-verbose") {
-      cli_.verbose = std::stoi(std::string(argv[++i]));
+      std::stringstream(argv[++i]) >> cli_.verbose;
     } else {
       std::cerr << "Error: Unknown argument: " << arg << std::endl;
+      PrintUsage();
       std::exit(1);
     }
   }
@@ -239,6 +241,7 @@ void EncoderApp::CreateAndConfigureApi() {
   xvc_enc_return_code ret = xvc_api_->parameters_check(params_);
   if (ret != XVC_ENC_OK) {
     std::cout << xvc_api_->xvc_enc_get_error_text(ret) << std::endl;
+    PrintUsage();
     std::exit(1);
   }
   encoder_ = xvc_api_->encoder_create(params_);
