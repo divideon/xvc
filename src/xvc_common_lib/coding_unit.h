@@ -62,8 +62,8 @@ public:
   int GetHeight(YuvComponent comp) const {
     return comp == YuvComponent::kY ? height_ : height_ >> chroma_shift_y_;
   }
-  bool IsSplit() const { return split_; }
-  void SetSplit(bool split) { split_ = split; }
+  bool IsSplit() const { return split_state_ != SplitType::kNone; }
+  void SetSplit(SplitType split_type) { split_state_ = split_type; }
   std::array<CodingUnit*, constants::kQuadSplit> &GetSubCu() {
     return sub_cu_list_;
   }
@@ -165,7 +165,7 @@ public:
   }
 
   // State handling
-  void SplitQuad();
+  void Split(SplitType split_type);
   void UnSplit();
   void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic);
   void SaveStateTo(TransformState *state, const YuvPicture &rec_pic);
@@ -187,7 +187,7 @@ private:
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
   const PictureData &pic_data_;
   const QP *qp_;
-  bool split_;
+  SplitType split_state_;
   int depth_;
   PredictionMode pred_mode_;
   bool root_cbf_;

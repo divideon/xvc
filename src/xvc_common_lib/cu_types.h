@@ -9,6 +9,13 @@
 
 namespace xvc {
 
+enum class SplitType {
+  kNone,
+  kQuad,
+  kHorizontal,
+  kVertical,
+};
+
 enum class PredictionMode {
   kIntra = 0,
   kInter = 1,

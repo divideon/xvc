@@ -207,7 +207,7 @@ void PictureData::ReleaseSubCuRecursively(CodingUnit *cu) const {
     }
   }
   cu->GetSubCu().fill(nullptr);
-  cu->SetSplit(false);
+  cu->SetSplit(SplitType::kNone);
 }
 
 }   // namespace xvc

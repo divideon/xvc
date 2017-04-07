@@ -30,7 +30,7 @@ CodingUnit::CodingUnit(const PictureData &pic_data, CuTree cu_tree, int depth,
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
   pic_data_(pic_data),
   qp_(nullptr),
-  split_(false),
+  split_state_(SplitType::kNone),
   depth_(depth),
   pred_mode_(PredictionMode::kIntra),
   root_cbf_(false),
@@ -203,35 +203,69 @@ IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
   return static_cast<IntraMode>(intra_mode_chroma_);
 }
 
-void CodingUnit::SplitQuad() {
-  assert(!split_);
+void CodingUnit::Split(SplitType split_type) {
+  assert(split_type != SplitType::kNone);
+  assert(split_state_ == SplitType::kNone);
   assert(!sub_cu_list_[0]);
-  int sub_width = GetWidth(YuvComponent::kY) >> 1;
-  int sub_height = GetHeight(YuvComponent::kY) >> 1;
-  int sub_depth = GetDepth() + 1;
-  sub_cu_list_[0] =
-    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 0,
-                       pos_y_ + sub_height * 0, sub_width, sub_height);
-  sub_cu_list_[1] =
-    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 1,
-                       pos_y_ + sub_height * 0, sub_width, sub_height);
-  sub_cu_list_[2] =
-    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 0,
-                       pos_y_ + sub_height * 1, sub_width, sub_height);
-  sub_cu_list_[3] =
-    pic_data_.CreateCu(cu_tree_, sub_depth, pos_x_ + sub_width * 1,
-                       pos_y_ + sub_height * 1, sub_width, sub_height);
-  split_ = true;
+  split_state_ = split_type;
+  int sub_width = width_ >> 1;
+  int sub_height = height_ >> 1;
+  int quad_subdepth = depth_ + 1;
+  switch (split_type) {
+    case SplitType::kQuad:
+      sub_cu_list_[0] =
+        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 0,
+                           pos_y_ + sub_height * 0, sub_width, sub_height);
+      sub_cu_list_[1] =
+        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 1,
+                           pos_y_ + sub_height * 0, sub_width, sub_height);
+      sub_cu_list_[2] =
+        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 0,
+                           pos_y_ + sub_height * 1, sub_width, sub_height);
+      sub_cu_list_[3] =
+        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 1,
+                           pos_y_ + sub_height * 1, sub_width, sub_height);
+      break;
+
+    case SplitType::kHorizontal:
+      sub_cu_list_[0] =
+        pic_data_.CreateCu(cu_tree_, depth_, pos_x_,
+                           pos_y_ + sub_height * 0, width_, sub_height);
+      sub_cu_list_[1] =
+        pic_data_.CreateCu(cu_tree_, depth_, pos_x_,
+                           pos_y_ + sub_height * 1, width_, sub_height);
+      sub_cu_list_[2] = nullptr;
+      sub_cu_list_[3] = nullptr;
+      break;
+
+    case SplitType::kVertical:
+      sub_cu_list_[0] =
+        pic_data_.CreateCu(cu_tree_, depth_, pos_x_ + sub_width * 0,
+                           pos_y_, sub_width, height_);
+      sub_cu_list_[1] =
+        pic_data_.CreateCu(cu_tree_, depth_, pos_x_ + sub_width * 1,
+                           pos_y_, sub_width, height_);
+      sub_cu_list_[2] = nullptr;
+      sub_cu_list_[3] = nullptr;
+      break;
+
+    case SplitType::kNone:
+    default:
+      assert(0);
+      break;
+  }
 }
 
 void CodingUnit::UnSplit() {
-  assert(split_);
+  assert(split_state_ != SplitType::kNone);
   assert(sub_cu_list_[0]);
   for (int i = 0; i < static_cast<int>(sub_cu_list_.size()); i++) {
-    pic_data_.ReleaseCu(sub_cu_list_[i]);
+    if (sub_cu_list_[i]) {
+      pic_data_.ReleaseCu(sub_cu_list_[i]);
+    }
   }
   sub_cu_list_.fill(nullptr);
-  split_ = false;
+  split_state_ = SplitType::kNone;
 }
 
 void CodingUnit::SaveStateTo(ReconstructionState *dst_state,

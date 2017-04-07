@@ -24,14 +24,14 @@ void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
     split = false;
   }
   if (split) {
-    cu->SplitQuad();
+    cu->Split(SplitType::kQuad);
     for (CodingUnit *sub_cu : cu->GetSubCu()) {
       if (sub_cu) {
         ReadCu(sub_cu, reader);
       }
     }
   } else {
-    cu->SetSplit(false);
+    cu->SetSplit(SplitType::kNone);
     pic_data_->MarkUsedInPic(cu);
     for (YuvComponent comp : pic_data_->GetComponents(cu->GetCuTree())) {
       ReadComponent(cu, comp, reader);

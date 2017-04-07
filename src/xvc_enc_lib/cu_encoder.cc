@@ -130,7 +130,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu,
 Distortion CuEncoder::CompressSplitCu(CodingUnit *cu,
                                       RdoSyntaxWriter *rdo_writer,
                                       Bits *frac_bits_before_split) {
-  cu->SplitQuad();
+  cu->Split(SplitType::kQuad);
   pic_data_.ClearMarkCuInPic(cu);
   Distortion dist = 0;
   for (auto &sub_cu : cu->GetSubCu()) {
@@ -155,7 +155,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
     &temp_cu_state_[(*best_cu)->GetDepth() + 1];
   CodingUnit *cu = *best_cu;
   cu->SetQp(qp);
-  cu->SetSplit(false);
+  cu->SetSplit(SplitType::kNone);
 
   if (pic_data_.IsIntraPic()) {
     best_cost = CompressIntra(cu, qp, *writer);
@@ -166,7 +166,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
     temp_cu->SetPosition(cu->GetPosX(YuvComponent::kY),
                          cu->GetPosY(YuvComponent::kY));
     temp_cu->SetQp(qp);
-    temp_cu->SetSplit(false);
+    temp_cu->SetSplit(SplitType::kNone);
 
     RdoCost cost;
     if (!Restrictions::Get().disable_inter_merge_mode) {
