@@ -61,8 +61,8 @@ public:
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
   void SetRestrictedMode(int mode);
 
-  const SpeedSettings& GetSpeedSettings() { return speed_settings; }
-  void SetSpeedSettings(SpeedSettings &&s) { speed_settings = s; }
+  const SpeedSettings& GetSpeedSettings() { return speed_settings_; }
+  void SetSpeedSettings(SpeedSettings &&s) { speed_settings_ = s; }
 
 private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
@@ -89,7 +89,7 @@ private:
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   int segment_qp_ = -1;
   bool flat_lambda_ = false;
-  SpeedSettings speed_settings;
+  SpeedSettings speed_settings_;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter bit_writer_;

@@ -19,6 +19,7 @@
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/inter_search.h"
+#include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
 namespace xvc {
@@ -26,7 +27,7 @@ namespace xvc {
 class CuEncoder {
 public:
   CuEncoder(const QP &qp, const YuvPicture &orig_pic, YuvPicture *rec_pic,
-            PictureData *pic_data);
+            PictureData *pic_data, const SpeedSettings &speed_settings);
   ~CuEncoder();
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 
@@ -72,6 +73,7 @@ private:
   const Sample max_pel_;
   const QP &pic_qp_;
   const YuvPicture &orig_pic_;
+  const SpeedSettings &speed_settings_;
   YuvPicture &rec_pic_;
   PictureData &pic_data_;
   InterSearch inter_search_;

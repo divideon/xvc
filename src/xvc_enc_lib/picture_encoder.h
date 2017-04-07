@@ -17,6 +17,7 @@
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/bit_writer.h"
+#include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/xvcenc.h"
 
@@ -34,7 +35,8 @@ public:
 
   std::vector<uint8_t>* Encode(const SegmentHeader &segment, int segment_qp,
                                PicNum sub_gop_length, int buffer_flag,
-                               bool flat_lambda);
+                               bool flat_lambda,
+                               const SpeedSettings &speed_settings);
   std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
     ChromaFormat chroma_format, int width, int height, int bitdepth) const;

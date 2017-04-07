@@ -98,9 +98,7 @@ public:
       instance.disable_ext_cabac_alt_inter_dir_ctx ||
       instance.disable_ext_cabac_alt_last_pos_ctx ||
       instance.disable_ext_two_cu_trees ||
-      instance.disable_ext_transform_size_64 ||
-      instance.disable_ext_alt_num_intra_fast_modes ||
-      instance.disable_ext_reuse_mv_candidates;
+      instance.disable_ext_transform_size_64;
   }
 
   bool disable_intra_ref_padding = false;
@@ -160,8 +158,6 @@ public:
   bool disable_ext_cabac_alt_last_pos_ctx = false;
   bool disable_ext_two_cu_trees = false;
   bool disable_ext_transform_size_64 = false;
-  bool disable_ext_alt_num_intra_fast_modes = false;
-  bool disable_ext_reuse_mv_candidates = false;
 
 private:
   // The GetRW function shall be used only when there is a need to

@@ -189,7 +189,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> *pic_bytes =
     pic->Encode(segment_header_, segment_qp_, sub_gop_length, bflag,
-                flat_lambda_);
+                flat_lambda_, speed_settings_);
 
   // When a picture has been encoded the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.

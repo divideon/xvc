@@ -77,10 +77,12 @@ private:
 };
 
 InterSearch::InterSearch(int bitdepth, const YuvPicture &orig_pic,
-                         const ReferencePictureLists &ref_pic_list)
+                         const ReferencePictureLists &ref_pic_list,
+                         const SpeedSettings &speed_settings)
   : InterPrediction(bitdepth),
   bitdepth_(bitdepth),
   orig_pic_(orig_pic),
+  speed_settings_(speed_settings),
   bipred_orig_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize),
   bipred_pred_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize) {
   std::vector<int> l1_mapping;
@@ -373,7 +375,7 @@ InterSearch::TZSearch(const CodingUnit &cu, const QP &qp,
   // Check MV from previous CU search (can be either same or a different size)
   // TODO(PH) Consider always using?
   if (cu.GetDepth() != 0 &&
-      Restrictions::Get().disable_ext_reuse_mv_candidates) {
+      speed_settings_.eval_prev_mv_search_result) {
     int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
     int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
     ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);

@@ -242,12 +242,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     if (bit_reader->ReadBit()) {
       restr.disable_ext_transform_size_64 = true;
     }
-    if (bit_reader->ReadBit()) {
-      restr.disable_ext_alt_num_intra_fast_modes = true;
-    }
-    if (bit_reader->ReadBit()) {
-      restr.disable_ext_reuse_mv_candidates = true;
-    }
   }
 
   segment_header->soc = segment_counter;

@@ -33,7 +33,7 @@ PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
 std::vector<uint8_t>*
 PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                        PicNum sub_gop_length, int buffer_flag,
-                       bool flat_lambda) {
+                       bool flat_lambda, const SpeedSettings &speed_settings) {
   int lambda_sub_gop_length =
     !flat_lambda ? static_cast<int>(segment.max_sub_gop_length) : 1;
   int lambda_max_tid = SegmentHeader::GetMaxTid(lambda_sub_gop_length);
@@ -51,8 +51,9 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   EntropyEncoder entropy_encoder(&bit_writer_);
   entropy_encoder.Start();
   SyntaxWriter writer(qp, pic_data_->GetPredictionType(), &entropy_encoder);
-  std::unique_ptr<CuEncoder> cu_encoder(
-    new CuEncoder(qp, *orig_pic_, rec_pic_.get(), pic_data_.get()));
+  std::unique_ptr<CuEncoder>
+    cu_encoder(new CuEncoder(qp, *orig_pic_, rec_pic_.get(), pic_data_.get(),
+                             speed_settings));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
     cu_encoder->EncodeCtu(rsaddr, &writer);

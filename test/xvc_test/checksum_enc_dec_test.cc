@@ -65,9 +65,11 @@ protected:
     pic_encoder_->GetOrigPic()->CopyFrom(reinterpret_cast<uint8_t*>(orig),
                                          input_bitdepth_);
     pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
+    xvc::SpeedSettings speed_settings;
+    speed_settings.Initialize(xvc::SpeedMode::kSlow);
     return pic_encoder_->Encode(segment_, segment_qp_,
                                 segment_.max_sub_gop_length, buffer_flag,
-                                flat_lamda);
+                                flat_lamda, speed_settings);
   }
 
   bool DecodePicture(const std::vector<uint8_t> &bitstream) {

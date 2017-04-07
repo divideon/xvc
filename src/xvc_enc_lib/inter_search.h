@@ -16,6 +16,7 @@
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_enc_lib/sample_metric.h"
+#include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
 namespace xvc {
@@ -30,7 +31,8 @@ public:
   struct SearchState;
 
   InterSearch(int bitdepth, const YuvPicture &orig_pic,
-              const ReferencePictureLists &ref_pic_list);
+              const ReferencePictureLists &ref_pic_list,
+              const SpeedSettings &speed_settings);
   void Search(CodingUnit *cu, const QP &qp,
               PicturePredictionType pic_type,
               const SyntaxWriter &bitstream_writer,
@@ -118,6 +120,7 @@ private:
 
   int bitdepth_;
   const YuvPicture &orig_pic_;
+  const SpeedSettings &speed_settings_;
   ResidualBufferStorage bipred_orig_buffer_;
   SampleBufferStorage bipred_pred_buffer_;
   // Mapping of ref_idx from L1 to L0 when POC is same

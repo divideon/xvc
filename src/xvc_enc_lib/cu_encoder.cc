@@ -28,14 +28,17 @@ struct CuEncoder::RdoCost {
 };
 
 CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
-                     YuvPicture *rec_pic, PictureData *pic_data)
+                     YuvPicture *rec_pic, PictureData *pic_data,
+                     const SpeedSettings &speed_settings)
   : min_pel_(0),
   max_pel_((1 << rec_pic->GetBitdepth()) - 1),
   pic_qp_(qp),
   orig_pic_(orig_pic),
   rec_pic_(*rec_pic),
   pic_data_(*pic_data),
-  inter_search_(rec_pic->GetBitdepth(), orig_pic, *pic_data->GetRefPicLists()),
+  speed_settings_(speed_settings),
+  inter_search_(rec_pic->GetBitdepth(), orig_pic, *pic_data->GetRefPicLists(),
+                speed_settings),
   intra_pred_(rec_pic->GetBitdepth()),
   inv_transform_(rec_pic->GetBitdepth()),
   fwd_transform_(rec_pic->GetBitdepth()),
@@ -562,8 +565,10 @@ IntraMode CuEncoder::SearchIntraLuma(CodingUnit *cu, YuvComponent comp,
   int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
   int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
   int num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
-  if (Restrictions::Get().disable_ext_alt_num_intra_fast_modes) {
+  if (speed_settings_.fast_intra_mode_eval_level == 1) {
     num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
+  } else if (speed_settings_.fast_intra_mode_eval_level == 0) {
+    num_modes_for_slow_rdo = 33;
   }
   for (int i = 0; i < mpm.num_neighbor_modes; i++) {
     bool found = false;
