@@ -572,6 +572,19 @@ const std::array<uint8_t, 14> TransformHelper::kLastPosMinInGroup = { {
   0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
 } };
 
+const std::array<std::array<uint8_t, 4>, 3> TransformHelper::kScanCoeff2x2 = { {
+  { 0, 2, 1, 3 },
+  { 0, 1, 2, 3 },
+  { 0, 2, 1, 3 },
+} };
+
+const
+std::array<std::array<uint8_t, 16>, 3> TransformHelper::kScanCoeff4x4 = { {
+  { 0, 4, 1, 8, 5, 2, 12, 9, 6, 3, 13, 10, 7, 14, 11, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 },
+} };
+
 void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                                  ptrdiff_t coeff_stride, Residual *resi,
                                  ptrdiff_t resi_stride, bool dst_transform) {
@@ -1563,6 +1576,49 @@ const uint16_t *TransformHelper::GetScanTableSubblock(int width, int height,
     default:
       assert(0);
       return nullptr;
+  }
+}
+
+void TransformHelper::DeriveSubblockScan(ScanOrder scan_order, int width,
+                                         int height, uint16_t *scan_table) {
+  int nbr_subblocks = width * height;
+  int pos_x = 0;
+  int pos_y = 0;
+  if (scan_order == ScanOrder::kDiagonal) {
+    for (int i = 0; i < nbr_subblocks; i++) {
+      scan_table[i] = static_cast<uint16_t>(pos_y * width + pos_x);
+      if ((pos_x == (width - 1)) || (pos_y == 0)) {
+        pos_y += pos_x + 1;
+        pos_x = 0;
+        if (pos_y >= height) {
+          pos_x += pos_y - (height - 1);
+          pos_y = height - 1;
+        }
+      } else {
+        pos_x++;
+        pos_y--;
+      }
+    }
+  } else if (scan_order == ScanOrder::kHorizontal) {
+    for (int i = 0; i < nbr_subblocks; i++) {
+      scan_table[i] = static_cast<uint16_t>(pos_y * width + pos_x);
+      if ((pos_x == (width - 1))) {
+        pos_x = 0;
+        pos_y++;
+      } else {
+        pos_x++;
+      }
+    }
+  } else if (scan_order == ScanOrder::kVertical) {
+    for (int i = 0; i < nbr_subblocks; i++) {
+      scan_table[i] = static_cast<uint16_t>(pos_y * width + pos_x);
+      if ((pos_y == (height - 1))) {
+        pos_x++;
+        pos_y = 0;
+      } else {
+        pos_y++;
+      }
+    }
   }
 }
 

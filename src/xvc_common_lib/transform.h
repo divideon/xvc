@@ -95,13 +95,23 @@ class TransformHelper {
 public:
   static const std::array<uint8_t, 128> kLastPosGroupIdx;
   static const std::array<uint8_t, 14> kLastPosMinInGroup;
+  static const std::array<std::array<uint8_t, 4>, 3> kScanCoeff2x2;
+  static const std::array<std::array<uint8_t, 16>, 3> kScanCoeff4x4;
 
   static ScanOrder DetermineScanOrder(const CodingUnit & cu,
                                       YuvComponent comp);
-  static const uint16_t *GetScanTable(int width, int height,
+  static const uint16_t* GetScanTable(int width, int height,
                                       ScanOrder scan_order);
-  static const uint16_t *GetScanTableSubblock(int width, int height,
+  static const uint16_t* GetScanTableSubblock(int width, int height,
                                               ScanOrder scan_order);
+  static void DeriveSubblockScan(ScanOrder scan_order, int width,
+                                 int height, uint16_t *scan_table);
+  static const uint8_t* GetCoeffScanTable2x2(ScanOrder scan_order) {
+    return &kScanCoeff2x2[static_cast<int>(scan_order)][0];
+  }
+  static const uint8_t* GetCoeffScanTable4x4(ScanOrder scan_order) {
+    return &kScanCoeff4x4[static_cast<int>(scan_order)][0];
+  }
 };
 
 }   // namespace xvc

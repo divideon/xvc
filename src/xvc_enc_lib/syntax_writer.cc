@@ -54,54 +54,60 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   const int height = cu.GetHeight(comp);
   const int width_log2 = util::SizeToLog2(width);
   const int height_log2 = util::SizeToLog2(height);
-  const int log2size = util::SizeToLog2(width);
-  const int total_coeff = width*height;
-  const int subblock_shift = SubBlockShift;
-  const int subblock_size = 1 << (subblock_shift * 2);
-  ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
-  const uint16_t *scan_table = TransformHelper::GetScanTable(width, height,
-                                                             scan_order);
-  const uint16_t *scan_subblock_table =
-    TransformHelper::GetScanTableSubblock(width, height, scan_order);
+  constexpr int subblock_shift = SubBlockShift;
+  constexpr int subblock_mask = (1 << subblock_shift) - 1;
+  constexpr int subblock_size = 1 << (subblock_shift * 2);
 
   int subblock_width = width >> subblock_shift;
   int subblock_height = height >> subblock_shift;
-  std::vector<uint8_t> subblock_csbf;
-  subblock_csbf.resize(subblock_width * subblock_height);
+  int nbr_subblocks = subblock_width * subblock_height;
+  std::vector<uint8_t> subblock_csbf(nbr_subblocks);
+  std::vector<uint16_t> scan_subblock_table(nbr_subblocks);
   if (!Restrictions::Get().disable_transform_cbf) {
     subblock_csbf[0] = 1;
   }
+  ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
+  TransformHelper::DeriveSubblockScan(scan_order, subblock_width,
+                                      subblock_height, &scan_subblock_table[0]);
+  const uint8_t *scan_table = SubBlockShift == 1 ?
+    TransformHelper::GetCoeffScanTable2x2(scan_order) :
+    TransformHelper::GetCoeffScanTable4x4(scan_order);
 
-  // Find all significant subblocks and last coeff pos x/y
   int subblock_last_index = subblock_width * subblock_height - 1;
   int subblock_last_coeff_offset = 1;
   uint32_t coeff_signs = 0;
   int coeff_num_non_zero = 0;
   std::array<Coeff, subblock_size> subblock_coeff;
+  int pos_last_index = 0, pos_last_x = 0, pos_last_y = 0;
 
-  int pos_last_index = 0;
-  for (int i = 0; i < total_coeff; i++) {
-    int pos = scan_table[i];
-    int pos_y = pos >> log2size;
-    int pos_x = pos - (pos_y << log2size);
-    if (src_coeff[pos_y * src_coeff_stride + pos_x]) {
-      pos_last_index = i;
-      int subblock_index = i >> (subblock_shift + subblock_shift);
-      int subblock_scan = scan_subblock_table[subblock_index];
-      subblock_csbf[subblock_scan] = 1;
+  // Find all significant subblocks and last coeff pos x/y
+  for (int subblock_index = 0; subblock_index < nbr_subblocks;
+       subblock_index++) {
+    int subblock_scan = scan_subblock_table[subblock_index];
+    int subblock_scan_y = subblock_scan / subblock_width;
+    int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
+    int subblock_pos_x = subblock_scan_x << subblock_shift;
+    int subblock_pos_y = subblock_scan_y << subblock_shift;
+    for (int coeff_index = 0; coeff_index < subblock_size; coeff_index++) {
+      int scan_offset = scan_table[coeff_index];
+      int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+      int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
+      if (src_coeff[coeff_scan_y * src_coeff_stride + coeff_scan_x]) {
+        pos_last_index = (subblock_index << (subblock_shift * 2)) +
+          coeff_index;
+        pos_last_x = coeff_scan_x;
+        pos_last_y = coeff_scan_y;
+        subblock_csbf[subblock_scan] = 1;
+      }
     }
   }
 
   int last_nonzero_pos = -1;
   int first_nonzero_pos = subblock_size;
   if (!Restrictions::Get().disable_transform_last_position) {
-    int pos_last = scan_table[pos_last_index];
-    int pos_last_y = pos_last >> log2size;
-    int pos_last_x = pos_last - (pos_last_y << log2size);
     WriteCoeffLastPos(width, height, comp, scan_order, pos_last_x, pos_last_y);
 
-    subblock_last_index =
-      pos_last_index >> (subblock_shift + subblock_shift);
+    subblock_last_index = pos_last_index >> (subblock_shift + subblock_shift);
 
     // Special handling of last sig coeff(implicitly signaled)
     Coeff last_coeff = src_coeff[pos_last_y * src_coeff_stride + pos_last_x];
@@ -129,7 +135,8 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     int subblock_scan = scan_subblock_table[subblock_index];
     int subblock_scan_y = subblock_scan / subblock_width;
     int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
-    int subblock_offset = subblock_index << (subblock_shift * 2);
+    int subblock_pos_x = subblock_scan_x << subblock_shift;
+    int subblock_pos_y = subblock_scan_y << subblock_shift;
 
     // Code sig sublock flag
     if (Restrictions::Get().disable_transform_subblock_csbf) {
@@ -167,9 +174,9 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     // sig flags
     for (int coeff_index = subblock_size - subblock_last_coeff_offset;
          coeff_index >= 0; coeff_index--) {
-      int coeff_scan = scan_table[subblock_offset + coeff_index];
-      int coeff_scan_y = coeff_scan >> log2size;
-      int coeff_scan_x = coeff_scan - (coeff_scan_y << log2size);
+      int scan_offset = scan_table[coeff_index];
+      int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+      int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
       Coeff coeff = src_coeff[coeff_scan_y * src_coeff_stride + coeff_scan_x];
       bool not_first_subblock = subblock_index > 0 &&
         !Restrictions::Get().disable_transform_subblock_csbf;
@@ -238,7 +245,7 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     // sign hiding
     bool sign_hidden = false;
     if (!Restrictions::Get().disable_transform_sign_hiding &&
-      last_nonzero_pos - first_nonzero_pos > constants::SignHidingThreshold) {
+        last_nonzero_pos - first_nonzero_pos > constants::SignHidingThreshold) {
       sign_hidden = true;
     }
     last_nonzero_pos = -1;

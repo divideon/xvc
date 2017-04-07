@@ -49,19 +49,21 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   const int width_log2 = util::SizeToLog2(width);
   const int height_log2 = util::SizeToLog2(height);
   const int log2size = util::SizeToLog2(width);
-  const int total_coeff = width*height;
-  const int subblock_shift = SubBlockShift;
-  const int subblock_size = 1 << (subblock_shift * 2);
-  ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
-  const uint16_t *scan_table =
-    TransformHelper::GetScanTable(width, height, scan_order);
-  const uint16_t *scan_subblock_table =
-    TransformHelper::GetScanTableSubblock(width, height, scan_order);
+  constexpr int subblock_shift = SubBlockShift;
+  constexpr int subblock_mask = (1 << subblock_shift) - 1;
+  constexpr int subblock_size = 1 << (subblock_shift * 2);
 
   int subblock_width = width >> subblock_shift;
   int subblock_height = height >> subblock_shift;
-  std::vector<uint8_t> subblock_csbf;
-  subblock_csbf.resize(subblock_width * subblock_height);
+  int nbr_subblocks = subblock_width * subblock_height;
+  std::vector<uint8_t> subblock_csbf(nbr_subblocks);
+  std::vector<uint16_t> scan_subblock_table(nbr_subblocks);
+  ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
+  TransformHelper::DeriveSubblockScan(scan_order, subblock_width,
+                                      subblock_height, &scan_subblock_table[0]);
+  const uint8_t *scan_table = SubBlockShift == 1 ?
+    TransformHelper::GetCoeffScanTable2x2(scan_order) :
+    TransformHelper::GetCoeffScanTable4x4(scan_order);
 
   // decode last pos x/y
   int subblock_last_index = subblock_width * subblock_height - 1;
@@ -78,11 +80,26 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     int pos_last = (pos_last_y << log2size) + pos_last_x;
 
     // determine last subblock
-    // TODO(dev) add inverse lookup table for this?
-    int pos_last_index;
-    for (pos_last_index = 0; pos_last_index < total_coeff - 1;
-         pos_last_index++) {
-      if (pos_last == scan_table[pos_last_index]) {
+    int pos_last_index = -1;
+    for (int subblock_index = 0; subblock_index < nbr_subblocks;
+         subblock_index++) {
+      int subblock_scan = scan_subblock_table[subblock_index];
+      int subblock_scan_y = subblock_scan / subblock_width;
+      int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
+      int subblock_pos_x = subblock_scan_x << subblock_shift;
+      int subblock_pos_y = subblock_scan_y << subblock_shift;
+      for (int coeff_index = 0; coeff_index < subblock_size; coeff_index++) {
+        int scan_offset = scan_table[coeff_index];
+        int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+        int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
+        int coeff_scan = (coeff_scan_y << log2size) + coeff_scan_x;
+        if (coeff_scan == pos_last) {
+          pos_last_index =
+            (subblock_index << (subblock_shift * 2)) + coeff_index;
+          break;
+        }
+      }
+      if (pos_last_index >= 0) {
         break;
       }
     }
@@ -116,7 +133,8 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     int subblock_scan = scan_subblock_table[subblock_index];
     int subblock_scan_y = subblock_scan / subblock_width;
     int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
-    int subblock_offset = subblock_index << (subblock_shift * 2);
+    int subblock_pos_x = subblock_scan_x << subblock_shift;
+    int subblock_pos_y = subblock_scan_y << subblock_shift;
 
     int pattern_sig_ctx = 0;
     bool is_last_subblock = subblock_index == subblock_last_index &&
@@ -131,14 +149,11 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       ctx_.GetSubblockCsbfCtx(comp, &subblock_csbf[0], subblock_scan_x,
                               subblock_scan_y, subblock_width, subblock_height,
                               &pattern_sig_ctx);
-
     } else {
-      ContextModel &ctx = ctx_.GetSubblockCsbfCtx(comp, &subblock_csbf[0],
-                                                  subblock_scan_x,
-                                                  subblock_scan_y,
-                                                  subblock_width,
-                                                  subblock_height,
-                                                  &pattern_sig_ctx);
+      ContextModel &ctx =
+        ctx_.GetSubblockCsbfCtx(comp, &subblock_csbf[0], subblock_scan_x,
+                                subblock_scan_y, subblock_width,
+                                subblock_height, &pattern_sig_ctx);
       subblock_csbf[subblock_scan] =
         static_cast<uint8_t>(entropydec_->DecodeBin(&ctx));
     }
@@ -149,9 +164,9 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     // sig flags
     for (int coeff_index = subblock_size - subblock_last_coeff_offset;
          coeff_index >= 0; coeff_index--) {
-      int coeff_scan = scan_table[subblock_offset + coeff_index];
-      int coeff_scan_y = coeff_scan >> log2size;
-      int coeff_scan_x = coeff_scan - (coeff_scan_y << log2size);
+      int scan_offset = scan_table[coeff_index];
+      int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+      int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
       bool sig_coeff;
       bool not_first_subblock = subblock_index > 0 &&
         !Restrictions::Get().disable_transform_subblock_csbf;
@@ -165,8 +180,8 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       }
       if (sig_coeff) {
         subblock_coeff[coeff_num_non_zero] = 1;
-        subblock_nz_coeff_pos[coeff_num_non_zero] =
-          static_cast<uint16_t>(coeff_scan);
+        subblock_nz_coeff_pos[coeff_num_non_zero] = static_cast<uint16_t>(
+          (coeff_scan_y << log2size) + coeff_scan_x);
         coeff_num_non_zero++;
         if (last_nonzero_pos == -1) {
           last_nonzero_pos = coeff_index;

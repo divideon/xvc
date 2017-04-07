@@ -109,7 +109,7 @@ double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
   return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
 }
 
-int Quantize::Forward(const CodingUnit *cu, YuvComponent comp, const QP &qp,
+int Quantize::Forward(const CodingUnit &cu, YuvComponent comp, const QP &qp,
                       int width, int height,
                       int bitdepth, PicturePredictionType pic_type,
                       const Coeff *in, ptrdiff_t in_stride,
@@ -121,7 +121,7 @@ int Quantize::Forward(const CodingUnit *cu, YuvComponent comp, const QP &qp,
   const int offset =
     (pic_type == PicturePredictionType::kIntra ? 171 : 85) << (shift - 9);
   Coeff delta[constants::kMaxBlockSize * constants::kMaxBlockSize];
-  int delta_stride = constants::kMaxBlockSize;
+  ptrdiff_t delta_stride = constants::kMaxBlockSize;
 
   const Coeff *in_ptr = in;
   Coeff *delta_ptr = delta;
@@ -157,65 +157,69 @@ int Quantize::Forward(const CodingUnit *cu, YuvComponent comp, const QP &qp,
   return num_non_zero;
 }
 
-void Quantize::AdjustCoeffsForSignHiding(const CodingUnit *cu,
+void Quantize::AdjustCoeffsForSignHiding(const CodingUnit &cu,
                                          YuvComponent comp, int width,
                                          int height, const Coeff *in,
                                          ptrdiff_t in_stride,
                                          const Coeff *delta,
                                          ptrdiff_t delta_stride,
                                          Coeff *out, ptrdiff_t out_stride) {
-  const int log2size = util::SizeToLog2(width);
   const int subblock_shift = constants::kSubblockShift;
+  const int subblock_width = width >> subblock_shift;
+  const int subblock_height = height >> subblock_shift;
   const int subblock_size = 1 << (subblock_shift * 2);
-  int subblock_last_index =
-    (width >> subblock_shift) * (height >> subblock_shift) - 1;
-  ScanOrder scan_order = TransformHelper::DetermineScanOrder(*cu, comp);
-  const uint16_t *scan_table = TransformHelper::GetScanTable(width, height,
-                                                             scan_order);
+  const int nbr_subblocks = subblock_width * subblock_height;
+
+  std::vector<uint16_t> scan_subblock_table(nbr_subblocks);
+  ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
+  TransformHelper::DeriveSubblockScan(scan_order, subblock_width,
+                                      subblock_height, &scan_subblock_table[0]);
+  const uint8_t *scan_table = TransformHelper::GetCoeffScanTable4x4(scan_order);
+
+  int subblock_last_index = subblock_width * subblock_height - 1;
   int last_subblock = -1;
+
 
   for (int subblock_index = subblock_last_index; subblock_index >= 0;
        subblock_index--) {
-    int subblock_offset = subblock_index << (subblock_shift * 2);
-    int last_nonzero_pos = -1;
-    int first_nonzero_pos = subblock_size;
-    int abs_sum = 0;
+    int subblock_scan = scan_subblock_table[subblock_index];
+    int subblock_scan_y = subblock_scan / subblock_width;
+    int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
+    int subblock_pos_x = subblock_scan_x << subblock_shift;
+    int subblock_pos_y = subblock_scan_y << subblock_shift;
 
     // Lambda help function for getting the value of a specific coefficient.
-    auto get_coeff = [&scan_table, &subblock_offset, &log2size]
-    (const Coeff *c, ptrdiff_t stride, int idx) {
-      int coeff_scan = scan_table[subblock_offset + idx];
-      int coeff_scan_y = coeff_scan >> log2size;
-      int coeff_scan_x = coeff_scan - (coeff_scan_y << log2size);
-      return c[coeff_scan_y * stride + coeff_scan_x];
+    auto get_coeff = [&scan_table, &subblock_pos_x, &subblock_pos_y]
+    (const Coeff *coeff, ptrdiff_t stride, int idx) {
+      constexpr int scan_shift = constants::kSubblockShift;
+      constexpr int scan_mask = (1 << scan_shift) - 1;
+      int scan_offset = scan_table[idx];
+      int coeff_scan_x = subblock_pos_x + (scan_offset & scan_mask);
+      int coeff_scan_y = subblock_pos_y + (scan_offset >> scan_shift);
+      return coeff[coeff_scan_y * stride + coeff_scan_x];
     };
 
     // Lambda help function for adding value to a specific coefficient.
-    auto change_coeff = [&scan_table, &subblock_offset, &log2size]
-    (Coeff *c, ptrdiff_t stride, int idx, Coeff value) {
-      int coeff_scan = scan_table[subblock_offset + idx];
-      int coeff_scan_y = coeff_scan >> log2size;
-      int coeff_scan_x = coeff_scan - (coeff_scan_y << log2size);
-      c[coeff_scan_y * stride + coeff_scan_x] += value;
+    auto change_coeff = [&scan_table, &subblock_pos_x, &subblock_pos_y]
+    (Coeff *coeff, ptrdiff_t stride, int idx, Coeff value) {
+      constexpr int scan_shift = constants::kSubblockShift;
+      constexpr int scan_mask = (1 << scan_shift) - 1;
+      int scan_offset = scan_table[idx];
+      int coeff_scan_x = subblock_pos_x + (scan_offset & scan_mask);
+      int coeff_scan_y = subblock_pos_y + (scan_offset >> scan_shift);
+      coeff[coeff_scan_y * stride + coeff_scan_x] += value;
     };
 
-    for (int coeff_index = subblock_size - 1; coeff_index >= 0; --coeff_index) {
-      if (get_coeff(out, out_stride, coeff_index)) {
-        last_nonzero_pos = coeff_index;
-        break;
+    int last_nonzero_pos = -1;
+    int first_nonzero_pos = subblock_size;
+    int abs_sum = 0;
+    for (int coeff_idx = 0; coeff_idx < subblock_size; coeff_idx++) {
+      Coeff coeff = get_coeff(out, out_stride, coeff_idx);
+      if (coeff) {
+        first_nonzero_pos = std::min(first_nonzero_pos, coeff_idx);
+        last_nonzero_pos = std::max(last_nonzero_pos, coeff_idx);
+        abs_sum += coeff;
       }
-    }
-
-    for (int coeff_index = 0; coeff_index < subblock_size; coeff_index++) {
-      if (get_coeff(out, out_stride, coeff_index)) {
-        first_nonzero_pos = coeff_index;
-        break;
-      }
-    }
-
-    for (int coeff_index = first_nonzero_pos; coeff_index <= last_nonzero_pos;
-         coeff_index++) {
-      abs_sum += get_coeff(out, out_stride, coeff_index);
     }
 
     if (last_nonzero_pos >= 0 && last_subblock == -1) {

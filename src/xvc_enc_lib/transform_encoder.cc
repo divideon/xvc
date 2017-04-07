@@ -48,7 +48,7 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
 
   // Quant
   int non_zero =
-    quantize_.Forward(cu, comp, qp, width, height, rec_pic->GetBitdepth(),
+    quantize_.Forward(*cu, comp, qp, width, height, rec_pic->GetBitdepth(),
                       cu->GetPicType(), temp_coeff_.GetDataPtr(),
                       temp_coeff_.GetStride(), cu_coeff, cu_coeff_stride);
   bool cbf = non_zero != 0;
