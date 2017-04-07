@@ -41,7 +41,6 @@ public:
 private:
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
-  static const int kMaxIterationsBi = 1;
 
   template<typename TOrig> class DistortionWrapper;
   Distortion SearchBiIterative(CodingUnit *cu, const QP &qp,

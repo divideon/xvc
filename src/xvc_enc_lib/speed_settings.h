@@ -26,12 +26,14 @@ struct SpeedSettings {
         fast_intra_mode_eval_level = 0;
         bipred_refinement_iterations = 4;
         fast_merge_rdo = 0;
+        always_evaluate_intra_in_inter = 1;
         break;
       case SpeedMode::kSlow:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
         bipred_refinement_iterations = 1;
         fast_merge_rdo = 1;
+        always_evaluate_intra_in_inter = 0;
         break;
       default:
         assert(0);
@@ -47,12 +49,14 @@ struct SpeedSettings {
         fast_intra_mode_eval_level = 1;
         bipred_refinement_iterations = 1;
         fast_merge_rdo = 1;
+        always_evaluate_intra_in_inter = 0;
         break;
       case RestrictedMode::kModeB:
         eval_prev_mv_search_result = 0;
         fast_intra_mode_eval_level = 2;
         bipred_refinement_iterations = 1;
         fast_merge_rdo = 1;
+        always_evaluate_intra_in_inter = 0;
         break;
       default:
         assert(0);
@@ -64,6 +68,7 @@ struct SpeedSettings {
   int fast_intra_mode_eval_level = -1;
   int bipred_refinement_iterations = -1;
   int fast_merge_rdo = -1;
+  int always_evaluate_intra_in_inter = -1;
 };
 
 

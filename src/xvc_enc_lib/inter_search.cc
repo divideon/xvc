@@ -162,7 +162,8 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const QP &qp,
     best_uni_dir == InterDir::kL0 ? RefPicList::kL1 : RefPicList::kL0;
 
   Distortion cost_best = std::numeric_limits<Distortion>::max();
-  for (int iteration = 0; iteration < kMaxIterationsBi; iteration++) {
+  int num_iterations = speed_settings_.bipred_refinement_iterations;
+  for (int iteration = 0; iteration < num_iterations; iteration++) {
     // If searching in L1 use original without L0 prediction
     cu->SetInterDir(search_list == RefPicList::kL0 ?
                     InterDir::kL1 : InterDir::kL0);
@@ -239,7 +240,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp,
                          mvp_list[mvp_idx], mv_start, pred, pred_stride, &dist);
     }
     mvp_idx = EvalFinalMvpIdx(*cu, mvp_list, mv_subpel, mvp_idx);
-    if (!bipred || kMaxIterationsBi > 1) {
+    if (!bipred || speed_settings_.bipred_refinement_iterations > 1) {
       unipred_best_mv_[static_cast<int>(ref_list)][ref_idx] = mv_subpel;
       unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx] = mvp_idx;
       unipred_best_dist_[static_cast<int>(ref_list)][ref_idx] = dist;
@@ -373,7 +374,6 @@ InterSearch::TZSearch(const CodingUnit &cu, const QP &qp,
   state.last_range_ = 0;
 
   // Check MV from previous CU search (can be either same or a different size)
-  // TODO(PH) Consider always using?
   if (cu.GetDepth() != 0 &&
       speed_settings_.eval_prev_mv_search_result) {
     int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);

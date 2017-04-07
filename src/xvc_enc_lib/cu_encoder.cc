@@ -249,7 +249,7 @@ CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
 CuEncoder::RdoCost
 CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
                          const SyntaxWriter &bitstream_writer) {
-  const bool kFastMergeRdo = true;   // FDM
+  const bool kFastMergeRdo = (speed_settings_.fast_merge_rdo == 1);   // FDM
 #if HM_STRICT
   const bool kAlwaysExplicitSkipFlagRdo = true;
 #else
