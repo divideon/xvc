@@ -49,6 +49,12 @@ void CodingUnit::SetPosition(int posx, int posy) {
   pos_y_ = posy;
 }
 
+int CodingUnit::GetBinaryDepth() const {
+  int quad_size_log2 = util::SizeToLog2(constants::kCtuSize >> depth_);
+  return (quad_size_log2 - util::SizeToLog2(width_)) +
+    (quad_size_log2 - util::SizeToLog2(height_));
+}
+
 const QP& CodingUnit::GetQp() const {
   return *qp_;
 }

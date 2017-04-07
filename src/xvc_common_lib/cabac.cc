@@ -100,10 +100,17 @@ kInitCuTransquantBypassFlag[3][CabacContexts::kNumTquantBypassFlagCtx] = {
 };
 
 static const uint8_t
-kInitSplitFlag[3][CabacContexts::kNumSplitFlagCtx] = {
+kInitSplitQuadFlag[3][CabacContexts::kNumSplitQuadFlagCtx] = {
   { 107,  139,  126, 255, 0, },
   { 107,  139,  126, 255, 0, },
   { 139,  141,  157, 255, 0, },
+};
+
+static const uint8_t
+kInitSplitBinary[3][CabacContexts::kNumSplitBinaryCtx] = {
+  { 107,  139,  126, 154, 154, 154 },
+  { 107,  139,  126, 154, 154, 154 },
+  { 139,  141,  157, 154, 154, 154 },
 };
 
 static const uint8_t
@@ -311,7 +318,8 @@ void CabacContexts::ResetStates(const QP &qp, PicturePredictionType pic_type) {
   Init(q, s, &cu_pred_mode, kInitPredMode);
   Init(q, s, &cu_root_cbf, kInitCuRootCbf);
   Init(q, s, &cu_skip_flag, kInitSkipFlag);
-  Init(q, s, &cu_split_flag, kInitSplitFlag);
+  Init(q, s, &cu_split_quad_flag, kInitSplitQuadFlag);
+  Init(q, s, &cu_split_binary, kInitSplitBinary);
   Init(q, s, &inter_dir, kInitInterDir);
   Init(q, s, &inter_merge_flag, kInitMergeFlag);
   Init(q, s, &inter_merge_idx, kInitMergeIdx);
@@ -325,6 +333,34 @@ void CabacContexts::ResetStates(const QP &qp, PicturePredictionType pic_type) {
   Init(q, s, &coeff_greater2_luma, &coeff_greater2_chroma, kInitCoeffGreater2);
   Init(q, s, &coeff_last_pos_x_luma, &coeff_last_pos_x_chroma, kInitLastPos);
   Init(q, s, &coeff_last_pos_y_luma, &coeff_last_pos_y_chroma, kInitLastPos);
+}
+
+ContextModel& CabacContexts::GetSkipFlagCtx(const CodingUnit &cu) {
+  int offset = 0;
+  if (!Restrictions::Get().disable_cabac_skip_flag_ctx) {
+    const CodingUnit *tmp;
+    if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetSkipFlag()) {
+      offset++;
+    }
+    if ((tmp = cu.GetCodingUnitAbove()) != nullptr && tmp->GetSkipFlag()) {
+      offset++;
+    }
+  }
+  return cu_skip_flag[offset];
+}
+
+ContextModel& CabacContexts::GetSplitBinaryCtx(const CodingUnit &cu) {
+  const CodingUnit *left = cu.GetCodingUnitLeft();
+  const CodingUnit *above = cu.GetCodingUnitAbove();
+  int depth = cu.GetDepth() + cu.GetBinaryDepth();
+  int offset = 0;
+  if (left) {
+    offset += (left->GetDepth() + left->GetBinaryDepth()) > depth ? 1 : 0;
+  }
+  if (above) {
+    offset += (above->GetDepth() + above->GetBinaryDepth()) > depth ? 1 : 0;
+  }
+  return cu_split_binary[offset];
 }
 
 ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
@@ -363,10 +399,10 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
       offset = 4;
     }
   }
-  return cu_split_flag[offset];
+  return cu_split_quad_flag[offset];
 }
 
-ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit & cu) {
+ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit &cu) {
   if (Restrictions::Get().disable_cabac_inter_dir_ctx) {
     return inter_dir[0];
   }

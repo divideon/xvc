@@ -468,17 +468,21 @@ void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
       Restrictions::Get().disable_inter_merge_mode) {
     return;
   }
-  int offset = 0;
-  if (!Restrictions::Get().disable_cabac_skip_flag_ctx) {
-    const CodingUnit *tmp;
-    if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetSkipFlag()) {
-      offset++;
-    }
-    if ((tmp = cu.GetCodingUnitAbove()) != nullptr && tmp->GetSkipFlag()) {
-      offset++;
-    }
+  ContextModel &ctx = ctx_.GetSkipFlagCtx(cu);
+  entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx);
+}
+
+void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu, SplitType split) {
+  assert(split != SplitType::kQuad);
+  ContextModel &ctx = ctx_.GetSplitBinaryCtx(cu);
+  entropyenc_->EncodeBin(split != SplitType::kNone, &ctx);
+  if (split != SplitType::kNone) {
+    int offset =
+      cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :
+      (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
+    ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
+    entropyenc_->EncodeBin(split != SplitType::kHorizontal, &ctx2);
   }
-  entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx_.cu_skip_flag[offset]);
 }
 
 void SyntaxWriter::WriteSplitFlag(const CodingUnit &cu, int max_depth,

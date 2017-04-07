@@ -56,6 +56,7 @@ public:
   }
   void SetPosition(int posx, int posy);
   int GetDepth() const { return depth_; }
+  int GetBinaryDepth() const;
   int GetWidth(YuvComponent comp) const {
     return comp == YuvComponent::kY ? width_ : width_ >> chroma_shift_x_;
   }

@@ -34,7 +34,8 @@ private:
 
 struct CabacContexts {
 public:
-  static const int kNumSplitFlagCtx = 5;
+  static const int kNumSplitQuadFlagCtx = 5;
+  static const int kNumSplitBinaryCtx = 6;
   static const int kNumSkipFlagCtx = 3;
   static const int kNumMergeFlagCtx = 1;
   static const int kNumMergeIdxCtx = 1;
@@ -75,6 +76,8 @@ public:
 
   void ResetStates(const QP &qp, PicturePredictionType pic_type);
 
+  ContextModel& GetSkipFlagCtx(const CodingUnit &cu);
+  ContextModel& GetSplitBinaryCtx(const CodingUnit &cu);
   ContextModel& GetSplitFlagCtx(const CodingUnit &cu, int max_depth);
   ContextModel& GetInterDirBiCtx(const CodingUnit &cu);
   ContextModel& GetSubblockCsbfCtx(YuvComponent comp,
@@ -96,7 +99,8 @@ public:
   std::array<ContextModel, kNumPredModeCtx> cu_pred_mode;
   std::array<ContextModel, kNumCuRootCbfCtx> cu_root_cbf;
   std::array<ContextModel, kNumSkipFlagCtx> cu_skip_flag;
-  std::array<ContextModel, kNumSplitFlagCtx> cu_split_flag;
+  std::array<ContextModel, kNumSplitQuadFlagCtx> cu_split_quad_flag;
+  std::array<ContextModel, kNumSplitBinaryCtx> cu_split_binary;
   std::array<ContextModel, kNumInterDirCtx> inter_dir;
   std::array<ContextModel, kNumMergeFlagCtx> inter_merge_flag;
   std::array<ContextModel, kNumMergeIdxCtx> inter_merge_idx;

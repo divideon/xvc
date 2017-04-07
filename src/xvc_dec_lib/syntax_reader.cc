@@ -462,18 +462,22 @@ bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
       Restrictions::Get().disable_inter_merge_mode) {
     return false;
   }
-  int offset = 0;
-  if (!Restrictions::Get().disable_cabac_skip_flag_ctx) {
-    const CodingUnit *tmp;
-    if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetSkipFlag()) {
-      offset++;
-    }
-    if ((tmp = cu.GetCodingUnitAbove()) != nullptr && tmp->GetSkipFlag()) {
-      offset++;
-    }
+  ContextModel &ctx = ctx_.GetSkipFlagCtx(cu);
+  return entropydec_->DecodeBin(&ctx) != 0;
+}
+
+SplitType SyntaxReader::ReadSplitBinary(const CodingUnit & cu) {
+  ContextModel &ctx = ctx_.GetSplitBinaryCtx(cu);
+  uint32_t bin = entropydec_->DecodeBin(&ctx);
+  if (!bin) {
+    return SplitType::kNone;
   }
-  uint32_t bin = entropydec_->DecodeBin(&ctx_.cu_skip_flag[offset]);
-  return bin != 0;
+  int offset =
+    cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :
+    (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
+  ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
+  uint32_t bin2 = entropydec_->DecodeBin(&ctx2);
+  return bin2 != 0 ? SplitType::kHorizontal : SplitType::kVertical;
 }
 
 bool SyntaxReader::ReadSplitFlag(const CodingUnit &cu, int max_depth) {
