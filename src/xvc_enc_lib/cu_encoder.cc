@@ -192,7 +192,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu,
       std::swap(cu, temp_cu);
     }
 
-    if (cu->GetHasAnyCbf()) {
+    if (speed_settings_.always_evaluate_intra_in_inter || cu->GetHasAnyCbf()) {
       cost = CompressIntra(temp_cu, qp, *writer);
       if (cost < best_cost) {
         best_cost = cost;
@@ -516,16 +516,16 @@ IntraMode CuEncoder::SearchIntraLuma(CodingUnit *cu, YuvComponent comp,
                                      const QP &qp,
                                      const SyntaxWriter &bitstream_writer) {
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
-    // 1, 2, 4, 8, 16, 32, 64, 128
-    { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
-    { 0, 0, 0, 0, 0, 0, 0, 0 },   // 2
-    { 0, 0, 3, 3, 3, 3, 2, 2 },   // 4
-    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 8
-    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 16
-    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 32
-    { 0, 0, 2, 3, 3, 3, 3, 2 },   // 64
-    { 0, 0, 2, 2, 2, 2, 2, 3 },   // 128
-  } };
+      // 1, 2, 4, 8, 16, 32, 64, 128
+      { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
+      { 0, 0, 0, 0, 0, 0, 0, 0 },   // 2
+      { 0, 0, 3, 3, 3, 3, 2, 2 },   // 4
+      { 0, 0, 3, 3, 3, 3, 3, 2 },   // 8
+      { 0, 0, 3, 3, 3, 3, 3, 2 },   // 16
+      { 0, 0, 3, 3, 3, 3, 3, 2 },   // 32
+      { 0, 0, 2, 3, 3, 3, 3, 2 },   // 64
+      { 0, 0, 2, 2, 2, 2, 2, 3 },   // 128
+    } };
   static const std::array<uint8_t, 7> kNumIntraFastModesNoExt = {
     /*1x1: */ 0, /*2x2: */ 3, /*4x4: */ 8, /*8x8: */ 8, /*16x16: */ 3,
     /*32x32: */ 3, /*64x64: */ 3
@@ -564,9 +564,9 @@ IntraMode CuEncoder::SearchIntraLuma(CodingUnit *cu, YuvComponent comp,
   // Extend shortlist with mpm modes if not already included
   int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
   int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
-  int num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
-  if (speed_settings_.fast_intra_mode_eval_level == 1) {
-    num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
+  int num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
+  if (speed_settings_.fast_intra_mode_eval_level == 2) {
+    num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
   } else if (speed_settings_.fast_intra_mode_eval_level == 0) {
     num_modes_for_slow_rdo = 33;
   }
