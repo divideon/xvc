@@ -438,11 +438,11 @@ ContextModel& CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
   return ctx_base[right | below];
 }
 
-ContextModel& CabacContexts::GetCoeffSigCtx(YuvComponent comp,
-                                            int pattern_sig_ctx,
-                                            ScanOrder scan_order, int posx,
-                                            int posy, int log2size) {
-  const uint8_t kCtxIndexMap[16] = {
+ContextModel&
+CabacContexts::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
+                              ScanOrder scan_order, int posx, int posy,
+                              int width_log2, int height_log2) {
+  static const uint8_t kCtxIndexMap[16] = {
     0, 1, 4, 5, 2, 3, 4, 5, 6, 6, 8, 8, 7, 7, 8, 8
   };
   ContextModel *ctx_base =
@@ -450,11 +450,13 @@ ContextModel& CabacContexts::GetCoeffSigCtx(YuvComponent comp,
   if ((!posx && !posy) || Restrictions::Get().disable_cabac_coeff_sig_ctx) {
     return ctx_base[0];
   }
-  if (log2size == 2) {
+  if (width_log2 == 2 && height_log2 == 2) {
     return ctx_base[kCtxIndexMap[4 * posy + posx]];
   }
-  int offset = log2size == 3 ? (scan_order == ScanOrder::kDiagonal ? 9 : 15) :
-    (util::IsLuma(comp) ? 21 : 12);
+  int start_offset = util::IsLuma(comp) ? 21 : 12;
+  if (width_log2 == 3 && height_log2 == 3) {
+    start_offset = scan_order == ScanOrder::kDiagonal ? 9 : 15;
+  }
   int pos_x_in_subset = posx - ((posx >> 2) << 2);
   int pos_y_in_subset = posy - ((posy >> 2) << 2);
   int cnt = 0;
@@ -470,7 +472,7 @@ ContextModel& CabacContexts::GetCoeffSigCtx(YuvComponent comp,
   }
   int comp_offset =
     util::IsLuma(comp) && ((posx >> 2) + (posy >> 2)) > 0 ? 3 : 0;
-  return ctx_base[comp_offset + offset + cnt];
+  return ctx_base[start_offset + comp_offset + cnt];
 }
 
 ContextModel& CabacContexts::GetCoeffGreaterThan1Ctx(YuvComponent comp,

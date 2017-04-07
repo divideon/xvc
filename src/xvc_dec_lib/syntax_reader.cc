@@ -46,6 +46,8 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                                      Coeff *dst_coeff, ptrdiff_t dst_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
+  const int width_log2 = util::SizeToLog2(width);
+  const int height_log2 = util::SizeToLog2(height);
   const int log2size = util::SizeToLog2(width);
   const int total_coeff = width*height;
   const int subblock_shift = SubBlockShift;
@@ -156,9 +158,9 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       if (coeff_index == 0 && not_first_subblock && coeff_num_non_zero == 0) {
         sig_coeff = true;
       } else {
-        ContextModel &ctx = ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx,
-                                                scan_order, coeff_scan_x,
-                                                coeff_scan_y, log2size);
+        ContextModel &ctx =
+          ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order, coeff_scan_x,
+                              coeff_scan_y, width_log2, height_log2);
         sig_coeff = entropydec_->DecodeBin(&ctx) != 0;
       }
       if (sig_coeff) {
@@ -490,6 +492,9 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
                                     ScanOrder scan_order,
                                     uint32_t *out_pos_last_x,
                                     uint32_t *out_pos_last_y) {
+  if (scan_order == ScanOrder::kVertical) {
+    std::swap(width, height);
+  }
   uint32_t group_idx_x = TransformHelper::kLastPosGroupIdx[width - 1];
   uint32_t group_idx_y = TransformHelper::kLastPosGroupIdx[height - 1];
   uint32_t pos_last_x = 0;

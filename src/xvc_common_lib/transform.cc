@@ -1501,25 +1501,13 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
 
 ScanOrder TransformHelper::DetermineScanOrder(const CodingUnit &cu,
                                               YuvComponent comp) {
+  static const int kSizeThreshold = 16;
   if (cu.GetPredMode() != PredictionMode::kIntra ||
       Restrictions::Get().disable_transform_adaptive_scan_order) {
     return ScanOrder::kDiagonal;
   }
-  int block_size;
-  switch (cu.GetWidth(comp)) {
-    case  2: block_size = 6; break;
-    case  4: block_size = 5; break;
-    case  8: block_size = 4; break;
-    case 16: block_size = 3; break;
-    case 32: block_size = 2; break;
-    case 64: block_size = 1; break;
-    default: block_size = 0; break;
-  }
-  if (util::IsLuma(comp)) {
-    if (block_size <= 3 || block_size >= 6) {
-      return ScanOrder::kDiagonal;
-    }
-  } else if (block_size <= 4 || block_size >= 7) {
+  if (cu.GetWidth(YuvComponent::kY) >= kSizeThreshold ||
+      cu.GetHeight(YuvComponent::kY) >= kSizeThreshold) {
     return ScanOrder::kDiagonal;
   }
   int intra_mode = static_cast<int>(cu.GetIntraMode(comp));

@@ -295,7 +295,7 @@ void Quantize::Inverse(YuvComponent comp, const QP &qp, int width, int height,
                        int bitdepth, const Coeff *in, ptrdiff_t in_stride,
                        Coeff *out, ptrdiff_t out_stride) {
   const int transform_shift = GetTransformShift(width, height, bitdepth);
-  const int shift = constants::kIQuantShift - transform_shift -
+  const int shift = constants::kIQuantShift - transform_shift +
     (width != height ? 8 : 0);
   const int scale = qp.GetInvScale(comp) *  (width != height ? 181 : 1);
 

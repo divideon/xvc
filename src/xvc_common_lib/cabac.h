@@ -86,7 +86,7 @@ public:
                                    int *pattern_sig_ctx);
   ContextModel& GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
                                ScanOrder scan_order, int posx, int posy,
-                               int log2size);
+                               int width_log2, int height_log2);
   ContextModel& GetCoeffGreaterThan1Ctx(YuvComponent comp, int ctx_set,
                                         int c1);
   ContextModel& GetCoeffGreaterThan2Ctx(YuvComponent comp, int ctx_set);

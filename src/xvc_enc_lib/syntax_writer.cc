@@ -52,6 +52,8 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                                       ptrdiff_t src_coeff_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
+  const int width_log2 = util::SizeToLog2(width);
+  const int height_log2 = util::SizeToLog2(height);
   const int log2size = util::SizeToLog2(width);
   const int total_coeff = width*height;
   const int subblock_shift = SubBlockShift;
@@ -175,9 +177,9 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         // implicitly signaled 1
         assert(coeff != 0);
       } else {
-        ContextModel &ctx = ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx,
-                                                scan_order, coeff_scan_x,
-                                                coeff_scan_y, log2size);
+        ContextModel &ctx =
+          ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order, coeff_scan_x,
+                              coeff_scan_y, width_log2, height_log2);
         entropyenc_->EncodeBin(coeff != 0, &ctx);
       }
       if (coeff != 0) {
@@ -496,6 +498,7 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
                                      int last_pos_y) {
   if (scan_order == ScanOrder::kVertical) {
     std::swap(last_pos_x, last_pos_y);
+    std::swap(width, height);
   }
   int group_idx_x = TransformHelper::kLastPosGroupIdx[last_pos_x];
   int group_idx_y = TransformHelper::kLastPosGroupIdx[last_pos_y];
