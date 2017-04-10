@@ -158,8 +158,6 @@ extern "C" {
           stream >> speed_settings.fast_intra_mode_eval_level;
         } else if (setting == "bipred_refinement_iterations") {
           stream >> speed_settings.bipred_refinement_iterations;
-        } else if (setting == "fast_merge_rdo") {
-          stream >> speed_settings.fast_merge_rdo;
         } else if (setting == "always_evaluate_intra_in_inter") {
           stream >> speed_settings.always_evaluate_intra_in_inter;
         }
