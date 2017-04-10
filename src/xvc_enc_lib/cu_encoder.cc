@@ -30,8 +30,7 @@ struct CuEncoder::RdoCost {
 CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
                      YuvPicture *rec_pic, PictureData *pic_data,
                      const SpeedSettings &speed_settings)
-  : min_pel_(0),
-  max_pel_((1 << rec_pic->GetBitdepth()) - 1),
+  : TransformEncoder(rec_pic->GetBitdepth(), orig_pic),
   pic_qp_(qp),
   orig_pic_(orig_pic),
   speed_settings_(speed_settings),
@@ -40,14 +39,7 @@ CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
   inter_search_(rec_pic->GetBitdepth(), orig_pic, *pic_data->GetRefPicLists(),
                 speed_settings),
   intra_pred_(rec_pic->GetBitdepth()),
-  inv_transform_(rec_pic->GetBitdepth()),
-  fwd_transform_(rec_pic->GetBitdepth()),
-  quantize_(),
-  cu_writer_(pic_data_, &intra_pred_),
-  temp_pred_(kBufferStride_, constants::kMaxBlockSize),
-  temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
-  temp_resi_(kBufferStride_, constants::kMaxBlockSize),
-  temp_coeff_(kBufferStride_, constants::kMaxBlockSize) {
+  cu_writer_(pic_data_, &intra_pred_) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     const CuTree cu_tree = static_cast<CuTree>(tree_idx);
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
@@ -644,15 +636,10 @@ CuEncoder::SearchIntraChroma(CodingUnit *cu, YuvComponent comp,
 
 Distortion CuEncoder::CompressComponent(CodingUnit *cu, YuvComponent comp,
                                         const QP &qp) {
-  int cu_x = cu->GetPosX(comp);
-  int cu_y = cu->GetPosY(comp);
-  int width = cu->GetWidth(comp);
-  int height = cu->GetHeight(comp);
-  Coeff *cu_coeff = cu->GetCoeff(comp);
-  ptrdiff_t cu_coeff_stride = cu->GetCoeffStride();
-
   // Predict
   if (cu->IsIntra()) {
+    int cu_x = cu->GetPosX(comp);
+    int cu_y = cu->GetPosY(comp);
     Sample *reco = rec_pic_.GetSamplePtr(comp, cu_x, cu_y);
     ptrdiff_t reco_stride = rec_pic_.GetStride(comp);
     IntraMode intra_mode = cu->GetIntraMode(comp);
@@ -663,58 +650,7 @@ Distortion CuEncoder::CompressComponent(CodingUnit *cu, YuvComponent comp,
                                      temp_pred_.GetStride());
   }
 
-  // Calculate residual
-  auto orig_buffer = orig_pic_.GetSampleBuffer(comp, cu_x, cu_y);
-  temp_resi_orig_.Subtract(width, height, orig_buffer, temp_pred_);
-
-  // Transform
-  fwd_transform_.Transform(width, height, temp_resi_orig_.GetDataPtr(),
-                           temp_resi_orig_.GetStride(),
-                           temp_coeff_.GetDataPtr(),
-                           temp_coeff_.GetStride());
-
-  // Quant
-  int transform_shift = constants::kMaxTrDynamicRange
-    - rec_pic_.GetBitdepth() - util::SizeToLog2(width);
-  int shift_quant = constants::kQuantShift + qp.GetQpPer(comp)
-    + transform_shift;
-  bool is_intra_pic =
-    pic_data_.GetPredictionType() == PicturePredictionType::kIntra;
-  const int offset_quant = QP::GetOffsetQuant(is_intra_pic, shift_quant);
-  int non_zero = quantize_.Forward(comp, qp, shift_quant, offset_quant, width,
-                                   height, temp_coeff_.GetDataPtr(),
-                                   temp_coeff_.GetStride(), cu_coeff,
-                                   cu_coeff_stride);
-  bool cbf = non_zero != 0;
-  if (Restrictions::Get().disable_transform_cbf) {
-    cbf = true;
-  }
-  cu->SetCbf(comp, cbf);
-
-  SampleBuffer reco_buffer = rec_pic_.GetSampleBuffer(comp, cu_x, cu_y);
-  if (cbf) {
-    // Dequant
-    const int shift_iquant = constants::kIQuantShift
-      - constants::kQuantShift - transform_shift;
-    quantize_.Inverse(comp, qp, shift_iquant, width, height, cu_coeff,
-                      cu_coeff_stride, temp_coeff_.GetDataPtr(),
-                      temp_coeff_.GetStride());
-
-    // Inv transform
-    inv_transform_.Transform(width, height, temp_coeff_.GetDataPtr(),
-                             temp_coeff_.GetStride(), temp_resi_.GetDataPtr(),
-                             temp_resi_.GetStride());
-
-    // Reconstruct
-    reco_buffer.AddClip(width, height, temp_pred_, temp_resi_,
-                        min_pel_, max_pel_);
-  } else {
-    reco_buffer.CopyFrom(width, height, temp_pred_);
-  }
-
-
-  SampleMetric metric(MetricType::kSSE, qp, rec_pic_.GetBitdepth());
-  return metric.CompareSample(*cu, comp, orig_pic_, reco_buffer);
+  return TransformAndReconstruct(cu, comp, qp, orig_pic_, &rec_pic_);
 }
 
 CuEncoder::RdoCost

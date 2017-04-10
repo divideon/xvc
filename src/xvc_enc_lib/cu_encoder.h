@@ -10,21 +10,19 @@
 #include <memory>
 #include <vector>
 
-#include "xvc_common_lib/common.h"
-#include "xvc_common_lib/sample_buffer.h"
 #include "xvc_common_lib/intra_prediction.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/quantize.h"
-#include "xvc_common_lib/transform.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/inter_search.h"
 #include "xvc_enc_lib/speed_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
+#include "xvc_enc_lib/transform_encoder.h"
 
 namespace xvc {
 
-class CuEncoder {
+class CuEncoder : public TransformEncoder {
 public:
   CuEncoder(const QP &qp, const YuvPicture &orig_pic, YuvPicture *rec_pic,
             PictureData *pic_data, const SpeedSettings &speed_settings);
@@ -32,7 +30,6 @@ public:
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 
 private:
-  static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   struct RdoCost;
   Distortion CompressCu(CodingUnit **cu, RdoSyntaxWriter *rdo_writer);
   Distortion CompressSplitCu(CodingUnit *cu, RdoSyntaxWriter *rdo_writer,
@@ -69,8 +66,6 @@ private:
                                  Distortion ssd);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
 
-  const Sample min_pel_;
-  const Sample max_pel_;
   const QP &pic_qp_;
   const YuvPicture &orig_pic_;
   const SpeedSettings &speed_settings_;
@@ -78,14 +73,7 @@ private:
   PictureData &pic_data_;
   InterSearch inter_search_;
   IntraPrediction intra_pred_;
-  InverseTransform inv_transform_;
-  ForwardTransform fwd_transform_;
-  Quantize quantize_;
   CuWriter cu_writer_;
-  SampleBufferStorage temp_pred_;
-  ResidualBufferStorage temp_resi_orig_;
-  ResidualBufferStorage temp_resi_;
-  CoeffBufferStorage temp_coeff_;
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;
   std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 1>,

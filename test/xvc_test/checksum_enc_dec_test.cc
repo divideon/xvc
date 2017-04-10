@@ -73,7 +73,7 @@ protected:
   }
 
   bool DecodePicture(const std::vector<uint8_t> &bitstream) {
-    xvc::PicNum sub_gop_end_poc, sub_gop_start_poc;
+    xvc::PicNum sub_gop_end_poc = 0, sub_gop_start_poc = 0;
     xvc::PicNum sub_gop_length = segment_.max_sub_gop_length;
     int num_buffered_nals = 0;
     int doc = 0;

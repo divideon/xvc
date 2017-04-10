@@ -161,6 +161,7 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="transform_encoder.h" />
     <ClInclude Include="bit_writer.h" />
     <ClInclude Include="cu_encoder.h" />
     <ClInclude Include="cu_writer.h" />
@@ -175,6 +176,7 @@
     <ClInclude Include="xvcenc.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="transform_encoder.cc" />
     <ClCompile Include="bit_writer.cc" />
     <ClCompile Include="cu_encoder.cc" />
     <ClCompile Include="cu_writer.cc" />
