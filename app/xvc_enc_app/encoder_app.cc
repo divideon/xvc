@@ -37,6 +37,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
     if (arg == "-h") {
       PrintUsage();
       std::exit(0);
+    } else if (i == argc - 1) {
+      continue;
     } else if (arg == "-input-file") {
       cli_.input_file = argv[++i];
     } else if (arg == "-output-file") {
