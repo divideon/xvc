@@ -47,16 +47,10 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                            temp_coeff_.GetStride());
 
   // Quant
-  int transform_shift = constants::kMaxTrDynamicRange
-    - rec_pic->GetBitdepth() - util::SizeToLog2(width);
-  int shift_quant = constants::kQuantShift + qp.GetQpPer(comp)
-    + transform_shift;
-  bool is_intra_pic = cu->GetPicType() == PicturePredictionType::kIntra;
-  const int offset_quant = QP::GetOffsetQuant(is_intra_pic, shift_quant);
-  int non_zero = quantize_.Forward(comp, qp, shift_quant, offset_quant, width,
-                                   height, temp_coeff_.GetDataPtr(),
-                                   temp_coeff_.GetStride(), cu_coeff,
-                                   cu_coeff_stride);
+  int non_zero =
+    quantize_.Forward(comp, qp, width, height, rec_pic->GetBitdepth(),
+                      cu->GetPicType(), temp_coeff_.GetDataPtr(),
+                      temp_coeff_.GetStride(), cu_coeff, cu_coeff_stride);
   bool cbf = non_zero != 0;
   if (Restrictions::Get().disable_transform_cbf) {
     cbf = true;
@@ -66,10 +60,8 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
   SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
   if (cbf) {
     // Dequant
-    const int shift_iquant = constants::kIQuantShift
-      - constants::kQuantShift - transform_shift;
-    quantize_.Inverse(comp, qp, shift_iquant, width, height, cu_coeff,
-                      cu_coeff_stride, temp_coeff_.GetDataPtr(),
+    quantize_.Inverse(comp, qp, width, height, rec_pic->GetBitdepth(),
+                      cu_coeff, cu_coeff_stride, temp_coeff_.GetDataPtr(),
                       temp_coeff_.GetStride());
 
     // Inv transform

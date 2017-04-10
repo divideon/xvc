@@ -102,12 +102,8 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
   // Dequant
   Coeff *cu_coeff_buf = cu->GetCoeff(comp);
   ptrdiff_t cu_coeff_stride = cu->GetCoeffStride();
-  const int transform_shift = constants::kMaxTrDynamicRange
-    - decoded_pic_.GetBitdepth() - util::SizeToLog2(width);
-  const int shift_iquant = constants::kIQuantShift
-    - constants::kQuantShift - transform_shift;
-  quantize_.Inverse(comp, qp, shift_iquant, width, height, cu_coeff_buf,
-                    cu_coeff_stride, temp_coeff_.GetDataPtr(),
+  quantize_.Inverse(comp, qp, width, height, decoded_pic_.GetBitdepth(),
+                    cu_coeff_buf, cu_coeff_stride, temp_coeff_.GetDataPtr(),
                     temp_coeff_.GetStride());
 
   // Inverse transform

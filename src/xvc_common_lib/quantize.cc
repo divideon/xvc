@@ -106,24 +106,33 @@ double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
   return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
 }
 
-int Quantize::Forward(YuvComponent comp, const QP &qp, int shift, int offset,
-                      int width, int height, const Coeff *in,
-                      ptrdiff_t in_stride, Coeff *out, ptrdiff_t out_stride) {
-  int scale = qp.GetFwdScale(comp);
-  int num_non_zero = 0;
+int Quantize::Forward(YuvComponent comp, const QP &qp, int width, int height,
+                      int bitdepth, PicturePredictionType pic_type,
+                      const Coeff *in, ptrdiff_t in_stride,
+                      Coeff *out, ptrdiff_t out_stride) {
+  const int tr_size_log2 =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) >> 1;
+  const int transform_shift =
+    constants::kMaxTrDynamicRange - bitdepth - tr_size_log2 +
+    (width != height ? 7 : 0);
+  const int qp_scale = qp.GetFwdScale(comp);
+  const int size_scale = (width != height) ? 181 : 1;
+  const int shift_quant =
+    constants::kQuantShift + qp.GetQpPer(comp) + transform_shift;
+  const int offset =
+    QP::GetOffsetQuant(pic_type == PicturePredictionType::kIntra, shift_quant);
+  const int scale = size_scale * qp_scale;
 
+  int num_non_zero = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
-      int coeff = in[x];
-      int sign = coeff < 0 ? -1 : 1;
-      int level = std::abs(coeff);
-
-      level = ((level * scale) + offset) >> shift;
-      level *= sign;
-      level = util::Clip3(level, constants::kInt16Min, constants::kInt16Max);
-
-      out[x] = static_cast<Coeff>(level);
-      if (level) {
+      int sign = in[x] < 0 ? -1 : 1;
+      int64_t level = std::abs(in[x]);
+      int coeff = static_cast<int>(((level * scale) + offset) >> shift_quant);
+      coeff *= sign;
+      coeff = util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
+      out[x] = static_cast<Coeff>(coeff);
+      if (coeff) {
         num_non_zero++;
       }
     }
@@ -133,10 +142,20 @@ int Quantize::Forward(YuvComponent comp, const QP &qp, int shift, int offset,
   return num_non_zero;
 }
 
-void Quantize::Inverse(YuvComponent comp, const QP &qp, int shift, int width,
-                       int height, const Coeff *in, ptrdiff_t in_stride,
+void Quantize::Inverse(YuvComponent comp, const QP &qp, int width, int height,
+                       int bitdepth, const Coeff *in, ptrdiff_t in_stride,
                        Coeff *out, ptrdiff_t out_stride) {
-  int scale = qp.GetInvScale(comp);
+  const int tr_size_log2 =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) >> 1;
+  const int transform_shift =
+    constants::kMaxTrDynamicRange - bitdepth - tr_size_log2;
+  const int size_shift = (width != height) ? 8 : 0;
+  const int shift = constants::kIQuantShift - transform_shift -
+    qp.GetQpPer(comp) + size_shift;
+  const int size_scale = (width != height) ? 181 : 1;
+  const int qp_scale = qp.GetInvScale(comp);
+  const int scale = size_scale * qp_scale;
+
   if (shift > 0) {
     int offset = (1 << (shift - 1));
     for (int y = 0; y < height; y++) {

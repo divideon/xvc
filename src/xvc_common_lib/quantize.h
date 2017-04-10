@@ -39,8 +39,7 @@ public:
     return kFwdQuantScales_[qp_bitdepth_[comp] % kNumScalingListRem_];
   }
   int GetInvScale(YuvComponent comp) const {
-    return kInvQuantScales_[qp_bitdepth_[comp] % kNumScalingListRem_]
-      << (qp_bitdepth_[comp] / kNumScalingListRem_);
+    return kInvQuantScales_[qp_bitdepth_[comp] % kNumScalingListRem_];
   }
   double GetDistortionWeight(YuvComponent comp) const {
     return distortion_weight_[comp];
@@ -71,11 +70,12 @@ private:
 
 class Quantize {
 public:
-  int Forward(YuvComponent comp, const QP &qp, int shift, int offset,
-              int width, int height, const Coeff *in, ptrdiff_t in_stride,
+  int Forward(YuvComponent comp, const QP &qp, int width, int height,
+              int bitdepth, PicturePredictionType pic_type,
+              const Coeff *in, ptrdiff_t in_stride,
               Coeff *out, ptrdiff_t out_stride);
-  void Inverse(YuvComponent comp, const QP &qp, int shift, int width,
-               int height, const Coeff *in, ptrdiff_t in_stride, Coeff *out,
+  void Inverse(YuvComponent comp, const QP &qp, int width, int height,
+               int bitdepth, const Coeff *in, ptrdiff_t in_stride, Coeff *out,
                ptrdiff_t out_stride);
 };
 
