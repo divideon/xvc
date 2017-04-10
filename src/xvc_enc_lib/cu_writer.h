@@ -21,6 +21,7 @@ public:
     intra_pred_(intra_pred) {
   }
   void WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const;
+  void WriteSplit(const CodingUnit &cu, SyntaxWriter *writer) const;
   void WriteComponent(const CodingUnit &cu, YuvComponent comp,
                       SyntaxWriter *writer)  const;
   void WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,

@@ -63,7 +63,7 @@ public:
   int GetHeight(YuvComponent comp) const {
     return comp == YuvComponent::kY ? height_ : height_ >> chroma_shift_y_;
   }
-  bool IsSplit() const { return split_state_ != SplitType::kNone; }
+  SplitType GetSplit() const { return split_state_; }
   void SetSplit(SplitType split_type) { split_state_ = split_type; }
   std::array<CodingUnit*, constants::kQuadSplit> &GetSubCu() {
     return sub_cu_list_;

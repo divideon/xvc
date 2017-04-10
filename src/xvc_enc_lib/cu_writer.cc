@@ -12,18 +12,8 @@
 namespace xvc {
 
 void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
-  bool split = cu.IsSplit();
-  int max_depth = pic_data_.GetMaxDepth(cu.GetCuTree());
-  if (cu.GetDepth() < max_depth) {
-    if (cu.IsFullyWithinPicture()) {
-      writer->WriteSplitFlag(cu, max_depth, split);
-    } else {
-      assert(split);
-    }
-  } else {
-    assert(!split);
-  }
-  if (cu.IsSplit()) {
+  WriteSplit(cu, writer);
+  if (cu.GetSplit() != SplitType::kNone) {
     for (int i = 0; i < constants::kQuadSplit; i++) {
       const CodingUnit *sub_cu = cu.GetSubCu(i);
       if (sub_cu) {
@@ -33,6 +23,30 @@ void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
   } else {
     for (YuvComponent comp : pic_data_.GetComponents(cu.GetCuTree())) {
       WriteComponent(cu, comp, writer);
+    }
+  }
+}
+
+void CuWriter::WriteSplit(const CodingUnit & cu, SyntaxWriter * writer) const {
+  SplitType split_type = cu.GetSplit();
+  int binary_depth = cu.GetBinaryDepth();
+  int max_depth = pic_data_.GetMaxDepth(cu.GetCuTree());
+  if (cu.GetDepth() < max_depth && binary_depth == 0) {
+    if (cu.IsFullyWithinPicture()) {
+      writer->WriteSplitQuad(cu, max_depth, split_type);
+    } else {
+      assert(split_type != SplitType::kNone);
+    }
+  }
+  if (split_type != SplitType::kQuad && !Restrictions::Get().disable_ext) {
+    int width = cu.GetWidth(YuvComponent::kY);
+    int height = cu.GetHeight(YuvComponent::kY);
+    if (binary_depth < constants::kMaxBinarySplitDepth &&
+        (width >= constants::kMinBinarySplitSize ||
+         height >= constants::kMinBinarySplitSize) &&
+         (width <= constants::kMaxBinarySplitSize &&
+          height <= constants::kMaxBinarySplitSize)) {
+      writer->WriteSplitBinary(cu, split_type);
     }
   }
 }

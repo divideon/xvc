@@ -12,19 +12,9 @@
 namespace xvc {
 
 void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
-  bool split;
-  int max_depth = pic_data_->GetMaxDepth(cu->GetCuTree());
-  if (cu->GetDepth() < max_depth) {
-    if (cu->IsFullyWithinPicture()) {
-      split = reader->ReadSplitFlag(*cu, max_depth);
-    } else {
-      split = true;
-    }
-  } else {
-    split = false;
-  }
-  if (split) {
-    cu->Split(SplitType::kQuad);
+  SplitType split = ReadSplit(cu, reader);
+  if (split != SplitType::kNone) {
+    cu->Split(split);
     for (CodingUnit *sub_cu : cu->GetSubCu()) {
       if (sub_cu) {
         ReadCu(sub_cu, reader);
@@ -37,6 +27,31 @@ void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
       ReadComponent(cu, comp, reader);
     }
   }
+}
+
+SplitType CuReader::ReadSplit(CodingUnit *cu, SyntaxReader *reader) {
+  SplitType split = SplitType::kNone;
+  int binary_depth = cu->GetBinaryDepth();
+  int max_depth = pic_data_->GetMaxDepth(cu->GetCuTree());
+  if (cu->GetDepth() < max_depth && binary_depth == 0) {
+    if (cu->IsFullyWithinPicture()) {
+      split = reader->ReadSplitQuad(*cu, max_depth);
+    } else {
+      split = SplitType::kQuad;
+    }
+  }
+  if (split != SplitType::kQuad && !Restrictions::Get().disable_ext) {
+    int width = cu->GetWidth(YuvComponent::kY);
+    int height = cu->GetHeight(YuvComponent::kY);
+    if (binary_depth < constants::kMaxBinarySplitDepth &&
+        (width >= constants::kMinBinarySplitSize ||
+         height >= constants::kMinBinarySplitSize) &&
+         (width <= constants::kMaxBinarySplitSize &&
+          height <= constants::kMaxBinarySplitSize)) {
+      reader->ReadSplitBinary(*cu);
+    }
+  }
+  return split;
 }
 
 void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,

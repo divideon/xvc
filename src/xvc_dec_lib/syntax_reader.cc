@@ -480,9 +480,10 @@ SplitType SyntaxReader::ReadSplitBinary(const CodingUnit & cu) {
   return bin2 != 0 ? SplitType::kHorizontal : SplitType::kVertical;
 }
 
-bool SyntaxReader::ReadSplitFlag(const CodingUnit &cu, int max_depth) {
+SplitType SyntaxReader::ReadSplitQuad(const CodingUnit &cu, int max_depth) {
   ContextModel &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
-  return entropydec_->DecodeBin(&ctx) != 0;
+  uint32_t bin = entropydec_->DecodeBin(&ctx);
+  return bin != 0 ? SplitType::kQuad : SplitType::kNone;
 }
 
 void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,

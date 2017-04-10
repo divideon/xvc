@@ -22,6 +22,7 @@ public:
   void ReadCu(CodingUnit *cu, SyntaxReader *reader);
 
 private:
+  SplitType ReadSplit(CodingUnit *cu, SyntaxReader *reader);
   void ReadComponent(CodingUnit *cu, YuvComponent comp, SyntaxReader *reader);
   void ReadIntraPrediction(CodingUnit *cu, YuvComponent comp,
                            SyntaxReader *reader);

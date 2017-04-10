@@ -38,7 +38,7 @@ public:
   bool ReadRootCbf();
   bool ReadSkipFlag(const CodingUnit &cu);
   SplitType ReadSplitBinary(const CodingUnit &cu);
-  bool ReadSplitFlag(const CodingUnit &cu, int max_depth);
+  SplitType ReadSplitQuad(const CodingUnit &cu, int max_depth);
 
 private:
   template<int SubBlockShift>

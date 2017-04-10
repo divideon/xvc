@@ -49,7 +49,7 @@ public:
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
   void WriteSplitBinary(const CodingUnit &cu, SplitType split_type);
-  void WriteSplitFlag(const CodingUnit &cu, int max_depth, bool split);
+  void WriteSplitQuad(const CodingUnit &cu, int max_depth, SplitType split);
 
 protected:
   template<int SubBlockShift>

@@ -485,10 +485,10 @@ void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu, SplitType split) {
   }
 }
 
-void SyntaxWriter::WriteSplitFlag(const CodingUnit &cu, int max_depth,
-                                  bool split) {
+void SyntaxWriter::WriteSplitQuad(const CodingUnit &cu, int max_depth,
+                                  SplitType split) {
   ContextModel &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
-  entropyenc_->EncodeBin(split ? 1 : 0, &ctx);
+  entropyenc_->EncodeBin(split == SplitType::kQuad ? 1 : 0, &ctx);
 }
 
 void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,

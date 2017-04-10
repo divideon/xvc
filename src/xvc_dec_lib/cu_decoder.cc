@@ -58,7 +58,7 @@ void CuDecoder::ReadCtu(int rsaddr, SyntaxReader * reader) {
 }
 
 void CuDecoder::DecompressCu(CodingUnit *cu) {
-  if (cu->IsSplit()) {
+  if (cu->GetSplit() != SplitType::kNone) {
     for (CodingUnit *sub_cu : cu->GetSubCu()) {
       if (sub_cu) {
         DecompressCu(sub_cu);
