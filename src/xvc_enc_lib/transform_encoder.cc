@@ -123,7 +123,6 @@ bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
                                        Distortion sum_dist_zero) {
   RdoSyntaxWriter rdo_writer_nonzero(bitstream_writer, 0);
   // TODO(Dev) Investigate gains of correct root cbf signaling
-#if HM_STRICT
   for (int c = 0; c < num_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
     bool cbf = cu->GetCbf(comp);
@@ -133,11 +132,6 @@ bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
                                            cu->GetCoeffStride());
     }
   }
-#else
-  for (int c = 0; c < pic_data_.GetMaxNumComponents(); c++) {
-    cu_writer_.WriteCoefficients(*cu, YuvComponent(c), &rdo_writer_nonzero);
-  }
-#endif
   Bits bits_non_zero = rdo_writer_nonzero.GetNumWrittenBits();
 
   // TODO(Dev) Investigate gains of correct start state
