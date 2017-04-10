@@ -249,7 +249,8 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const QP &qp,
     mv_fullpel = FullSearch(cu, qp, mvp, *ref_pic, clip_min, clip_max);
   } else if (search_method == SearchMethod::TZSearch) {
     MetricType metric_type = GetFullpelMetric(cu);
-    TZSearch tz_search(bitdepth_, orig_pic_, speed_settings_, kSearchRangeUni);
+    TZSearch tz_search(bitdepth_, orig_pic_, *this, speed_settings_,
+                       kSearchRangeUni);
     mv_fullpel =
       tz_search.Search(cu, qp, metric_type, mvp, *ref_pic, clip_min, clip_max,
                        previous_fullpel_[static_cast<int>(ref_list)][ref_idx]);

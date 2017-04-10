@@ -16,7 +16,7 @@
 
 namespace xvc {
 
-class TZSearch : public InterPrediction {
+class TZSearch {
 public:
   struct Left { static const int index = -1; };
   struct Right { static const int index = 1; };
@@ -25,9 +25,10 @@ public:
   struct SearchState;
 
   TZSearch(int bitdepth, const YuvPicture &orig_pic,
+           const InterPrediction &inter_pred,
            const SpeedSettings &speed_settings, int search_range)
-    : InterPrediction(bitdepth),
-    orig_pic_(orig_pic),
+    : orig_pic_(orig_pic),
+    inter_pred_(inter_pred),
     speed_settings_(speed_settings),
     bitdepth_(bitdepth),
     search_range_(search_range) {
@@ -51,6 +52,7 @@ private:
   bool CheckCost2(SearchState *state, int mv_x, int mv_y, int range);
 
   const YuvPicture &orig_pic_;
+  const InterPrediction &inter_pred_;
   const SpeedSettings &speed_settings_;
   int bitdepth_;
   int search_range_;

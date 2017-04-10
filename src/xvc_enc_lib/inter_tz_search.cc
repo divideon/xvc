@@ -6,6 +6,8 @@
 
 #include "xvc_enc_lib/inter_tz_search.h"
 
+#include <cmath>
+
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_enc_lib/inter_search.h"
 
@@ -84,7 +86,7 @@ TZSearch::Search(const CodingUnit &cu, const QP &qp, MetricType metric,
 
   // Initial cost of predictor at fullpel resolution
   MotionVector mvp_fullpel = mvp;
-  ClipMV(cu, ref_pic, &mvp_fullpel.x, &mvp_fullpel.y);
+  inter_pred_.ClipMV(cu, ref_pic, &mvp_fullpel.x, &mvp_fullpel.y);
   mvp_fullpel.x >>= constants::kMvPrecisionShift;
   mvp_fullpel.y >>= constants::kMvPrecisionShift;
   state.cost_best = GetCost(&state, mvp_fullpel.x, mvp_fullpel.y);
@@ -99,15 +101,16 @@ TZSearch::Search(const CodingUnit &cu, const QP &qp, MetricType metric,
       speed_settings_.eval_prev_mv_search_result) {
     int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
     int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
-    ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);
+    inter_pred_.ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);
     MotionVector prev_fullpel(prev_subpel_x >> constants::kMvPrecisionShift,
                               prev_subpel_y >> constants::kMvPrecisionShift);
     change_min_max |= CheckCostBest(&state, prev_fullpel.x, prev_fullpel.y);
     if (change_min_max) {
       int best_subpel_x = state.mv_best.x * (1 << constants::kMvPrecisionShift);
       int best_subpel_y = state.mv_best.y * (1 << constants::kMvPrecisionShift);
-      DetermineMinMaxMv(cu, ref_pic, best_subpel_x, best_subpel_y,
-                        search_range_, &fullsearch_min, &fullsearch_max);
+      inter_pred_.DetermineMinMaxMv(cu, ref_pic, best_subpel_x, best_subpel_y,
+                                    search_range_, &fullsearch_min,
+                                    &fullsearch_max);
     }
   }
 

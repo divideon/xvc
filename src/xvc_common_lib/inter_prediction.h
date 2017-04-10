@@ -49,16 +49,16 @@ public:
                   int merge_idx);
   void MotionCompensation(const CodingUnit &cu, YuvComponent comp,
                           Sample *pred_ptr, ptrdiff_t pred_stride);
+  void ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
+              int *mv_x, int *mv_y) const;
+  void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
+                         int center_x, int center_y, int search_range,
+                         MotionVector *mv_min, MotionVector *mv_max) const;
 
 protected:
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, int mv_x, int mv_y,
                             Sample *pred, ptrdiff_t pred_stride);
-  void ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
-              int *mv_x, int *mv_y);
-  void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
-                         int center_x, int center_y, int search_range,
-                         MotionVector *mv_min, MotionVector *mv_max);
 
 private:
   static const int kBufSize = constants::kMaxBlockSize *

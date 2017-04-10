@@ -365,7 +365,7 @@ InterPrediction::MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
 }
 
 void InterPrediction::ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
-                             int *mv_x, int *mv_y) {
+                             int *mv_x, int *mv_y) const {
   const YuvComponent comp = YuvComponent::kY;
   const int offset = 8;
   const int mvshift = constants::kMvPrecisionShift;
@@ -383,7 +383,8 @@ void
 InterPrediction::DetermineMinMaxMv(const CodingUnit &cu,
                                    const YuvPicture &ref_pic,
                                    int center_x, int center_y, int search_range,
-                                   MotionVector *mv_min, MotionVector *mv_max) {
+                                   MotionVector *mv_min,
+                                   MotionVector *mv_max) const {
   const int mvscale = constants::kMvPrecisionShift;
   ClipMV(cu, ref_pic, &center_x, &center_y);
   int search_range_qpel = search_range << mvscale;
