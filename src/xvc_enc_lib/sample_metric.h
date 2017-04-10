@@ -66,8 +66,8 @@ private:
   uint64_t ComputeSATD(int width, int height,
                        const SampleT1 *sample1, ptrdiff_t stride1,
                        const SampleT2 *sample2, ptrdiff_t stride2);
-  template<typename SampleT1, typename SampleT2>
-  int ComputeSATD8x8(const SampleT1 *sample1, ptrdiff_t stride1,
+  template<int W, int H, typename SampleT1, typename SampleT2>
+  int ComputeSATDNxM(const SampleT1 *sample1, ptrdiff_t stride1,
                      const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
   uint64_t ComputeSAD(int width, int height,

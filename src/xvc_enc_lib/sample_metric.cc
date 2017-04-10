@@ -7,6 +7,7 @@
 #include "xvc_enc_lib/sample_metric.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <limits>
 
@@ -127,102 +128,286 @@ uint64_t SampleMetric::ComputeSATD(int width, int height,
                                    const SampleT1 *sample1, ptrdiff_t stride1,
                                    const SampleT2 *sample2, ptrdiff_t stride2) {
   uint64_t sad = 0;
-  for (int y = 0; y < height; y += 8) {
-    for (int x = 0; x < width; x += 8) {
-      sad += ComputeSATD8x8(sample1 + x, stride1, sample2 + x, stride2);
+  if (height == 4 && width > height) {
+    for (int y = 0; y < height; y += 4) {
+      for (int x = 0; x < width; x += 8) {
+        sad += ComputeSATDNxM<8, 4>(sample1 + x, stride1, sample2 + x, stride2);
+      }
+      sample1 += stride1 * 4;
+      sample2 += stride2 * 4;
     }
-    sample1 += stride1 * 8;
-    sample2 += stride2 * 8;
+  } else if (width == 4 && height > width) {
+    for (int y = 0; y < height; y += 8) {
+      for (int x = 0; x < width; x += 4) {
+        sad += ComputeSATDNxM<4, 8>(sample1 + x, stride1, sample2 + x, stride2);
+      }
+      sample1 += stride1 * 8;
+      sample2 += stride2 * 8;
+    }
+  } else if (width > height) {
+    for (int y = 0; y < height; y += 8) {
+      for (int x = 0; x < width; x += 16) {
+        sad +=
+          ComputeSATDNxM<16, 8>(sample1 + x, stride1, sample2 + x, stride2);
+      }
+      sample1 += stride1 * 8;
+      sample2 += stride2 * 8;
+    }
+  } else if (width < height) {
+    for (int y = 0; y < height; y += 16) {
+      for (int x = 0; x < width; x += 8) {
+        sad +=
+          ComputeSATDNxM<8, 16>(sample1 + x, stride1, sample2 + x, stride2);
+      }
+      sample1 += stride1 * 16;
+      sample2 += stride2 * 16;
+    }
+  } else {
+    for (int y = 0; y < height; y += 8) {
+      for (int x = 0; x < width; x += 8) {
+        sad += ComputeSATDNxM<8, 8>(sample1 + x, stride1, sample2 + x, stride2);
+      }
+      sample1 += stride1 * 8;
+      sample2 += stride2 * 8;
+    }
   }
   return sad >> (bitdepth_ - 8);
 }
 
-template<typename SampleT1, typename SampleT2>
-int SampleMetric::ComputeSATD8x8(const SampleT1 *sample1, ptrdiff_t stride1,
+template<int W, int H, typename SampleT1, typename SampleT2>
+int SampleMetric::ComputeSATDNxM(const SampleT1 *sample1, ptrdiff_t stride1,
                                  const SampleT2 *sample2, ptrdiff_t stride2) {
-  int diff[64], m1[8][8], m2[8][8], m3[8][8];
+  int diff[W*H], m1[H][W], m2[H][W];
+  static_assert(W == 4 || W == 8 || W == 16, "Only W = 8 or 16 supported");
+  static_assert(H == 4 || H == 8 || H == 16, "Only H = 8 or 16 supported");
 
-  for (int k = 0; k < 64; k += 8) {
+  for (int k = 0; k < W*H; k += W) {
     diff[k + 0] = sample1[0] - sample2[0];
     diff[k + 1] = sample1[1] - sample2[1];
     diff[k + 2] = sample1[2] - sample2[2];
     diff[k + 3] = sample1[3] - sample2[3];
-    diff[k + 4] = sample1[4] - sample2[4];
-    diff[k + 5] = sample1[5] - sample2[5];
-    diff[k + 6] = sample1[6] - sample2[6];
-    diff[k + 7] = sample1[7] - sample2[7];
+    if (W > 4) {
+      diff[k + 4] = sample1[4] - sample2[4];
+      diff[k + 5] = sample1[5] - sample2[5];
+      diff[k + 6] = sample1[6] - sample2[6];
+      diff[k + 7] = sample1[7] - sample2[7];
+    }
+    if (W > 8) {
+      diff[k + 8] = sample1[8] - sample2[8];
+      diff[k + 9] = sample1[9] - sample2[9];
+      diff[k + 10] = sample1[10] - sample2[10];
+      diff[k + 11] = sample1[11] - sample2[11];
+      diff[k + 12] = sample1[12] - sample2[12];
+      diff[k + 13] = sample1[13] - sample2[13];
+      diff[k + 14] = sample1[14] - sample2[14];
+      diff[k + 15] = sample1[15] - sample2[15];
+    }
     sample1 += stride1;
     sample2 += stride2;
   }
 
   // Horizontal
-  for (int j = 0; j < 8; j++) {
-    int jj = j << 3;
-    m2[j][0] = diff[jj + 0] + diff[jj + 4];
-    m2[j][1] = diff[jj + 1] + diff[jj + 5];
-    m2[j][2] = diff[jj + 2] + diff[jj + 6];
-    m2[j][3] = diff[jj + 3] + diff[jj + 7];
-    m2[j][4] = diff[jj + 0] - diff[jj + 4];
-    m2[j][5] = diff[jj + 1] - diff[jj + 5];
-    m2[j][6] = diff[jj + 2] - diff[jj + 6];
-    m2[j][7] = diff[jj + 3] - diff[jj + 7];
+  for (int j = 0; j < H; j++) {
+    int jj = j * W;
 
-    m1[j][0] = m2[j][0] + m2[j][2];
-    m1[j][1] = m2[j][1] + m2[j][3];
-    m1[j][2] = m2[j][0] - m2[j][2];
-    m1[j][3] = m2[j][1] - m2[j][3];
-    m1[j][4] = m2[j][4] + m2[j][6];
-    m1[j][5] = m2[j][5] + m2[j][7];
-    m1[j][6] = m2[j][4] - m2[j][6];
-    m1[j][7] = m2[j][5] - m2[j][7];
+    if (W > 8) {
+      m1[j][0] = diff[jj] + diff[jj + 8];
+      m1[j][1] = diff[jj + 1] + diff[jj + 9];
+      m1[j][2] = diff[jj + 2] + diff[jj + 10];
+      m1[j][3] = diff[jj + 3] + diff[jj + 11];
+      m1[j][4] = diff[jj + 4] + diff[jj + 12];
+      m1[j][5] = diff[jj + 5] + diff[jj + 13];
+      m1[j][6] = diff[jj + 6] + diff[jj + 14];
+      m1[j][7] = diff[jj + 7] + diff[jj + 15];
+      m1[j][8] = diff[jj] - diff[jj + 8];
+      m1[j][9] = diff[jj + 1] - diff[jj + 9];
+      m1[j][10] = diff[jj + 2] - diff[jj + 10];
+      m1[j][11] = diff[jj + 3] - diff[jj + 11];
+      m1[j][12] = diff[jj + 4] - diff[jj + 12];
+      m1[j][13] = diff[jj + 5] - diff[jj + 13];
+      m1[j][14] = diff[jj + 6] - diff[jj + 14];
+      m1[j][15] = diff[jj + 7] - diff[jj + 15];
+
+      m2[j][0] = m1[j][0] + m1[j][4];
+      m2[j][1] = m1[j][1] + m1[j][5];
+      m2[j][2] = m1[j][2] + m1[j][6];
+      m2[j][3] = m1[j][3] + m1[j][7];
+      m2[j][4] = m1[j][0] - m1[j][4];
+      m2[j][5] = m1[j][1] - m1[j][5];
+      m2[j][6] = m1[j][2] - m1[j][6];
+      m2[j][7] = m1[j][3] - m1[j][7];
+      m2[j][8] = m1[j][8] + m1[j][12];
+      m2[j][9] = m1[j][9] + m1[j][13];
+      m2[j][10] = m1[j][10] + m1[j][14];
+      m2[j][11] = m1[j][11] + m1[j][15];
+      m2[j][12] = m1[j][8] - m1[j][12];
+      m2[j][13] = m1[j][9] - m1[j][13];
+      m2[j][14] = m1[j][10] - m1[j][14];
+      m2[j][15] = m1[j][11] - m1[j][15];
+    } else if (W > 4) {
+      m2[j][0] = diff[jj + 0] + diff[jj + 4];
+      m2[j][1] = diff[jj + 1] + diff[jj + 5];
+      m2[j][2] = diff[jj + 2] + diff[jj + 6];
+      m2[j][3] = diff[jj + 3] + diff[jj + 7];
+      m2[j][4] = diff[jj + 0] - diff[jj + 4];
+      m2[j][5] = diff[jj + 1] - diff[jj + 5];
+      m2[j][6] = diff[jj + 2] - diff[jj + 6];
+      m2[j][7] = diff[jj + 3] - diff[jj + 7];
+    } else {
+      m1[j][0] = diff[jj + 0] + diff[jj + 2];
+      m1[j][1] = diff[jj + 1] + diff[jj + 3];
+      m1[j][2] = diff[jj + 0] - diff[jj + 2];
+      m1[j][3] = diff[jj + 1] - diff[jj + 3];
+    }
+
+    if (W > 4) {
+      m1[j][0] = m2[j][0] + m2[j][2];
+      m1[j][1] = m2[j][1] + m2[j][3];
+      m1[j][2] = m2[j][0] - m2[j][2];
+      m1[j][3] = m2[j][1] - m2[j][3];
+      m1[j][4] = m2[j][4] + m2[j][6];
+      m1[j][5] = m2[j][5] + m2[j][7];
+      m1[j][6] = m2[j][4] - m2[j][6];
+      m1[j][7] = m2[j][5] - m2[j][7];
+    }
+    if (W > 8) {
+      m1[j][8] = m2[j][8] + m2[j][10];
+      m1[j][9] = m2[j][9] + m2[j][11];
+      m1[j][10] = m2[j][8] - m2[j][10];
+      m1[j][11] = m2[j][9] - m2[j][11];
+      m1[j][12] = m2[j][12] + m2[j][14];
+      m1[j][13] = m2[j][13] + m2[j][15];
+      m1[j][14] = m2[j][12] - m2[j][14];
+      m1[j][15] = m2[j][13] - m2[j][15];
+    }
 
     m2[j][0] = m1[j][0] + m1[j][1];
     m2[j][1] = m1[j][0] - m1[j][1];
     m2[j][2] = m1[j][2] + m1[j][3];
     m2[j][3] = m1[j][2] - m1[j][3];
-    m2[j][4] = m1[j][4] + m1[j][5];
-    m2[j][5] = m1[j][4] - m1[j][5];
-    m2[j][6] = m1[j][6] + m1[j][7];
-    m2[j][7] = m1[j][6] - m1[j][7];
+    if (W > 4) {
+      m2[j][4] = m1[j][4] + m1[j][5];
+      m2[j][5] = m1[j][4] - m1[j][5];
+      m2[j][6] = m1[j][6] + m1[j][7];
+      m2[j][7] = m1[j][6] - m1[j][7];
+    }
+    if (W > 8) {
+      m2[j][8] = m1[j][8] + m1[j][9];
+      m2[j][9] = m1[j][8] - m1[j][9];
+      m2[j][10] = m1[j][10] + m1[j][11];
+      m2[j][11] = m1[j][10] - m1[j][11];
+      m2[j][12] = m1[j][12] + m1[j][13];
+      m2[j][13] = m1[j][12] - m1[j][13];
+      m2[j][14] = m1[j][14] + m1[j][15];
+      m2[j][15] = m1[j][14] - m1[j][15];
+    }
   }
 
   // Vertical
-  for (int i = 0; i < 8; i++) {
-    m3[0][i] = m2[0][i] + m2[4][i];
-    m3[1][i] = m2[1][i] + m2[5][i];
-    m3[2][i] = m2[2][i] + m2[6][i];
-    m3[3][i] = m2[3][i] + m2[7][i];
-    m3[4][i] = m2[0][i] - m2[4][i];
-    m3[5][i] = m2[1][i] - m2[5][i];
-    m3[6][i] = m2[2][i] - m2[6][i];
-    m3[7][i] = m2[3][i] - m2[7][i];
+  for (int i = 0; i < W; i++) {
+    if (H > 8) {
+      m1[0][i] = m2[0][i] + m2[8][i];
+      m1[1][i] = m2[1][i] + m2[9][i];
+      m1[2][i] = m2[2][i] + m2[10][i];
+      m1[3][i] = m2[3][i] + m2[11][i];
+      m1[4][i] = m2[4][i] + m2[12][i];
+      m1[5][i] = m2[5][i] + m2[13][i];
+      m1[6][i] = m2[6][i] + m2[14][i];
+      m1[7][i] = m2[7][i] + m2[15][i];
+      m1[8][i] = m2[0][i] - m2[8][i];
+      m1[9][i] = m2[1][i] - m2[9][i];
+      m1[10][i] = m2[2][i] - m2[10][i];
+      m1[11][i] = m2[3][i] - m2[11][i];
+      m1[12][i] = m2[4][i] - m2[12][i];
+      m1[13][i] = m2[5][i] - m2[13][i];
+      m1[14][i] = m2[6][i] - m2[14][i];
+      m1[15][i] = m2[7][i] - m2[15][i];
+    } else if (H > 4) {
+      m1[0][i] = m2[0][i];
+      m1[1][i] = m2[1][i];
+      m1[2][i] = m2[2][i];
+      m1[3][i] = m2[3][i];
+      m1[4][i] = m2[4][i];
+      m1[5][i] = m2[5][i];
+      m1[6][i] = m2[6][i];
+      m1[7][i] = m2[7][i];
+    }
 
-    m1[0][i] = m3[0][i] + m3[2][i];
-    m1[1][i] = m3[1][i] + m3[3][i];
-    m1[2][i] = m3[0][i] - m3[2][i];
-    m1[3][i] = m3[1][i] - m3[3][i];
-    m1[4][i] = m3[4][i] + m3[6][i];
-    m1[5][i] = m3[5][i] + m3[7][i];
-    m1[6][i] = m3[4][i] - m3[6][i];
-    m1[7][i] = m3[5][i] - m3[7][i];
+    if (H > 4) {
+      m2[0][i] = m1[0][i] + m1[4][i];
+      m2[1][i] = m1[1][i] + m1[5][i];
+      m2[2][i] = m1[2][i] + m1[6][i];
+      m2[3][i] = m1[3][i] + m1[7][i];
+      m2[4][i] = m1[0][i] - m1[4][i];
+      m2[5][i] = m1[1][i] - m1[5][i];
+      m2[6][i] = m1[2][i] - m1[6][i];
+      m2[7][i] = m1[3][i] - m1[7][i];
+    }
+    if (H > 8) {
+      m2[8][i] = m1[8][i] + m1[12][i];
+      m2[9][i] = m1[9][i] + m1[13][i];
+      m2[10][i] = m1[10][i] + m1[14][i];
+      m2[11][i] = m1[11][i] + m1[15][i];
+      m2[12][i] = m1[8][i] - m1[12][i];
+      m2[13][i] = m1[9][i] - m1[13][i];
+      m2[14][i] = m1[10][i] - m1[14][i];
+      m2[15][i] = m1[11][i] - m1[15][i];
+    }
+
+    m1[0][i] = m2[0][i] + m2[2][i];
+    m1[1][i] = m2[1][i] + m2[3][i];
+    m1[2][i] = m2[0][i] - m2[2][i];
+    m1[3][i] = m2[1][i] - m2[3][i];
+    if (H > 4) {
+      m1[4][i] = m2[4][i] + m2[6][i];
+      m1[5][i] = m2[5][i] + m2[7][i];
+      m1[6][i] = m2[4][i] - m2[6][i];
+      m1[7][i] = m2[5][i] - m2[7][i];
+    }
+    if (H > 8) {
+      m1[8][i] = m2[8][i] + m2[10][i];
+      m1[9][i] = m2[9][i] + m2[11][i];
+      m1[10][i] = m2[8][i] - m2[10][i];
+      m1[11][i] = m2[9][i] - m2[11][i];
+      m1[12][i] = m2[12][i] + m2[14][i];
+      m1[13][i] = m2[13][i] + m2[15][i];
+      m1[14][i] = m2[12][i] - m2[14][i];
+      m1[15][i] = m2[13][i] - m2[15][i];
+    }
 
     m2[0][i] = m1[0][i] + m1[1][i];
     m2[1][i] = m1[0][i] - m1[1][i];
     m2[2][i] = m1[2][i] + m1[3][i];
     m2[3][i] = m1[2][i] - m1[3][i];
-    m2[4][i] = m1[4][i] + m1[5][i];
-    m2[5][i] = m1[4][i] - m1[5][i];
-    m2[6][i] = m1[6][i] + m1[7][i];
-    m2[7][i] = m1[6][i] - m1[7][i];
+    if (H > 4) {
+      m2[4][i] = m1[4][i] + m1[5][i];
+      m2[5][i] = m1[4][i] - m1[5][i];
+      m2[6][i] = m1[6][i] + m1[7][i];
+      m2[7][i] = m1[6][i] - m1[7][i];
+    }
+    if (H > 8) {
+      m2[8][i] = m1[8][i] + m1[9][i];
+      m2[9][i] = m1[8][i] - m1[9][i];
+      m2[10][i] = m1[10][i] + m1[11][i];
+      m2[11][i] = m1[10][i] - m1[11][i];
+      m2[12][i] = m1[12][i] + m1[13][i];
+      m2[13][i] = m1[12][i] - m1[13][i];
+      m2[14][i] = m1[14][i] + m1[15][i];
+      m2[15][i] = m1[14][i] - m1[15][i];
+    }
   }
 
   int sum = 0;
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j++) {
+  for (int i = 0; i < H; i++) {
+    for (int j = 0; j < W; j++) {
       sum += std::abs(m2[i][j]);
     }
   }
-  sum = ((sum + 2) >> 2);
+  if (W == H) {
+    sum = ((sum + 2) >> 2);
+  } else {
+    sum = static_cast<int>(2.0 * sum / std::sqrt(W*H));
+  }
   return sum;
 }
 
