@@ -17,10 +17,6 @@ namespace xvc {
 
 class QP {
 public:
-  static int GetOffsetQuant(bool is_intra_pic, int shift_quant) {
-    return (is_intra_pic ? 171 : 85) << (shift_quant - 9);
-  }
-
   QP(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
      int chroma_offset = 0);
   bool operator<(const QP &qp) const {
@@ -39,7 +35,8 @@ public:
     return kFwdQuantScales_[qp_bitdepth_[comp] % kNumScalingListRem_];
   }
   int GetInvScale(YuvComponent comp) const {
-    return kInvQuantScales_[qp_bitdepth_[comp] % kNumScalingListRem_];
+    return kInvQuantScales_[qp_bitdepth_[comp] % kNumScalingListRem_]
+      << (qp_bitdepth_[comp] / kNumScalingListRem_);
   }
   double GetDistortionWeight(YuvComponent comp) const {
     return distortion_weight_[comp];
@@ -77,6 +74,9 @@ public:
   void Inverse(YuvComponent comp, const QP &qp, int width, int height,
                int bitdepth, const Coeff *in, ptrdiff_t in_stride, Coeff *out,
                ptrdiff_t out_stride);
+
+private:
+  static int GetTransformShift(int width, int height, int bitdepth);
 };
 
 }   // namespace xvc

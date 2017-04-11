@@ -110,25 +110,19 @@ int Quantize::Forward(YuvComponent comp, const QP &qp, int width, int height,
                       int bitdepth, PicturePredictionType pic_type,
                       const Coeff *in, ptrdiff_t in_stride,
                       Coeff *out, ptrdiff_t out_stride) {
-  const int tr_size_log2 =
-    (util::SizeToLog2(width) + util::SizeToLog2(height)) >> 1;
-  const int transform_shift =
-    constants::kMaxTrDynamicRange - bitdepth - tr_size_log2 +
-    (width != height ? 7 : 0);
-  const int qp_scale = qp.GetFwdScale(comp);
-  const int size_scale = (width != height) ? 181 : 1;
-  const int shift_quant =
-    constants::kQuantShift + qp.GetQpPer(comp) + transform_shift;
+  const int transform_shift = GetTransformShift(width, height, bitdepth);
+  const int shift = constants::kQuantShift + qp.GetQpPer(comp) +
+    transform_shift + (width != height ? 7 : 0);
+  const int scale = qp.GetFwdScale(comp) * (width != height ? 181 : 1);
   const int offset =
-    QP::GetOffsetQuant(pic_type == PicturePredictionType::kIntra, shift_quant);
-  const int scale = size_scale * qp_scale;
+    (pic_type == PicturePredictionType::kIntra ? 171 : 85) << (shift - 9);
 
   int num_non_zero = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int sign = in[x] < 0 ? -1 : 1;
       int64_t level = std::abs(in[x]);
-      int coeff = static_cast<int>(((level * scale) + offset) >> shift_quant);
+      int coeff = static_cast<int>(((level * scale) + offset) >> shift);
       coeff *= sign;
       coeff = util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
       out[x] = static_cast<Coeff>(coeff);
@@ -145,16 +139,10 @@ int Quantize::Forward(YuvComponent comp, const QP &qp, int width, int height,
 void Quantize::Inverse(YuvComponent comp, const QP &qp, int width, int height,
                        int bitdepth, const Coeff *in, ptrdiff_t in_stride,
                        Coeff *out, ptrdiff_t out_stride) {
-  const int tr_size_log2 =
-    (util::SizeToLog2(width) + util::SizeToLog2(height)) >> 1;
-  const int transform_shift =
-    constants::kMaxTrDynamicRange - bitdepth - tr_size_log2;
-  const int size_shift = (width != height) ? 8 : 0;
+  const int transform_shift = GetTransformShift(width, height, bitdepth);
   const int shift = constants::kIQuantShift - transform_shift -
-    qp.GetQpPer(comp) + size_shift;
-  const int size_scale = (width != height) ? 181 : 1;
-  const int qp_scale = qp.GetInvScale(comp);
-  const int scale = size_scale * qp_scale;
+    (width != height ? 8 : 0);
+  const int scale = qp.GetInvScale(comp) *  (width != height ? 181 : 1);
 
   if (shift > 0) {
     int offset = (1 << (shift - 1));
@@ -177,6 +165,12 @@ void Quantize::Inverse(YuvComponent comp, const QP &qp, int width, int height,
       out += out_stride;
     }
   }
+}
+
+int Quantize::GetTransformShift(int width, int height, int bitdepth) {
+  const int tr_size_log2 =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) >> 1;
+  return constants::kMaxTrDynamicRange - bitdepth - tr_size_log2;
 }
 
 }   // namespace xvc
