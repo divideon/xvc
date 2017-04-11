@@ -174,23 +174,33 @@ const CodingUnit* CodingUnit::GetCodingUnitLeftBelow() const {
 }
 
 int CodingUnit::GetCuSizeAboveRight(YuvComponent comp) const {
-  const CodingUnit *above_right = GetCodingUnitAboveRight();
-  if (!above_right) {
+  int posx = pos_x_ + width_;
+  int posy = pos_y_ - constants::kMinBlockSize;
+  if (posy < 0) {
     return 0;
   }
-  int pic_remain_x = pic_data_.GetPictureWidth(comp) -
-    (GetPosX(comp) + GetWidth(comp));
-  return std::min(GetWidth(comp), pic_remain_x);
+  posx -= constants::kMinBlockSize;
+  for (int i = height_; i >= 0; i -= constants::kMinBlockSize) {
+    if (pic_data_.GetCuAt(cu_tree_, posx + i, posy)) {
+      return util::IsLuma(comp) ? i : (i >> chroma_shift_y_);
+    }
+  }
+  return 0;
 }
 
 int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
-  const CodingUnit *below_left = GetCodingUnitLeftBelow();
-  if (!below_left) {
+  int posx = pos_x_ - constants::kMinBlockSize;
+  int posy = pos_y_ + height_;
+  if (posx < 0) {
     return 0;
   }
-  int pic_remain_y = pic_data_.GetPictureHeight(comp) -
-    (GetPosY(comp) + GetHeight(comp));
-  return std::min(GetHeight(comp), pic_remain_y);
+  posy -= constants::kMinBlockSize;
+  for (int i = width_; i >= 0; i -= constants::kMinBlockSize) {
+    if (pic_data_.GetCuAt(cu_tree_, posx, posy + i)) {
+      return util::IsLuma(comp) ? i : (i >> chroma_shift_x_);
+    }
+  }
+  return 0;
 }
 
 IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {

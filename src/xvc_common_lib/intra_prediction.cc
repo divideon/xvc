@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/utils.h"
@@ -20,10 +21,6 @@ const int8_t IntraPrediction::kAngleTable_[17] = {
 
 const int16_t IntraPrediction::kInvAngleTable_[8] = {
   4096, 1638, 910, 630, 482, 390, 315, 256
-};
-
-const int8_t IntraPrediction::kFilterRefThreshold[7] = {
-  0, 0, /*4x4:*/10, /*8x8:*/7, /*16x16:*/1, /*32x32:*/ 0, /*64x64:*/ 10
 };
 
 void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
@@ -39,15 +36,11 @@ void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
                               YuvComponent comp, const State &ref_state,
                               Sample *output_buffer, ptrdiff_t output_stride) {
   const Sample *ref_samples = &ref_state.ref_samples[0];
-  if (util::IsLuma(comp) &&
-      !Restrictions::Get().disable_intra_ref_sample_filter) {
-    int threshold = kFilterRefThreshold[util::SizeToLog2(cu.GetWidth(comp))];
-    int mode_diff = std::min(abs(intra_mode - IntraMode::kHorizontal),
-                             abs(intra_mode - IntraMode::kVertical));
-    ref_samples = mode_diff > threshold ?
-      &ref_state.ref_filtered[0] : &ref_state.ref_samples[0];
+  if (util::IsLuma(comp)) {
+    bool filtered_ref = UseFilteredRefSamples(cu, intra_mode);
+    ref_samples =
+      filtered_ref ? &ref_state.ref_filtered[0] : &ref_state.ref_samples[0];
   }
-
   bool post_filter = comp == kY && cu.GetWidth(comp) <= 16 &&
     cu.GetHeight(comp) <= 16;
   IntraMode mode = (Restrictions::Get().disable_intra_planar &&
@@ -156,6 +149,22 @@ IntraPrediction::GetPredictorsChroma(IntraMode luma_mode) const {
   return chroma_preds;
 }
 
+bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
+                                            IntraMode intra_mode) {
+  if (Restrictions::Get().disable_intra_ref_sample_filter) {
+    return false;
+  }
+  static const std::array<int8_t, 8> kFilterRefThreshold = {
+      /*1x1:*/0, /*2x2:*/20, /*4x4:*/10, /*8x8:*/7, /*16x16:*/1,
+      /*32x32:*/ 0, /*64x64:*/ 10, /*128x128:*/ 0
+  };
+  int size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
+              util::SizeToLog2(cu.GetHeight(YuvComponent::kY))) >> 1;
+  int mode_diff = std::min(abs(intra_mode - IntraMode::kHorizontal),
+                           abs(intra_mode - IntraMode::kVertical));
+  return mode_diff > kFilterRefThreshold[size];
+}
+
 void
 IntraPrediction::PredIntraDC(int width, int height, bool dc_filter,
                              const Sample *ref_samples, ptrdiff_t ref_stride,
@@ -167,7 +176,8 @@ IntraPrediction::PredIntraDC(int width, int height, bool dc_filter,
   for (int y = 0; y < height; y++) {
     sum += ref_samples[ref_stride + y];
   }
-  Sample dc_val = static_cast<Sample>((sum + width) / (width + height));
+  int total_size = width + height;
+  Sample dc_val = static_cast<Sample>((sum + (total_size>>1)) / total_size);
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       output_buffer[x] = dc_val;
@@ -178,8 +188,8 @@ IntraPrediction::PredIntraDC(int width, int height, bool dc_filter,
   if (dc_filter && !Restrictions::Get().disable_intra_dc_post_filter) {
     for (int y = height - 1; y > 0; y--) {
       output_buffer -= output_stride;
-      output_buffer[0] = (ref_samples[ref_stride + y] + 3 * output_buffer[0]
-                          + 2) >> 2;
+      output_buffer[0] =
+        (ref_samples[ref_stride + y] + 3 * output_buffer[0] + 2) >> 2;
     }
     output_buffer -= output_stride;
     for (int x = 1; x < width; x++) {
@@ -195,18 +205,21 @@ void
 IntraPrediction::PlanarPred(int width, int height,
                             const Sample *ref_samples, ptrdiff_t ref_stride,
                             Sample *output_buffer, ptrdiff_t output_stride) {
-  const int size_log2 = util::SizeToLog2(width);
+  const int width_log2 = util::SizeToLog2(width);
+  const int height_log2 = util::SizeToLog2(height);
   const Sample *above = ref_samples + 1;
   const Sample *left = ref_samples + ref_stride;
   Sample topRight = ref_samples[1 + width];
   Sample bottomLeft = left[height];
+  int shift = width_log2 + height_log2 + 1;
+  int offset = 1 << (shift - 1);
 
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int hor = (height - 1 - y) * above[x] + (y + 1) * bottomLeft;
       int ver = (width - 1 - x) * left[y] + (x + 1) * topRight;
-      output_buffer[x] =
-        static_cast<Sample>((hor + ver + width) >> (size_log2 + 1));
+      int pred = ((hor << width_log2) + (ver << height_log2) + offset) >> shift;
+      output_buffer[x] = static_cast<Sample>(pred);
     }
     output_buffer += output_stride;
   }
@@ -224,13 +237,16 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
   // Compute flipped reference samples
   if (is_horizontal) {
     ref_flip_buffer[0] = ref_samples[0];
-    for (int y = 0; y < height * 2; y++) {
-      ref_flip_buffer[1 + y] = ref_samples[ref_stride + y];
-    }
-    for (int x = 0; x < width * 2; x++) {
-      ref_flip_buffer[ref_stride + x] = ref_samples[1 + x];
+    for (int i = 0; i < width + height; i++) {
+      ref_flip_buffer[1 + i] = ref_samples[ref_stride + i];
+      ref_flip_buffer[ref_stride + i] = ref_samples[1 + i];
     }
     ref_ptr = ref_flip_buffer;
+    // For non-square blocks the output stride is not changed meaning that
+    // flipped prediction will write outside of height*output_stride area
+    // this is ok if we are only writing to a temporary buffer
+    assert(height <= output_stride);
+    std::swap(width, height);
   }
 
   // Get the prediction angle.
@@ -249,7 +265,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
       Sample above_left = ref_ptr[0];
       Sample above = ref_ptr[1];
       Sample max_val = (1 << bitdepth_) - 1;
-      for (int y = 0; y < width; y++) {
+      for (int y = 0; y < height; y++) {
         int16_t val = above + ((ref_ptr[ref_stride + y] - above_left) >> 1);
         output_buffer[y * output_stride] = util::ClipBD(val, max_val);
       }
@@ -260,7 +276,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
 
     // Project the side direction to the prediction line
     if (angle < 0) {
-      int num_projected = -((width * angle) >> 5) - 1;
+      int num_projected = -((height * angle) >> 5) - 1;
       Sample *ref_line_base_ptr = ref_line_buffer + num_projected + 1;
       // Most above samples are directly copied
       for (int i = 0; i < width + 1; i++) {
@@ -299,12 +315,24 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
 
   // Flip back prediction for horizontal modes
   if (is_horizontal) {
-    for (int y = 0; y < height - 1; y++) {
-      for (int x = y + 1; x < width; x++) {
+    int short_side = std::min(width, height);
+    for (int y = 0; y < short_side - 1; y++) {
+      for (int x = y + 1; x < short_side; x++) {
         Sample tmp = output_buffer[y * output_stride + x];
         output_buffer[y * output_stride + x] =
           output_buffer[x * output_stride + y];
         output_buffer[x * output_stride + y] = tmp;
+      }
+    }
+    if (width != height) {
+      int offset_x = width - short_side;
+      int offset_y = height - short_side;
+      for (int y = 0; y < short_side; y++) {
+        for (int x = 0; x < short_side; x++) {
+          Sample tmp =
+            output_buffer[(offset_y + y) * output_stride + offset_x + x];
+          output_buffer[(offset_x + x)*output_stride + offset_y + y] = tmp;
+        }
       }
     }
   }
@@ -334,13 +362,16 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
                                         &neighbors, const Sample *input,
                                         ptrdiff_t input_stride, Sample *output,
                                         ptrdiff_t output_stride) {
-  Sample dc_val = 1 << (bitdepth_ - 1);
+  const Sample dc_val = 1 << (bitdepth_ - 1);
+  const int top_left_size = width;
+  const int left_size = width + height;
+  const int top_size = width + height;
 
   if (!neighbors.has_any()) {
-    for (int x = 0; x < width * 2 + 1; x++) {
+    for (int x = 0; x < width + height + 1; x++) {
       output[x] = dc_val;
     }
-    for (int y = 0; y < height * 2; y++) {
+    for (int y = 0; y < height + width; y++) {
       output[output_stride + y] = dc_val;
     }
     return;
@@ -348,11 +379,11 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
 
   if (neighbors.has_all(width, height)) {
     input -= input_stride + 1;
-    for (int x = 0; x < width * 2 + 1; x++) {
+    for (int x = 0; x < width + height + 1; x++) {
       output[x] = input[x];
     }
     input += input_stride;
-    for (int y = 0; y < height * 2; y++) {
+    for (int y = 0; y < height + width; y++) {
       output[output_stride + y] = input[y * input_stride];
     }
     return;
@@ -363,7 +394,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
   Sample *line_temp;
 
   // 1. Initialize with default value
-  int total_refs = width * 3 + height * 2;
+  int total_refs = left_size + top_size + top_left_size;
   for (int i = 0; i < total_refs; i++) {
     line_buffer[i] = dc_val;
   }
@@ -371,11 +402,10 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
   // 2. Fill when available
   // Fill top-left sample
   const Sample *src_temp = input - input_stride - 1;
-  line_temp = line_buffer + 2 * width;
+  line_temp = line_buffer + left_size;
   if (neighbors.has_above_left) {
-    line_temp[0] = src_temp[0];
-    for (int i = 1; i < width; i++) {
-      line_temp[i] = line_temp[0];
+    for (int i = 0; i < top_left_size; i++) {
+      line_temp[i] = src_temp[0];
     }
   }
 
@@ -393,7 +423,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
         line_temp[-i] = src_temp[i*input_stride];
       }
       // Out of picture bounds padding
-      for (int i = neighbors.has_below_left; i < height; i++) {
+      for (int i = neighbors.has_below_left; i < width; i++) {
         line_temp[-i] = line_temp[-neighbors.has_below_left + 1];
       }
     }
@@ -401,7 +431,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
 
   // Fill above & above-right samples
   src_temp = input - input_stride;
-  line_temp = line_buffer + ((2 + 1)*width);
+  line_temp = line_buffer + left_size + top_left_size;
   if (neighbors.has_above) {
     for (int i = 0; i < width; i++) {
       line_temp[i] = src_temp[i];
@@ -411,7 +441,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
         line_temp[width + i] = src_temp[width + i];
       }
       // Out of picture bounds padding
-      for (int i = neighbors.has_above_right; i < width; i++) {
+      for (int i = neighbors.has_above_right; i < height; i++) {
         line_temp[width + i] = line_temp[width + neighbors.has_above_right - 1];
       }
     }
@@ -423,49 +453,50 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
       if (neighbors.has_left) {
         ref = line_buffer[width];
       } else if (neighbors.has_above_left) {
-        ref = line_buffer[width * 2];
+        ref = line_buffer[left_size];
       } else if (neighbors.has_above) {
-        ref = line_buffer[width * 3];
+        ref = line_buffer[left_size + top_left_size];
       } else {
-        ref = line_buffer[width * 4];
+        ref = line_buffer[left_size + top_left_size + width];
       }
-      for (int i = 0; i < height; i++) {
+      for (int i = 0; i < width; i++) {
         line_buffer[i] = ref;
       }
     }
 
     // 3b. Pad any other missing
     if (!neighbors.has_left) {
-      for (int i = 0; i < width; i++) {
+      for (int i = 0; i < height; i++) {
         line_buffer[width + i] = line_buffer[width - 1];
       }
     }
     if (!neighbors.has_above_left) {
-      for (int i = 0; i < width; i++) {
-        line_buffer[width * 2 + i] = line_buffer[width * 2 - 1];
+      for (int i = 0; i < top_left_size; i++) {
+        line_buffer[left_size + i] = line_buffer[left_size - 1];
       }
     }
     if (!neighbors.has_above) {
       for (int i = 0; i < width; i++) {
-        line_buffer[width * 3 + i] = line_buffer[width * 3 - 1];
+        line_buffer[left_size + top_left_size + i] =
+          line_buffer[left_size + top_left_size - 1];
       }
     }
     if (!neighbors.has_above_right) {
-      for (int i = 0; i < width; i++) {
-        line_buffer[width * 4 + i] = line_buffer[width * 4 - 1];
+      for (int i = 0; i < height; i++) {
+        line_buffer[left_size + top_left_size + width + i] =
+          line_buffer[left_size + top_left_size + width - 1];
       }
     }
   }
 
   // 4. Copy processed samples
   // TODO(Dev) can be done with memcpy
-  line_temp = line_buffer + (height * 2) + width - 1;
-  int top_line = width * 2 + 1;
-  for (int x = 0; x < top_line; x++) {
+  line_temp = line_buffer + left_size + top_left_size - 1;
+  for (int x = 0; x < top_size + 1; x++) {
     output[x] = line_temp[x];
   }
-  line_temp = line_buffer + height * 2 - 1;
-  for (int y = 0; y < height * 2; y++) {
+  line_temp = line_buffer + left_size - 1;
+  for (int y = 0; y < left_size; y++) {
     output[output_stride + y] = line_temp[-y];
   }
 }
@@ -477,20 +508,20 @@ void IntraPrediction::FilterRefSamples(int width, int height,
   dst_ref[0] = ((above_left << 1) + src_ref[1] + src_ref[stride] + 2) >> 2;
 
   // above
-  for (int x = 1; x < width * 2; x++) {
+  for (int x = 1; x < width + height; x++) {
     dst_ref[x] =
       ((src_ref[x] << 1) + src_ref[x - 1] + src_ref[x + 1] + 2) >> 2;
   }
-  dst_ref[width * 2] = src_ref[width * 2];
+  dst_ref[width + height] = src_ref[width + height];
 
   // left
   dst_ref[stride] =
     ((src_ref[stride] << 1) + above_left + src_ref[stride + 1] + 2) >> 2;
-  for (int y = 1; y < height * 2; y++) {
+  for (int y = 1; y < height + width; y++) {
     dst_ref[stride + y] = ((src_ref[stride + y] << 1) + src_ref[stride + y - 1]
                            + src_ref[stride + y + 1] + 2) >> 2;
   }
-  dst_ref[stride + height * 2 - 1] = src_ref[stride + height * 2 - 1];
+  dst_ref[stride + height + width - 1] = src_ref[stride + height + width - 1];
 }
 
 }   // namespace xvc

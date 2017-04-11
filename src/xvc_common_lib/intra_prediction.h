@@ -50,7 +50,7 @@ private:
     }
     bool has_all(int width, int height) const {
       return has_above_left && has_above && has_left &&
-        has_above_right == width && has_below_left == height;
+        has_below_left == width && has_above_right == height;
     }
     bool has_above_left = false;
     bool has_above = false;
@@ -60,8 +60,8 @@ private:
   };
   static const int8_t kAngleTable_[17];
   static const int16_t kInvAngleTable_[8];
-  static const int8_t kFilterRefThreshold[7];
 
+  bool UseFilteredRefSamples(const CodingUnit &cu, IntraMode intra_mode);
   void PredIntraDC(int width, int height, bool dc_filter,
                    const Sample *ref_samples, ptrdiff_t ref_stride,
                    Sample *output_buffer, ptrdiff_t output_stride);

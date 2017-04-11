@@ -1587,7 +1587,7 @@ void TransformHelper::DeriveSubblockScan(ScanOrder scan_order, int width,
   if (scan_order == ScanOrder::kDiagonal) {
     for (int i = 0; i < nbr_subblocks; i++) {
       scan_table[i] = static_cast<uint16_t>(pos_y * width + pos_x);
-      if ((pos_x == (width - 1)) || (pos_y == 0)) {
+      if ((pos_x == width - 1) || (pos_y == 0)) {
         pos_y += pos_x + 1;
         pos_x = 0;
         if (pos_y >= height) {
@@ -1602,7 +1602,7 @@ void TransformHelper::DeriveSubblockScan(ScanOrder scan_order, int width,
   } else if (scan_order == ScanOrder::kHorizontal) {
     for (int i = 0; i < nbr_subblocks; i++) {
       scan_table[i] = static_cast<uint16_t>(pos_y * width + pos_x);
-      if ((pos_x == (width - 1))) {
+      if (pos_x == width - 1) {
         pos_x = 0;
         pos_y++;
       } else {
@@ -1612,7 +1612,7 @@ void TransformHelper::DeriveSubblockScan(ScanOrder scan_order, int width,
   } else if (scan_order == ScanOrder::kVertical) {
     for (int i = 0; i < nbr_subblocks; i++) {
       scan_table[i] = static_cast<uint16_t>(pos_y * width + pos_x);
-      if ((pos_y == (height - 1))) {
+      if (pos_y == height - 1) {
         pos_x++;
         pos_y = 0;
       } else {
