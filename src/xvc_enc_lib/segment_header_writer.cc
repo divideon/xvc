@@ -82,6 +82,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_transform_root_cbf);
     bit_writer->WriteBit(restr.disable_transform_cbf);
     bit_writer->WriteBit(restr.disable_transform_subblock_csbf);
+    bit_writer->WriteBit(restr.disable_transform_sign_hiding);
     bit_writer->WriteBit(restr.disable_transform_adaptive_exp_golomb);
   } else {
     bit_writer->WriteBit(0);  // transform_restrictions

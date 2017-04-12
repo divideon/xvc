@@ -59,6 +59,7 @@ public:
       instance.disable_transform_root_cbf ||
       instance.disable_transform_cbf ||
       instance.disable_transform_subblock_csbf ||
+      instance.disable_transform_sign_hiding ||
       instance.disable_transform_adaptive_exp_golomb;
   }
 
@@ -127,6 +128,7 @@ public:
   bool disable_transform_root_cbf = false;
   bool disable_transform_cbf = false;
   bool disable_transform_subblock_csbf = false;
+  bool disable_transform_sign_hiding = false;
   bool disable_transform_adaptive_exp_golomb = false;
   bool disable_cabac_ctx_update = false;
   bool disable_cabac_split_flag_ctx = false;

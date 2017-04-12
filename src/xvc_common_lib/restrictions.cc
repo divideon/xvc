@@ -117,6 +117,10 @@ Restrictions::Restrictions() {
   disable_transform_subblock_csbf = true;
 #endif
 
+#if RESTRICTION_DISABLE_TRANSFORM_SIGN_HIDING
+  disable_transform_sign_hiding = true;
+#endif
+
 #if RESTRICTION_DISABLE_TRANSFORM_ADAPTIVE_EXP_GOLOMB
   disable_transform_adaptive_exp_golomb = true;
 #endif

@@ -12,6 +12,7 @@
 #include <limits>
 
 #include "xvc_common_lib/utils.h"
+#include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/transform.h"
 
 namespace xvc {
@@ -148,7 +149,8 @@ int Quantize::Forward(const CodingUnit *cu, YuvComponent comp, const QP &qp,
     delta_ptr += delta_stride;
     out_ptr += out_stride;
   }
-  if (abs_sum > 1 && width >= 4 && height >= 4) {
+  if (!Restrictions::Get().disable_transform_sign_hiding &&
+      abs_sum > 1 && width >= 4 && height >= 4) {
     AdjustCoeffsForSignHiding(cu, comp, width, height, in, in_stride,
                               delta, delta_stride, out, out_stride);
   }

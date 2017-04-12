@@ -138,6 +138,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_transform_subblock_csbf = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_transform_sign_hiding = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_transform_adaptive_exp_golomb = true;
     }
   }
