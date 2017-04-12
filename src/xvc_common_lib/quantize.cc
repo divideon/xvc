@@ -135,8 +135,8 @@ int Quantize::Forward(const CodingUnit *cu, YuvComponent comp, const QP &qp,
       int64_t level = std::abs(in_ptr[x]);
       int coeff = static_cast<int>(((level * scale) + offset) >> shift);
       abs_sum += coeff;
-      delta_ptr[x] =
-        static_cast<Coeff>(((level * scale) - (coeff << shift)) >> delta_shift);
+      delta_ptr[x] = static_cast<Coeff>(((level * scale) -
+        (static_cast<int64_t>(coeff) << shift)) >> delta_shift);
       coeff *= sign;
       coeff = util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
       out_ptr[x] = static_cast<Coeff>(coeff);
