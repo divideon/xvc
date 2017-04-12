@@ -68,6 +68,8 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   std::array<Coeff, subblock_size> subblock_coeff;
   std::array<uint16_t, subblock_size> subblock_nz_coeff_pos;
 
+  int last_nonzero_pos = -1;
+  int first_nonzero_pos = subblock_size;
   if (!Restrictions::Get().disable_transform_last_position) {
     uint32_t pos_last_x, pos_last_y;
     ReadCoeffLastPos(width, height, comp, scan_order, &pos_last_x, &pos_last_y);
@@ -99,6 +101,9 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       coeff_num_non_zero = 1;
     }
     subblock_nz_coeff_pos[0] = static_cast<uint16_t>(pos_last);
+    int subblock_last_offset = subblock_last_index << (subblock_shift * 2);
+    last_nonzero_pos = pos_last_index - subblock_last_offset;
+    first_nonzero_pos = pos_last_index - subblock_last_offset;
   }
 
   int c1 = 1;
@@ -139,13 +144,12 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       continue;
     }
 
+    // sig flags
     for (int coeff_index = subblock_size - subblock_last_coeff_offset;
          coeff_index >= 0; coeff_index--) {
       int coeff_scan = scan_table[subblock_offset + coeff_index];
       int coeff_scan_y = coeff_scan >> log2size;
       int coeff_scan_x = coeff_scan - (coeff_scan_y << log2size);
-
-      // sig flag
       bool sig_coeff;
       bool not_first_subblock = subblock_index > 0 &&
         !Restrictions::Get().disable_transform_subblock_csbf;
@@ -162,6 +166,10 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         subblock_nz_coeff_pos[coeff_num_non_zero] =
           static_cast<uint16_t>(coeff_scan);
         coeff_num_non_zero++;
+        if (last_nonzero_pos == -1) {
+          last_nonzero_pos = coeff_index;
+        }
+        first_nonzero_pos = coeff_index;
       } else {
         dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] = 0;
       }
@@ -208,9 +216,23 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       subblock_coeff[first_c2_idx] += static_cast<Coeff>(bin);
     }
 
-    // sign
-    uint32_t coeff_signs = entropydec_->DecodeBypassBins(coeff_num_non_zero);
-    coeff_signs <<= 32 - coeff_num_non_zero;
+    // sign hiding
+    bool sign_hidden = false;
+    if (last_nonzero_pos - first_nonzero_pos > constants::SignHidingThreshold) {
+      sign_hidden = true;
+    }
+    last_nonzero_pos = -1;
+    first_nonzero_pos = subblock_size;
+
+    // sign flags
+    uint32_t coeff_signs;
+    if (sign_hidden) {
+      coeff_signs = entropydec_->DecodeBypassBins(coeff_num_non_zero - 1);
+      coeff_signs <<= 32 - (coeff_num_non_zero - 1);
+    } else {
+      coeff_signs = entropydec_->DecodeBypassBins(coeff_num_non_zero);
+      coeff_signs <<= 32 - coeff_num_non_zero;
+    }
 
     // abs level remaining
     if (c1 == 0 || coeff_num_non_zero > max_num_c1_flags) {
@@ -233,7 +255,7 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         }
       }
     }
-
+    int abs_sum = 0;
     // store calculated coefficients
     for (int i = 0; i < coeff_num_non_zero; i++) {
       int coeff_scan = subblock_nz_coeff_pos[i];
@@ -241,10 +263,16 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       int x = coeff_scan - (y << log2size);
 
       Coeff coeff = subblock_coeff[i];
-      int sign = static_cast<int>(coeff_signs) >> 31;
-      dst_coeff[y * dst_stride + x] =
-        static_cast<Coeff>((coeff ^ sign) - sign);
-      coeff_signs <<= 1;
+      abs_sum += coeff;
+      if (i == coeff_num_non_zero - 1 && sign_hidden) {
+        int sign = (abs_sum & 0x1) ? -1 : 1;
+        dst_coeff[y * dst_stride + x] = static_cast<Coeff>(sign * coeff);
+      } else {
+        int sign = static_cast<int>(coeff_signs) >> 31;
+        dst_coeff[y * dst_stride + x] =
+          static_cast<Coeff>((coeff ^ sign) - sign);
+        coeff_signs <<= 1;
+      }
     }
 
     coeff_num_non_zero = 0;

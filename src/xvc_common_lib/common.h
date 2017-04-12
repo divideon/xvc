@@ -22,13 +22,11 @@ namespace xvc {
 
 #if !XVC_HIGH_BITDEPTH
 typedef uint8_t Sample;
-typedef int16_t Coeff;
-typedef int16_t Residual;
 #else
 typedef uint16_t Sample;
+#endif
 typedef int16_t Coeff;
 typedef int16_t Residual;
-#endif
 typedef uint64_t Cost;
 typedef uint64_t Distortion;
 typedef uint32_t Bits;
@@ -102,6 +100,7 @@ const int kQpSignalBase = 64;
 const int kMaxNumC1Flags = 8;
 const int kSubblockShift = 2;
 const uint32_t kCoeffRemainBinReduction = 3;
+const int SignHidingThreshold = 3;
 
 // Deblocking
 const int kDeblockOffsetBits = 6;

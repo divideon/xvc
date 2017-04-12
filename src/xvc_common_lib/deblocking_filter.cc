@@ -273,7 +273,7 @@ void DeblockingFilter::FilterLumaWeak(Sample* src_ptr, ptrdiff_t step_size,
                                       ptrdiff_t offset, int tc, bool filter_p1,
                                       bool filter_q1) {
   const Sample sample_max = (1 << pic_data_->GetBitdepth()) - 1;
-  int32_t threashold = tc * 10;
+  int32_t threshold = tc * 10;
   int32_t half_tc = tc >> 1;
   Sample* src = src_ptr;
 
@@ -284,7 +284,7 @@ void DeblockingFilter::FilterLumaWeak(Sample* src_ptr, ptrdiff_t step_size,
     Sample q1 = src[offset];
     int32_t delta = (9 * (q0 - p0) - 3 * (q1 - p1) + 8) >> 4;
 
-    if (std::abs(delta) >= threashold &&
+    if (std::abs(delta) >= threshold &&
         !Restrictions::Get().disable_deblock_weak_sample_decision) {
       src += step_size;
       continue;

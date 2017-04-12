@@ -90,6 +90,8 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     }
   }
 
+  int last_nonzero_pos = -1;
+  int first_nonzero_pos = subblock_size;
   if (!Restrictions::Get().disable_transform_last_position) {
     int pos_last = scan_table[pos_last_index];
     int pos_last_y = pos_last >> log2size;
@@ -113,6 +115,9 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       coeff_signs = last_coeff < 0;
     }
     subblock_coeff[0] = static_cast<Coeff>(std::abs(last_coeff));
+    int subblock_last_offset = subblock_last_index << (subblock_shift * 2);
+    last_nonzero_pos = pos_last_index - subblock_last_offset;
+    first_nonzero_pos = pos_last_index - subblock_last_offset;
   }
 
   int c1 = 1;
@@ -157,7 +162,7 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       continue;
     }
 
-    // sig flag
+    // sig flags
     for (int coeff_index = subblock_size - subblock_last_coeff_offset;
          coeff_index >= 0; coeff_index--) {
       int coeff_scan = scan_table[subblock_offset + coeff_index];
@@ -179,10 +184,16 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         subblock_coeff[coeff_num_non_zero++] =
           static_cast<Coeff>(std::abs(coeff));
         coeff_signs = (coeff_signs << 1) + (coeff < 0);
+        if (last_nonzero_pos == -1) {
+          last_nonzero_pos = coeff_index;
+        }
+        first_nonzero_pos = coeff_index;
       }
     }
     subblock_last_coeff_offset = 1;
     if (!coeff_num_non_zero) {
+      last_nonzero_pos = -1;
+      first_nonzero_pos = subblock_size;
       continue;
     }
 
@@ -222,8 +233,20 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       entropyenc_->EncodeBin(greater_than_2, &ctx);
     }
 
+    // sign hiding
+    bool sign_hidden = false;
+    if (last_nonzero_pos - first_nonzero_pos > constants::SignHidingThreshold) {
+      sign_hidden = true;
+    }
+    last_nonzero_pos = -1;
+    first_nonzero_pos = subblock_size;
+
     // sign flags
-    entropyenc_->EncodeBypassBins(coeff_signs, coeff_num_non_zero);
+    if (sign_hidden) {
+      entropyenc_->EncodeBypassBins(coeff_signs >> 1, coeff_num_non_zero - 1);
+    } else {
+      entropyenc_->EncodeBypassBins(coeff_signs, coeff_num_non_zero);
+    }
     coeff_signs = 0;
 
     // abs level remaining

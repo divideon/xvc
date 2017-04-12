@@ -15,6 +15,8 @@
 
 namespace xvc {
 
+class CodingUnit;
+
 class QP {
 public:
   QP(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
@@ -67,7 +69,8 @@ private:
 
 class Quantize {
 public:
-  int Forward(YuvComponent comp, const QP &qp, int width, int height,
+  int Forward(const CodingUnit *cu, YuvComponent comp, const QP &qp, int width,
+              int height,
               int bitdepth, PicturePredictionType pic_type,
               const Coeff *in, ptrdiff_t in_stride,
               Coeff *out, ptrdiff_t out_stride);
@@ -77,6 +80,11 @@ public:
 
 private:
   static int GetTransformShift(int width, int height, int bitdepth);
+  void AdjustCoeffsForSignHiding(const CodingUnit *cu, YuvComponent comp,
+                                 int width, int height,
+                                 const Coeff *in, ptrdiff_t in_stride,
+                                 const Coeff *delta, ptrdiff_t delta_stride,
+                                 Coeff *out, ptrdiff_t out_stride);
 };
 
 }   // namespace xvc
