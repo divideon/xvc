@@ -100,6 +100,7 @@ protected:
     encoder->SetInputBitdepth(8);
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);
+    encoder->SetChecksumMode(1);
     encoder->SetDeblock(1);
     xvc::SpeedSettings speed_settings;
     speed_settings.Initialize(xvc::SpeedMode::kSlow);

@@ -44,7 +44,7 @@ public:
 private:
   void WriteHeader(const PictureData &pic_data, PicNum sub_gop_length,
                    int buffer_flag, BitWriter *bit_writer);
-  void WriteChecksum(BitWriter *bit_writer);
+  void WriteChecksum(BitWriter *bit_writer, Checksum::Mode checksum_mode);
   int DerivePictureQp(const PictureData &pic_data, int segment_qp) const;
 
   BitWriter bit_writer_;

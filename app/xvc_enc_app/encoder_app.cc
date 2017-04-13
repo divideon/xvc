@@ -75,6 +75,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.num_ref_pics;
     } else if (arg == "-restricted-mode") {
       std::stringstream(argv[++i]) >> cli_.restricted_mode;
+    } else if (arg == "-checksum-mode") {
+      std::stringstream(argv[++i]) >> cli_.checksum_mode;
     } else if (arg == "-deblock") {
       std::stringstream(argv[++i]) >> cli_.deblock;
     } else if (arg == "-beta-offset") {
@@ -221,6 +223,9 @@ void EncoderApp::CreateAndConfigureApi() {
   }
   if (cli_.deblock != -1) {
     params_->deblock = cli_.deblock;
+  }
+  if (cli_.checksum_mode != -1) {
+    params_->checksum_mode = cli_.checksum_mode;
   }
   if (cli_.beta_offset != std::numeric_limits<int>::min()) {
     params_->beta_offset = cli_.beta_offset;
@@ -405,6 +410,11 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -max-keypic-distance <int>" << std::endl;
   std::cout << "  -closed-gop <int>" << std::endl;
   std::cout << "  -num-ref-pics <int>" << std::endl;
+  std::cout << "  -checksum-mode <int>" << std::endl;
+  std::cout << "      0: Only temporal layer 0, all components combined"
+    << std::endl;
+  std::cout << "      1: All pictures, all components separately (default)"
+    << std::endl;
   std::cout << "  -deblock <0/1>" << std::endl;
   std::cout << "  -beta-offset <int>" << std::endl;
   std::cout << "  -tc-offset <int>" << std::endl;

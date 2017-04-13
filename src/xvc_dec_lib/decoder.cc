@@ -151,7 +151,8 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                                      pic_dec->GetPicData()->GetRefPicLists());
 
   // Decode the picture.
-  if (!pic_dec->Decode(&pic_bit_reader, max_tid_)) {
+  if (!pic_dec->Decode(&pic_bit_reader, max_tid_,
+                       segment_header->checksum_mode)) {
     num_corrupted_pics_++;
   }
   if (num_corrupted_pics_ == 1) {

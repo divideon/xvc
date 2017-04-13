@@ -8,6 +8,7 @@
 #define XVC_COMMON_LIB_SEGMENT_HEADER_H_
 
 #include "xvc_common_lib/common.h"
+#include "xvc_common_lib/checksum.h"
 
 namespace xvc {
 
@@ -36,6 +37,7 @@ struct SegmentHeader {
   PicNum max_sub_gop_length = 0;
   bool open_gop = false;
   int num_ref_pics = 0;
+  Checksum::Mode checksum_mode = Checksum::Mode::kInvalid;
   int deblock = -1;
   int beta_offset = 0;
   int tc_offset = 0;

@@ -64,6 +64,7 @@ private:
     int closed_gop = -1;
     int num_ref_pics = -1;
     int restricted_mode = -1;
+    int checksum_mode = -1;
     int deblock = -1;
     int beta_offset = std::numeric_limits<int>::min();
     int tc_offset = std::numeric_limits<int>::min();

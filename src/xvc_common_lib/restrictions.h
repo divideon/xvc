@@ -89,6 +89,10 @@ public:
       instance.disable_deblock_depending_on_qp;
   }
 
+  static bool GetHighLevelRestrictions() {
+      return instance.disable_high_level_default_checksum_method;
+  }
+
   static bool GetExtRestrictions() {
     return instance.disable_ext ||
       instance.disable_ext_tmvp_full_resolution ||
@@ -150,6 +154,7 @@ public:
   bool disable_deblock_weak_sample_decision = false;
   bool disable_deblock_two_samples_weak_filter = false;
   bool disable_deblock_depending_on_qp = false;
+  bool disable_high_level_default_checksum_method = false;
   bool disable_ext = false;
   bool disable_ext_tmvp_full_resolution = false;
   bool disable_ext_tmvp_exclude_intra_from_ref_list = false;

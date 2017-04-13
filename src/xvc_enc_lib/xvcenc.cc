@@ -47,6 +47,7 @@ extern "C" {
     param->closed_gop = 0;
     param->num_ref_pics = 2;
     param->restricted_mode = 0;
+    param->checksum_mode = 1;
     param->deblock = 1;
     param->beta_offset = 0;
     param->tc_offset = 0;
@@ -105,6 +106,11 @@ extern "C" {
     }
     if (param->restricted_mode < 0 || param->restricted_mode >=
         static_cast<int>(xvc::RestrictedMode::kTotalNumber)) {
+      return XVC_ENC_INVALID_PARAMETER;
+    }
+    if (param->checksum_mode < 0 ||
+        param->checksum_mode >=
+        static_cast<int>(xvc::Checksum::Mode::kTotalNumber)) {
       return XVC_ENC_INVALID_PARAMETER;
     }
     if (param->deblock == 0 &&
@@ -216,6 +222,7 @@ extern "C" {
       encoder->SetDeblock(param->deblock);
     }
     encoder->SetFlatLambda(param->flat_lambda != 0);
+    encoder->SetChecksumMode(param->checksum_mode);
 
     xvc_enc_set_speed_mode(encoder, param);
     xvc_enc_set_segment_length(encoder, param);

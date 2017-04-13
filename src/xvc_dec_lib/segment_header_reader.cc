@@ -35,8 +35,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
 
   bit_reader->ReadBit();  // shorter_sub_gops_allowed
   segment_header->open_gop = bit_reader->ReadBit() == 1;
-  segment_header->num_ref_pics = bit_reader->ReadBits(4);  // num_ref_pics
-  segment_header->deblock = bit_reader->ReadBits(2);  // deblock
+  segment_header->num_ref_pics = bit_reader->ReadBits(4);
+  segment_header->checksum_mode = Checksum::Mode(bit_reader->ReadBits(1));
+  segment_header->deblock = bit_reader->ReadBits(2);
   if (segment_header->deblock == 3) {
     int d = constants::kDeblockOffsetBits;
     segment_header->beta_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
@@ -210,6 +211,13 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     }
     if (bit_reader->ReadBit()) {
       restr.disable_deblock_depending_on_qp = true;
+    }
+  }
+
+  int high_level_restrictions = bit_reader->ReadBit();
+  if (high_level_restrictions) {
+    if (bit_reader->ReadBit()) {
+      restr.disable_high_level_default_checksum_method = true;
     }
   }
 

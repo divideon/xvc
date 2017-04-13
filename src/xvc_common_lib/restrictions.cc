@@ -205,6 +205,10 @@ Restrictions::Restrictions() {
   disable_deblock_depending_on_qp = true;
 #endif
 
+#if RESTRICTION_DISABLE_HIGH_LEVEL_DEFAULT_CHECKSUM_METHOD
+  disable_high_level_default_checksum_method = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT
   disable_ext = true;
 #endif

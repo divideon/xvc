@@ -15,6 +15,7 @@ namespace util {
 class MD5 {
 public:
   MD5();
+  void Reset();
   void Update(const uint8_t *buf, uint32_t len);
   void Final(uint8_t digest[16]);
 

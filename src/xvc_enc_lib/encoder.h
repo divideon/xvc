@@ -59,6 +59,9 @@ public:
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
   void SetQP(int qp) { segment_qp_ = qp; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
+  void SetChecksumMode(int mode) {
+    segment_header_.checksum_mode = Checksum::Mode(mode);
+  }
   void SetRestrictedMode(int mode);
 
   const SpeedSettings& GetSpeedSettings() { return speed_settings_; }

@@ -14,6 +14,7 @@
 #include "xvc_common_lib/deblocking_filter.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/resample.h"
+#include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_dec_lib/cu_decoder.h"
 #include "xvc_dec_lib/entropy_decoder.h"
@@ -26,7 +27,8 @@ PictureDecoder::PictureDecoder(ChromaFormat chroma_format, int width,
                                             bitdepth)),
   rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
                                         bitdepth, true)),
-  checksum_(Checksum::kDefaultMethod),
+  checksum_(Restrictions::Get().disable_high_level_default_checksum_method ?
+            Checksum::kFallbackMethod : Checksum::kDefaultMethod),
   first_peek_(1) {
 }
 
@@ -102,7 +104,8 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc));
 }
 
-bool PictureDecoder::Decode(BitReader *bit_reader, int max_tid) {
+bool PictureDecoder::Decode(BitReader *bit_reader, int max_tid,
+                            Checksum::Mode checksum_mode) {
   double lambda = 0;
   QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
@@ -133,7 +136,11 @@ bool PictureDecoder::Decode(BitReader *bit_reader, int max_tid) {
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
-  return ValidateChecksum(bit_reader);
+  if (pic_tid == 0 || checksum_mode == Checksum::Mode::kMaxRobust) {
+    return ValidateChecksum(bit_reader, checksum_mode);
+  } else {
+    return true;
+  }
 }
 
 std::shared_ptr<YuvPicture>
@@ -170,14 +177,15 @@ PictureDecoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
   return alt_rec_pic;
 }
 
-bool PictureDecoder::ValidateChecksum(BitReader *bit_reader) {
+bool PictureDecoder::ValidateChecksum(BitReader *bit_reader,
+                                      Checksum::Mode checksum_mode) {
   size_t checksum_len = bit_reader->ReadByte();
   std::vector<uint8_t> checksum_bytes;
   checksum_bytes.resize(checksum_len);
   bit_reader->ReadBytes(&checksum_bytes[0], checksum_len);
 
   checksum_.Clear();
-  checksum_.HashPicture(*rec_pic_);
+  checksum_.HashPicture(*rec_pic_, checksum_mode);
   return checksum_ == Checksum(checksum_.GetMethod(), checksum_bytes);
 }
 

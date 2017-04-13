@@ -33,6 +33,15 @@ MD5::MD5() : bits_(), state_() {
   buf_[3] = 0x10325476;
 }
 
+void MD5::Reset() {
+  buf_[0] = 0x67452301;
+  buf_[1] = 0xefcdab89;
+  buf_[2] = 0x98badcfe;
+  buf_[3] = 0x10325476;
+  std::memset(bits_, 0, sizeof(bits_));
+  std::memset(state_, 0, sizeof(state_));
+}
+
 void MD5::Update(const uint8_t *buf, uint32_t len) {
   // Update bitcount
   uint32_t t = bits_[0];

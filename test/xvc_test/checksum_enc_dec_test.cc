@@ -33,6 +33,7 @@ protected:
     sh.max_sub_gop_length = sub_gop_length;
     sh.open_gop = true;
     sh.num_ref_pics = 1;
+    sh.checksum_mode = xvc::Checksum::Mode::kMaxRobust;
     sh.deblock = true;
     return sh;
   }
@@ -83,7 +84,8 @@ protected:
                                sub_gop_length, sub_gop_length, doc,
                                segment_.soc, num_buffered_nals);
     int max_tid = xvc::SegmentHeader::GetMaxTid(sub_gop_length);
-    return pic_decoder_->Decode(&bit_reader, max_tid);
+    return pic_decoder_->Decode(&bit_reader, max_tid,
+                                segment_.checksum_mode);
   }
 
   static const int kPicWidth = 16;

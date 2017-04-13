@@ -21,16 +21,21 @@ public:
     kCRC = 1,
     kMD5 = 2,
   };
-  static const Method kDefaultMethod = Method::kMD5;
+  enum class Mode {
+    kMinOverhead = 0,
+    kMaxRobust = 1,
+    kTotalNumber = 2,
+    kInvalid = 99,
+  };
+  static const Method kDefaultMethod = Method::kCRC;
+  static const Method kFallbackMethod = Method::kCRC;
 
   explicit Checksum(Method method) : method_(method) {}
   Checksum(Method method, const std::vector<uint8_t> &hash)
     : hash_(hash), method_(method) {}
 
   void Clear() { hash_.clear(); }
-  void HashPicture(const YuvPicture &pic);
-  void HashComp(const Sample *src, int width, int height, ptrdiff_t stride,
-                int bitdepth);
+  void HashPicture(const YuvPicture &pic, Mode mode);
   Method GetMethod() const { return method_; }
   std::vector<uint8_t> GetHash() const { return hash_; }
 
@@ -42,10 +47,8 @@ public:
   }
 
 private:
-  void CalculateCRC(const Sample *src, int bitdepth, int width, int height,
-                    ptrdiff_t stride);
-  void CalculateMD5(const Sample *src, int bitdepth, int width, int height,
-                    ptrdiff_t stride);
+  void CalculateCRC(const YuvPicture &pic, Mode mode);
+  void CalculateMD5(const YuvPicture &pic, Mode mode);
 
   std::vector<uint8_t> hash_;
   Method method_;

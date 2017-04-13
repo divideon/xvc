@@ -13,6 +13,7 @@
 
 #include "xvc_common_lib/deblocking_filter.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/utils.h"
 #include "xvc_enc_lib/cu_encoder.h"
 #include "xvc_enc_lib/entropy_encoder.h"
@@ -21,7 +22,8 @@ namespace xvc {
 
 PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
                                int height, int bitdepth)
-  : checksum_(Checksum::kDefaultMethod),
+  : checksum_(Restrictions::Get().disable_high_level_default_checksum_method ?
+              Checksum::kFallbackMethod : Checksum::kDefaultMethod),
   orig_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
                                          bitdepth, false)),
   pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
@@ -66,7 +68,6 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   }
   entropy_encoder.EncodeBinTrm(1);
   entropy_encoder.Finish();
-  WriteChecksum(&bit_writer_);
 
   int max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
   int pic_tid = pic_data_->GetTid();
@@ -74,6 +75,9 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
+  if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
+    WriteChecksum(&bit_writer_, segment.checksum_mode);
+  }
   return bit_writer_.GetBytes();
 }
 
@@ -104,9 +108,10 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
   bit_writer->PadZeroBits();
 }
 
-void PictureEncoder::WriteChecksum(BitWriter *bit_writer) {
+void PictureEncoder::WriteChecksum(BitWriter *bit_writer,
+                                   Checksum::Mode checksum_mode) {
   checksum_.Clear();
-  checksum_.HashPicture(*rec_pic_);
+  checksum_.HashPicture(*rec_pic_, checksum_mode);
   std::vector<uint8_t> hash = checksum_.GetHash();
   assert(hash.size() < UINT8_MAX);
   bit_writer->WriteByte(static_cast<uint8_t>(hash.size()));

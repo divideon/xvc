@@ -36,6 +36,8 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   bit_writer->WriteBits(segment_header->num_ref_pics, 4);
   assert(segment_header->deblock >= 0);
   assert(segment_header->deblock <= 3);
+  bit_writer->WriteBits(static_cast<uint32_t>(segment_header->checksum_mode),
+                        1);
   bit_writer->WriteBits(segment_header->deblock, 2);
   if (segment_header->deblock == 3) {
     int d = constants::kDeblockOffsetBits;
@@ -117,8 +119,14 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // deblock_restrictions
   }
+  if (Restrictions::GetHighLevelRestrictions()) {
+    bit_writer->WriteBit(1);  // high_level_restrictions
+    bit_writer->WriteBit(restr.disable_high_level_default_checksum_method);
+  } else {
+    bit_writer->WriteBit(0);  // high_level_restrictions
+  }
   if (Restrictions::GetExtRestrictions()) {
-    bit_writer->WriteBit(1);
+    bit_writer->WriteBit(1);  // ext_restrictions
     bit_writer->WriteBit(restr.disable_ext);
     bit_writer->WriteBit(restr.disable_ext_tmvp_full_resolution);
     bit_writer->WriteBit(restr.disable_ext_tmvp_exclude_intra_from_ref_list);
