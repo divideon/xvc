@@ -11,6 +11,12 @@
 #include <cstdlib>
 #include <limits>
 
+#if _MSC_VER
+// Disable warning C6201: buffer overrun detection, which causes a lot of false
+// positives due to bad static bounds checking
+#pragma warning(disable:6201)
+#endif
+
 namespace xvc {
 
 Distortion
