@@ -54,9 +54,11 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   int tid = bit_reader->ReadBits(3);
   pic_data_->SetTid(tid);
   if (tid == 0) {
-    PicNum length = bit_reader->ReadBits(7);
+    PicNum length = max_sub_gop_length;
     if (num_buffered_nals) {
       *sub_gop_length = prev_sub_gop_length;
+    } else if (nal_unit_type == NalUnitType::kIntraAccessPicture) {
+      *sub_gop_length = 1;
     } else if (length > 0) {
       *sub_gop_length = length;
     } else if (doc > 0) {

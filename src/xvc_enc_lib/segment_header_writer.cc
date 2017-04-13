@@ -29,7 +29,6 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
                                               / framerate), 24);
   bit_writer->WriteBits(
     static_cast<uint32_t>(segment_header->max_sub_gop_length), 8);
-  bit_writer->WriteBit(1);  // shorter_sub_gops_allowed
   // The open gop flag is set to 0 if the tail pictures
   // do not predict from the Intra picture in the next segment.
   bit_writer->WriteBit(open_gop);

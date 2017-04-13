@@ -95,13 +95,6 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
   bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()) << 1, 8);
   bit_writer->WriteBits(buffer_flag, 1);
   bit_writer->WriteBits(pic_data.GetTid(), 3);
-  if (pic_data.GetTid() == 0) {
-    if (pic_data.GetPoc() == 0) {
-      bit_writer->WriteBits(0, 7);
-    } else {
-      bit_writer->WriteBits(static_cast<uint32_t>(sub_gop_length), 7);
-    }
-  }
   int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
   assert(pic_qp + constants::kQpSignalBase < (1 << 7));
   bit_writer->WriteBits(pic_qp + constants::kQpSignalBase, 7);
