@@ -27,7 +27,7 @@ public:
     kTotalNumber = 2,
     kInvalid = 99,
   };
-  static const Method kDefaultMethod = Method::kCRC;
+  static const Method kDefaultMethod = Method::kMD5;
   static const Method kFallbackMethod = Method::kCRC;
 
   explicit Checksum(Method method) : method_(method) {}
