@@ -137,8 +137,7 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                         &sub_gop_start_poc_, &sub_gop_length_,
                         segment_header->max_sub_gop_length,
                         prev_segment_header_.max_sub_gop_length,
-                        doc_, soc_,
-                        num_tail_pics_);
+                        doc_, soc_, num_tail_pics_);
   auto pic_data = pic_dec->GetPicData();
   pic_data->SetDeblock(segment_header->deblock > 0);
   pic_data->SetBetaOffset(segment_header->beta_offset);
