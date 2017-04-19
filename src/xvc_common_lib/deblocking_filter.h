@@ -30,6 +30,11 @@ public:
   void DeblockPicture();
 
 private:
+  // Controls at what level filter decisions are made at
+  static const int kSubblockSize = 8;
+  // Number of samples to filter in parallel
+  static const int kFilterGroupSize = 4;
+
   void DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir);
 
   int GetBoundaryStrength(const CodingUnit &cu_p, const CodingUnit &cu_q);
