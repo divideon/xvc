@@ -31,39 +31,45 @@ static const std::array<uint8_t, constants::kMaxAllowedQp + 1> kBetaTable = {
 void DeblockingFilter::DeblockPicture() {
   bool has_secondary_tree = pic_data_->HasSecondaryCuTree();
   int num_ctus = pic_data_->GetNumberOfCtu();
+  int subblock_size = kSubblockSize;
+  if (!Restrictions::Get().disable_ext) {
+    subblock_size = kSubblockSizeExt;
+  }
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
-    DeblockCtu(rsaddr, CuTree::Primary, Direction::kVertical);
+    DeblockCtu(rsaddr, CuTree::Primary, Direction::kVertical, subblock_size);
     if (has_secondary_tree) {
-      DeblockCtu(rsaddr, CuTree::Secondary, Direction::kVertical);
+      DeblockCtu(rsaddr, CuTree::Secondary, Direction::kVertical,
+                 kSubblockSize);
     }
   }
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
-    DeblockCtu(rsaddr, CuTree::Primary, Direction::kHorizontal);
+    DeblockCtu(rsaddr, CuTree::Primary, Direction::kHorizontal, subblock_size);
     if (has_secondary_tree) {
-      DeblockCtu(rsaddr, CuTree::Secondary, Direction::kHorizontal);
+      DeblockCtu(rsaddr, CuTree::Secondary, Direction::kHorizontal,
+                 kSubblockSize);
     }
   }
 }
 
-void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir) {
+void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
+                                  int subblock_size) {
   const YuvComponent luma = YuvComponent::kY;
   const YuvComponent chroma = YuvComponent::kU;
   const CodingUnit *ctu = pic_data_->GetCtu(CuTree::Primary, rsaddr);
   const int ctu_pos_x = ctu->GetPosX(luma);
   const int ctu_pos_y = ctu->GetPosY(luma);
+  const int subblock_size_chroma = kSubblockSize;
   const int chroma_shift_x = rec_pic_->GetSizeShiftX(chroma);
   const int chroma_shift_y = rec_pic_->GetSizeShiftY(chroma);
-  const int nbr_subblocks_x = ctu->GetWidth(luma) / kSubblockSize;
-  const int nbr_subblocks_y = ctu->GetHeight(luma) / kSubblockSize;
   const bool deblock_luma = cu_tree == CuTree::Primary;
   const bool deblock_chroma = pic_data_->GetMaxNumComponents() > 1 &&
     (!pic_data_->HasSecondaryCuTree() || cu_tree == CuTree::Secondary) &&
     !Restrictions::Get().disable_deblock_chroma_filter;
 
-  for (int dy = 0; dy < nbr_subblocks_y; dy++) {
-    for (int dx = 0; dx < nbr_subblocks_x; dx++) {
-      int x = ctu_pos_x + dx * kSubblockSize;
-      int y = ctu_pos_y + dy * kSubblockSize;
+  for (int dy = 0; dy < constants::kMaxBlockSize; dy += subblock_size) {
+    for (int dx = 0; dx < constants::kMaxBlockSize; dx += subblock_size) {
+      const int x = ctu_pos_x + dx;
+      const int y = ctu_pos_y + dy;
       // cu_q is the current coding unit
       const CodingUnit *cu_q = pic_data_->GetCuAt(cu_tree, x, y);
       if (cu_q == nullptr) {
@@ -95,25 +101,28 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir) {
       }
       // TODO(dev): Add check for if a PU (CU) is coded losslessly
       if (deblock_luma) {
-        FilterEdgeLuma(x, y, dir, boundary_strength, qp);
+        FilterEdgeLuma(x, y, dir, subblock_size, boundary_strength, qp);
       }
 
-      if (deblock_chroma && boundary_strength == 2) {
+      if (deblock_chroma && boundary_strength == 2 &&
+        (x & (subblock_size_chroma - 1)) == 0 &&
+          (y & (subblock_size_chroma - 1)) == 0) {
         int chroma_qp = (cu_p->GetQp(chroma) + cu_q->GetQp(chroma) + 1) >> 1;
         if (Restrictions::Get().disable_deblock_depending_on_qp) {
           qp = 31;
         }
         int chroma_x = x >> chroma_shift_x;
         int chroma_y = y >> chroma_shift_y;
-        if (dir == Direction::kVertical && (chroma_x % kSubblockSize) == 0) {
+        if (dir == Direction::kVertical &&
+          (chroma_x & (subblock_size_chroma - 1)) == 0) {
           FilterEdgeChroma(chroma_x, chroma_y,
                            chroma_shift_x, chroma_shift_y, dir,
-                           boundary_strength, chroma_qp);
+                           subblock_size_chroma, boundary_strength, chroma_qp);
         } else if (dir == Direction::kHorizontal &&
-          (chroma_y % kSubblockSize) == 0) {
+          (chroma_y & (subblock_size_chroma - 1)) == 0) {
           FilterEdgeChroma(chroma_x, chroma_y,
                            chroma_shift_x, chroma_shift_y, dir,
-                           boundary_strength, chroma_qp);
+                           subblock_size_chroma, boundary_strength, chroma_qp);
         }
       }
     }
@@ -193,7 +202,8 @@ int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
 }
 
 void DeblockingFilter::FilterEdgeLuma(int x, int y, Direction dir,
-                                      int boundary_strength, int qp) {
+                                      int subblock_size, int boundary_strength,
+                                      int qp) {
   YuvComponent luma = YuvComponent::kY;
   Sample *src = rec_pic_->GetSamplePtr(luma, x, y);
   ptrdiff_t src_stride = rec_pic_->GetStride(luma);
@@ -216,7 +226,7 @@ void DeblockingFilter::FilterEdgeLuma(int x, int y, Direction dir,
     return std::abs(sample[0] - 2 * sample[offset] + sample[offset * 2]);
   };
   const int bitdepth_shift = pic_data_->GetBitdepth() - 8;
-  const int nbr_filter_groups = kSubblockSize / kFilterGroupSize;
+  const int nbr_filter_groups = subblock_size / kFilterGroupSize;
   for (int group_idx = 0; group_idx < nbr_filter_groups; group_idx++) {
     int index_beta = util::Clip3(qp + beta_offset_, 0,
                                  static_cast<int>(kBetaTable.size()));
@@ -352,13 +362,13 @@ void DeblockingFilter::FilterLumaStrong(Sample* src, ptrdiff_t step_size,
 }
 
 void DeblockingFilter::FilterEdgeChroma(int x, int y, int scale_x, int scale_y,
-                                        Direction dir, int boundary_strength,
-                                        int qp) {
+                                        Direction dir, int subblock_size,
+                                        int boundary_strength, int qp) {
   const int bitdepth_shift = pic_data_->GetBitdepth() - 8;
   const int index_tc =
     util::Clip3(qp + tc_offset_ + 2, 0, static_cast<int>(kTcTable.size()));
   const int tc = kTcTable[index_tc] << bitdepth_shift;
-  const int max_nbr_filter_groups = kSubblockSize / kFilterGroupSize;
+  const int max_nbr_filter_groups = subblock_size / kFilterGroupSize;
   const int nbr_filter_groups = dir == Direction::kVertical ?
     max_nbr_filter_groups >> scale_y : max_nbr_filter_groups >> scale_x;
   for (int c = 1; c < constants::kMaxYuvComponents; c++) {

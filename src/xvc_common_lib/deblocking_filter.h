@@ -32,14 +32,14 @@ public:
 private:
   // Controls at what level filter decisions are made at
   static const int kSubblockSize = 8;
+  static const int kSubblockSizeExt = 4;
   // Number of samples to filter in parallel
   static const int kFilterGroupSize = 4;
 
-  void DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir);
-
+  void DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
+                  int subblock_size);
   int GetBoundaryStrength(const CodingUnit &cu_p, const CodingUnit &cu_q);
-
-  void FilterEdgeLuma(int x, int y, Direction dir,
+  void FilterEdgeLuma(int x, int y, Direction dir, int subblock_size,
                       int boundary_strength, int qp);
   bool CheckStrongFilter(Sample *src, int beta, int tc, ptrdiff_t offset);
   void FilterLumaWeak(Sample *src_ptr, ptrdiff_t step_size,
@@ -48,7 +48,7 @@ private:
   void FilterLumaStrong(Sample *src_ptr, ptrdiff_t step_size,
                         ptrdiff_t offset, int tc);
   void FilterEdgeChroma(int x, int y, int scale_x, int scale_y, Direction dir,
-                        int boundary_strength, int qp);
+                        int subblock_size, int boundary_strength, int qp);
   void FilterChroma(Sample *src_ptr, ptrdiff_t step_size,
                     ptrdiff_t offset, int tc2);
 
