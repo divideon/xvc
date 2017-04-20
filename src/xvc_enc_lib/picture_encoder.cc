@@ -92,7 +92,9 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
                                  BitWriter *bit_writer) {
   // Nal Unit header
-  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()) << 1, 8);
+  bit_writer->WriteBits(0, 2);  // nal_rfe
+  bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()), 5);
+  bit_writer->WriteBits(1, 1);  // nal_rfl
   bit_writer->WriteBits(buffer_flag, 1);
   bit_writer->WriteBits(pic_data.GetTid(), 3);
   int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
