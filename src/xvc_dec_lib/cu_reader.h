@@ -19,10 +19,15 @@ public:
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
-  void ReadCu(CodingUnit *cu, SyntaxReader *reader);
+  void ReadCtu(CodingUnit *cu, SyntaxReader *reader) {
+    return ReadCu(cu, SplitRestriction::kNone, reader);
+  }
 
 private:
-  SplitType ReadSplit(CodingUnit *cu, SyntaxReader *reader);
+  void ReadCu(CodingUnit *cu, SplitRestriction split_restrict,
+              SyntaxReader *reader);
+  SplitType ReadSplit(CodingUnit *cu, SplitRestriction split_restriction,
+                      SyntaxReader *reader);
   void ReadComponent(CodingUnit *cu, YuvComponent comp, SyntaxReader *reader);
   void ReadIntraPrediction(CodingUnit *cu, YuvComponent comp,
                            SyntaxReader *reader);

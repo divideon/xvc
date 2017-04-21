@@ -11,13 +11,16 @@
 
 namespace xvc {
 
-void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
-  SplitType split = ReadSplit(cu, reader);
+void CuReader::ReadCu(CodingUnit *cu, SplitRestriction split_restriction,
+                      SyntaxReader *reader) {
+  SplitType split = ReadSplit(cu, split_restriction, reader);
   if (split != SplitType::kNone) {
     cu->Split(split);
+    SplitRestriction sub_split_restriction = SplitRestriction::kNone;
     for (CodingUnit *sub_cu : cu->GetSubCu()) {
       if (sub_cu) {
-        ReadCu(sub_cu, reader);
+        ReadCu(sub_cu, sub_split_restriction, reader);
+        sub_split_restriction = sub_cu->DeriveSiblingSplitRestriction(split);
       }
     }
   } else {
@@ -29,7 +32,9 @@ void CuReader::ReadCu(CodingUnit *cu, SyntaxReader *reader) {
   }
 }
 
-SplitType CuReader::ReadSplit(CodingUnit *cu, SyntaxReader *reader) {
+SplitType
+CuReader::ReadSplit(CodingUnit *cu, SplitRestriction split_restriction,
+                    SyntaxReader *reader) {
   SplitType split = SplitType::kNone;
   int binary_depth = cu->GetBinaryDepth();
   int max_depth = pic_data_->GetMaxDepth(cu->GetCuTree());
@@ -42,7 +47,7 @@ SplitType CuReader::ReadSplit(CodingUnit *cu, SyntaxReader *reader) {
   }
   if (split != SplitType::kQuad && !Restrictions::Get().disable_ext) {
     if (cu->IsBinarySplitValid()) {
-      split = reader->ReadSplitBinary(*cu);
+      split = reader->ReadSplitBinary(*cu, split_restriction);
     }
   }
   return split;

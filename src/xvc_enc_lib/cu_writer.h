@@ -20,8 +20,13 @@ public:
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
-  void WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const;
-  void WriteSplit(const CodingUnit &cu, SyntaxWriter *writer) const;
+  void WriteCtu(const CodingUnit &cu, SyntaxWriter *writer) const {
+    return WriteCu(cu, SplitRestriction::kNone, writer);
+  }
+  void WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
+               SyntaxWriter *writer) const;
+  void WriteSplit(const CodingUnit &cu, SplitRestriction split_restriction,
+                  SyntaxWriter *writer) const;
   void WriteComponent(const CodingUnit &cu, YuvComponent comp,
                       SyntaxWriter *writer)  const;
   void WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,

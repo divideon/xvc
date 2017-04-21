@@ -48,7 +48,8 @@ public:
   void WritePredMode(PredictionMode pred_mode);
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
-  void WriteSplitBinary(const CodingUnit &cu, SplitType split_type);
+  void WriteSplitBinary(const CodingUnit &cu,
+                        SplitRestriction split_restriction, SplitType split);
   void WriteSplitQuad(const CodingUnit &cu, int max_depth, SplitType split);
 
 protected:

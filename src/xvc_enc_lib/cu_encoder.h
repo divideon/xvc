@@ -33,10 +33,13 @@ public:
 private:
   struct RdoCost;
   Distortion CompressCu(CodingUnit **cu, int rdo_depth,
+                        SplitRestriction split_restiction,
                         RdoSyntaxWriter *rdo_writer);
   RdoCost CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
-                          SplitType split_type, RdoSyntaxWriter *rdo_writer);
+                          SplitType split_type, SplitRestriction split_restrct,
+                          RdoSyntaxWriter *rdo_writer);
   Distortion CompressNoSplit(CodingUnit **cu, int rdo_depth,
+                             SplitRestriction split_restrct,
                              RdoSyntaxWriter *rdo_writer);
   RdoCost CompressIntra(CodingUnit *cu, const QP &qp,
                         const SyntaxWriter &bitstream_writer);

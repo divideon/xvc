@@ -45,10 +45,10 @@ void CuDecoder::DecodeCtu(int rsaddr, SyntaxReader *reader) {
 
 void CuDecoder::ReadCtu(int rsaddr, SyntaxReader * reader) {
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  cu_reader_.ReadCu(ctu, reader);
+  cu_reader_.ReadCtu(ctu, reader);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    cu_reader_.ReadCu(ctu2, reader);
+    cu_reader_.ReadCtu(ctu2, reader);
   }
 #if HM_STRICT
   if (reader->ReadEndOfSlice()) {

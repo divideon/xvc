@@ -16,6 +16,12 @@ enum class SplitType {
   kVertical,
 };
 
+enum class SplitRestriction {
+  kNone,
+  kNoHorizontal,
+  kNoVertical,
+};
+
 enum class PredictionMode {
   kIntra = 0,
   kInter = 1,

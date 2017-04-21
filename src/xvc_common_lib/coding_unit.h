@@ -63,14 +63,6 @@ public:
   int GetHeight(YuvComponent comp) const {
     return comp == YuvComponent::kY ? height_ : height_ >> chroma_shift_y_;
   }
-  SplitType GetSplit() const { return split_state_; }
-  void SetSplit(SplitType split_type) { split_state_ = split_type; }
-  std::array<CodingUnit*, constants::kQuadSplit> &GetSubCu() {
-    return sub_cu_list_;
-  }
-  const CodingUnit* GetSubCu(int idx) const {
-    return sub_cu_list_[idx];
-  }
   PartitionType GetPartitionType() const { return PartitionType::kSize2Nx2N; }
   void SetPartitionType(PartitionType part_type) {
     assert(part_type == PartitionType::kSize2Nx2N);
@@ -79,6 +71,17 @@ public:
   void SetQp(const QP &qp);
   int GetQp(YuvComponent comp) const;
   void InitializeFrom(const CodingUnit &cu);
+
+  // Split logic
+  SplitType GetSplit() const { return split_state_; }
+  void SetSplit(SplitType split_type) { split_state_ = split_type; }
+  std::array<CodingUnit*, constants::kQuadSplit>& GetSubCu() {
+    return sub_cu_list_;
+  }
+  const CodingUnit* GetSubCu(int idx) const {
+    return sub_cu_list_[idx];
+  }
+  SplitRestriction DeriveSiblingSplitRestriction(SplitType parent_split) const;
 
   // Picture related data
   const PictureData* GetPicData() const;

@@ -59,7 +59,7 @@ bool CodingUnit::IsBinarySplitValid() const {
     width_ <= max_split_size &&
     height_ <= max_split_size &&
     (width_ > constants::kMinBinarySplitSize ||
-    height_ > constants::kMinBinarySplitSize);
+     height_ > constants::kMinBinarySplitSize);
 }
 
 const QP& CodingUnit::GetQp() const {
@@ -82,6 +82,24 @@ void CodingUnit::InitializeFrom(const CodingUnit &cu) {
   height_ = cu.height_;
   depth_ = cu.depth_;
   qp_ = cu.qp_;
+}
+
+SplitRestriction
+CodingUnit::DeriveSiblingSplitRestriction(SplitType parent_split) const {
+  if (pic_data_.GetPredictionType() == PicturePredictionType::kIntra) {
+    return SplitRestriction::kNone;
+  }
+  if (parent_split == SplitType::kVertical &&
+      split_state_ == SplitType::kHorizontal) {
+    // This case is like quad split although with different coding order
+    return width_ > constants::kMinBinarySplitSize && GetBinaryDepth() == 1 ?
+      SplitRestriction::kNoHorizontal : SplitRestriction::kNone;
+  } else if (parent_split == SplitType::kHorizontal &&
+             split_state_ == SplitType::kVertical) {
+    // This case is almost identical to quad split
+    return SplitRestriction::kNoVertical;
+  }
+  return SplitRestriction::kNone;
 }
 
 const PictureData* CodingUnit::GetPicData() const {

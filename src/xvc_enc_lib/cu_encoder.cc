@@ -63,12 +63,12 @@ CuEncoder::~CuEncoder() {
 void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
   RdoSyntaxWriter rdo_writer(*bitstream_writer);
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  CompressCu(&ctu, 0, &rdo_writer);
+  CompressCu(&ctu, 0, SplitRestriction::kNone, &rdo_writer);
   pic_data_.SetCtu(CuTree::Primary, rsaddr, ctu);
   if (pic_data_.HasSecondaryCuTree()) {
     RdoSyntaxWriter rdo_writer2(*bitstream_writer);
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    CompressCu(&ctu2, 0, &rdo_writer2);
+    CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer2);
     pic_data_.SetCtu(CuTree::Secondary, rsaddr, ctu2);
   }
 
@@ -76,6 +76,7 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
 }
 
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
+                                 SplitRestriction split_restiction,
                                  RdoSyntaxWriter *writer) {
   const QP &qp = pic_qp_;
   const int kMaxTrSize =
@@ -90,8 +91,10 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     cu->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
     cu->GetHeight(YuvComponent::kY) <= kMaxTrSize;
   const bool do_hor_split = can_binary_split &&
+    split_restiction != SplitRestriction::kNoHorizontal &&
     cu->GetHeight(YuvComponent::kY) > constants::kMinBinarySplitSize;
   const bool do_ver_split = can_binary_split &&
+    split_restiction != SplitRestriction::kNoVertical &&
     cu->GetWidth(YuvComponent::kY) > constants::kMinBinarySplitSize;
   const bool do_full = cu->IsFullyWithinPicture() &&
     cu->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
@@ -100,7 +103,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
   assert(do_full || do_split_any);
 
   if (!do_split_any) {
-    return CompressNoSplit(best_cu, rdo_depth, writer);
+    return CompressNoSplit(best_cu, rdo_depth, split_restiction, writer);
   }
   RdoCost best_cost(std::numeric_limits<Cost>::max());
   CodingUnit::ReconstructionState *best_state = &temp_cu_state_[rdo_depth];
@@ -111,7 +114,8 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
   // First eval without CU split
   if (do_full) {
     Bits start_bits = writer->GetNumWrittenBits();
-    best_cost.dist = CompressNoSplit(best_cu, rdo_depth, &best_writer);
+    best_cost.dist =
+      CompressNoSplit(best_cu, rdo_depth, split_restiction, &best_writer);
     cu = *best_cu;
     Bits full_bits = best_writer.GetNumWrittenBits() - start_bits;
     best_cost.cost =
@@ -124,7 +128,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     RdoSyntaxWriter splitcu_writer(*writer);
     RdoCost split_cost =
       CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kHorizontal,
-                      &splitcu_writer);
+                      split_restiction, &splitcu_writer);
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
       cu = *best_cu;
@@ -148,7 +152,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     RdoSyntaxWriter splitcu_writer(*writer);
     RdoCost split_cost =
       CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kVertical,
-                      &splitcu_writer);
+                      split_restiction, &splitcu_writer);
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
       cu = *best_cu;
@@ -172,7 +176,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     RdoSyntaxWriter splitcu_writer(*writer);
     RdoCost split_cost =
       CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kQuad,
-                      &splitcu_writer);
+                      split_restiction, &splitcu_writer);
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
       cu = *best_cu;
@@ -192,7 +196,9 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
 
 CuEncoder::RdoCost
 CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
-                           SplitType split_type, RdoSyntaxWriter *rdo_writer) {
+                           SplitType split_type,
+                           SplitRestriction split_restriction,
+                           RdoSyntaxWriter *rdo_writer) {
   if (cu->GetSplit() != SplitType::kNone) {
     cu->UnSplit();
   }
@@ -200,18 +206,22 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
   pic_data_.ClearMarkCuInPic(cu);
   Distortion dist = 0;
   Bits start_bits = rdo_writer->GetNumWrittenBits();
+  SplitRestriction sub_split_restriction = SplitRestriction::kNone;
   for (auto &sub_cu : cu->GetSubCu()) {
     if (sub_cu) {
-      dist += CompressCu(&sub_cu, rdo_depth + 1, rdo_writer);
+      dist +=
+        CompressCu(&sub_cu, rdo_depth + 1, sub_split_restriction, rdo_writer);
+      sub_split_restriction = sub_cu->DeriveSiblingSplitRestriction(split_type);
     }
   }
-  cu_writer_.WriteSplit(*cu, rdo_writer);
+  cu_writer_.WriteSplit(*cu, split_restriction, rdo_writer);
   Bits bits = rdo_writer->GetNumWrittenBits() - start_bits;
   Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
   return RdoCost(cost, dist);
 }
 
 Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
+                                      SplitRestriction split_restriction,
                                       RdoSyntaxWriter *writer) {
   const QP &qp = pic_qp_;
   RdoCost best_cost(std::numeric_limits<Cost>::max());
@@ -270,7 +280,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     cu_writer_.WriteComponent(*cu, comp, writer);
   }
-  cu_writer_.WriteSplit(*cu, writer);
+  cu_writer_.WriteSplit(*cu, split_restriction, writer);
   return best_cost.dist;
 }
 
@@ -367,10 +377,10 @@ CuEncoder::GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
 void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
   writer->ResetBitCounting();
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  cu_writer_.WriteCu(*ctu, writer);
+  cu_writer_.WriteCtu(*ctu, writer);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    cu_writer_.WriteCu(*ctu2, writer);
+    cu_writer_.WriteCtu(*ctu2, writer);
   }
 #if HM_STRICT
   writer->WriteEndOfSlice(false);

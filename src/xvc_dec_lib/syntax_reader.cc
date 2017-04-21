@@ -483,11 +483,20 @@ bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
   return entropydec_->DecodeBin(&ctx) != 0;
 }
 
-SplitType SyntaxReader::ReadSplitBinary(const CodingUnit & cu) {
+SplitType SyntaxReader::ReadSplitBinary(const CodingUnit &cu,
+                                        SplitRestriction split_restriction) {
   ContextModel &ctx = ctx_.GetSplitBinaryCtx(cu);
   uint32_t bin = entropydec_->DecodeBin(&ctx);
   if (!bin) {
     return SplitType::kNone;
+  }
+  if (cu.GetWidth(YuvComponent::kY) == constants::kMinBinarySplitSize ||
+      split_restriction == SplitRestriction::kNoVertical) {
+    return SplitType::kHorizontal;
+  }
+  if (cu.GetHeight(YuvComponent::kY) == constants::kMinBinarySplitSize ||
+      split_restriction == SplitRestriction::kNoHorizontal) {
+    return SplitType::kVertical;
   }
   int offset =
     cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :

@@ -481,17 +481,32 @@ void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
   entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx);
 }
 
-void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu, SplitType split) {
+void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu,
+                                    SplitRestriction split_restriction,
+                                    SplitType split) {
   assert(split != SplitType::kQuad);
   ContextModel &ctx = ctx_.GetSplitBinaryCtx(cu);
   entropyenc_->EncodeBin(split != SplitType::kNone ? 1 : 0, &ctx);
-  if (split != SplitType::kNone) {
-    int offset =
-      cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :
-      (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
-    ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
-    entropyenc_->EncodeBin(split == SplitType::kVertical ? 1 : 0, &ctx2);
+  if (split == SplitType::kNone) {
+    return;
   }
+  if (cu.GetWidth(YuvComponent::kY) == constants::kMinBinarySplitSize ||
+      cu.GetHeight(YuvComponent::kY) == constants::kMinBinarySplitSize) {
+    return;
+  }
+  if (split_restriction == SplitRestriction::kNoVertical) {
+    assert(split == SplitType::kHorizontal);
+    return;
+  }
+  if (split_restriction == SplitRestriction::kNoHorizontal) {
+    assert(split == SplitType::kVertical);
+    return;
+  }
+  int offset =
+    cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :
+    (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
+  ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
+  entropyenc_->EncodeBin(split == SplitType::kVertical ? 1 : 0, &ctx2);
 }
 
 void SyntaxWriter::WriteSplitQuad(const CodingUnit &cu, int max_depth,

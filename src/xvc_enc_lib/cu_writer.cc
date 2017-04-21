@@ -11,13 +11,17 @@
 
 namespace xvc {
 
-void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
-  WriteSplit(cu, writer);
+void CuWriter::WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
+                       SyntaxWriter *writer) const {
+  WriteSplit(cu, split_restriction, writer);
   if (cu.GetSplit() != SplitType::kNone) {
+    SplitRestriction sub_split_restriction = SplitRestriction::kNone;
     for (int i = 0; i < constants::kQuadSplit; i++) {
       const CodingUnit *sub_cu = cu.GetSubCu(i);
       if (sub_cu) {
-        WriteCu(*sub_cu, writer);
+        WriteCu(*sub_cu, sub_split_restriction, writer);
+        sub_split_restriction =
+          sub_cu->DeriveSiblingSplitRestriction(cu.GetSplit());
       }
     }
   } else {
@@ -27,7 +31,9 @@ void CuWriter::WriteCu(const CodingUnit &cu, SyntaxWriter *writer) const {
   }
 }
 
-void CuWriter::WriteSplit(const CodingUnit & cu, SyntaxWriter * writer) const {
+void CuWriter::WriteSplit(const CodingUnit &cu,
+                          SplitRestriction split_restriction,
+                          SyntaxWriter *writer) const {
   SplitType split_type = cu.GetSplit();
   int binary_depth = cu.GetBinaryDepth();
   int max_depth = pic_data_.GetMaxDepth(cu.GetCuTree());
@@ -40,7 +46,7 @@ void CuWriter::WriteSplit(const CodingUnit & cu, SyntaxWriter * writer) const {
   }
   if (split_type != SplitType::kQuad && !Restrictions::Get().disable_ext) {
     if (cu.IsBinarySplitValid()) {
-      writer->WriteSplitBinary(cu, split_type);
+      writer->WriteSplitBinary(cu, split_restriction, split_type);
     }
   }
 }
