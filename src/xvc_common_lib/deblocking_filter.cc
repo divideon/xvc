@@ -58,7 +58,6 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
   const CodingUnit *ctu = pic_data_->GetCtu(CuTree::Primary, rsaddr);
   const int ctu_pos_x = ctu->GetPosX(luma);
   const int ctu_pos_y = ctu->GetPosY(luma);
-  const int subblock_size_chroma = kSubblockSize;
   const int chroma_shift_x = rec_pic_->GetSizeShiftX(chroma);
   const int chroma_shift_y = rec_pic_->GetSizeShiftY(chroma);
   const bool deblock_luma = cu_tree == CuTree::Primary;
@@ -104,9 +103,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
         FilterEdgeLuma(x, y, dir, subblock_size, boundary_strength, qp);
       }
 
-      if (deblock_chroma && boundary_strength == 2 &&
-        (x & (subblock_size_chroma - 1)) == 0 &&
-          (y & (subblock_size_chroma - 1)) == 0) {
+      if (deblock_chroma && boundary_strength == 2) {
         int chroma_qp = (cu_p->GetQp(chroma) + cu_q->GetQp(chroma) + 1) >> 1;
         if (Restrictions::Get().disable_deblock_depending_on_qp) {
           qp = 31;
@@ -114,15 +111,15 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
         int chroma_x = x >> chroma_shift_x;
         int chroma_y = y >> chroma_shift_y;
         if (dir == Direction::kVertical &&
-          (chroma_x & (subblock_size_chroma - 1)) == 0) {
+          (chroma_x & (kChromaFilterResolution - 1)) == 0) {
           FilterEdgeChroma(chroma_x, chroma_y,
                            chroma_shift_x, chroma_shift_y, dir,
-                           subblock_size_chroma, boundary_strength, chroma_qp);
+                           subblock_size, boundary_strength, chroma_qp);
         } else if (dir == Direction::kHorizontal &&
-          (chroma_y & (subblock_size_chroma - 1)) == 0) {
+          (chroma_y & (kChromaFilterResolution - 1)) == 0) {
           FilterEdgeChroma(chroma_x, chroma_y,
                            chroma_shift_x, chroma_shift_y, dir,
-                           subblock_size_chroma, boundary_strength, chroma_qp);
+                           subblock_size, boundary_strength, chroma_qp);
         }
       }
     }
@@ -368,9 +365,14 @@ void DeblockingFilter::FilterEdgeChroma(int x, int y, int scale_x, int scale_y,
   const int index_tc =
     util::Clip3(qp + tc_offset_ + 2, 0, static_cast<int>(kTcTable.size()));
   const int tc = kTcTable[index_tc] << bitdepth_shift;
-  const int max_nbr_filter_groups = subblock_size / kFilterGroupSize;
-  const int nbr_filter_groups = dir == Direction::kVertical ?
-    max_nbr_filter_groups >> scale_y : max_nbr_filter_groups >> scale_x;
+  const int scaled_subblock_size = dir == Direction::kVertical ?
+    subblock_size >> scale_y : subblock_size >> scale_x;
+  static_assert(kSubblockSize == 8,
+                "Chroma filter assumes luma subblocks are either 4 or 8 long");
+  auto filter_chroma =
+    scaled_subblock_size == 2 ? &DeblockingFilter::FilterChroma<2> :
+    (scaled_subblock_size == 4 ? &DeblockingFilter::FilterChroma<4> :
+     &DeblockingFilter::FilterChroma<8>);
   for (int c = 1; c < constants::kMaxYuvComponents; c++) {
     YuvComponent comp = YuvComponent(c);
     Sample *src = rec_pic_->GetSamplePtr(comp, x, y);
@@ -384,17 +386,15 @@ void DeblockingFilter::FilterEdgeChroma(int x, int y, int scale_x, int scale_y,
       offset = src_stride;
       step_size = 1;
     }
-    for (int group_idx = 0; group_idx < nbr_filter_groups; group_idx++) {
-      ptrdiff_t block_offset = group_idx * step_size * kFilterGroupSize;
-      FilterChroma(src + block_offset, step_size, offset, tc);
-    }
+    (this->*filter_chroma)(src, step_size, offset, tc);
   }
 }
 
+template<int FilterGroupSize>
 void DeblockingFilter::FilterChroma(Sample* src, ptrdiff_t step_size,
                                     ptrdiff_t offset, int tc) {
   const Sample sample_max = (1 << pic_data_->GetBitdepth()) - 1;
-  for (int i = 0; i < kFilterGroupSize; i++) {
+  for (int i = 0; i < FilterGroupSize; i++) {
     Sample p1 = src[-offset * 2];
     Sample p0 = src[-offset];
     Sample q0 = src[0];

@@ -33,6 +33,7 @@ private:
   // Controls at what level filter decisions are made at
   static const int kSubblockSize = 8;
   static const int kSubblockSizeExt = 4;
+  static const int kChromaFilterResolution = 8;
   // Number of samples to filter in parallel
   static const int kFilterGroupSize = 4;
 
@@ -49,6 +50,7 @@ private:
                         ptrdiff_t offset, int tc);
   void FilterEdgeChroma(int x, int y, int scale_x, int scale_y, Direction dir,
                         int subblock_size, int boundary_strength, int qp);
+  template<int FilterGroupSize>
   void FilterChroma(Sample *src_ptr, ptrdiff_t step_size,
                     ptrdiff_t offset, int tc2);
 
