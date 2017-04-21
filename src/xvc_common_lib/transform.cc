@@ -589,7 +589,7 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                                  ptrdiff_t coeff_stride, Residual *resi,
                                  ptrdiff_t resi_stride, bool dst_transform) {
   const int shift1 = 7 +
-    (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
+    (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (height) {
     case 2:
       InvPartialTransform2(shift1, width, coeff, coeff_stride,
@@ -627,7 +627,7 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
       break;
   }
   const int shift2 = 20 - bitdepth_ +
-    (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
+    (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (width) {
     case 2:
       InvPartialTransform2(shift2, height, &coeff_temp_[0], kBufferStride_,

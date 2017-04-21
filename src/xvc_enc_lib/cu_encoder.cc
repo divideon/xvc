@@ -83,14 +83,10 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
   CodingUnit *cu = *best_cu;  // Invariant: cu always points to *best_cu
   const int cu_tree = static_cast<int>(cu->GetCuTree());
   const int depth = cu->GetDepth();
-  const int max_binary_depth = pic_data_.GetMaxBinaryDepth(cu->GetCuTree());
   const bool do_quad_split = cu->GetBinaryDepth() == 0 &&
     depth < pic_data_.GetMaxDepth(cu->GetCuTree());
-  const bool can_binary_split = cu->IsFullyWithinPicture() &&
-    !Restrictions::Get().disable_ext &&
-    cu->GetBinaryDepth() < max_binary_depth &&
-    cu->GetHeight(YuvComponent::kY) <= constants::kMaxBinarySplitSize &&
-    cu->GetWidth(YuvComponent::kY) <= constants::kMaxBinarySplitSize;
+  const bool can_binary_split = !Restrictions::Get().disable_ext &&
+    cu->IsBinarySplitValid() && cu->IsFullyWithinPicture();
   const bool do_hor_split = can_binary_split &&
     cu->GetHeight(YuvComponent::kY) > constants::kMinBinarySplitSize;
   const bool do_ver_split = can_binary_split &&

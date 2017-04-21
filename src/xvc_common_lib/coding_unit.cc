@@ -52,6 +52,16 @@ int CodingUnit::GetBinaryDepth() const {
     (quad_size_log2 - util::SizeToLog2(height_));
 }
 
+bool CodingUnit::IsBinarySplitValid() const {
+  int max_split_depth = pic_data_.GetMaxBinarySplitDepth(cu_tree_);
+  int max_split_size = pic_data_.GetMaxBinarySplitSize(cu_tree_);
+  return GetBinaryDepth() < max_split_depth &&
+    width_ <= max_split_size &&
+    height_ <= max_split_size &&
+    (width_ > constants::kMinBinarySplitSize ||
+    height_ > constants::kMinBinarySplitSize);
+}
+
 const QP& CodingUnit::GetQp() const {
   return *qp_;
 }

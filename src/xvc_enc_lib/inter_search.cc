@@ -533,7 +533,7 @@ int InterSearch::EvalFinalMvpIdx(const CodingUnit &cu,
 }
 
 MetricType InterSearch::GetFullpelMetric(const CodingUnit & cu) {
-  return cu.GetWidth(YuvComponent::kY) > 8 ?
+  return cu.GetHeight(YuvComponent::kY) > 8 ?
     MetricType::kSADFast : MetricType::kSAD;
 }
 

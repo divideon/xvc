@@ -56,6 +56,7 @@ public:
   }
   int GetDepth() const { return depth_; }
   int GetBinaryDepth() const;
+  bool IsBinarySplitValid() const;
   int GetWidth(YuvComponent comp) const {
     return comp == YuvComponent::kY ? width_ : width_ >> chroma_shift_x_;
   }

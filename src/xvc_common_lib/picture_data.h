@@ -60,9 +60,14 @@ public:
     return cu_tree == CuTree::Primary ?
       constants::kMaxCuDepth : constants::kMaxCuDepthChroma;
   }
-  int GetMaxBinaryDepth(CuTree cu_tree) const {
-    return IsIntraPic() && cu_tree == CuTree::Primary ?
-      constants::kMaxBinarySplitDepth : 0;
+  int GetMaxBinarySplitDepth(CuTree cu_tree) const {
+    return cu_tree == CuTree::Primary ?
+      constants::kMaxBinarySplitDepth : constants::kMaxBinarySplitDepthChroma;
+  }
+  int GetMaxBinarySplitSize(CuTree cu_tree) const {
+    return !IsIntraPic() ? constants::kMaxBinarySplitSizeInter :
+      (cu_tree == CuTree::Primary ? constants::kMaxBinarySplitSizeIntra :
+       constants::kMaxBinarySplitSizeIntraChroma);
   }
 
   // CU data
