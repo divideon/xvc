@@ -25,9 +25,8 @@ enum class ScanOrder : int {
 class InverseTransform {
 public:
   explicit InverseTransform(int bitdepth) : bitdepth_(bitdepth) {}
-  void Transform(int width, int height, const Coeff *coeff,
-                 ptrdiff_t coeff_stride, Residual *resi, ptrdiff_t resi_stride,
-                 bool dst_transform = false);
+  void Transform(int width, int height, bool is_luma_intra, const Coeff *coeff,
+                 ptrdiff_t coeff_stride, Residual *resi, ptrdiff_t resi_stride);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
@@ -59,9 +58,9 @@ private:
 class ForwardTransform {
 public:
   explicit ForwardTransform(int bitdepth) : bitdepth_(bitdepth) {}
-  void Transform(int width, int height, const Residual *resi,
-                 ptrdiff_t resi_stride, Coeff *coeff, ptrdiff_t coeff_stride,
-                 bool dst_transform = false);
+  void Transform(int width, int height, bool is_luma_intra,
+                 const Residual *resi, ptrdiff_t resi_stride,
+                 Coeff *coeff, ptrdiff_t coeff_stride);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;

@@ -86,7 +86,9 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
   const bool do_quad_split = cu->GetBinaryDepth() == 0 &&
     depth < pic_data_.GetMaxDepth(cu->GetCuTree());
   const bool can_binary_split = !Restrictions::Get().disable_ext &&
-    cu->IsBinarySplitValid() && cu->IsFullyWithinPicture();
+    cu->IsBinarySplitValid() && cu->IsFullyWithinPicture() &&
+    cu->GetWidth(YuvComponent::kY) <= kMaxTrSize &&
+    cu->GetHeight(YuvComponent::kY) <= kMaxTrSize;
   const bool do_hor_split = can_binary_split &&
     cu->GetHeight(YuvComponent::kY) > constants::kMinBinarySplitSize;
   const bool do_ver_split = can_binary_split &&

@@ -585,9 +585,9 @@ std::array<std::array<uint8_t, 16>, 3> TransformHelper::kScanCoeff4x4 = { {
   { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 },
 } };
 
-void InverseTransform::Transform(int width, int height, const Coeff *coeff,
-                                 ptrdiff_t coeff_stride, Residual *resi,
-                                 ptrdiff_t resi_stride, bool dst_transform) {
+void InverseTransform::Transform(int width, int height, bool is_luma_intra,
+                                 const Coeff *coeff, ptrdiff_t coeff_stride,
+                                 Residual *resi, ptrdiff_t resi_stride) {
   const int shift1 = 7 +
     (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (height) {
@@ -596,7 +596,7 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                            &coeff_temp_[0], kBufferStride_);
       break;
     case 4:
-      if (dst_transform) {
+      if (width == 4 && is_luma_intra) {
         InvPartialDST4(shift1, coeff, coeff_stride,
                        &coeff_temp_[0], kBufferStride_);
       } else {
@@ -634,7 +634,7 @@ void InverseTransform::Transform(int width, int height, const Coeff *coeff,
                            resi, resi_stride);
       break;
     case 4:
-      if (dst_transform) {
+      if (height == 4 && is_luma_intra) {
         InvPartialDST4(shift2, &coeff_temp_[0], kBufferStride_, resi,
                        resi_stride);
       } else {
@@ -680,7 +680,7 @@ void InverseTransform::InvPartialDST4(int shift,
                          constants::kInt16Min, constants::kInt16Max);
     out[1] = util::Clip3((55 * c[2] - 29 * c[1] + c[3] + add) >> shift,
                          constants::kInt16Min, constants::kInt16Max);
-    out[2] = util::Clip3((74 * (in[i] - in[2 * in_stride] +
+    out[2] = util::Clip3((74 * (in[0] - in[2 * in_stride] +
                                 in[3 * in_stride]) + add) >> shift,
                          constants::kInt16Min, constants::kInt16Max);
     out[3] = util::Clip3((55 * c[0] + 29 * c[2] - c[3] + add) >> shift,
@@ -1056,9 +1056,9 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
   }
 }
 
-void ForwardTransform::Transform(int width, int height, const Residual *resi,
-                                 ptrdiff_t resi_stride, Coeff *coeff,
-                                 ptrdiff_t coeff_stride, bool dst_transform) {
+void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
+                                 const Residual *resi, ptrdiff_t resi_stride,
+                                 Coeff *coeff, ptrdiff_t coeff_stride) {
   const int shift1 = util::SizeToLog2(width) + bitdepth_ - 9 +
     (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (width) {
@@ -1067,8 +1067,8 @@ void ForwardTransform::Transform(int width, int height, const Residual *resi,
                            &coeff_temp_[0], kBufferStride_);
       break;
     case 4:
-      if (dst_transform) {
-        FwdPartialDST4(1 + bitdepth_ - 8, resi, resi_stride, &coeff_temp_[0],
+      if (height == 4 && is_luma_intra) {
+        FwdPartialDST4(shift1, resi, resi_stride, &coeff_temp_[0],
                        kBufferStride_);
       } else {
         FwdPartialTransform4(shift1, height, resi, resi_stride,
@@ -1108,7 +1108,7 @@ void ForwardTransform::Transform(int width, int height, const Residual *resi,
                            coeff, coeff_stride);
       break;
     case 4:
-      if (dst_transform) {
+      if (width == 4 && is_luma_intra) {
         FwdPartialDST4(shift2, &coeff_temp_[0], kBufferStride_,
                        coeff, coeff_stride);
       } else {

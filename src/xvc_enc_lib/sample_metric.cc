@@ -133,8 +133,17 @@ template<typename SampleT1, typename SampleT2>
 uint64_t SampleMetric::ComputeSATD(int width, int height,
                                    const SampleT1 *sample1, ptrdiff_t stride1,
                                    const SampleT2 *sample2, ptrdiff_t stride2) {
+  static_assert(constants::kMinBlockSize >= 4, "SATD only implmented for 4x4");
   uint64_t sad = 0;
-  if (height == 4 && width > height) {
+  if (width == 4 && height == 4) {
+    for (int y = 0; y < height; y += 4) {
+      for (int x = 0; x < width; x += 4) {
+        sad += ComputeSATDNxM<4, 4>(sample1 + x, stride1, sample2 + x, stride2);
+      }
+      sample1 += stride1 * 4;
+      sample2 += stride2 * 4;
+    }
+  } else if (height == 4 && width > height) {
     for (int y = 0; y < height; y += 4) {
       for (int x = 0; x < width; x += 8) {
         sad += ComputeSATDNxM<8, 4>(sample1 + x, stride1, sample2 + x, stride2);
@@ -409,8 +418,10 @@ int SampleMetric::ComputeSATDNxM(const SampleT1 *sample1, ptrdiff_t stride1,
       sum += std::abs(m2[i][j]);
     }
   }
-  if (W == H) {
-    sum = ((sum + 2) >> 2);
+  if (W == 4 && H == 4) {
+    sum = (sum + 1) >> 1;
+  } else if (W == H) {
+    sum = (sum + 2) >> 2;
   } else {
     sum = static_cast<int>(2.0 * sum / std::sqrt(W*H));
   }

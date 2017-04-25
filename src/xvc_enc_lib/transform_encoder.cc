@@ -41,10 +41,11 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
   temp_resi_orig_.Subtract(width, height, orig_buffer, temp_pred_);
 
   // Transform
-  fwd_transform_.Transform(width, height, temp_resi_orig_.GetDataPtr(),
+  const bool is_luma_intra = util::IsLuma(comp) && cu->IsIntra();
+  fwd_transform_.Transform(width, height, is_luma_intra,
+                           temp_resi_orig_.GetDataPtr(),
                            temp_resi_orig_.GetStride(),
-                           temp_coeff_.GetDataPtr(),
-                           temp_coeff_.GetStride());
+                           temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
 
   // Quant
   int non_zero =
@@ -65,9 +66,9 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                       temp_coeff_.GetStride());
 
     // Inv transform
-    inv_transform_.Transform(width, height, temp_coeff_.GetDataPtr(),
-                             temp_coeff_.GetStride(), temp_resi_.GetDataPtr(),
-                             temp_resi_.GetStride());
+    inv_transform_.Transform(width, height, is_luma_intra,
+                             temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
+                             temp_resi_.GetDataPtr(), temp_resi_.GetStride());
 
     // Reconstruct
     reco_buffer.AddClip(width, height, temp_pred_, temp_resi_,
