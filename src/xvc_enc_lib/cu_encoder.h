@@ -52,6 +52,8 @@ private:
   RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 Distortion ssd);
+  bool CanSkipQuadSplitCu(const PictureData &pic_data,
+                          const CodingUnit &cu) const;
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
 
   const YuvPicture &orig_pic_;

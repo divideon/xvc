@@ -179,6 +179,14 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     }
   }
 
+  // Quad split speed-up
+  if (encoder_settings_.fast_quad_split_from_binary_split &&
+      do_quad_split && do_hor_split && do_ver_split &&
+      CanSkipQuadSplitCu(pic_data_, *cu)) {
+    *writer = best_writer;
+    return best_cost.dist;
+  }
+
   // Quad split
   if (do_quad_split) {
     RdoSyntaxWriter splitcu_writer(*writer);
@@ -415,6 +423,23 @@ CuEncoder::GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
   Bits bits = rdo_writer.GetNumWrittenBits();
   Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
   return RdoCost(cost, ssd);
+}
+
+bool CuEncoder::CanSkipQuadSplitCu(const PictureData &pic_data,
+                                   const CodingUnit &cu) const {
+  const YuvComponent comp = YuvComponent::kY;
+  const int max_binary_depth =
+    pic_data.GetMaxBinarySplitDepth(cu.GetCuTree());
+  const CodingUnit *best_sub_cu =
+    pic_data.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp), cu.GetPosY(comp));
+  const CodingUnit *bottom_right =
+    pic_data.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp) + cu.GetWidth(comp) - 1,
+                     cu.GetPosY(comp) + cu.GetHeight(comp) - 1);
+  return ((best_sub_cu->GetBinaryDepth() == 0 &&
+           max_binary_depth >= (pic_data.IsIntraPic() ? 3 : 2)) ||
+           (best_sub_cu->GetBinaryDepth() == 1 &&
+            bottom_right->GetBinaryDepth() == 1 &&
+            max_binary_depth >= (pic_data.IsIntraPic() ? 4 : 3)));
 }
 
 void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
