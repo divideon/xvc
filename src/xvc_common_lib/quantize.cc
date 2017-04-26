@@ -114,10 +114,12 @@ int Quantize::Forward(const CodingUnit &cu, YuvComponent comp, const QP &qp,
                       int bitdepth, PicturePredictionType pic_type,
                       const Coeff *in, ptrdiff_t in_stride,
                       Coeff *out, ptrdiff_t out_stride) {
+  const bool size_rounding_bias =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) % 2 != 0;
   const int transform_shift = GetTransformShift(width, height, bitdepth);
   const int shift = constants::kQuantShift + qp.GetQpPer(comp) +
-    transform_shift + (width != height ? 7 : 0);
-  const int scale = qp.GetFwdScale(comp) * (width != height ? 181 : 1);
+    transform_shift + (size_rounding_bias ? 7 : 0);
+  const int scale = qp.GetFwdScale(comp) * (size_rounding_bias ? 181 : 1);
   const int64_t offset =
     (pic_type == PicturePredictionType::kIntra ? 171ull : 85ull) << (shift - 9);
   Coeff delta[constants::kMaxBlockSize * constants::kMaxBlockSize];
@@ -298,10 +300,12 @@ void Quantize::AdjustCoeffsForSignHiding(const CodingUnit &cu,
 void Quantize::Inverse(YuvComponent comp, const QP &qp, int width, int height,
                        int bitdepth, const Coeff *in, ptrdiff_t in_stride,
                        Coeff *out, ptrdiff_t out_stride) {
+  const bool size_rounding_bias =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) % 2 != 0;
   const int transform_shift = GetTransformShift(width, height, bitdepth);
   const int shift = constants::kIQuantShift - transform_shift +
-    (width != height ? 8 : 0);
-  const int scale = qp.GetInvScale(comp) *  (width != height ? 181 : 1);
+    (size_rounding_bias ? 8 : 0);
+  const int scale = qp.GetInvScale(comp) * (size_rounding_bias ? 181 : 1);
 
   if (shift > 0) {
     int offset = (1 << (shift - 1));

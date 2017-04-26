@@ -352,13 +352,15 @@ ContextModel& CabacContexts::GetSkipFlagCtx(const CodingUnit &cu) {
 ContextModel& CabacContexts::GetSplitBinaryCtx(const CodingUnit &cu) {
   const CodingUnit *left = cu.GetCodingUnitLeft();
   const CodingUnit *above = cu.GetCodingUnitAbove();
-  int depth = cu.GetDepth() + cu.GetBinaryDepth();
+  int depth = (cu.GetDepth() << 1) + cu.GetBinaryDepth();
   int offset = 0;
   if (left) {
-    offset += (left->GetDepth() + left->GetBinaryDepth()) > depth ? 1 : 0;
+    offset +=
+      ((left->GetDepth() << 1) + left->GetBinaryDepth()) > depth ? 1 : 0;
   }
   if (above) {
-    offset += (above->GetDepth() + above->GetBinaryDepth()) > depth ? 1 : 0;
+    offset +=
+      ((above->GetDepth() << 1) + above->GetBinaryDepth()) > depth ? 1 : 0;
   }
   return cu_split_binary[offset];
 }

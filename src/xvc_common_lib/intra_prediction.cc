@@ -177,7 +177,7 @@ IntraPrediction::PredIntraDC(int width, int height, bool dc_filter,
     sum += ref_samples[ref_stride + y];
   }
   int total_size = width + height;
-  Sample dc_val = static_cast<Sample>((sum + (total_size>>1)) / total_size);
+  Sample dc_val = static_cast<Sample>((sum + (total_size >> 1)) / total_size);
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       output_buffer[x] = dc_val;
@@ -324,14 +324,20 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
         output_buffer[x * output_stride + y] = tmp;
       }
     }
-    if (width != height) {
-      int offset_x = width - short_side;
-      int offset_y = height - short_side;
-      for (int y = 0; y < short_side; y++) {
+    if (width < height) {
+      for (int y = 0; y < height - short_side; y++) {
         for (int x = 0; x < short_side; x++) {
           Sample tmp =
-            output_buffer[(offset_y + y) * output_stride + offset_x + x];
-          output_buffer[(offset_x + x)*output_stride + offset_y + y] = tmp;
+            output_buffer[(short_side + y) * output_stride + x];
+          output_buffer[x*output_stride + short_side + y] = tmp;
+        }
+      }
+    } else if (height < width) {
+      for (int y = 0; y < short_side; y++) {
+        for (int x = 0; x < width - short_side; x++) {
+          Sample tmp =
+            output_buffer[y*output_stride + short_side + x];
+          output_buffer[(short_side + x)*output_stride + y] = tmp;
         }
       }
     }
