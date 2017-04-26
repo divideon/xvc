@@ -104,8 +104,7 @@ private:
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
 
   std::array<int16_t, kBufSize> filter_buffer_;
-  std::array<std::array<int16_t,
-    constants::kMaxBlockSize * constants::kMaxBlockSize>, 2> bipred_temp_;
+  std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;
   int bitdepth_;
 };
 

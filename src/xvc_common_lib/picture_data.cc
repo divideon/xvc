@@ -17,7 +17,9 @@ namespace xvc {
 
 PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
                          int bitdepth)
-  : pic_width_(width),
+  : ctu_coeff_(new CoeffCtuBuffer(util::GetChromaShiftX(chroma_format),
+                                  util::GetChromaShiftY(chroma_format))),
+  pic_width_(width),
   pic_height_(height),
   bitdepth_(bitdepth),
   chroma_fmt_(chroma_format),
@@ -109,7 +111,8 @@ CodingUnit *PictureData::CreateCu(CuTree cu_tree, int depth, int posx,
   if (posx >= pic_width_ || posy >= pic_height_) {
     return nullptr;
   }
-  return new CodingUnit(*this, cu_tree, depth, posx, posy, width, height);
+  return new CodingUnit(*this, ctu_coeff_.get(), cu_tree, depth, posx, posy,
+                        width, height);
 }
 
 void PictureData::ReleaseCu(CodingUnit *cu) const {
@@ -200,7 +203,7 @@ void PictureData::AllocateAllCtu(CuTree cu_tree) {
   for (int y = 0; y < ctu_num_y_; y++) {
     for (int x = 0; x < ctu_num_x_; x++) {
       ctu_rs_list_[tree_idx].push_back(
-        new CodingUnit(*this, cu_tree, depth,
+        new CodingUnit(*this, ctu_coeff_.get(), cu_tree, depth,
                        x * constants::kCtuSize,
                        y * constants::kCtuSize,
                        constants::kCtuSize,

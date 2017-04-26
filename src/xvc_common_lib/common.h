@@ -85,6 +85,7 @@ const int kMaxBlockDepthChroma = kMaxCuDepthChroma + kMaxBinarySplitDepthIntra2;
 const int kMaxBlockDepth = kMaxBlockDepthLuma > kMaxBlockDepthChroma ?
 kMaxBlockDepthLuma : kMaxBlockDepthChroma;
 const int kMinBlockSize = 4;
+const int kMaxBlockSamples = kMaxBlockSize * kMaxBlockSize;
 
 const int kQuadSplit = 4;
 

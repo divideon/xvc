@@ -100,11 +100,10 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
   }
 
   // Dequant
-  Coeff *cu_coeff_buf = cu->GetCoeff(comp);
-  ptrdiff_t cu_coeff_stride = cu->GetCoeffStride();
+  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
   quantize_.Inverse(comp, qp, width, height, decoded_pic_.GetBitdepth(),
-                    cu_coeff_buf, cu_coeff_stride, temp_coeff_.GetDataPtr(),
-                    temp_coeff_.GetStride());
+                    cu_coeff_buf.GetDataPtr(), cu_coeff_buf.GetStride(),
+                    temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
 
   // Inverse transform
   const bool is_luma_intra = util::IsLuma(comp) && cu->IsIntra();

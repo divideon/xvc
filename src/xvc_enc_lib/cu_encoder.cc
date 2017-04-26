@@ -325,7 +325,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
     constants::kNumInterMergeCandidates> skip_evaluated = { false };
   InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   RdoCost best_cost(std::numeric_limits<Cost>::max());
-  CodingUnit::TransformState best_transform_state;
+  CodingUnit::TransformState &best_transform_state = rd_transform_state_;
   int best_merge_idx = -1;
 
   int num_merge_cand = Restrictions::Get().disable_inter_merge_candidates ?

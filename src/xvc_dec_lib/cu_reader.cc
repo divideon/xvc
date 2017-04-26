@@ -187,17 +187,13 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
     cbf = cu->GetCbf(comp);   // signaled from luma
   }
   cu->SetCbf(comp, cbf);
-  Coeff *cu_coeff_buf = cu->GetCoeff(comp);
-  ptrdiff_t cu_coeff_stride = cu->GetCoeffStride();
+
+  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
   // coefficient parsing is sparse so zero out in any case
-  int width = cu->GetWidth(comp);
-  int height = cu->GetHeight(comp);
-  for (int y = 0; y < height; y++) {
-    std::fill(cu_coeff_buf, cu_coeff_buf + width, 0);
-    cu_coeff_buf += cu_coeff_stride;
-  }
+  cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
   if (cbf) {
-    reader->ReadCoefficients(*cu, comp, cu->GetCoeff(comp), cu_coeff_stride);
+    reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
+                             cu_coeff_buf.GetStride());
   }
 }
 

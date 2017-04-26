@@ -31,30 +31,32 @@ protected:
 
   void Encode(std::vector<uint8_t> *bitstream) {
     xvc::PictureData pic_data(chroma_format, width_, height_, bitdepth);
-    xvc::CodingUnit cu(pic_data, cu_tree, 0, 0, 0, width_, height_);
-    cu.SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
+    xvc::CodingUnit *cu = pic_data.CreateCu(cu_tree, 0, 0, 0, width_, height_);
+    cu->SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitWriter bit_writer;
     xvc::EntropyEncoder entropyenc(&bit_writer);
     xvc::SyntaxWriter writer(*qp_.get(), pic_type, &entropyenc);
     entropyenc.Start();
-    writer.WriteCoefficients(cu, comp, &enc_coeff[0], coeff_stride);
+    writer.WriteCoefficients(*cu, comp, &enc_coeff[0], coeff_stride);
     entropyenc.EncodeBinTrm(1);
     entropyenc.Finish();
     *bitstream = *bit_writer.GetBytes();
+    pic_data.ReleaseCu(cu);
   }
 
   void Decode(const std::vector<uint8_t> &bitstream) {
     xvc::PictureData pic_data(chroma_format, width_, height_, bitdepth);
-    xvc::CodingUnit cu(pic_data, cu_tree, 0, 0, 0, width_, height_);
-    cu.SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
+    xvc::CodingUnit *cu = pic_data.CreateCu(cu_tree, 0, 0, 0, width_, height_);
+    cu->SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
     xvc::EntropyDecoder entropydec(&bit_reader);
     xvc::SyntaxReader reader(*qp_.get(), pic_type, &entropydec);
     dec_coeff.fill(0);  // caller responsiblility
     entropydec.Start();
-    reader.ReadCoefficients(cu, comp, &dec_coeff[0], coeff_stride);
+    reader.ReadCoefficients(*cu, comp, &dec_coeff[0], coeff_stride);
     ASSERT_EQ(1, entropydec.DecodeBinTrm());
     entropydec.Finish();
+    pic_data.ReleaseCu(cu);
   }
 
   void EncodeDecodeVerify() {

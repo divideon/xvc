@@ -160,9 +160,9 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
     // signaled by luma
   }
   if (cbf) {
-    const Coeff *cu_coeff_buf = cu.GetCoeff(comp);
-    ptrdiff_t cu_coeff_stride = cu.GetCoeffStride();
-    writer->WriteCoefficients(cu, comp, cu_coeff_buf, cu_coeff_stride);
+    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
+                              cu_coeff.GetStride());
   }
 }
 

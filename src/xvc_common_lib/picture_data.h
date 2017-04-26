@@ -144,6 +144,8 @@ private:
     constants::kMaxNumCuTrees> cu_pic_table_;
   std::array<std::vector<YuvComponent>,
     constants::kMaxNumCuTrees> cu_tree_components_;
+  // Holds coefficients for a single ctu, then reused for next one
+  mutable std::unique_ptr<CoeffCtuBuffer> ctu_coeff_;
   ptrdiff_t cu_pic_stride_;
   int pic_width_;
   int pic_height_;

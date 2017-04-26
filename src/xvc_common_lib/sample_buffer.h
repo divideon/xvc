@@ -7,6 +7,7 @@
 #ifndef XVC_COMMON_LIB_SAMPLE_BUFFER_H_
 #define XVC_COMMON_LIB_SAMPLE_BUFFER_H_
 
+#include <array>
 #include <cstring>
 #include <memory>
 
@@ -123,6 +124,14 @@ public:
 class CoeffBuffer : public DataBuffer<Coeff> {
 public:
   CoeffBuffer(Coeff *data, ptrdiff_t stride) : DataBuffer(data, stride) {}
+
+  void ZeroOut(int width, int height) {
+    Coeff *dst = GetDataPtr();
+    for (int y = 0; y < height; y++) {
+      std::fill(dst, dst + width, 0);
+      dst += GetStride();
+    }
+  }
 };
 
 class SampleBufferStorage
@@ -150,6 +159,43 @@ public:
     : std::unique_ptr<Coeff[]>(new Coeff[width * height]),
     CoeffBuffer(std::unique_ptr<Coeff[]>::get(), width) {
   }
+};
+
+class CoeffCtuBuffer {
+public:
+  CoeffCtuBuffer(int chroma_shift_x, int chroma_shift_y) :
+    // For getting relative position within CTU
+    pos_mask_x_({{ constants::kMaxBlockSize - 1,
+                (constants::kMaxBlockSize >> chroma_shift_x) - 1,
+                (constants::kMaxBlockSize >> chroma_shift_x) - 1 }}),
+    pos_mask_y_({ { constants::kMaxBlockSize - 1,
+                (constants::kMaxBlockSize >> chroma_shift_y) - 1,
+                (constants::kMaxBlockSize >> chroma_shift_y) - 1 } }) {
+  }
+  CoeffCtuBuffer(const CoeffCtuBuffer&) = delete;
+  CoeffCtuBuffer(const CoeffCtuBuffer&&) = delete;
+  CoeffCtuBuffer& operator=(const CoeffCtuBuffer&) = delete;
+
+  CoeffBuffer GetBuffer(YuvComponent comp, int posx, int posy) {
+    posx = posx & pos_mask_x_[static_cast<int>(comp)];
+    posy = posy & pos_mask_y_[static_cast<int>(comp)];
+    Coeff *data = &comp_storage_[static_cast<int>(comp)][0];
+    return CoeffBuffer(data + posy * kStride + posx, kStride);
+  }
+  DataBuffer<const Coeff> GetBuffer(YuvComponent comp,
+                                    int posx, int posy) const {
+    posx = posx & pos_mask_x_[static_cast<int>(comp)];
+    posy = posy & pos_mask_y_[static_cast<int>(comp)];
+    const Coeff *data = &comp_storage_[static_cast<int>(comp)][0];
+    return DataBuffer<const Coeff>(data + posy * kStride + posx, kStride);
+  }
+
+private:
+  static const int kStride = constants::kMaxBlockSize;
+  std::array<int, constants::kMaxYuvComponents> pos_mask_x_;
+  std::array<int, constants::kMaxYuvComponents> pos_mask_y_;
+  std::array<std::array<Coeff, constants::kMaxBlockSamples * kStride>,
+    constants::kMaxYuvComponents> comp_storage_;
 };
 
 }   // namespace xvc

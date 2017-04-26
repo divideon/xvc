@@ -10,7 +10,6 @@
 #include <array>
 #include <cassert>
 #include <memory>
-#include <vector>
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/cu_types.h"
@@ -26,10 +25,13 @@ class QP;
 class CodingUnit {
 public:
   struct ReconstructionState {
-    std::array<std::vector<Sample>, constants::kMaxYuvComponents> reco;
+    std::array<std::array<Sample, constants::kMaxBlockSamples>,
+      constants::kMaxYuvComponents> reco;
+    std::array<std::array<Coeff, constants::kMaxBlockSamples>,
+      constants::kMaxYuvComponents> coeff;
   };
-  struct TransformState : ReconstructionState {
-    std::array<std::vector<Coeff>, constants::kMaxYuvComponents> coeff;
+  struct TransformState {
+    ReconstructionState reco;
     std::array<bool, constants::kMaxYuvComponents> cbf;
   };
   struct InterState {
@@ -43,8 +45,9 @@ public:
     std::array<int8_t, 2> mvp_idx;
   };
 
-  CodingUnit(const PictureData &pic_data, CuTree cu_tree, int depth,
-             int pic_x, int pic_y, int width, int height);
+  CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
+             CuTree cu_tree, int depth, int pic_x, int pic_y,
+             int width, int height);
 
   // General
   CuTree GetCuTree() const { return cu_tree_; }
@@ -108,9 +111,12 @@ public:
   void SetRootCbf(bool root_cbf) { root_cbf_ = root_cbf; }
   bool GetCbf(YuvComponent comp) const { return cbf_[comp]; }
   void SetCbf(YuvComponent comp, bool cbf) { cbf_[comp] = cbf; }
-  Coeff *GetCoeff(YuvComponent comp) { return &coeff_[comp][0]; }
-  const Coeff *GetCoeff(YuvComponent comp) const { return &coeff_[comp][0]; }
-  ptrdiff_t GetCoeffStride() const { return constants::kMaxBlockSize; }
+  CoeffBuffer GetCoeff(YuvComponent comp) {
+    return ctu_coeff_.GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+  }
+  DataBuffer<const Coeff> GetCoeff(YuvComponent comp) const {
+    return ctu_coeff_.GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+  }
   bool GetHasAnyCbf() const {
     return cbf_[YuvComponent::kY] || cbf_[YuvComponent::kU] ||
       cbf_[YuvComponent::kV];
@@ -172,9 +178,9 @@ public:
   // State handling
   void Split(SplitType split_type);
   void UnSplit();
-  void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic);
-  void SaveStateTo(TransformState *state, const YuvPicture &rec_pic);
-  void SaveStateTo(InterState *state);
+  void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic) const;
+  void SaveStateTo(TransformState *state, const YuvPicture &rec_pic) const;
+  void SaveStateTo(InterState *state) const;
   void LoadStateFrom(const ReconstructionState &state, YuvPicture *rec_pic);
   void LoadStateFrom(const TransformState &state, YuvPicture *rec_pic);
   void LoadStateFrom(const InterState &state);
@@ -189,12 +195,12 @@ private:
   int width_;
   int height_;
   int depth_;
-  std::array<bool, constants::kMaxYuvComponents> cbf_;
-  std::array<std::vector<Coeff>, constants::kMaxYuvComponents> coeff_;
-  std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
-  const QP *qp_;
   SplitType split_state_;
   PredictionMode pred_mode_;
+  std::array<bool, constants::kMaxYuvComponents> cbf_;
+  std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
+  const QP *qp_;
+  CoeffCtuBuffer &ctu_coeff_;   // Coefficient storage for this CU
   bool root_cbf_;
   // Intra
   IntraMode intra_mode_luma_;
