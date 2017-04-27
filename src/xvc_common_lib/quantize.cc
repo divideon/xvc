@@ -79,7 +79,7 @@ double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
                            int sub_gop_length, int temporal_id,
                            int max_temporal_id) {
   int qp_temp = qp - 12;
-  double lambda = std::pow(2.0, qp_temp / 3.0);
+  double lambda = pow(2.0, qp_temp / 3.0);
   double pic_type_factor =
     pic_type == PicturePredictionType::kIntra ? 0.57 : 0.68;
   double subgop_factor =

@@ -7,6 +7,7 @@
 #include "xvc_common_lib/picture_data.h"
 
 #include <cassert>
+#include <cmath>
 
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/common.h"
@@ -71,7 +72,7 @@ void PictureData::Init(const QP &pic_qp) {
   qps_.clear();
   for (int i = -constants::kMaxQpDiff; i <= constants::kMaxQpDiff; i++) {
     int qp_tmp = pic_qp.GetQpRaw(YuvComponent::kY) + i;
-    double lambda_tmp = pic_qp.GetLambda() * std::pow(2.0, i / 3.0);
+    double lambda_tmp = pic_qp.GetLambda() * pow(2.0, i / 3.0);
     qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
   }
 
