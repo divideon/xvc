@@ -32,6 +32,7 @@ public:
   void ResetBitCounting() { entropyenc_->ResetBitCounting(); }
 
   void WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf);
+  void WriteQp(int qp_value);
   void WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
                          const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteEndOfSlice(bool end_of_slice);

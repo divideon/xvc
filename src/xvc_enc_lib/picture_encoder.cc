@@ -44,17 +44,21 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   double lambda =
     QP::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
                         lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid);
-  QP qp(pic_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(), lambda);
-  pic_data_->Init(qp);
+  int scaled_qp = QP::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
+  QP base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
+             lambda);
+
+  pic_data_->Init(base_qp);
 
   bit_writer_.Clear();
   WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
 
   EntropyEncoder entropy_encoder(&bit_writer_);
   entropy_encoder.Start();
-  SyntaxWriter writer(qp, pic_data_->GetPredictionType(), &entropy_encoder);
+  SyntaxWriter writer(base_qp, pic_data_->GetPredictionType(),
+                      &entropy_encoder);
   std::unique_ptr<CuEncoder>
-    cu_encoder(new CuEncoder(qp, *orig_pic_, rec_pic_.get(), pic_data_.get(),
+    cu_encoder(new CuEncoder(*orig_pic_, rec_pic_.get(), pic_data_.get(),
                              speed_settings));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {

@@ -22,6 +22,7 @@ public:
   SyntaxReader(const QP &qp, PicturePredictionType pic_type,
                EntropyDecoder *entropydec);
   bool ReadCbf(const CodingUnit &cu, YuvComponent comp);
+  int ReadQp();
   void ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                         Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   bool ReadEndOfSlice();

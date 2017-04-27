@@ -31,11 +31,10 @@ const int QP::kInvQuantScales_[kNumScalingListRem_] = {
   40, 45, 51, 57, 64, 72
 };
 
-QP::QP(int qp_unscaled, ChromaFormat chroma_format, int bitdepth, double lambda,
+QP::QP(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
        int chroma_offset)
   : lambda_(lambda),
   lambda_sqrt_(std::sqrt(lambda)) {
-  int qp = ScaleLumaQP(qp_unscaled, bitdepth, lambda);
   qp_raw_[0] = qp;
   qp_raw_[1] = ScaleChromaQP(qp + chroma_offset, chroma_format, bitdepth);
   qp_raw_[2] = ScaleChromaQP(qp + chroma_offset, chroma_format, bitdepth);
@@ -52,15 +51,10 @@ QP::QP(int qp_unscaled, ChromaFormat chroma_format, int bitdepth, double lambda,
     GetChromaDistWeight(qp + chroma_offset, chroma_format);
 }
 
-int QP::ScaleLumaQP(int qp, int bitdepth, double lambda) {
-  if (lambda == 0) {
-    return qp;
-  }
-  int qp_temp = qp - 12;
-  double lambda_ref = 0.57 * std::pow(2.0, qp_temp / 3.0);
-  int qp_offset = static_cast<int>(
-    std::floor((3.0 * log(lambda / lambda_ref) / log(2.0)) + 0.5));
-  return util::Clip3(qp + qp_offset, constants::kMinAllowedQp,
+int QP::GetQpFromLambda(int bitdepth, double lambda) {
+  int qp = static_cast<int>(
+    std::floor((3.0 * (log(lambda / 0.57) / log(2.0))) + 0.5));
+  return util::Clip3(12 + qp, constants::kMinAllowedQp,
                      constants::kMaxAllowedQp);
 }
 

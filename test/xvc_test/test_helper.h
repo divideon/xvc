@@ -93,15 +93,16 @@ protected:
 
   std::unique_ptr<xvc::Encoder>
     CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
-    std::unique_ptr<xvc::Encoder> encoder(
-      new xvc::Encoder(internal_bitdepth, qp));
+    std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder());
     encoder->SetResolution(width, height);
     encoder->SetChromaFormat(XVC_ENC_CHROMA_FORMAT_420);
     encoder->SetInputBitdepth(8);
+    encoder->SetInternalBitdepth(internal_bitdepth);
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);
     encoder->SetChecksumMode(1);
     encoder->SetDeblock(1);
+    encoder->SetQp(qp);
     xvc::SpeedSettings speed_settings;
     speed_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder->SetSpeedSettings(std::move(speed_settings));

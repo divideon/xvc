@@ -161,6 +161,9 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
   }
   if (cbf) {
     DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+    if (util::IsLuma(comp)) {
+      // TODO(dev) writer->WriteQp(cu.GetQp().GetQpRaw(comp));
+    }
     writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
                               cu_coeff.GetStride());
   }

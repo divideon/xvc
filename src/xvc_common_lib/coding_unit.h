@@ -72,6 +72,7 @@ public:
   }
   const QP& GetQp() const;
   void SetQp(const QP &qp);
+  void SetQp(int qp_value);
   int GetQp(YuvComponent comp) const;
   void InitializeFrom(const CodingUnit &cu);
 

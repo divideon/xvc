@@ -192,6 +192,9 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
   // coefficient parsing is sparse so zero out in any case
   cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
   if (cbf) {
+    if (util::IsLuma(comp)) {
+      // TODO(dev) cu->SetQp(reader->ReadQp());
+    }
     reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
                              cu_coeff_buf.GetStride());
   }

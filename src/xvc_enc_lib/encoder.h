@@ -27,7 +27,7 @@ namespace xvc {
 
 class Encoder : public xvc_encoder {
 public:
-  Encoder(int internal_bitdepth, int base_qp);
+  Encoder();
   int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
              bool output_rec, xvc_enc_pic_buffer *rec_pic);
   int Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
@@ -45,6 +45,9 @@ public:
     segment_header_.num_ref_pics = num;
   }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
+  void SetInternalBitdepth(int bitdepth) {
+    segment_header_.internal_bitdepth = bitdepth;
+  }
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
     segment_header_.max_sub_gop_length = sub_gop_length;
@@ -57,7 +60,7 @@ public:
   void SetDeblock(int deblock) { segment_header_.deblock = deblock; }
   void SetBetaOffset(int offset) { segment_header_.beta_offset = offset; }
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
-  void SetQP(int qp) { segment_qp_ = qp; }
+  void SetQp(int qp) { segment_qp_ = qp; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
   void SetChecksumMode(int mode) {
     segment_header_.checksum_mode = Checksum::Mode(mode);
@@ -90,7 +93,7 @@ private:
   PicNum pic_buffering_num_ = 1;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
-  int segment_qp_ = -1;
+  int segment_qp_ = std::numeric_limits<int>::max();
   bool flat_lambda_ = false;
   SpeedSettings speed_settings_;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;

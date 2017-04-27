@@ -162,6 +162,7 @@ private:
   SegmentNum soc_ = 0;
   int tid_ = 0;
   std::unique_ptr<QP> pic_qp_;
+  std::vector<QP> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;
   OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
   ReferencePictureLists ref_pic_lists_;

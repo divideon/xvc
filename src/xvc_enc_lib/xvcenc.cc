@@ -201,11 +201,11 @@ extern "C" {
     if (xvc_enc_parameters_check(param) != XVC_ENC_OK) {
       return nullptr;
     }
-    xvc::Encoder *encoder =
-      new xvc::Encoder(param->internal_bitdepth, param->qp);
+    xvc::Encoder *encoder = new xvc::Encoder();
     encoder->SetResolution(param->width, param->height);
     encoder->SetChromaFormat(param->chroma_format);
     encoder->SetInputBitdepth(param->input_bitdepth);
+    encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);
     if (param->sub_gop_length == 0) {
       param->sub_gop_length = param->num_ref_pics > 0 ? 16 : 1;
@@ -221,6 +221,7 @@ extern "C" {
     } else {
       encoder->SetDeblock(param->deblock);
     }
+    encoder->SetQp(param->qp);
     encoder->SetFlatLambda(param->flat_lambda != 0);
     encoder->SetChecksumMode(param->checksum_mode);
 

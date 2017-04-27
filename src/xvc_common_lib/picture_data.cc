@@ -68,6 +68,13 @@ void PictureData::Init(const QP &pic_qp) {
     cu_tree_components_[1] = {};
   }
   pic_qp_.reset(new QP(pic_qp));
+  qps_.clear();
+  for (int i = -constants::kMaxQpDiff; i <= constants::kMaxQpDiff; i++) {
+    int qp_tmp = pic_qp.GetQpRaw(YuvComponent::kY) + i;
+    double lambda_tmp = pic_qp.GetLambda() * std::pow(2.0, i / 3.0);
+    qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
+  }
+
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     std::fill(cu_pic_table_[tree_idx].begin(),
               cu_pic_table_[tree_idx].end(), nullptr);

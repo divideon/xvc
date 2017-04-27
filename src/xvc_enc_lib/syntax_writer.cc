@@ -35,6 +35,10 @@ void SyntaxWriter::WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf) {
   }
 }
 
+void SyntaxWriter::WriteQp(int qp_value) {
+  entropyenc_->EncodeBypassBins(qp_value, 7);
+}
+
 void SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
                                      const Coeff *coeff,
                                      ptrdiff_t src_coeff_stride) {

@@ -25,7 +25,7 @@ namespace xvc {
 
 class CuEncoder : public TransformEncoder {
 public:
-  CuEncoder(const QP &qp, const YuvPicture &orig_pic, YuvPicture *rec_pic,
+  CuEncoder(const YuvPicture &orig_pic, YuvPicture *rec_pic,
             PictureData *pic_data, const SpeedSettings &speed_settings);
   ~CuEncoder();
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
@@ -52,7 +52,6 @@ private:
                                 Distortion ssd);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
 
-  const QP &pic_qp_;
   const YuvPicture &orig_pic_;
   const SpeedSettings &speed_settings_;
   YuvPicture &rec_pic_;

@@ -65,6 +65,9 @@ void CodingUnit::SetQp(const QP &qp) {
   qp_ = &qp;
 }
 
+void CodingUnit::SetQp(int qp_value) {
+}
+
 int CodingUnit::GetQp(YuvComponent comp) const {
   return qp_->GetQpRaw(comp);
 }

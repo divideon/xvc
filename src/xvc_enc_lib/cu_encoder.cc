@@ -27,12 +27,11 @@ struct CuEncoder::RdoCost {
   Distortion dist;
 };
 
-CuEncoder::CuEncoder(const QP &qp, const YuvPicture &orig_pic,
+CuEncoder::CuEncoder(const YuvPicture &orig_pic,
                      YuvPicture *rec_pic, PictureData *pic_data,
                      const SpeedSettings &speed_settings)
   : TransformEncoder(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
                      orig_pic),
-  pic_qp_(qp),
   orig_pic_(orig_pic),
   speed_settings_(speed_settings),
   rec_pic_(*rec_pic),
@@ -78,7 +77,7 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                                  SplitRestriction split_restiction,
                                  RdoSyntaxWriter *writer) {
-  const QP &qp = pic_qp_;
+  const QP &qp = *pic_data_.GetPicQp();
   const int kMaxTrSize =
     !Restrictions::Get().disable_ext_transform_size_64 ? 64 : 32;
   CodingUnit *cu = *best_cu;  // Invariant: cu always points to *best_cu
@@ -223,7 +222,7 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
 Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                       SplitRestriction split_restriction,
                                       RdoSyntaxWriter *writer) {
-  const QP &qp = pic_qp_;
+  const QP &qp = *pic_data_.GetPicQp();
   RdoCost best_cost(std::numeric_limits<Cost>::max());
   CodingUnit::ReconstructionState *best_state =
     &temp_cu_state_[rdo_depth + 1];

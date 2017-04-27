@@ -49,6 +49,7 @@ public:
   static double CalculateLambda(int qp, PicturePredictionType pic_type,
                                 int sub_gop_length, int temporal_id,
                                 int max_temporal_id);
+  static int GetQpFromLambda(int bitdepth, double lambda);
 
 private:
   static const int kChromaQpMax_ = 57;
@@ -56,7 +57,6 @@ private:
   static const int kNumScalingListRem_ = 6;
   static const int kFwdQuantScales_[kNumScalingListRem_];
   static const int kInvQuantScales_[kNumScalingListRem_];
-  static int ScaleLumaQP(int qp, int bitdepth, double lambda);
   static int ScaleChromaQP(int qp, ChromaFormat chroma_format, int bitdepth);
   static double GetChromaDistWeight(int qp, ChromaFormat chroma_format);
 

@@ -31,6 +31,10 @@ bool SyntaxReader::ReadCbf(const CodingUnit &cu, YuvComponent comp) {
   }
 }
 
+int SyntaxReader::ReadQp() {
+  return entropydec_->DecodeBypassBins(7);
+}
+
 void SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                                     Coeff *dst_coeff, ptrdiff_t dst_stride) {
   if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
