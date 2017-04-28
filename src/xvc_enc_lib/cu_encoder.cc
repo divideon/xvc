@@ -308,13 +308,8 @@ CuEncoder::CompressIntra(CodingUnit *cu, const QP &qp,
 CuEncoder::RdoCost
 CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
                          const SyntaxWriter &bitstream_writer) {
-  bool uni_pred_only =
-    pic_data_.GetPredictionType() == PicturePredictionType::kUni;
-  SampleBuffer &pred_buffer = GetPredBuffer();
-  inter_search_.SearchMotion(cu, qp, uni_pred_only, bitstream_writer,
-                             &pred_buffer);
-  Distortion dist = inter_search_.CompressAndEvalCbf(cu, qp, bitstream_writer,
-                                                     this, &rec_pic_);
+  Distortion dist =
+    inter_search_.CompressInter(cu, qp, bitstream_writer, this, &rec_pic_);
   return GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
 }
 
@@ -337,8 +332,8 @@ CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
         continue;
       }
       Distortion dist =
-        inter_search_.SearchMergeCbf(cu, qp, bitstream_writer, merge_list,
-                                     merge_idx, force_skip, this, &rec_pic_);
+        inter_search_.CompressMergeCand(cu, qp, bitstream_writer, merge_list,
+                                        merge_idx, force_skip, this, &rec_pic_);
       RdoCost cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
       if (!cu->GetHasAnyCbf()) {
         skip_evaluated[merge_idx] = true;

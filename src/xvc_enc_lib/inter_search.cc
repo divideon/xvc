@@ -44,6 +44,36 @@ InterSearch::InterSearch(int bitdepth, int max_components,
             same_poc_in_l0_mapping_.begin());
 }
 
+Distortion
+InterSearch::CompressInter(CodingUnit *cu, const QP &qp,
+                           const SyntaxWriter &bitstream_writer,
+                           TransformEncoder *encoder, YuvPicture *rec_pic) {
+  bool uni_pred_only = cu->GetPicType() == PicturePredictionType::kUni;
+  SampleBuffer &pred_buffer = encoder->GetPredBuffer();
+  SearchMotion(cu, qp, uni_pred_only, bitstream_writer, &pred_buffer);
+  return CompressAndEvalCbf(cu, qp, bitstream_writer, encoder, rec_pic);
+}
+
+Distortion
+InterSearch::CompressMergeCand(CodingUnit *cu, const QP &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               const InterMergeCandidateList &merge_list,
+                               int merge_idx, bool force_skip,
+                               TransformEncoder *encoder, YuvPicture *rec_pic) {
+  cu->SetPredMode(PredictionMode::kInter);
+  cu->SetMergeFlag(true);
+  cu->SetSkipFlag(!force_skip ? false : true);
+  cu->SetMergeIdx(merge_idx);
+  ApplyMerge(cu, merge_list, merge_idx);
+  Distortion dist;
+  if (!force_skip) {
+    dist = CompressAndEvalCbf(cu, qp, bitstream_writer, encoder, rec_pic);
+  } else {
+    dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
+  }
+  return dist;
+}
+
 void InterSearch::SearchMotion(CodingUnit *cu, const QP &qp,
                                bool uni_prediction_only,
                                const SyntaxWriter &bitstream_writer,
@@ -94,26 +124,6 @@ void InterSearch::SearchMotion(CodingUnit *cu, const QP &qp,
   } else {
     cu->LoadStateFrom(state_l1_unique_poc);
   }
-}
-
-Distortion
-InterSearch::SearchMergeCbf(CodingUnit *cu, const QP &qp,
-                            const SyntaxWriter &bitstream_writer,
-                            const InterMergeCandidateList &merge_list,
-                            int merge_idx, bool force_skip,
-                            TransformEncoder *encoder, YuvPicture *rec_pic) {
-  cu->SetPredMode(PredictionMode::kInter);
-  cu->SetMergeFlag(true);
-  cu->SetSkipFlag(!force_skip ? false : true);
-  cu->SetMergeIdx(merge_idx);
-  ApplyMerge(cu, merge_list, merge_idx);
-  Distortion dist;
-  if (!force_skip) {
-    dist = CompressAndEvalCbf(cu, qp, bitstream_writer, encoder, rec_pic);
-  } else {
-    dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
-  }
-  return dist;
 }
 
 Distortion
@@ -176,10 +186,9 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
     YuvComponent comp = YuvComponent(c);
     cu->SetCbf(comp, false);
     // TODO(Dev) Faster to save and reuse predicition buffers
-    Sample *reco = rec_pic->GetSamplePtr(comp, cu->GetPosX(comp),
-                                         cu->GetPosY(comp));
-    ptrdiff_t reco_stride = rec_pic->GetStride(comp);
-    MotionCompensation(*cu, comp, reco, reco_stride);
+    SampleBuffer reco =
+      rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
+    MotionCompensation(*cu, comp, reco.GetDataPtr(), reco.GetStride());
   }
   cu->SetRootCbf(cu->GetHasAnyCbf());
   cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetRootCbf());

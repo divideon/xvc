@@ -28,23 +28,27 @@ public:
               const ReferencePictureLists &ref_pic_list,
               const EncoderSettings &encoder_settings);
 
-  void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
-                    const SyntaxWriter &bitstream_writer,
-                    SampleBuffer *pred_buffer);
-  Distortion SearchMergeCbf(CodingUnit *cu, const QP &qp,
-                            const SyntaxWriter &bitstream_writer,
-                            const InterMergeCandidateList &merge_list,
-                            int merge_idx, bool force_skip,
-                            TransformEncoder *encoder, YuvPicture *rec_pic);
-  Distortion CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
-                                const SyntaxWriter &bitstream_writer,
-                                TransformEncoder *encoder, YuvPicture *rec_pic);
+
+  Distortion CompressInter(CodingUnit *cu, const QP &qp,
+                           const SyntaxWriter &bitstream_writer,
+                           TransformEncoder *encoder, YuvPicture *rec_pic);
+  Distortion CompressMergeCand(CodingUnit *cu, const QP &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               const InterMergeCandidateList &merge_list,
+                               int merge_idx, bool force_skip,
+                               TransformEncoder *encoder, YuvPicture *rec_pic);
 
 private:
   enum class SearchMethod { TZSearch, FullSearch };
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
 
+  void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
+                    const SyntaxWriter &bitstream_writer,
+                    SampleBuffer *pred_buffer);
+  Distortion CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
+                                const SyntaxWriter &bitstream_writer,
+                                TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion CompressSkipOnly(CodingUnit *cu, const QP &qp,
                               const SyntaxWriter &bitstream_writer,
                               TransformEncoder *encoder, YuvPicture *rec_pic);
