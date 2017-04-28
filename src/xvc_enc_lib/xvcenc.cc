@@ -14,7 +14,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_enc_lib/encoder.h"
-#include "xvc_enc_lib/speed_settings.h"
+#include "xvc_enc_lib/encoder_settings.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,7 +54,7 @@ extern "C" {
     param->qp = 32;
     param->flat_lambda = 0;
     param->speed_mode = -1;
-    param->explicit_speed_settings = nullptr;
+    param->explicit_encoder_settings = nullptr;
     return XVC_ENC_OK;
   }
 
@@ -140,37 +140,39 @@ extern "C" {
 
   void xvc_enc_set_speed_mode(xvc::Encoder *encoder,
                               xvc_encoder_parameters *param) {
-    xvc::SpeedSettings speed_settings;
+    xvc::EncoderSettings encoder_settings;
 
     if (param->speed_mode >= 0) {
       // If speed mode has been set explictly
-      speed_settings.Initialize(xvc::SpeedMode(param->speed_mode));
+      encoder_settings.Initialize(xvc::SpeedMode(param->speed_mode));
     } else if (param->restricted_mode) {
       // If restricted mode has been set explictly
-      speed_settings.Initialize(xvc::RestrictedMode(param->restricted_mode));
+      encoder_settings.Initialize(xvc::RestrictedMode(param->restricted_mode));
     } else {
-      speed_settings.Initialize(xvc::SpeedMode::kSlow);
+      encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     }
 
     // Explicit speed settings override the settings
-    if (param->explicit_speed_settings) {
-      std::string expl_values(param->explicit_speed_settings);
+    if (param->explicit_encoder_settings) {
+      std::string expl_values(param->explicit_encoder_settings);
       std::string setting;
       std::stringstream stream(expl_values);
       while (stream >> setting) {
         if (setting == "eval_prev_mv_search_result") {
-          stream >> speed_settings.eval_prev_mv_search_result;
+          stream >> encoder_settings.eval_prev_mv_search_result;
         } else if (setting == "fast_intra_mode_eval_level") {
-          stream >> speed_settings.fast_intra_mode_eval_level;
+          stream >> encoder_settings.fast_intra_mode_eval_level;
         } else if (setting == "bipred_refinement_iterations") {
-          stream >> speed_settings.bipred_refinement_iterations;
+          stream >> encoder_settings.bipred_refinement_iterations;
         } else if (setting == "always_evaluate_intra_in_inter") {
-          stream >> speed_settings.always_evaluate_intra_in_inter;
+          stream >> encoder_settings.always_evaluate_intra_in_inter;
+        } else if (setting == "smooth_lambda_scaling") {
+          stream >> encoder_settings.smooth_lambda_scaling;
         }
       }
     }
 
-    encoder->SetSpeedSettings(std::move(speed_settings));
+    encoder->SetEncoderSettings(std::move(encoder_settings));
   }
 
 

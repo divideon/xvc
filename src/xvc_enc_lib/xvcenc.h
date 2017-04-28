@@ -83,7 +83,7 @@ extern "C" {
     int flat_lambda;
     int speed_mode;
     int checksum_mode;
-    char* explicit_speed_settings;
+    char* explicit_encoder_settings;
   } xvc_encoder_parameters;
 
   typedef struct xvc_encoder_api {

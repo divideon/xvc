@@ -4,8 +4,8 @@
 * without the written permission of the copyright holder.
 ******************************************************************************/
 
-#ifndef XVC_ENC_LIB_SPEED_SETTINGS_H_
-#define XVC_ENC_LIB_SPEED_SETTINGS_H_
+#ifndef XVC_ENC_LIB_ENCODER_SETTINGS_H_
+#define XVC_ENC_LIB_ENCODER_SETTINGS_H_
 
 #include "xvc_common_lib/restrictions.h"
 
@@ -17,7 +17,7 @@ enum struct SpeedMode {
   kTotalNumber = 2,
 };
 
-struct SpeedSettings {
+struct EncoderSettings {
   // Initialize based on speed mode setting
   void Initialize(SpeedMode speed_mode) {
     switch (speed_mode) {
@@ -26,12 +26,14 @@ struct SpeedSettings {
         fast_intra_mode_eval_level = 0;
         bipred_refinement_iterations = 4;
         always_evaluate_intra_in_inter = 1;
+        smooth_lambda_scaling = 1;
         break;
       case SpeedMode::kSlow:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
+        smooth_lambda_scaling = 1;
         break;
       default:
         assert(0);
@@ -47,12 +49,14 @@ struct SpeedSettings {
         fast_intra_mode_eval_level = 1;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
+        smooth_lambda_scaling = 0;
         break;
       case RestrictedMode::kModeB:
         eval_prev_mv_search_result = 0;
         fast_intra_mode_eval_level = 2;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
+        smooth_lambda_scaling = 0;
         break;
       default:
         assert(0);
@@ -64,9 +68,10 @@ struct SpeedSettings {
   int fast_intra_mode_eval_level = -1;
   int bipred_refinement_iterations = -1;
   int always_evaluate_intra_in_inter = -1;
+  int smooth_lambda_scaling = -1;
 };
 
 
 }   // namespace xvc
 
-#endif  // XVC_ENC_LIB_SPEED_SETTINGS_H_
+#endif  // XVC_ENC_LIB_ENCODER_SETTINGS_H_

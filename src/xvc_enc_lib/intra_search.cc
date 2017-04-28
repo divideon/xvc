@@ -16,11 +16,11 @@ namespace xvc {
 
 IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
                          const YuvPicture &orig_pic,
-                         const SpeedSettings &speed_settings)
+                         const EncoderSettings &encoder_settings)
   : IntraPrediction(bitdepth),
   pic_data_(pic_data),
   orig_pic_(orig_pic),
-  speed_settings_(speed_settings),
+  encoder_settings_(encoder_settings),
   cu_writer_(pic_data, this) {
 }
 
@@ -79,9 +79,9 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const QP &qp,
   int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
   int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
   int num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
-  if (speed_settings_.fast_intra_mode_eval_level == 2) {
+  if (encoder_settings_.fast_intra_mode_eval_level == 2) {
     num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
-  } else if (speed_settings_.fast_intra_mode_eval_level == 0) {
+  } else if (encoder_settings_.fast_intra_mode_eval_level == 0) {
     num_modes_for_slow_rdo = 33;
   }
   for (int i = 0; i < mpm.num_neighbor_modes; i++) {

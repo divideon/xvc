@@ -29,12 +29,12 @@ static const std::array<std::pair<int8_t, int8_t>, 9> kSquareXYQpel = { {
 InterSearch::InterSearch(int bitdepth, int max_components,
                          const YuvPicture &orig_pic,
                          const ReferencePictureLists &ref_pic_list,
-                         const SpeedSettings &speed_settings)
+                         const EncoderSettings &encoder_settings)
   : InterPrediction(bitdepth),
   bitdepth_(bitdepth),
   max_components_(max_components),
   orig_pic_(orig_pic),
-  speed_settings_(speed_settings),
+  encoder_settings_(encoder_settings),
   bipred_orig_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize),
   bipred_pred_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize) {
   std::vector<int> l1_mapping;
@@ -227,7 +227,7 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const QP &qp,
     best_uni_dir == InterDir::kL0 ? RefPicList::kL1 : RefPicList::kL0;
 
   Distortion cost_best = std::numeric_limits<Distortion>::max();
-  int num_iterations = speed_settings_.bipred_refinement_iterations;
+  int num_iterations = encoder_settings_.bipred_refinement_iterations;
   for (int iteration = 0; iteration < num_iterations; iteration++) {
     // If searching in L1 use original without L0 prediction
     cu->SetInterDir(search_list == RefPicList::kL0 ?
@@ -304,7 +304,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp, RefPicList ref_list,
                          mvp_list[mvp_idx], mv_start, pred, pred_stride, &dist);
     }
     mvp_idx = EvalFinalMvpIdx(*cu, mvp_list, mv_subpel, mvp_idx);
-    if (!bipred || speed_settings_.bipred_refinement_iterations > 1) {
+    if (!bipred || encoder_settings_.bipred_refinement_iterations > 1) {
       unipred_best_mv_[static_cast<int>(ref_list)][ref_idx] = mv_subpel;
       unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx] = mvp_idx;
       unipred_best_dist_[static_cast<int>(ref_list)][ref_idx] = dist;
@@ -365,7 +365,7 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const QP &qp,
     mv_fullpel = FullSearch(cu, qp, mvp, *ref_pic, clip_min, clip_max);
   } else if (search_method == SearchMethod::TZSearch) {
     MetricType metric_type = GetFullpelMetric(cu);
-    TZSearch tz_search(bitdepth_, orig_pic_, *this, speed_settings_,
+    TZSearch tz_search(bitdepth_, orig_pic_, *this, encoder_settings_,
                        kSearchRangeUni);
     mv_fullpel =
       tz_search.Search(cu, qp, metric_type, mvp, *ref_pic, clip_min, clip_max,

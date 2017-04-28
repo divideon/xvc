@@ -12,7 +12,7 @@
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_enc_lib/sample_metric.h"
-#include "xvc_enc_lib/speed_settings.h"
+#include "xvc_enc_lib/encoder_settings.h"
 
 namespace xvc {
 
@@ -26,10 +26,10 @@ public:
 
   TZSearch(int bitdepth, const YuvPicture &orig_pic,
            const InterPrediction &inter_pred,
-           const SpeedSettings &speed_settings, int search_range)
+           const EncoderSettings &encoder_settings, int search_range)
     : orig_pic_(orig_pic),
     inter_pred_(inter_pred),
-    speed_settings_(speed_settings),
+    encoder_settings_(encoder_settings),
     bitdepth_(bitdepth),
     search_range_(search_range) {
   }
@@ -53,7 +53,7 @@ private:
 
   const YuvPicture &orig_pic_;
   const InterPrediction &inter_pred_;
-  const SpeedSettings &speed_settings_;
+  const EncoderSettings &encoder_settings_;
   int bitdepth_;
   int search_range_;
 };

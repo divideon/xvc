@@ -71,7 +71,7 @@ private:
     int qp = -1;
     int flat_lambda = -1;
     int speed_mode = -1;
-    std::string explicit_speed_settings;
+    std::string explicit_encoder_settings;
     int verbose = 0;
   } cli_;
 

@@ -77,7 +77,7 @@ double QP::GetChromaDistWeight(int qp, ChromaFormat chroma_format) {
 
 double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
                            int sub_gop_length, int temporal_id,
-                           int max_temporal_id) {
+                           int max_temporal_id, int scaling_type) {
   int qp_temp = qp - 12;
   double lambda = pow(2.0, qp_temp / 3.0);
   double pic_type_factor =
@@ -93,12 +93,20 @@ double QP::CalculateLambda(int qp, PicturePredictionType pic_type,
     hierarchical_factor *= 0.8;
   }
   if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra) {
-    static const std::array<double, 5> temporal_factor = { {
-        0.6, 0.2, 0.33, 0.33, 0.4
-    } };
-    hierarchical_factor =
-      temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+    if (scaling_type == 0) {
+      static const std::array<double, 5> temporal_factor = { {
+          0.6, 0.2, 0.33, 0.33, 0.4
+        } };
+      hierarchical_factor =
+        temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+      return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+    } else {
+      static const std::array<double, 5> temporal_factor = { {
+          0.14, 0.2, 0.33, 0.33, 0.4
+        } };
+      hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
     return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+    }
   }
   return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
 }
@@ -175,7 +183,6 @@ void Quantize::AdjustCoeffsForSignHiding(const CodingUnit &cu,
   int subblock_last_index = subblock_width * subblock_height - 1;
   int last_subblock = -1;
 
-
   for (int subblock_index = subblock_last_index; subblock_index >= 0;
        subblock_index--) {
     int subblock_scan = scan_subblock_table[subblock_index];
@@ -226,7 +233,7 @@ void Quantize::AdjustCoeffsForSignHiding(const CodingUnit &cu,
       Coeff coeff = get_coeff(out, out_stride, first_nonzero_pos);
       int sign = (coeff > 0) ? 0 : 1;
 
-      // If last bit in sum leads to wrong sign of first nonzero ceoff,
+      // If last bit in sum leads to wrong sign of first nonzero coeff,
       // then one of the coefficients must be rounded differently.
       if (sign != (abs_sum & 0x1)) {
         Coeff curr_cost = std::numeric_limits<Coeff>::max();

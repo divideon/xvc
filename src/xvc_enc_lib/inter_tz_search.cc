@@ -98,7 +98,7 @@ TZSearch::Search(const CodingUnit &cu, const QP &qp, MetricType metric,
 
   // Check MV from previous CU search (can be either same or a different size)
   if (cu.GetDepth() != 0 &&
-      speed_settings_.eval_prev_mv_search_result) {
+      encoder_settings_.eval_prev_mv_search_result) {
     int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
     int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
     inter_pred_.ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);

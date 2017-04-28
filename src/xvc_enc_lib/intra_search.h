@@ -11,7 +11,7 @@
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/cu_writer.h"
-#include "xvc_enc_lib/speed_settings.h"
+#include "xvc_enc_lib/encoder_settings.h"
 #include "xvc_enc_lib/transform_encoder.h"
 
 namespace xvc {
@@ -19,7 +19,8 @@ namespace xvc {
 class IntraSearch : public IntraPrediction {
 public:
   IntraSearch(int bitdepth, const PictureData &pic_data,
-              const YuvPicture &orig_pic, const SpeedSettings &speed_settings);
+              const YuvPicture &orig_pic,
+              const EncoderSettings &encoder_settings);
 
   IntraMode SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const QP &qp,
                             const SyntaxWriter &bitstream_writer,
@@ -34,7 +35,7 @@ public:
 private:
   const PictureData &pic_data_;
   const YuvPicture &orig_pic_;
-  const SpeedSettings &speed_settings_;
+  const EncoderSettings &encoder_settings_;
   CuWriter cu_writer_;
 };
 

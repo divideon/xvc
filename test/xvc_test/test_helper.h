@@ -103,9 +103,9 @@ protected:
     encoder->SetChecksumMode(1);
     encoder->SetDeblock(1);
     encoder->SetQp(qp);
-    xvc::SpeedSettings speed_settings;
-    speed_settings.Initialize(xvc::SpeedMode::kSlow);
-    encoder->SetSpeedSettings(std::move(speed_settings));
+    xvc::EncoderSettings encoder_settings;
+    encoder_settings.Initialize(xvc::SpeedMode::kSlow);
+    encoder->SetEncoderSettings(std::move(encoder_settings));
     return encoder;
   }
 

@@ -35,7 +35,8 @@ PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
 std::vector<uint8_t>*
 PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                        PicNum sub_gop_length, int buffer_flag,
-                       bool flat_lambda, const SpeedSettings &speed_settings) {
+                       bool flat_lambda,
+                       const EncoderSettings &encoder_settings) {
   int lambda_sub_gop_length =
     !flat_lambda ? static_cast<int>(segment.max_sub_gop_length) : 1;
   int lambda_max_tid = SegmentHeader::GetMaxTid(lambda_sub_gop_length);
@@ -43,7 +44,8 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   int pic_qp = DerivePictureQp(*pic_data_, segment_qp);
   double lambda =
     QP::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
-                        lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid);
+                        lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
+                        encoder_settings.smooth_lambda_scaling);
   int scaled_qp = QP::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
   QP base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
              lambda);
@@ -59,7 +61,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                       &entropy_encoder);
   std::unique_ptr<CuEncoder>
     cu_encoder(new CuEncoder(*orig_pic_, rec_pic_.get(), pic_data_.get(),
-                             speed_settings));
+                             encoder_settings));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
     cu_encoder->EncodeCtu(rsaddr, &writer);

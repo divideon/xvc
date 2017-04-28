@@ -29,16 +29,16 @@ struct CuEncoder::RdoCost {
 
 CuEncoder::CuEncoder(const YuvPicture &orig_pic,
                      YuvPicture *rec_pic, PictureData *pic_data,
-                     const SpeedSettings &speed_settings)
+                     const EncoderSettings &encoder_settings)
   : TransformEncoder(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
                      orig_pic),
   orig_pic_(orig_pic),
-  speed_settings_(speed_settings),
+  encoder_settings_(encoder_settings),
   rec_pic_(*rec_pic),
   pic_data_(*pic_data),
   inter_search_(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
-                orig_pic, *pic_data->GetRefPicLists(), speed_settings),
-  intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, speed_settings),
+                orig_pic, *pic_data->GetRefPicLists(), encoder_settings),
+  intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
   cu_writer_(pic_data_, &intra_search_) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     const CuTree cu_tree = static_cast<CuTree>(tree_idx);
@@ -260,7 +260,8 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
       std::swap(cu, temp_cu);
     }
 
-    if (speed_settings_.always_evaluate_intra_in_inter || cu->GetHasAnyCbf()) {
+    if (encoder_settings_.always_evaluate_intra_in_inter
+        || cu->GetHasAnyCbf()) {
       cost = CompressIntra(temp_cu, qp, *writer);
       if (cost < best_cost) {
         best_cost = cost;

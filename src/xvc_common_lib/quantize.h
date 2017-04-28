@@ -48,7 +48,7 @@ public:
 
   static double CalculateLambda(int qp, PicturePredictionType pic_type,
                                 int sub_gop_length, int temporal_id,
-                                int max_temporal_id);
+                                int max_temporal_id, int scaling_type);
   static int GetQpFromLambda(int bitdepth, double lambda);
 
 private:

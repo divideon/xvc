@@ -16,7 +16,7 @@
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_enc_lib/sample_metric.h"
-#include "xvc_enc_lib/speed_settings.h"
+#include "xvc_enc_lib/encoder_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
 
@@ -26,7 +26,7 @@ class InterSearch : public InterPrediction {
 public:
   InterSearch(int bitdepth, int max_components, const YuvPicture &orig_pic,
               const ReferencePictureLists &ref_pic_list,
-              const SpeedSettings &speed_settings);
+              const EncoderSettings &encoder_settings);
 
   void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
                     const SyntaxWriter &bitstream_writer,
@@ -106,7 +106,7 @@ private:
   const int bitdepth_;
   const int max_components_;
   const YuvPicture &orig_pic_;
-  const SpeedSettings &speed_settings_;
+  const EncoderSettings &encoder_settings_;
   ResidualBufferStorage bipred_orig_buffer_;
   SampleBufferStorage bipred_pred_buffer_;
   // Mapping of ref_idx from L1 to L0 when POC is same

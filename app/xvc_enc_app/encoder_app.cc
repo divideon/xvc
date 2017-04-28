@@ -90,7 +90,7 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
     } else if (arg == "-speed-mode") {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
     } else if (arg == "-explicit-speed-settings") {
-      cli_.explicit_speed_settings = argv[++i];
+      cli_.explicit_encoder_settings = argv[++i];
     } else if (arg == "-verbose") {
       std::stringstream(argv[++i]) >> cli_.verbose;
     } else {
@@ -242,8 +242,8 @@ void EncoderApp::CreateAndConfigureApi() {
   if (cli_.speed_mode != -1) {
     params_->speed_mode = cli_.speed_mode;
   }
-  if (!cli_.explicit_speed_settings.empty()) {
-    params_->explicit_speed_settings = &cli_.explicit_speed_settings[0];
+  if (!cli_.explicit_encoder_settings.empty()) {
+    params_->explicit_encoder_settings = &cli_.explicit_encoder_settings[0];
   }
   xvc_enc_return_code ret = xvc_api_->parameters_check(params_);
   if (ret != XVC_ENC_OK) {

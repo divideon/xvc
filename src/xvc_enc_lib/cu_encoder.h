@@ -17,7 +17,7 @@
 #include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/inter_search.h"
 #include "xvc_enc_lib/intra_search.h"
-#include "xvc_enc_lib/speed_settings.h"
+#include "xvc_enc_lib/encoder_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
 
@@ -26,7 +26,7 @@ namespace xvc {
 class CuEncoder : public TransformEncoder {
 public:
   CuEncoder(const YuvPicture &orig_pic, YuvPicture *rec_pic,
-            PictureData *pic_data, const SpeedSettings &speed_settings);
+            PictureData *pic_data, const EncoderSettings &encoder_settings);
   ~CuEncoder();
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 
@@ -53,7 +53,7 @@ private:
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
 
   const YuvPicture &orig_pic_;
-  const SpeedSettings &speed_settings_;
+  const EncoderSettings &encoder_settings_;
   YuvPicture &rec_pic_;
   PictureData &pic_data_;
   InterSearch inter_search_;
