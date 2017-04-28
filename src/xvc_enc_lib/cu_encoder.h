@@ -8,8 +8,8 @@
 #define XVC_ENC_LIB_CU_ENCODER_H_
 
 #include <memory>
+#include <utility>
 #include <vector>
-
 
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/quantize.h"
@@ -41,6 +41,8 @@ private:
   Distortion CompressNoSplit(CodingUnit **cu, int rdo_depth,
                              SplitRestriction split_restrct,
                              RdoSyntaxWriter *rdo_writer);
+  Distortion CompressFast(CodingUnit *cu, const QP &qp,
+                          const SyntaxWriter &writer);
   RdoCost CompressIntra(CodingUnit *cu, const QP &qp,
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressInter(CodingUnit *cu, const QP &qp,
@@ -65,6 +67,9 @@ private:
   CodingUnit::TransformState rd_transform_state_;
   std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 2>,
     constants::kMaxNumCuTrees> rdo_temp_cu_;
+  std::array<std::array<std::pair<bool, CodingUnit*>,
+    constants::kMaxBlockDepth + 2>,
+    constants::kMaxNumCuTrees> cu_cache_;
 };
 
 }   // namespace xvc

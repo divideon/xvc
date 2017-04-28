@@ -55,6 +55,23 @@ InterSearch::CompressInter(CodingUnit *cu, const QP &qp,
 }
 
 Distortion
+InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
+                               TransformEncoder *encoder, YuvPicture *rec_pic) {
+  if (!cu->GetCbf(comp)) {
+    // Write prediction directly to reconstruction
+    SampleBuffer reco =
+      rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
+    MotionCompensation(*cu, comp, reco.GetDataPtr(), reco.GetStride());
+    SampleMetric metric(MetricType::kSSE, qp, rec_pic->GetBitdepth());
+    return metric.CompareSample(*cu, comp, orig_pic_, reco);
+  } else {
+    SampleBuffer &pred = encoder->GetPredBuffer();
+    MotionCompensation(*cu, comp, pred.GetDataPtr(), pred.GetStride());
+    return encoder->TransformAndReconstruct(cu, comp, qp, orig_pic_, rec_pic);
+  }
+}
+
+Distortion
 InterSearch::CompressMergeCand(CodingUnit *cu, const QP &qp,
                                const SyntaxWriter &bitstream_writer,
                                const InterMergeCandidateList &merge_list,

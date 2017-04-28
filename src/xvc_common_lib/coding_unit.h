@@ -48,6 +48,8 @@ public:
   CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
              CuTree cu_tree, int depth, int pic_x, int pic_y,
              int width, int height);
+  CodingUnit& operator=(const CodingUnit &cu);
+  bool operator==(const CodingUnit &cu) const;
 
   // General
   CuTree GetCuTree() const { return cu_tree_; }
@@ -113,10 +115,10 @@ public:
   bool GetCbf(YuvComponent comp) const { return cbf_[comp]; }
   void SetCbf(YuvComponent comp, bool cbf) { cbf_[comp] = cbf; }
   CoeffBuffer GetCoeff(YuvComponent comp) {
-    return ctu_coeff_.GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+    return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   }
   DataBuffer<const Coeff> GetCoeff(YuvComponent comp) const {
-    return ctu_coeff_.GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+    return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   }
   bool GetHasAnyCbf() const {
     return cbf_[YuvComponent::kY] || cbf_[YuvComponent::kU] ||
@@ -188,6 +190,7 @@ public:
 
 private:
   const PictureData &pic_data_;
+  CoeffCtuBuffer* const ctu_coeff_;   // Coefficient storage for this CU
   const int chroma_shift_x_;
   const int chroma_shift_y_;
   const CuTree cu_tree_;
@@ -201,7 +204,6 @@ private:
   std::array<bool, constants::kMaxYuvComponents> cbf_;
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
   const QP *qp_;
-  CoeffCtuBuffer &ctu_coeff_;   // Coefficient storage for this CU
   bool root_cbf_;
   // Intra
   IntraMode intra_mode_luma_;

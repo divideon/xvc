@@ -68,6 +68,8 @@ struct EncoderSettings {
     }
   }
 
+  static const bool skip_mode_decision_for_identical_cu = false;
+
   int eval_prev_mv_search_result = -1;
   int fast_intra_mode_eval_level = -1;
   int bipred_refinement_iterations = -1;

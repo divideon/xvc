@@ -46,6 +46,9 @@ CuEncoder::CuEncoder(const YuvPicture &orig_pic,
     for (int depth = 0; depth < max_depth; depth++) {
       rdo_temp_cu_[tree_idx][depth] =
         pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
+      cu_cache_[tree_idx][depth].first = false;
+      cu_cache_[tree_idx][depth].second =
+        pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
     }
   }
 }
@@ -55,6 +58,7 @@ CuEncoder::~CuEncoder() {
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
     for (int depth = 0; depth < max_depth; depth++) {
       pic_data_.ReleaseCu(rdo_temp_cu_[tree_idx][depth]);
+      pic_data_.ReleaseCu(cu_cache_[tree_idx][depth].second);
     }
   }
 }
@@ -109,6 +113,11 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
   RdoSyntaxWriter best_writer(*writer);
   CodingUnit **temp_cu = &rdo_temp_cu_[cu_tree][rdo_depth];
   (*temp_cu)->InitializeFrom(*cu);
+
+  // Clear cache for CU re-use
+  if (cu->GetBinaryDepth() == 0) {
+    cu_cache_[cu_tree][cu->GetDepth() + 1].first = false;
+  }
 
   // First eval without CU split
   if (do_full) {
@@ -223,7 +232,6 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                       SplitRestriction split_restriction,
                                       RdoSyntaxWriter *writer) {
   const QP &qp = *pic_data_.GetPicQp();
-  RdoCost best_cost(std::numeric_limits<Cost>::max());
   CodingUnit::ReconstructionState *best_state =
     &temp_cu_state_[rdo_depth + 1];
   CodingUnit *cu = *best_cu;
@@ -231,12 +239,23 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     cu->UnSplit();
   }
   cu->SetQp(qp);
+  const int cu_tree = static_cast<int>(cu->GetCuTree());
+  const int cache_depth = util::SizeToLog2(constants::kCtuSize) -
+    util::SizeToLog2(cu->GetWidth(YuvComponent::kY));
+  RdoCost best_cost(std::numeric_limits<Cost>::max());
 
-  if (pic_data_.IsIntraPic()) {
+  if (encoder_settings_.skip_mode_decision_for_identical_cu &&
+      cu_cache_[cu_tree][cache_depth].first &&
+      *cu_cache_[cu_tree][cache_depth].second == *cu) {
+    // Use cached CU
+    *cu = *cu_cache_[cu_tree][cache_depth].second;
+    best_cost.cost = 0;
+    best_cost.dist = CompressFast(cu, qp, *writer);
+  } else if (pic_data_.IsIntraPic()) {
+    // Intra pic
     best_cost = CompressIntra(cu, qp, *writer);
   } else {
-    // Inter pic type
-    const int cu_tree = static_cast<int>(cu->GetCuTree());
+    // Inter pic
     CodingUnit *temp_cu = rdo_temp_cu_[cu_tree][rdo_depth + 1];
     temp_cu->InitializeFrom(*cu);
     if (temp_cu->GetSplit() != SplitType::kNone) {
@@ -277,11 +296,40 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   cu->SetRootCbf(cu->GetHasAnyCbf());
   pic_data_.MarkUsedInPic(cu);
 
+  // Cache prediction data for this CU
+  bool cache_candidate = cu->GetBinaryDepth() == 2 &&
+    cu->GetWidth(YuvComponent::kY) == cu->GetHeight(YuvComponent::kY);
+  if (cache_candidate) {
+    int parent_mask = (cu->GetWidth(YuvComponent::kY) << 1) - 1;
+    if (((cu->GetPosX(YuvComponent::kY) & parent_mask) == 0) &&
+      ((cu->GetPosY(YuvComponent::kY) & parent_mask) == 0)) {
+      cu_cache_[cu_tree][cache_depth].first = true;
+      *cu_cache_[cu_tree][cache_depth].second = *cu;
+    }
+  }
+
   for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     cu_writer_.WriteComponent(*cu, comp, writer);
   }
   cu_writer_.WriteSplit(*cu, split_restriction, writer);
   return best_cost.dist;
+}
+
+Distortion CuEncoder::CompressFast(CodingUnit *cu, const QP &qp,
+                                   const SyntaxWriter &writer) {
+  assert(cu->GetSplit() == SplitType::kNone);
+  Distortion dist = 0;
+  if (cu->IsIntra()) {
+    for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
+      // TODO(PH) Add fast method without cbf evaluation
+      dist += intra_search_.CompressIntra(cu, comp, qp, this, &rec_pic_);
+    }
+  } else {
+    for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
+      dist += inter_search_.CompressInterFast(cu, comp, qp, this, &rec_pic_);
+    }
+  }
+  return dist;
 }
 
 CuEncoder::RdoCost

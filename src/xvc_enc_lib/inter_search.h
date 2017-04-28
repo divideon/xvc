@@ -32,6 +32,8 @@ public:
   Distortion CompressInter(CodingUnit *cu, const QP &qp,
                            const SyntaxWriter &bitstream_writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic);
+  Distortion CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
+                               TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion CompressMergeCand(CodingUnit *cu, const QP &qp,
                                const SyntaxWriter &bitstream_writer,
                                const InterMergeCandidateList &merge_list,

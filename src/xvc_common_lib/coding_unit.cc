@@ -21,6 +21,7 @@ CodingUnit::CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
                        CuTree cu_tree, int depth, int pic_x, int pic_y,
                        int width, int height)
   : pic_data_(pic_data),
+  ctu_coeff_(ctu_coeff),
   chroma_shift_x_(pic_data.GetChromaShiftX()),
   chroma_shift_y_(pic_data.GetChromaShiftY()),
   cu_tree_(cu_tree),
@@ -34,11 +35,35 @@ CodingUnit::CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
   cbf_({ { false, false, false } }),
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
   qp_(nullptr),
-  ctu_coeff_(*ctu_coeff),
   root_cbf_(false),
   intra_mode_luma_(IntraMode::kInvalid),
   intra_mode_chroma_(IntraChromaMode::kInvalid),
   inter_() {
+}
+
+CodingUnit& CodingUnit::operator=(const CodingUnit &cu) {
+  assert(cu_tree_ == cu.cu_tree_);
+  pos_x_ = cu.pos_x_;
+  pos_y_ = cu.pos_y_;
+  width_ = cu.width_;
+  height_ = cu.height_;
+  depth_ = cu.depth_;
+  assert(split_state_ == SplitType::kNone &&
+         cu.split_state_ == SplitType::kNone);
+  pred_mode_ = cu.pred_mode_;
+  cbf_ = cu.cbf_;
+  qp_ = cu.qp_;
+  root_cbf_ = cu.root_cbf_;
+  intra_mode_luma_ = cu.intra_mode_luma_;
+  intra_mode_chroma_ = cu.intra_mode_chroma_;
+  inter_ = cu.inter_;
+  return *this;
+}
+
+bool CodingUnit::operator==(const CodingUnit &cu) const {
+  assert(cu_tree_ == cu.cu_tree_);
+  return pos_x_ == cu.pos_x_ && pos_y_ == cu.pos_y_ &&
+    width_ == cu.width_ && height_ == cu.height_;
 }
 
 int CodingUnit::GetBinaryDepth() const {
@@ -329,7 +354,7 @@ void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
     reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
     // Coeff
     DataBuffer<const Coeff> coeff_src =
-      ctu_coeff_.GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+      ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
     CoeffBuffer coeff_dst(&dst_state->coeff[c][0], GetWidth(comp));
     coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
   }
@@ -358,7 +383,7 @@ void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
     // Coeff
     DataBuffer<const Coeff> coeff_src(&src_state.coeff[c][0], GetWidth(comp));
     CoeffBuffer coeff_dst =
-      ctu_coeff_.GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+      ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
     coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
   }
 }
