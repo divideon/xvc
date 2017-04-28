@@ -42,10 +42,10 @@ extern "C" {
     param->input_bitdepth = 8;
     param->internal_bitdepth = sizeof(xvc::Sample) > 1 ? 10 : 8;
     param->framerate = 60;
-    param->sub_gop_length = 0;
+    param->sub_gop_length = 0;  // determined in xvc_enc_encoder_create
     param->max_keypic_distance = 640;
     param->closed_gop = 0;
-    param->num_ref_pics = 2;
+    param->num_ref_pics = -1;  // determined in xvc_enc_set_speed_mode
     param->restricted_mode = 0;
     param->checksum_mode = 1;
     param->deblock = 1;
@@ -53,12 +53,12 @@ extern "C" {
     param->tc_offset = 0;
     param->qp = 32;
     param->flat_lambda = 0;
-    param->speed_mode = -1;
+    param->speed_mode = -1;  // determined in xvc_enc_encoder_create
     param->explicit_encoder_settings = nullptr;
     return XVC_ENC_OK;
   }
 
-  xvc_enc_return_code xvc_enc_parameters_check(xvc_encoder_parameters
+  xvc_enc_return_code xvc_enc_parameters_check(const xvc_encoder_parameters
                                                *param) {
     if (!param) {
       return XVC_ENC_INVALID_ARGUMENT;
@@ -101,7 +101,7 @@ extern "C" {
     if (param->num_ref_pics > xvc::constants::kMaxNumRefPics) {
       return XVC_ENC_TOO_MANY_REF_PICS;
     }
-    if (param->num_ref_pics < 0) {
+    if (param->num_ref_pics < -1) {
       return XVC_ENC_INVALID_PARAMETER;
     }
     if (param->restricted_mode < 0 || param->restricted_mode >=
@@ -139,7 +139,7 @@ extern "C" {
   }
 
   void xvc_enc_set_speed_mode(xvc::Encoder *encoder,
-                              xvc_encoder_parameters *param) {
+                              const xvc_encoder_parameters *param) {
     xvc::EncoderSettings encoder_settings;
 
     if (param->speed_mode >= 0) {
@@ -168,6 +168,8 @@ extern "C" {
           stream >> encoder_settings.always_evaluate_intra_in_inter;
         } else if (setting == "smooth_lambda_scaling") {
           stream >> encoder_settings.smooth_lambda_scaling;
+        } else if (setting == "default_num_ref_pics") {
+          stream >> encoder_settings.default_num_ref_pics;
         }
       }
     }
@@ -175,18 +177,17 @@ extern "C" {
     encoder->SetEncoderSettings(std::move(encoder_settings));
   }
 
-
-
   void xvc_enc_set_segment_length(xvc::Encoder *encoder,
-                                  xvc_encoder_parameters *param) {
+                                  const xvc_encoder_parameters *param,
+                                  int sub_gop_length) {
     xvc::PicNum segment_length = 1;
     if (param->max_keypic_distance == 0) {
       segment_length = ((std::numeric_limits<xvc::PicNum>::max() /
-                         param->sub_gop_length) * param->sub_gop_length);
+                         sub_gop_length) * sub_gop_length);
     } else {
       segment_length =
-        (param->max_keypic_distance / param->sub_gop_length) *
-        param->sub_gop_length;
+        (param->max_keypic_distance / sub_gop_length) *
+        sub_gop_length;
     }
     encoder->SetSegmentLength(segment_length);
 
@@ -194,12 +195,12 @@ extern "C" {
       encoder->SetClosedGopInterval(segment_length*param->closed_gop);
     } else {
       encoder->SetClosedGopInterval(((std::numeric_limits<xvc::PicNum>::max() /
-                                      param->sub_gop_length) *
-                                     param->sub_gop_length));
+                                      sub_gop_length) *
+                                     sub_gop_length));
     }
   }
 
-  xvc_encoder* xvc_enc_encoder_create(xvc_encoder_parameters *param) {
+  xvc_encoder* xvc_enc_encoder_create(const xvc_encoder_parameters *param) {
     if (xvc_enc_parameters_check(param) != XVC_ENC_OK) {
       return nullptr;
     }
@@ -209,12 +210,6 @@ extern "C" {
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);
-    if (param->sub_gop_length == 0) {
-      param->sub_gop_length = param->num_ref_pics > 0 ? 16 : 1;
-    }
-    encoder->SetSubGopLength(param->sub_gop_length);
-    encoder->SetNumRefPics(param->num_ref_pics);
-    encoder->SetPicBufferingNum(param->sub_gop_length + param->num_ref_pics);
     encoder->SetRestrictedMode(param->restricted_mode);
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
@@ -228,7 +223,18 @@ extern "C" {
     encoder->SetChecksumMode(param->checksum_mode);
 
     xvc_enc_set_speed_mode(encoder, param);
-    xvc_enc_set_segment_length(encoder, param);
+    int num_ref_pics = param->num_ref_pics;
+    if (num_ref_pics == -1) {
+      num_ref_pics = encoder->GetEncoderSettings().default_num_ref_pics;
+    }
+    encoder->SetNumRefPics(num_ref_pics);
+    int sub_gop_length = param->sub_gop_length;
+    if (sub_gop_length == 0) {
+      sub_gop_length = num_ref_pics > 0 ? 16 : 1;
+    }
+    encoder->SetSubGopLength(sub_gop_length);
+    encoder->SetPicBufferingNum(sub_gop_length + num_ref_pics);
+    xvc_enc_set_segment_length(encoder, param, sub_gop_length);
 
     return encoder;
   }
@@ -242,7 +248,7 @@ extern "C" {
   }
 
   xvc_enc_return_code xvc_enc_encoder_encode(xvc_encoder *encoder,
-                                             uint8_t *picture_to_encode,
+                                             const uint8_t *picture_to_encode,
                                              xvc_enc_nal_unit **nal_units,
                                              int *num_nal_units,
                                              xvc_enc_pic_buffer *rec_pic) {

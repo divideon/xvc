@@ -92,12 +92,12 @@ extern "C" {
                                              *param);
     xvc_enc_return_code(*parameters_set_default)(
       xvc_encoder_parameters *param);
-    xvc_enc_return_code(*parameters_check)(xvc_encoder_parameters *param);
+    xvc_enc_return_code(*parameters_check)(const xvc_encoder_parameters *param);
 
-    xvc_encoder* (*encoder_create)(xvc_encoder_parameters *param);
+    xvc_encoder* (*encoder_create)(const xvc_encoder_parameters *param);
     xvc_enc_return_code(*encoder_destroy)(xvc_encoder *encoder);
     xvc_enc_return_code(*encoder_encode)(xvc_encoder *encoder,
-                                         uint8_t *picture_to_encode,
+                                         const uint8_t *picture_to_encode,
                                          xvc_enc_nal_unit **nal_units,
                                          int *num_nal_units,
                                          xvc_enc_pic_buffer *rec_pic);

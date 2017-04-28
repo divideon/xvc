@@ -67,6 +67,7 @@ public:
   }
   void SetRestrictedMode(int mode);
 
+  const EncoderSettings& GetEncoderSettings() { return encoder_settings_; }
   void SetEncoderSettings(EncoderSettings &&s) { encoder_settings_ = s; }
 
 private:

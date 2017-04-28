@@ -27,6 +27,7 @@ struct EncoderSettings {
         bipred_refinement_iterations = 4;
         always_evaluate_intra_in_inter = 1;
         smooth_lambda_scaling = 1;
+        default_num_ref_pics = 3;
         break;
       case SpeedMode::kSlow:
         eval_prev_mv_search_result = 1;
@@ -34,6 +35,7 @@ struct EncoderSettings {
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
         smooth_lambda_scaling = 1;
+        default_num_ref_pics = 2;
         break;
       default:
         assert(0);
@@ -50,6 +52,7 @@ struct EncoderSettings {
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
         smooth_lambda_scaling = 0;
+        default_num_ref_pics = 2;
         break;
       case RestrictedMode::kModeB:
         eval_prev_mv_search_result = 0;
@@ -57,6 +60,7 @@ struct EncoderSettings {
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
         smooth_lambda_scaling = 0;
+        default_num_ref_pics = 2;
         break;
       default:
         assert(0);
@@ -69,6 +73,7 @@ struct EncoderSettings {
   int bipred_refinement_iterations = -1;
   int always_evaluate_intra_in_inter = -1;
   int smooth_lambda_scaling = -1;
+  int default_num_ref_pics = -1;
 };
 
 
