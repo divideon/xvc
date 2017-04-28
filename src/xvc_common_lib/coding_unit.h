@@ -87,6 +87,10 @@ public:
   const CodingUnit* GetSubCu(int idx) const {
     return sub_cu_list_[idx];
   }
+  int GetIdxWithinQuad() const {
+    return ((pos_y_ & ((height_ << 1) - 1)) == 0 ? 0 : 2) +
+      ((pos_x_ & ((width_ << 1) - 1)) == 0 ? 0 : 1);
+  }
   SplitRestriction DeriveSiblingSplitRestriction(SplitType parent_split) const;
 
   // Picture related data

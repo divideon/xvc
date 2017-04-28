@@ -69,6 +69,7 @@ struct EncoderSettings {
   }
 
   static const bool fast_quad_split_from_binary_split = true;
+  static const bool fast_mode_selection_for_cached_cu = true;
   static const bool skip_mode_decision_for_identical_cu = false;
 
   int eval_prev_mv_search_result = -1;

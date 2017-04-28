@@ -46,9 +46,13 @@ CuEncoder::CuEncoder(const YuvPicture &orig_pic,
     for (int depth = 0; depth < max_depth; depth++) {
       rdo_temp_cu_[tree_idx][depth] =
         pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
-      cu_cache_[tree_idx][depth].first = false;
-      cu_cache_[tree_idx][depth].second =
-        pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
+      for (int quad = 0; quad < constants::kQuadSplit; quad++) {
+        for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
+          cu_cache_[tree_idx][depth][quad][cache_idx].valid = false;
+          cu_cache_[tree_idx][depth][quad][cache_idx].cu =
+            pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
+        }
+      }
     }
   }
 }
@@ -58,7 +62,11 @@ CuEncoder::~CuEncoder() {
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
     for (int depth = 0; depth < max_depth; depth++) {
       pic_data_.ReleaseCu(rdo_temp_cu_[tree_idx][depth]);
-      pic_data_.ReleaseCu(cu_cache_[tree_idx][depth].second);
+      for (int quad = 0; quad < constants::kQuadSplit; quad++) {
+        for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
+          pic_data_.ReleaseCu(cu_cache_[tree_idx][depth][quad][cache_idx].cu);
+        }
+      }
     }
   }
 }
@@ -116,7 +124,11 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
 
   // Clear cache for CU re-use
   if (cu->GetBinaryDepth() == 0) {
-    cu_cache_[cu_tree][cu->GetDepth() + 1].first = false;
+    for (int quad = 0; quad < constants::kQuadSplit; quad++) {
+      for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
+        cu_cache_[cu_tree][cu->GetDepth() + 1][quad][cache_idx].valid = false;
+      }
+    }
   }
 
   // First eval without CU split
@@ -250,13 +262,25 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   const int cu_tree = static_cast<int>(cu->GetCuTree());
   const int cache_depth = util::SizeToLog2(constants::kCtuSize) -
     util::SizeToLog2(cu->GetWidth(YuvComponent::kY));
+  const int quad_idx = cu->GetIdxWithinQuad();
   RdoCost best_cost(std::numeric_limits<Cost>::max());
 
+  // Determine if this CU has already been coded before (up to 2 times)
+  const CodingUnit *cached_cu0 = nullptr;
+  const CodingUnit *cached_cu1 = nullptr;
+  if (cu_cache_[cu_tree][cache_depth][quad_idx][0].valid &&
+      *cu_cache_[cu_tree][cache_depth][quad_idx][0].cu == *cu) {
+    cached_cu0 = cu_cache_[cu_tree][cache_depth][quad_idx][0].cu;
+  }
+  if (cu_cache_[cu_tree][cache_depth][quad_idx][1].valid &&
+      *cu_cache_[cu_tree][cache_depth][quad_idx][1].cu == *cu) {
+    cached_cu1 = cu_cache_[cu_tree][cache_depth][quad_idx][1].cu;
+  }
+
   if (encoder_settings_.skip_mode_decision_for_identical_cu &&
-      cu_cache_[cu_tree][cache_depth].first &&
-      *cu_cache_[cu_tree][cache_depth].second == *cu) {
+      cached_cu0 && quad_idx == 0) {
     // Use cached CU
-    *cu = *cu_cache_[cu_tree][cache_depth].second;
+    *cu = *cached_cu0;
     best_cost.cost = 0;
     best_cost.dist = CompressFast(cu, qp, *writer);
   } else if (pic_data_.IsIntraPic()) {
@@ -269,6 +293,14 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     if (temp_cu->GetSplit() != SplitType::kNone) {
       temp_cu->UnSplit();
     }
+    const bool fast_skip_inter =
+      encoder_settings_.fast_mode_selection_for_cached_cu && (
+      (cached_cu0 && (cached_cu0->IsIntra() || cached_cu0->GetSkipFlag())) ||
+      (cached_cu1 && (cached_cu1->IsIntra() || cached_cu1->GetSkipFlag())));
+    const bool fast_skip_intra =
+      encoder_settings_.fast_mode_selection_for_cached_cu && (
+      (cached_cu0 && cached_cu0->IsInter()) || (
+      (cached_cu1 && cached_cu1->IsInter())));
 
     RdoCost cost;
     if (!Restrictions::Get().disable_inter_merge_mode) {
@@ -280,15 +312,17 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
       }
     }
 
-    cost = CompressInter(temp_cu, qp, *writer);
-    if (cost < best_cost) {
-      best_cost = cost;
-      temp_cu->SaveStateTo(best_state, rec_pic_);
-      std::swap(cu, temp_cu);
+    if (!fast_skip_inter) {
+      cost = CompressInter(temp_cu, qp, *writer);
+      if (cost < best_cost) {
+        best_cost = cost;
+        temp_cu->SaveStateTo(best_state, rec_pic_);
+        std::swap(cu, temp_cu);
+      }
     }
 
-    if (encoder_settings_.always_evaluate_intra_in_inter
-        || cu->GetHasAnyCbf()) {
+    if ((!fast_skip_intra && cu->GetHasAnyCbf()) ||
+        encoder_settings_.always_evaluate_intra_in_inter) {
       cost = CompressIntra(temp_cu, qp, *writer);
       if (cost < best_cost) {
         best_cost = cost;
@@ -297,6 +331,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
       }
     }
 
+    assert(best_cost.cost < std::numeric_limits<Cost>::max());
     *best_cu = cu;
     rdo_temp_cu_[cu_tree][rdo_depth + 1] = temp_cu;
     cu->LoadStateFrom(*best_state, &rec_pic_);
@@ -304,15 +339,18 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   cu->SetRootCbf(cu->GetHasAnyCbf());
   pic_data_.MarkUsedInPic(cu);
 
-  // Cache prediction data for this CU
-  bool cache_candidate = cu->GetBinaryDepth() == 2 &&
+  // Save prediction data in cache
+  const bool cache_candidate = cu->GetBinaryDepth() == 2 &&
     cu->GetWidth(YuvComponent::kY) == cu->GetHeight(YuvComponent::kY);
   if (cache_candidate) {
-    int parent_mask = (cu->GetWidth(YuvComponent::kY) << 1) - 1;
-    if (((cu->GetPosX(YuvComponent::kY) & parent_mask) == 0) &&
-      ((cu->GetPosY(YuvComponent::kY) & parent_mask) == 0)) {
-      cu_cache_[cu_tree][cache_depth].first = true;
-      *cu_cache_[cu_tree][cache_depth].second = *cu;
+    for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
+      auto &cache_entry = cu_cache_[cu_tree][cache_depth][quad_idx][cache_idx];
+      if (cache_entry.valid) {
+        continue;
+      }
+      cache_entry.valid = true;
+      *cache_entry.cu = *cu;
+      break;
     }
   }
 
