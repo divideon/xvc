@@ -296,15 +296,18 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     const bool fast_skip_inter =
       encoder_settings_.fast_mode_selection_for_cached_cu && (
       (cached_cu0 && (cached_cu0->IsIntra() || cached_cu0->GetSkipFlag())) ||
-      (cached_cu1 && (cached_cu1->IsIntra() || cached_cu1->GetSkipFlag())));
+        (cached_cu1 && (cached_cu1->IsIntra() || cached_cu1->GetSkipFlag())));
     const bool fast_skip_intra =
       encoder_settings_.fast_mode_selection_for_cached_cu && (
-      (cached_cu0 && cached_cu0->IsInter()) || (
-      (cached_cu1 && cached_cu1->IsInter())));
+      (cached_cu0 && cached_cu0->IsInter()) ||
+        (cached_cu1 && cached_cu1->IsInter()));
 
     RdoCost cost;
     if (!Restrictions::Get().disable_inter_merge_mode) {
-      cost = CompressMerge(temp_cu, qp, *writer);
+      const bool fast_merge_skip = encoder_settings_.fast_merge_eval && (
+        (cached_cu0 && cached_cu0->GetSkipFlag()) ||
+        (cached_cu1 && cached_cu1->GetSkipFlag()));
+      cost = CompressMerge(temp_cu, qp, *writer, fast_merge_skip);
       if (cost < best_cost) {
         best_cost = cost;
         temp_cu->SaveStateTo(best_state, rec_pic_);
@@ -409,19 +412,35 @@ CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
 
 CuEncoder::RdoCost
 CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
-                         const SyntaxWriter &bitstream_writer) {
+                         const SyntaxWriter &bitstream_writer,
+                         bool fast_merge_skip) {
   std::array<bool,
     constants::kNumInterMergeCandidates> skip_evaluated = { false };
   InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
+  int num_merge_cand = Restrictions::Get().disable_inter_merge_candidates ?
+    1 : constants::kNumInterMergeCandidates;
+
+  std::array<int, constants::kNumInterMergeCandidates> cand_lookup;
+  if (encoder_settings_.fast_merge_eval &&
+      !fast_merge_skip && num_merge_cand > 1) {
+    // TODO(PH) Prediction samples for each candidate can be used in loop below
+    num_merge_cand =
+      inter_search_.SearchMergeCandidates(cu, qp, bitstream_writer, merge_list,
+                                          this, &cand_lookup);
+  } else {
+    for (int merge_idx = 0; merge_idx < num_merge_cand; merge_idx++) {
+      cand_lookup[merge_idx] = merge_idx;
+    }
+  }
+
   RdoCost best_cost(std::numeric_limits<Cost>::max());
   CodingUnit::TransformState &best_transform_state = rd_transform_state_;
   int best_merge_idx = -1;
-
-  int num_merge_cand = Restrictions::Get().disable_inter_merge_candidates ?
-    1 : static_cast<int>(merge_list.size());
-  for (int skip_eval_idx = 0; skip_eval_idx < 2; skip_eval_idx++) {
+  const int skip_eval_init = fast_merge_skip ? 1 : 0;
+  for (int skip_eval_idx = skip_eval_init; skip_eval_idx < 2; skip_eval_idx++) {
     bool force_skip = skip_eval_idx != 0;
-    for (int merge_idx = 0; merge_idx < num_merge_cand; merge_idx++) {
+    for (int i = 0; i < num_merge_cand; i++) {
+      const int merge_idx = cand_lookup[i];
       if (skip_evaluated[merge_idx]) {
         continue;
       }
@@ -444,7 +463,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
     }
   }
   cu->SetMergeIdx(best_merge_idx);
-  inter_search_.ApplyMerge(cu, merge_list, best_merge_idx);
+  inter_search_.ApplyMerge(cu, merge_list[best_merge_idx]);
   cu->LoadStateFrom(best_transform_state, &rec_pic_);
   cu->SetSkipFlag(!cu->GetRootCbf());
   return best_cost;

@@ -52,7 +52,8 @@ private:
   RdoCost CompressInter(CodingUnit *cu, const QP &qp,
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressMerge(CodingUnit *cu, const QP &qp,
-                        const SyntaxWriter &bitstream_writer);
+                        const SyntaxWriter &bitstream_writer,
+                        bool fast_merge_skip);
   RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 Distortion ssd);

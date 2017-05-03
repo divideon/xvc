@@ -273,7 +273,7 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
   if (cu->GetMergeFlag() || cu->GetSkipFlag()) {
     int merge_idx = cu->GetMergeIdx();
     InterMergeCandidateList merge_list = GetMergeCandidates(*cu, merge_idx);
-    ApplyMerge(cu, merge_list, merge_idx);
+    ApplyMerge(cu, merge_list[merge_idx]);
   } else {
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_list = static_cast<RefPicList>(i);
@@ -294,9 +294,7 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
 }
 
 void InterPrediction::ApplyMerge(CodingUnit *cu,
-                                 const InterMergeCandidateList &merge_list,
-                                 int merge_idx) {
-  const MergeCandidate &merge_cand = merge_list[merge_idx];
+                                 const MergeCandidate &merge_cand) {
   cu->SetInterDir(merge_cand.inter_dir);
   for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
     RefPicList ref_list = static_cast<RefPicList>(i);

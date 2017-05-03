@@ -24,6 +24,7 @@ struct EncoderSettings {
       case SpeedMode::kPlacebo:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 0;
+        fast_merge_eval = 0;
         bipred_refinement_iterations = 4;
         always_evaluate_intra_in_inter = 1;
         smooth_lambda_scaling = 1;
@@ -32,6 +33,7 @@ struct EncoderSettings {
       case SpeedMode::kSlow:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
+        fast_merge_eval = 1;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
         smooth_lambda_scaling = 1;
@@ -49,6 +51,7 @@ struct EncoderSettings {
       case RestrictedMode::kModeA:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
+        fast_merge_eval = 0;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
         smooth_lambda_scaling = 0;
@@ -57,6 +60,7 @@ struct EncoderSettings {
       case RestrictedMode::kModeB:
         eval_prev_mv_search_result = 0;
         fast_intra_mode_eval_level = 2;
+        fast_merge_eval = 1;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
         smooth_lambda_scaling = 0;
@@ -74,6 +78,7 @@ struct EncoderSettings {
 
   int eval_prev_mv_search_result = -1;
   int fast_intra_mode_eval_level = -1;
+  int fast_merge_eval = -1;
   int bipred_refinement_iterations = -1;
   int always_evaluate_intra_in_inter = -1;
   int smooth_lambda_scaling = -1;

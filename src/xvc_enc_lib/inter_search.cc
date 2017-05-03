@@ -81,7 +81,7 @@ InterSearch::CompressMergeCand(CodingUnit *cu, const QP &qp,
   cu->SetMergeFlag(true);
   cu->SetSkipFlag(!force_skip ? false : true);
   cu->SetMergeIdx(merge_idx);
-  ApplyMerge(cu, merge_list, merge_idx);
+  ApplyMerge(cu, merge_list[merge_idx]);
   Distortion dist;
   if (!force_skip) {
     dist = CompressAndEvalCbf(cu, qp, bitstream_writer, encoder, rec_pic);
@@ -89,6 +89,41 @@ InterSearch::CompressMergeCand(CodingUnit *cu, const QP &qp,
     dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
   }
   return dist;
+}
+
+int
+InterSearch::SearchMergeCandidates(CodingUnit *cu, const QP &qp,
+                                   const SyntaxWriter & bitstream_writer,
+                                   const InterMergeCandidateList &merge_list,
+                                   TransformEncoder *encoder,
+                                   MergeCandLookup *out_cand_list) {
+  constexpr int max_merge_cand = constants::kNumInterMergeCandidates;
+  SampleMetric metric(MetricType::kSATD, qp, bitdepth_);
+  SampleBuffer pred_buffer = encoder->GetPredBuffer();
+  std::array<std::pair<int, double>, max_merge_cand> cand_cost;
+  for (int merge_idx = 0; merge_idx < max_merge_cand; merge_idx++) {
+    ApplyMerge(cu, merge_list[merge_idx]);
+    MotionCompensation(*cu, YuvComponent::kY, pred_buffer.GetDataPtr(),
+                       pred_buffer.GetStride());
+    Distortion dist =
+      metric.CompareSample(*cu, YuvComponent::kY, orig_pic_, pred_buffer);
+    Bits bits = merge_idx + 1 - (merge_idx < max_merge_cand - 1 ? 0 : 1);
+    double cost = dist + bits * qp.GetLambdaSqrt();
+    cand_cost[merge_idx] = std::make_pair(merge_idx, cost);
+  }
+  std::stable_sort(cand_cost.begin(), cand_cost.end(),
+                   [](std::pair<int, double> a, std::pair<int, double> b) {
+    return a.second < b.second;
+  });
+  int num_merge_cand = kFastMergeNumCand;
+  for (int merge_idx = kFastMergeNumCand; merge_idx >= 0; merge_idx--) {
+    (*out_cand_list)[merge_idx] = cand_cost[merge_idx].first;
+    if (cand_cost[merge_idx].second >
+        cand_cost[0].second * kFastMergeCostFactor) {
+      num_merge_cand = merge_idx;
+    }
+  }
+  return num_merge_cand;
 }
 
 void InterSearch::SearchMotion(CodingUnit *cu, const QP &qp,

@@ -45,8 +45,7 @@ public:
   InterMergeCandidateList GetMergeCandidates(const CodingUnit &cu,
                                              int merge_cand_idx = -1);
   void CalculateMV(CodingUnit *cu);
-  void ApplyMerge(CodingUnit *cu, const InterMergeCandidateList &merge_list,
-                  int merge_idx);
+  void ApplyMerge(CodingUnit *cu, const MergeCandidate &merge_cand);
   void MotionCompensation(const CodingUnit &cu, YuvComponent comp,
                           Sample *pred_ptr, ptrdiff_t pred_stride);
   void ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,

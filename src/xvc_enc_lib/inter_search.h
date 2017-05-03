@@ -24,6 +24,8 @@ namespace xvc {
 
 class InterSearch : public InterPrediction {
 public:
+  using MergeCandLookup = std::array<int, constants::kNumInterMergeCandidates>;
+
   InterSearch(int bitdepth, int max_components, const YuvPicture &orig_pic,
               const ReferencePictureLists &ref_pic_list,
               const EncoderSettings &encoder_settings);
@@ -39,11 +41,18 @@ public:
                                const InterMergeCandidateList &merge_list,
                                int merge_idx, bool force_skip,
                                TransformEncoder *encoder, YuvPicture *rec_pic);
+  int SearchMergeCandidates(CodingUnit *cu, const QP &qp,
+                            const SyntaxWriter &bitstream_writer,
+                            const InterMergeCandidateList &merge_list,
+                            TransformEncoder *encoder,
+                            MergeCandLookup *out_cand_list);
 
 private:
   enum class SearchMethod { TZSearch, FullSearch };
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
+  static constexpr int kFastMergeNumCand = 4;
+  static constexpr double kFastMergeCostFactor = 1.25;
 
   void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
                     const SyntaxWriter &bitstream_writer,
