@@ -107,6 +107,8 @@ public:
   SegmentNum GetSoc() const { return soc_; }
   void SetTid(int tid) { tid_ = tid; }
   int GetTid() const { return tid_; }
+  bool IsHighestLayer() const { return highest_layer_; }
+  void SetHighestLayer(bool highest_layer) { highest_layer_ = highest_layer; }
 
   // Per picture data
   ReferencePictureLists* GetRefPicLists() { return &ref_pic_lists_; }
@@ -161,6 +163,7 @@ private:
   PicNum doc_ = 0;
   SegmentNum soc_ = 0;
   int tid_ = 0;
+  bool highest_layer_ = false;
   std::unique_ptr<QP> pic_qp_;
   std::vector<QP> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;

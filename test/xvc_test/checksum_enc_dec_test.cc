@@ -83,9 +83,7 @@ protected:
                                &sub_gop_start_poc, &sub_gop_length,
                                sub_gop_length, sub_gop_length, doc,
                                segment_.soc, num_buffered_nals);
-    int max_tid = xvc::SegmentHeader::GetMaxTid(sub_gop_length);
-    return pic_decoder_->Decode(&bit_reader, max_tid,
-                                segment_.checksum_mode);
+    return pic_decoder_->Decode(&bit_reader, segment_.checksum_mode);
   }
 
   static const int kPicWidth = 16;

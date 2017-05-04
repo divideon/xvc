@@ -46,8 +46,10 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   int tid =
     SegmentHeader::CalcTidFromDoc(doc, segment_header_.max_sub_gop_length,
                                   sub_gop_start_poc_);
+  int max_tid = SegmentHeader::GetMaxTid(segment_header_.max_sub_gop_length);
   pic_data->SetDoc(doc);
   pic_data->SetTid(tid);
+  pic_data->SetHighestLayer(tid == max_tid);
   pic_data->SetDeblock(segment_header_.deblock > 0);
   pic_data->SetBetaOffset(segment_header_.beta_offset);
   pic_data->SetTcOffset(segment_header_.tc_offset);

@@ -75,9 +75,8 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   entropy_encoder.EncodeBinTrm(1);
   entropy_encoder.Finish();
 
-  int max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
   int pic_tid = pic_data_->GetTid();
-  if (pic_tid == 0 || pic_tid < max_tid) {
+  if (pic_tid == 0 || !pic_data_->IsHighestLayer()) {
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();

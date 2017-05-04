@@ -52,7 +52,6 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     pic_data_->SetSoc(soc);
   }
   int tid = bit_reader->ReadBits(3);
-  pic_data_->SetTid(tid);
   if (tid == 0) {
     PicNum length = max_sub_gop_length;
     if (num_buffered_nals) {
@@ -87,7 +86,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   //  2. The Sub Gop is incomplete (i.e. at the end of a stream)
   // Figure out the correct doc to use by stepping until the tids are equal.
   while (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
-         != pic_data_->GetTid()) {
+         != tid) {
     doc++;
     if (doc > *sub_gop_end_poc) {
       *sub_gop_start_poc = *sub_gop_end_poc;
@@ -98,15 +97,18 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     *sub_gop_end_poc =
       SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
   }
+  int max_tid = SegmentHeader::GetMaxTid(*sub_gop_length);
 
   // Set High-level syntax parameters of the current picture
   pic_data_->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   pic_data_->SetDoc(doc);
   pic_data_->SetPoc(
     SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc));
+  pic_data_->SetTid(tid);
+  pic_data_->SetHighestLayer(tid == max_tid);
 }
 
-bool PictureDecoder::Decode(BitReader *bit_reader, int max_tid,
+bool PictureDecoder::Decode(BitReader *bit_reader,
                             Checksum::Mode checksum_mode) {
   double lambda = 0;
   QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
@@ -134,7 +136,7 @@ bool PictureDecoder::Decode(BitReader *bit_reader, int max_tid,
   }
   entropy_decoder.Finish();
   int pic_tid = pic_data_->GetTid();
-  if (pic_tid == 0 || pic_tid < max_tid) {
+  if (pic_tid == 0 || !pic_data_->IsHighestLayer()) {
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
