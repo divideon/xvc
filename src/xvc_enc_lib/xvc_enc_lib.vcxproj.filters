@@ -56,6 +56,9 @@
     <ClInclude Include="encoder_settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cu_cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu_encoder.cc">
@@ -98,6 +101,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="inter_tz_search.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cu_cache.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

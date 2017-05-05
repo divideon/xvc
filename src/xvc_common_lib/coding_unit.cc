@@ -60,6 +60,26 @@ CodingUnit& CodingUnit::operator=(const CodingUnit &cu) {
   return *this;
 }
 
+void CodingUnit::CopyPositionAndSizeFrom(const CodingUnit &cu) {
+  assert(cu_tree_ == cu.cu_tree_);
+  pos_x_ = cu.pos_x_;
+  pos_y_ = cu.pos_y_;
+  width_ = cu.width_;
+  height_ = cu.height_;
+  depth_ = cu.depth_;
+  qp_ = cu.qp_;
+}
+
+void CodingUnit::CopyPredictionDataFrom(const CodingUnit &cu) {
+  pred_mode_ = cu.pred_mode_;
+  cbf_ = cu.cbf_;
+  qp_ = cu.qp_;
+  root_cbf_ = cu.root_cbf_;
+  intra_mode_luma_ = cu.intra_mode_luma_;
+  intra_mode_chroma_ = cu.intra_mode_chroma_;
+  inter_ = cu.inter_;
+}
+
 bool CodingUnit::operator==(const CodingUnit &cu) const {
   assert(cu_tree_ == cu.cu_tree_);
   return pos_x_ == cu.pos_x_ && pos_y_ == cu.pos_y_ &&
@@ -95,16 +115,6 @@ void CodingUnit::SetQp(int qp_value) {
 
 int CodingUnit::GetQp(YuvComponent comp) const {
   return qp_->GetQpRaw(comp);
-}
-
-void CodingUnit::InitializeFrom(const CodingUnit &cu) {
-  assert(cu_tree_ == cu.cu_tree_);
-  pos_x_ = cu.pos_x_;
-  pos_y_ = cu.pos_y_;
-  width_ = cu.width_;
-  height_ = cu.height_;
-  depth_ = cu.depth_;
-  qp_ = cu.qp_;
 }
 
 SplitRestriction

@@ -39,20 +39,14 @@ CuEncoder::CuEncoder(const YuvPicture &orig_pic,
   inter_search_(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
                 orig_pic, *pic_data->GetRefPicLists(), encoder_settings),
   intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
-  cu_writer_(pic_data_, &intra_search_) {
+  cu_writer_(pic_data_, &intra_search_),
+  cu_cache_(*pic_data) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     const CuTree cu_tree = static_cast<CuTree>(tree_idx);
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
     for (int depth = 0; depth < max_depth; depth++) {
       rdo_temp_cu_[tree_idx][depth] =
         pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
-      for (int quad = 0; quad < constants::kQuadSplit; quad++) {
-        for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
-          cu_cache_[tree_idx][depth][quad][cache_idx].valid = false;
-          cu_cache_[tree_idx][depth][quad][cache_idx].cu =
-            pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
-        }
-      }
     }
   }
 }
@@ -62,11 +56,6 @@ CuEncoder::~CuEncoder() {
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
     for (int depth = 0; depth < max_depth; depth++) {
       pic_data_.ReleaseCu(rdo_temp_cu_[tree_idx][depth]);
-      for (int quad = 0; quad < constants::kQuadSplit; quad++) {
-        for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
-          pic_data_.ReleaseCu(cu_cache_[tree_idx][depth][quad][cache_idx].cu);
-        }
-      }
     }
   }
 }
@@ -120,15 +109,11 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
   CodingUnit::ReconstructionState *best_state = &temp_cu_state_[rdo_depth];
   RdoSyntaxWriter best_writer(*writer);
   CodingUnit **temp_cu = &rdo_temp_cu_[cu_tree][rdo_depth];
-  (*temp_cu)->InitializeFrom(*cu);
+  (*temp_cu)->CopyPositionAndSizeFrom(*cu);
 
-  // Clear cache for CU re-use
   if (cu->GetBinaryDepth() == 0) {
-    for (int quad = 0; quad < constants::kQuadSplit; quad++) {
-      for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
-        cu_cache_[cu_tree][cu->GetDepth() + 1][quad][cache_idx].valid = false;
-      }
-    }
+    // First CU in quad split, clear up cache
+    cu_cache_.Invalidate(cu->GetCuTree(), cu->GetDepth());
   }
 
   // First eval without CU split
@@ -266,28 +251,15 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     cu->UnSplit();
   }
   cu->SetQp(qp);
+
   const int cu_tree = static_cast<int>(cu->GetCuTree());
-  const int cache_depth = util::SizeToLog2(constants::kCtuSize) -
-    util::SizeToLog2(cu->GetWidth(YuvComponent::kY));
-  const int quad_idx = cu->GetIdxWithinQuad();
+  CuCache::Result cache_result = cu_cache_.Lookup(*cu);
+
   RdoCost best_cost(std::numeric_limits<Cost>::max());
-
-  // Determine if this CU has already been coded before (up to 2 times)
-  const CodingUnit *cached_cu0 = nullptr;
-  const CodingUnit *cached_cu1 = nullptr;
-  if (cu_cache_[cu_tree][cache_depth][quad_idx][0].valid &&
-      *cu_cache_[cu_tree][cache_depth][quad_idx][0].cu == *cu) {
-    cached_cu0 = cu_cache_[cu_tree][cache_depth][quad_idx][0].cu;
-  }
-  if (cu_cache_[cu_tree][cache_depth][quad_idx][1].valid &&
-      *cu_cache_[cu_tree][cache_depth][quad_idx][1].cu == *cu) {
-    cached_cu1 = cu_cache_[cu_tree][cache_depth][quad_idx][1].cu;
-  }
-
   if (encoder_settings_.skip_mode_decision_for_identical_cu &&
-      cached_cu0 && quad_idx == 0) {
+      cache_result.cu && cu->IsFirstCuInQuad(cu->GetDepth() - 1)) {
     // Use cached CU
-    *cu = *cached_cu0;
+    cu->CopyPredictionDataFrom(*cache_result.cu);
     best_cost.cost = 0;
     best_cost.dist = CompressFast(cu, qp, *writer);
   } else if (pic_data_.IsIntraPic()) {
@@ -296,24 +268,21 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   } else {
     // Inter pic
     CodingUnit *temp_cu = rdo_temp_cu_[cu_tree][rdo_depth + 1];
-    temp_cu->InitializeFrom(*cu);
+    temp_cu->CopyPositionAndSizeFrom(*cu);
     if (temp_cu->GetSplit() != SplitType::kNone) {
       temp_cu->UnSplit();
     }
     const bool fast_skip_inter =
-      encoder_settings_.fast_mode_selection_for_cached_cu && (
-      (cached_cu0 && (cached_cu0->IsIntra() || cached_cu0->GetSkipFlag())) ||
-        (cached_cu1 && (cached_cu1->IsIntra() || cached_cu1->GetSkipFlag())));
+      encoder_settings_.fast_mode_selection_for_cached_cu &&
+      (cache_result.any_intra || cache_result.any_skip);
     const bool fast_skip_intra =
-      encoder_settings_.fast_mode_selection_for_cached_cu && (
-      (cached_cu0 && cached_cu0->IsInter()) ||
-        (cached_cu1 && cached_cu1->IsInter()));
+      encoder_settings_.fast_mode_selection_for_cached_cu &&
+      cache_result.any_inter;
 
     RdoCost cost;
     if (!Restrictions::Get().disable_inter_merge_mode) {
-      const bool fast_merge_skip = encoder_settings_.fast_merge_eval && (
-        (cached_cu0 && cached_cu0->GetSkipFlag()) ||
-        (cached_cu1 && cached_cu1->GetSkipFlag()));
+      const bool fast_merge_skip =
+        encoder_settings_.fast_merge_eval && cache_result.any_skip;
       cost = CompressMerge(temp_cu, qp, *writer, fast_merge_skip);
       if (cost < best_cost) {
         best_cost = cost;
@@ -349,19 +318,9 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   cu->SetRootCbf(cu->GetHasAnyCbf());
   pic_data_.MarkUsedInPic(cu);
 
-  // Save prediction data in cache
-  const bool cache_candidate = cu->GetBinaryDepth() == 2 &&
-    cu->GetWidth(YuvComponent::kY) == cu->GetHeight(YuvComponent::kY);
-  if (cache_candidate) {
-    for (int cache_idx = 0; cache_idx < kNumCacheEntry; cache_idx++) {
-      auto &cache_entry = cu_cache_[cu_tree][cache_depth][quad_idx][cache_idx];
-      if (cache_entry.valid) {
-        continue;
-      }
-      cache_entry.valid = true;
-      *cache_entry.cu = *cu;
-      break;
-    }
+  if (cache_result.cacheable) {
+    // Save prediction data in cache
+    cu_cache_.Store(*cu);
   }
 
   for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {

@@ -50,6 +50,8 @@ public:
              int width, int height);
   CodingUnit& operator=(const CodingUnit &cu);
   bool operator==(const CodingUnit &cu) const;
+  void CopyPositionAndSizeFrom(const CodingUnit &cu);
+  void CopyPredictionDataFrom(const CodingUnit &cu);
 
   // General
   CuTree GetCuTree() const { return cu_tree_; }
@@ -76,7 +78,6 @@ public:
   void SetQp(const QP &qp);
   void SetQp(int qp_value);
   int GetQp(YuvComponent comp) const;
-  void InitializeFrom(const CodingUnit &cu);
 
   // Split logic
   SplitType GetSplit() const { return split_state_; }
@@ -87,9 +88,9 @@ public:
   const CodingUnit* GetSubCu(int idx) const {
     return sub_cu_list_[idx];
   }
-  int GetIdxWithinQuad() const {
-    return ((pos_y_ & ((height_ << 1) - 1)) == 0 ? 0 : 2) +
-      ((pos_x_ & ((width_ << 1) - 1)) == 0 ? 0 : 1);
+  int IsFirstCuInQuad(int depth) const {
+    const int size = constants::kCtuSize >> depth;
+    return (pos_x_ & (size - 1)) == 0 && (pos_y_ & (size - 1)) == 0;
   }
   SplitRestriction DeriveSiblingSplitRestriction(SplitType parent_split) const;
 

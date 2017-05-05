@@ -13,6 +13,7 @@
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
+#include "xvc_enc_lib/cu_cache.h"
 #include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/inter_search.h"
 #include "xvc_enc_lib/intra_search.h"
@@ -30,12 +31,8 @@ public:
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 
 private:
-  static const int kNumCacheEntry = 2;   // max num cu of same size and pos
   struct RdoCost;
-  struct CacheEntry {
-    bool valid = false;
-    CodingUnit *cu = nullptr;
-  };
+
   Distortion CompressCu(CodingUnit **cu, int rdo_depth,
                         SplitRestriction split_restiction,
                         RdoSyntaxWriter *rdo_writer);
@@ -71,16 +68,13 @@ private:
   InterSearch inter_search_;
   IntraSearch intra_search_;
   CuWriter cu_writer_;
+  CuCache cu_cache_;
   // +2 for allow access to one depth lower than smallest CU in RDO
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;
   CodingUnit::TransformState rd_transform_state_;
   std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 2>,
     constants::kMaxNumCuTrees> rdo_temp_cu_;
-  std::array<std::array<std::array<std::array<CacheEntry, kNumCacheEntry>,
-    constants::kQuadSplit>,
-    constants::kMaxBlockDepth + 2>,
-    constants::kMaxNumCuTrees> cu_cache_;
 };
 
 }   // namespace xvc
