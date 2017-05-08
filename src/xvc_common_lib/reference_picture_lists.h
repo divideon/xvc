@@ -45,7 +45,6 @@ public:
   }
   bool HasOnlyBackReferences() const { return only_back_references_; }
   PicturePredictionType GetRefPicType(RefPicList ref_list, int ref_idx) const;
-  const QP* GetRefPicQp(RefPicList ref_list, int ref_idx) const;
   int GetRefPicTid(RefPicList ref_list, int ref_idx) const;
   const CodingUnit* GetCodingUnitAt(RefPicList ref_list, int ref_idx,
                                     CuTree cu_tree, int posx, int posy) const;

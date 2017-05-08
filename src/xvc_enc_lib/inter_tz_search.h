@@ -18,12 +18,6 @@ namespace xvc {
 
 class TZSearch {
 public:
-  struct Left { static const int index = -1; };
-  struct Right { static const int index = 1; };
-  struct Up { static const int index = -3; };
-  struct Down { static const int index = 3; };
-  struct SearchState;
-
   TZSearch(int bitdepth, const YuvPicture &orig_pic,
            const InterPrediction &inter_pred,
            const EncoderSettings &encoder_settings, int search_range)
@@ -39,6 +33,12 @@ public:
                       const MotionVector &prev_search);
 
 private:
+  using const_mv = const MotionVector;
+  struct Left { static const int index = -1; };
+  struct Right { static const int index = 1; };
+  struct Up { static const int index = -3; };
+  struct Down { static const int index = 3; };
+  struct SearchState;
   template<typename TOrig> class DistortionWrapper;
 
   bool FullpelDiamondSearch(SearchState *state, const MotionVector &mv_base,
@@ -50,6 +50,8 @@ private:
   bool CheckCost1(SearchState *state, int mv_x, int mv_y, int range);
   template<class Dir1, class Dir2>
   bool CheckCost2(SearchState *state, int mv_x, int mv_y, int range);
+  template<class Dir>
+  bool IsInside(int mv_x, int mv_y, const_mv *mv_min, const_mv *mv_max);
 
   const YuvPicture &orig_pic_;
   const InterPrediction &inter_pred_;

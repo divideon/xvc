@@ -48,8 +48,8 @@ public:
   CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
              CuTree cu_tree, int depth, int pic_x, int pic_y,
              int width, int height);
+  CodingUnit(const CodingUnit &) = delete;
   CodingUnit& operator=(const CodingUnit &cu);
-  bool operator==(const CodingUnit &cu) const;
   void CopyPositionAndSizeFrom(const CodingUnit &cu);
   void CopyPredictionDataFrom(const CodingUnit &cu);
 
@@ -86,7 +86,7 @@ public:
     return sub_cu_list_;
   }
   const CodingUnit* GetSubCu(int idx) const {
-    return sub_cu_list_[idx];
+    return sub_cu_list_.at(idx);
   }
   int IsFirstCuInQuad(int depth) const {
     const int size = constants::kCtuSize >> depth;

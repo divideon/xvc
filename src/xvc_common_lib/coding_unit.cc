@@ -80,12 +80,6 @@ void CodingUnit::CopyPredictionDataFrom(const CodingUnit &cu) {
   inter_ = cu.inter_;
 }
 
-bool CodingUnit::operator==(const CodingUnit &cu) const {
-  assert(cu_tree_ == cu.cu_tree_);
-  return pos_x_ == cu.pos_x_ && pos_y_ == cu.pos_y_ &&
-    width_ == cu.width_ && height_ == cu.height_;
-}
-
 int CodingUnit::GetBinaryDepth() const {
   int quad_size_log2 = util::SizeToLog2(constants::kCtuSize >> depth_);
   return (quad_size_log2 - util::SizeToLog2(width_)) +

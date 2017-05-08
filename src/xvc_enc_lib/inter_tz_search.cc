@@ -13,8 +13,6 @@
 
 namespace xvc {
 
-using const_mv = const MotionVector;
-
 template<typename TOrig>
 class TZSearch::DistortionWrapper {
 public:
@@ -265,27 +263,28 @@ bool TZSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
 }
 
 template<class Dir>
-inline bool IsInside(int mv_x, int mv_y, const_mv *mv_min, const_mv *mv_max) {
+bool
+TZSearch::IsInside(int mv_x, int mv_y, const_mv *mv_min, const_mv *mv_max) {
   return false;
 }
 template<>
-inline bool IsInside<TZSearch::Up>(int mv_x, int mv_y,
-                                   const_mv *mv_min, const_mv *mv_max) {
+bool TZSearch::IsInside<TZSearch::Up>(int mv_x, int mv_y,
+                                      const_mv *mv_min, const_mv *mv_max) {
   return mv_y >= mv_min->y;
 }
 template<>
-inline bool IsInside<TZSearch::Down>(int mv_x, int mv_y,
-                                     const_mv *mv_min, const_mv *mv_max) {
+bool TZSearch::IsInside<TZSearch::Down>(int mv_x, int mv_y,
+                                        const_mv *mv_min, const_mv *mv_max) {
   return mv_y <= mv_max->y;
 }
 template<>
-inline bool IsInside<TZSearch::Left>(int mv_x, int mv_y,
-                                     const_mv *mv_min, const_mv *mv_max) {
+bool TZSearch::IsInside<TZSearch::Left>(int mv_x, int mv_y,
+                                        const_mv *mv_min, const_mv *mv_max) {
   return mv_x >= mv_min->x;
 }
 template<>
-inline bool IsInside<TZSearch::Right>(int mv_x, int mv_y,
-                                      const_mv *mv_min, const_mv *mv_max) {
+bool TZSearch::IsInside<TZSearch::Right>(int mv_x, int mv_y,
+                                         const_mv *mv_min, const_mv *mv_max) {
   return mv_x <= mv_max->x;
 }
 

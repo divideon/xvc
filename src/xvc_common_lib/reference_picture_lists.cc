@@ -39,16 +39,6 @@ ReferencePictureLists::GetRefPicType(RefPicList ref_list, int ref_idx) const {
   return (*entry_list)[ref_idx].data->GetPredictionType();
 }
 
-const QP*
-ReferencePictureLists::GetRefPicQp(RefPicList ref_list, int ref_idx) const {
-  const std::vector<RefEntry> *entry_list =
-    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
-  if (static_cast<int>(entry_list->size()) <= ref_idx) {
-    return nullptr;
-  }
-  return (*entry_list)[ref_idx].data->GetPicQp();
-}
-
 int
 ReferencePictureLists::GetRefPicTid(RefPicList ref_list, int ref_idx) const {
   const std::vector<RefEntry> *entry_list =

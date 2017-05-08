@@ -274,7 +274,8 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     }
     const bool fast_skip_inter =
       encoder_settings_.fast_mode_selection_for_cached_cu &&
-      (cache_result.any_intra || cache_result.any_skip);
+      (cache_result.any_intra || cache_result.any_skip) &&
+      !Restrictions::Get().disable_inter_merge_mode;
     const bool fast_skip_intra =
       encoder_settings_.fast_mode_selection_for_cached_cu &&
       cache_result.any_inter;

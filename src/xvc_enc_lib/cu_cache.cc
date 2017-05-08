@@ -87,7 +87,7 @@ CuCache::Result CuCache::Lookup(const CodingUnit &cu) {
   }
   const CodingUnit *cached_cu = nullptr;
   for (int cu_idx = 0; cu_idx < kNumCuPerEntry; cu_idx++) {
-    if (cache_entry->valid[cu_idx] && *cache_entry->cu[cu_idx] == cu) {
+    if (cache_entry->valid[cu_idx]) {
       cached_cu = cache_entry->cu[cu_idx];
       break;
     }
