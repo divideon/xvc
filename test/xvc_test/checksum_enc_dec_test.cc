@@ -33,6 +33,7 @@ protected:
     sh.max_sub_gop_length = sub_gop_length;
     sh.open_gop = true;
     sh.num_ref_pics = 1;
+    sh.max_binary_split_depth = xvc::constants::kMaxBinarySplitDepth;
     sh.checksum_mode = xvc::Checksum::Mode::kMaxRobust;
     sh.deblock = true;
     return sh;
@@ -83,7 +84,7 @@ protected:
                                &sub_gop_start_poc, &sub_gop_length,
                                sub_gop_length, sub_gop_length, doc,
                                segment_.soc, num_buffered_nals);
-    return pic_decoder_->Decode(&bit_reader, segment_.checksum_mode);
+    return pic_decoder_->Decode(segment_, &bit_reader);
   }
 
   static const int kPicWidth = 16;

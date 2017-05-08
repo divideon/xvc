@@ -33,10 +33,12 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   // do not predict from the Intra picture in the next segment.
   bit_writer->WriteBit(open_gop);
   bit_writer->WriteBits(segment_header->num_ref_pics, 4);
-  assert(segment_header->deblock >= 0);
-  assert(segment_header->deblock <= 3);
+  static_assert(constants::kMaxBinarySplitDepth < (1 << 2),
+                "max binary split depth signaling");
+  bit_writer->WriteBits(segment_header->max_binary_split_depth, 2);
   bit_writer->WriteBits(static_cast<uint32_t>(segment_header->checksum_mode),
                         1);
+  assert(segment_header->deblock >= 0 && segment_header->deblock <= 3);
   bit_writer->WriteBits(segment_header->deblock, 2);
   if (segment_header->deblock == 3) {
     int d = constants::kDeblockOffsetBits;

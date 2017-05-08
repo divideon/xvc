@@ -172,6 +172,12 @@ void Encoder::SetRestrictedMode(int mode) {
   restrictions.EnableRestrictedMode(RestrictedMode(mode));
 }
 
+void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
+  encoder_settings_ = settings;
+  segment_header_.num_ref_pics = settings.default_num_ref_pics;
+  segment_header_.max_binary_split_depth = settings.max_binary_split_depth;
+}
+
 void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
                                PicNum sub_gop_length) {
   // Check if current picture is a tail picture.

@@ -6,6 +6,7 @@
 
 #include "xvc_common_lib/picture_data.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -52,7 +53,8 @@ PictureData::~PictureData() {
   }
 }
 
-void PictureData::Init(const QP &pic_qp) {
+void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp) {
+  // Determine number of CU trees
   if (!Restrictions::Get().disable_ext_two_cu_trees && IsIntraPic() &&
       max_num_components_ > 1) {
     num_cu_trees_ = 2;
@@ -68,6 +70,12 @@ void PictureData::Init(const QP &pic_qp) {
     cu_tree_components_[0] = { YuvComponent::kY };
     cu_tree_components_[1] = {};
   }
+
+  // CU structure
+  max_binary_split_depth_ =
+    std::min(segment.max_binary_split_depth, constants::kMaxBinarySplitDepth);
+
+  // Setup QP
   pic_qp_.reset(new QP(pic_qp));
   qps_.clear();
   for (int i = -constants::kMaxQpDiff; i <= constants::kMaxQpDiff; i++) {
@@ -76,6 +84,7 @@ void PictureData::Init(const QP &pic_qp) {
     qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
   }
 
+  // CTU initialization
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     std::fill(cu_pic_table_[tree_idx].begin(),
               cu_pic_table_[tree_idx].end(), nullptr);
@@ -90,6 +99,8 @@ void PictureData::Init(const QP &pic_qp) {
       ctu_rs_list_[static_cast<int>(CuTree::Secondary)].empty()) {
     AllocateAllCtu(CuTree::Secondary);
   }
+
+  // Temporal mv prediction
   tmvp_ref_list_ = DetermineTmvpRefList(&tmvp_ref_idx_);
   PicturePredictionType pic_type =
     ref_pic_lists_.GetRefPicType(tmvp_ref_list_, tmvp_ref_idx_);

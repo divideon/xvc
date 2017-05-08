@@ -108,12 +108,12 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   pic_data_->SetHighestLayer(tid == max_tid);
 }
 
-bool PictureDecoder::Decode(BitReader *bit_reader,
-                            Checksum::Mode checksum_mode) {
+bool PictureDecoder::Decode(const SegmentHeader &segment,
+                            BitReader *bit_reader) {
   double lambda = 0;
   QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
-  pic_data_->Init(qp);
+  pic_data_->Init(segment, qp);
 
   EntropyDecoder entropy_decoder(bit_reader);
   entropy_decoder.Start();
@@ -140,8 +140,8 @@ bool PictureDecoder::Decode(BitReader *bit_reader,
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
-  if (pic_tid == 0 || checksum_mode == Checksum::Mode::kMaxRobust) {
-    return ValidateChecksum(bit_reader, checksum_mode);
+  if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
+    return ValidateChecksum(bit_reader, segment.checksum_mode);
   } else {
     return true;
   }

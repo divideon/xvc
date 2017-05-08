@@ -41,6 +41,7 @@ public:
   void SetChromaFormat(xvc_enc_chroma_format format) {
     segment_header_.chroma_format = ChromaFormat(format);
   }
+  int GetNumRefPics() const { return segment_header_.num_ref_pics; }
   void SetNumRefPics(int num) {
     segment_header_.num_ref_pics = num;
   }
@@ -68,7 +69,7 @@ public:
   void SetRestrictedMode(int mode);
 
   const EncoderSettings& GetEncoderSettings() { return encoder_settings_; }
-  void SetEncoderSettings(EncoderSettings &&s) { encoder_settings_ = s; }
+  void SetEncoderSettings(const EncoderSettings &settings);
 
 private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,

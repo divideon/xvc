@@ -12,6 +12,7 @@
 
 #include "xvc_common_lib/picture_types.h"
 #include "xvc_common_lib/reference_picture_lists.h"
+#include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/utils.h"
 
@@ -29,7 +30,7 @@ public:
   PictureData(ChromaFormat chroma_format, int width, int height, int bitdepth);
   ~PictureData();
 
-  void Init(const QP &pic_qp);
+  void Init(const SegmentHeader &segment, const QP &pic_qp);
 
   // General
   PicturePredictionType GetPredictionType() const;
@@ -61,9 +62,7 @@ public:
       constants::kMaxCuDepth : constants::kMaxCuDepthChroma;
   }
   int GetMaxBinarySplitDepth(CuTree cu_tree) const {
-    return !IsIntraPic() ? constants::kMaxBinarySplitDepthInter :
-      (cu_tree == CuTree::Primary ? constants::kMaxBinarySplitDepthIntra1 :
-       constants::kMaxBinarySplitDepthIntra2);
+    return max_binary_split_depth_;
   }
   int GetMaxBinarySplitSize(CuTree cu_tree) const {
     return !IsIntraPic() ? constants::kMaxBinarySplitSizeInter :
@@ -164,6 +163,7 @@ private:
   SegmentNum soc_ = 0;
   int tid_ = 0;
   bool highest_layer_ = false;
+  int max_binary_split_depth_ = 0;
   std::unique_ptr<QP> pic_qp_;
   std::vector<QP> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;

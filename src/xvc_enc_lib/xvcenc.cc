@@ -172,6 +172,8 @@ extern "C" {
           stream >> encoder_settings.smooth_lambda_scaling;
         } else if (setting == "default_num_ref_pics") {
           stream >> encoder_settings.default_num_ref_pics;
+        } else if (setting == "max_binary_split_depth") {
+          stream >> encoder_settings.max_binary_split_depth;
         }
       }
     }
@@ -207,6 +209,8 @@ extern "C" {
       return nullptr;
     }
     xvc::Encoder *encoder = new xvc::Encoder();
+    xvc_enc_set_speed_mode(encoder, param);
+
     encoder->SetResolution(param->width, param->height);
     encoder->SetChromaFormat(param->chroma_format);
     encoder->SetInputBitdepth(param->input_bitdepth);
@@ -221,15 +225,13 @@ extern "C" {
       encoder->SetDeblock(param->deblock);
     }
     encoder->SetQp(param->qp);
+    if (param->num_ref_pics >= 0) {
+      encoder->SetNumRefPics(param->num_ref_pics);
+    }
     encoder->SetFlatLambda(param->flat_lambda != 0);
     encoder->SetChecksumMode(param->checksum_mode);
 
-    xvc_enc_set_speed_mode(encoder, param);
-    int num_ref_pics = param->num_ref_pics;
-    if (num_ref_pics == -1) {
-      num_ref_pics = encoder->GetEncoderSettings().default_num_ref_pics;
-    }
-    encoder->SetNumRefPics(num_ref_pics);
+    int num_ref_pics = encoder->GetNumRefPics();
     int sub_gop_length = param->sub_gop_length;
     if (sub_gop_length == 0) {
       sub_gop_length = num_ref_pics > 0 ? 16 : 1;
