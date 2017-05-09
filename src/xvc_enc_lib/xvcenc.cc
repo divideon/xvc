@@ -231,13 +231,11 @@ extern "C" {
     encoder->SetFlatLambda(param->flat_lambda != 0);
     encoder->SetChecksumMode(param->checksum_mode);
 
-    int num_ref_pics = encoder->GetNumRefPics();
     int sub_gop_length = param->sub_gop_length;
     if (sub_gop_length == 0) {
-      sub_gop_length = num_ref_pics > 0 ? 16 : 1;
+      sub_gop_length = encoder->GetNumRefPics() > 0 ? 16 : 1;
     }
     encoder->SetSubGopLength(sub_gop_length);
-    encoder->SetPicBufferingNum(sub_gop_length + num_ref_pics);
     xvc_enc_set_segment_length(encoder, param, sub_gop_length);
 
     return encoder;

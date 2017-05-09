@@ -167,7 +167,9 @@
     <ClCompile Include="decoder_resample_test.cc" />
     <ClCompile Include="encoder_api_test.cc" />
     <ClCompile Include="encode_decode_test.cc" />
+    <ClCompile Include="resolution_test.cc" />
     <ClCompile Include="residual_coding_test.cc" />
+    <ClCompile Include="yuv_helper.cc" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\xvc_common_lib\xvc_common_lib.vcxproj">
@@ -183,6 +185,7 @@
   <ItemGroup>
     <ClInclude Include="..\googletest\include\gtest\gtest.h" />
     <ClInclude Include="test_helper.h" />
+    <ClInclude Include="yuv_helper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

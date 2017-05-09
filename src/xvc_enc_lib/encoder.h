@@ -52,8 +52,8 @@ public:
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
     segment_header_.max_sub_gop_length = sub_gop_length;
+    pic_buffering_num_ = sub_gop_length + segment_header_.num_ref_pics;
   }
-  void SetPicBufferingNum(int num) { pic_buffering_num_ = num; }
   void SetSegmentLength(PicNum length) { segment_length_ = length; }
   void SetClosedGopInterval(PicNum interval) {
     closed_gop_interval_ = interval;

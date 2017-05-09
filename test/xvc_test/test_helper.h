@@ -17,95 +17,30 @@
 
 namespace xvc_test {
 
-class DecoderHelper {
-public:
-  virtual void SetUp() {
-    decoder_ = new ::xvc::Decoder();
-  }
-  virtual void TearDown() {
-    delete decoder_;
-  }
-
-  void DecodeSegmentHeader(const std::vector<uint8_t> &nal) {
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
-    EXPECT_EQ(0, decoder_->GetNumDecodedPics());
-    EXPECT_FALSE(decoder_->GetDecodedPicture(&decoded_picture_));
-    EXPECT_EQ(nullptr, decoded_picture_.bytes);
-    EXPECT_EQ(0, decoded_picture_.size);
-  }
-
-  void DecodePictureSuccess(const std::vector<uint8_t> &nal) {
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
-    EXPECT_EQ(1, decoder_->GetNumDecodedPics());
-    EXPECT_TRUE(decoder_->GetDecodedPicture(&decoded_picture_));
-  }
-
-  void DecodePictureFailed(const std::vector<uint8_t> &nal) {
-    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
-    EXPECT_EQ(0, decoder_->GetNumDecodedPics());
-    EXPECT_FALSE(decoder_->GetDecodedPicture(&decoded_picture_));
-    EXPECT_EQ(0, decoded_picture_.size);
-  }
-
-  ::testing::AssertionResult
-    VerifyDecodedLumaEquals(int width, int height,
-                            xvc::Sample expected_sample) {
-    size_t sample_size = decoded_picture_.stats.bitdepth == 8 ?
-      sizeof(uint8_t) : sizeof(uint16_t);
-    EXPECT_EQ(sample_size * width * height * 3 / 2, decoded_picture_.size);
-    size_t luma_samples = width * height;
-    if (sample_size == sizeof(uint8_t)) {
-      uint8_t *bytes = reinterpret_cast<uint8_t*>(decoded_picture_.bytes);
-      uint8_t expected = static_cast<uint8_t>(expected_sample);
-      auto it =
-        std::find_if(bytes, bytes + luma_samples,
-                     [expected](const uint8_t &b) { return b != expected; });
-      if (it == bytes + luma_samples) {
-        return ::testing::AssertionSuccess();
-      }
-      return ::testing::AssertionFailure() << "found: " <<
-        static_cast<int>(*it) << " expected: " << static_cast<int>(expected);
-    } else {
-      uint16_t *bytes = reinterpret_cast<uint16_t*>(decoded_picture_.bytes);
-      uint16_t expected = static_cast<uint16_t>(expected_sample);
-      auto it =
-        std::find_if(bytes, bytes + luma_samples,
-                     [expected](const uint16_t &b) { return b != expected; });
-      if (it == bytes + luma_samples) {
-        return ::testing::AssertionSuccess();
-      }
-      return ::testing::AssertionFailure() << "found: " <<
-        static_cast<int>(*it) << " expected: " << static_cast<int>(expected);
-    }
-  }
-
-  ::xvc::Decoder *decoder_;
-  xvc_decoded_picture decoded_picture_;
-};
+using NalUnit = std::vector<uint8_t>;
 
 class EncoderHelper {
 protected:
-  virtual void SetUp() {
-    encoder_ = CreateEncoder(0, 0, 8, qp_);
-  }
-  virtual void TearDown() {
+  void Init() {
+    encoder_ = CreateEncoder(0, 0, 8, 32);
   }
 
   std::unique_ptr<xvc::Encoder>
     CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
     std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder());
+    xvc::EncoderSettings encoder_settings;
+    encoder_settings.Initialize(xvc::SpeedMode::kSlow);
+    encoder->SetEncoderSettings(std::move(encoder_settings));
     encoder->SetResolution(width, height);
     encoder->SetChromaFormat(XVC_ENC_CHROMA_FORMAT_420);
     encoder->SetInputBitdepth(8);
     encoder->SetInternalBitdepth(internal_bitdepth);
+    encoder->SetSegmentLength(64);
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);
     encoder->SetChecksumMode(1);
     encoder->SetDeblock(1);
     encoder->SetQp(qp);
-    xvc::EncoderSettings encoder_settings;
-    encoder_settings.Initialize(xvc::SpeedMode::kSlow);
-    encoder->SetEncoderSettings(std::move(encoder_settings));
     return encoder;
   }
 
@@ -146,36 +81,101 @@ protected:
               nal_units[1].stats.nal_unit_type);
     for (int i = 0; i < 2; i++) {
       encoded_nal_units_.push_back(
-        std::vector<uint8_t>(nal_units[i].bytes,
-                             nal_units[i].bytes + nal_units[i].size));
+        NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
     }
   }
 
-  static const int qp_ = 32;
+  void EncodeOneFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
+    const uint8_t *in_pic = pic_bytes.empty() ? nullptr : &pic_bytes[0];
+    xvc_enc_nal_unit *nal_units = nullptr;
+    encoder_->SetInputBitdepth(bitdepth);
+    int num_nals = encoder_->Encode(in_pic, &nal_units, false, nullptr);
+    for (int i = 0; i < num_nals; i++) {
+      encoded_nal_units_.push_back(
+        NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
+    }
+  }
+
+  void EncoderFlush() {
+    xvc_enc_nal_unit *nal_units = nullptr;
+    int num_nals = encoder_->Flush(&nal_units, false, nullptr);
+    for (int i = 0; i < num_nals; i++) {
+      encoded_nal_units_.push_back(
+        NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
+    }
+  }
+
+  NalUnit& GetNextNalToDecode() {
+    return encoded_nal_units_[decoded_nals_units++];
+  }
+
   std::unique_ptr<xvc::Encoder> encoder_;
-  std::vector<std::vector<uint8_t>> encoded_nal_units_;
+  std::vector<NalUnit> encoded_nal_units_;
+  int decoded_nals_units = 0;
 };
 
-class EncoderDecoderHelper
-  : public ::testing::Test, public EncoderHelper, public DecoderHelper {
-protected:
-  void SetUp() override {
-    EncoderHelper::SetUp();
-    DecoderHelper::SetUp();
-  }
-  void TearDown() override {
-    EncoderHelper::TearDown();
-    DecoderHelper::TearDown();
+
+class DecoderHelper {
+public:
+  void Init() {
+    decoder_ = std::unique_ptr<xvc::Decoder>(new ::xvc::Decoder());
   }
 
-  void DecodeFirstPictureSuccess() {
-    ASSERT_EQ(2, encoded_nal_units_.size());
-    DecodePictureSuccess(encoded_nal_units_[1]);
+  void DecodeSegmentHeaderSuccess(const NalUnit &nal) {
+    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
+    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
+    EXPECT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded,
+              decoder_->GetState());
+    EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
+    EXPECT_EQ(0, decoder_->GetNumCorruptedPics());
+    EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
+    EXPECT_EQ(nullptr, last_decoded_picture_.bytes);
+    EXPECT_EQ(0, last_decoded_picture_.size);
   }
-  void DecodeFirstPictureFailed() {
-    ASSERT_EQ(2, encoded_nal_units_.size());
-    DecodePictureFailed(encoded_nal_units_[1]);
+
+  void DecodeSegmentHeaderFailed(const NalUnit &nal) {
+    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
+    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
+    EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
+    EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
+    EXPECT_EQ(nullptr, last_decoded_picture_.bytes);
+    EXPECT_EQ(0, last_decoded_picture_.size);
   }
+
+  bool DecodePictureSuccess(const NalUnit &nal) {
+    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
+    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
+    EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
+    EXPECT_EQ(before_num_decoded_pics + 1, decoder_->GetNumDecodedPics());
+    EXPECT_EQ(0, decoder_->GetNumCorruptedPics());
+    return decoder_->GetDecodedPicture(&last_decoded_picture_);
+  }
+
+  void DecodePictureFailed(const NalUnit &nal) {
+    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
+    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
+    EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
+    EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
+    EXPECT_EQ(0, last_decoded_picture_.size);
+  }
+
+  bool DecoderFlush() {
+    decoder_->FlushBufferedTailPics();
+    return decoder_->GetDecodedPicture(&last_decoded_picture_);
+  }
+
+  xvc_decoded_picture* DecodeAndFlush(const NalUnit &nal) {
+    if (DecodePictureSuccess(nal)) {
+      return &last_decoded_picture_;
+    }
+    if (DecoderFlush()) {
+      return &last_decoded_picture_;
+    }
+    return nullptr;
+  }
+
+  std::unique_ptr<::xvc::Decoder> decoder_;
+  xvc_decoded_picture last_decoded_picture_;
 };
 
 }   // namespace xvc_test

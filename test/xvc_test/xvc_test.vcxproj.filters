@@ -38,12 +38,21 @@
     <ClCompile Include="hls_test.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="yuv_helper.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="resolution_test.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\googletest\include\gtest\gtest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="test_helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="yuv_helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

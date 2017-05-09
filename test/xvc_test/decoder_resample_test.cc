@@ -10,11 +10,20 @@
 #include "googletest/include/gtest/gtest.h"
 
 #include "xvc_test/test_helper.h"
+#include "xvc_test/yuv_helper.h"
 
 namespace {
 
-class DecoderResampleTest : public ::xvc_test::EncoderDecoderHelper {
+class DecoderResampleTest : public ::testing::Test,
+  public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
+  void SetUp() override {
+    EncoderHelper::Init();
+    DecoderHelper::Init();
+    encoder_->SetSubGopLength(1);
+    encoder_->SetSegmentLength(1);
+  }
+
   void EncodeDecodeResolution(int size_enc1, int size_enc2, int size_dec,
                                    bool explicit_output_resolution) {
     const int bitdepth = 8;
@@ -29,17 +38,17 @@ protected:
       decoder_->SetOutputHeight(size_dec);
     }
 
-    DecodeSegmentHeader(encoded_nal_units_[0]);
-    DecodePictureSuccess(encoded_nal_units_[1]);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.width);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.height);
-    EXPECT_TRUE(VerifyDecodedLumaEquals(size_dec, size_dec, kSample1));
+    DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    auto dec_pic = DecodeAndFlush(GetNextNalToDecode());
+    EXPECT_EQ(size_dec, dec_pic->stats.width);
+    EXPECT_EQ(size_dec, dec_pic->stats.height);
+    EXPECT_TRUE(VerifyDecodedLumaEquals(*dec_pic, kSample1));
 
-    DecodeSegmentHeader(encoded_nal_units_[2]);
-    DecodePictureSuccess(encoded_nal_units_[3]);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.width);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.height);
-    EXPECT_TRUE(VerifyDecodedLumaEquals(size_dec, size_dec, kSample2));
+    DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    dec_pic = DecodeAndFlush(GetNextNalToDecode());
+    EXPECT_EQ(size_dec, dec_pic->stats.width);
+    EXPECT_EQ(size_dec, dec_pic->stats.height);
+    EXPECT_TRUE(VerifyDecodedLumaEquals(*dec_pic, kSample2));
   }
 
   void EncodeDecodeBitdepth(int bitdepth_enc1, int bitdepth_enc2,
@@ -57,11 +66,11 @@ protected:
       decoder_->SetOutputBitdepth(bitdepth_dec);
     }
 
-    DecodeSegmentHeader(encoded_nal_units_[0]);
-    DecodePictureSuccess(encoded_nal_units_[1]);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.width);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.height);
-    EXPECT_EQ(bitdepth_dec, decoded_picture_.stats.bitdepth);
+    DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    auto dec_pic = DecodeAndFlush(GetNextNalToDecode());
+    EXPECT_EQ(size_dec, dec_pic->stats.width);
+    EXPECT_EQ(size_dec, dec_pic->stats.height);
+    EXPECT_EQ(bitdepth_dec, dec_pic->stats.bitdepth);
     xvc::Sample expected1 = kSample1;
     if (bitdepth_enc1 > bitdepth_dec) {
       int shift = (bitdepth_enc1 - bitdepth_dec);
@@ -69,13 +78,13 @@ protected:
     } else {
       expected1 <<= (bitdepth_dec - bitdepth_enc1);
     }
-    EXPECT_TRUE(VerifyDecodedLumaEquals(size_dec, size_dec, expected1));
+    EXPECT_TRUE(VerifyDecodedLumaEquals(*dec_pic, expected1));
 
-    DecodeSegmentHeader(encoded_nal_units_[2]);
-    DecodePictureSuccess(encoded_nal_units_[3]);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.width);
-    EXPECT_EQ(size_dec, decoded_picture_.stats.height);
-    EXPECT_EQ(bitdepth_dec, decoded_picture_.stats.bitdepth);
+    DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    dec_pic = DecodeAndFlush(GetNextNalToDecode());
+    EXPECT_EQ(size_dec, dec_pic->stats.width);
+    EXPECT_EQ(size_dec, dec_pic->stats.height);
+    EXPECT_EQ(bitdepth_dec, dec_pic->stats.bitdepth);
     xvc::Sample expected2 = kSample2;
     if (bitdepth_enc2 > bitdepth_dec) {
       int shift = bitdepth_enc2 - bitdepth_dec;
@@ -83,7 +92,15 @@ protected:
     } else {
       expected2 <<= (bitdepth_dec - bitdepth_enc2);
     }
-    EXPECT_TRUE(VerifyDecodedLumaEquals(size_dec, size_dec, expected2));
+    EXPECT_TRUE(VerifyDecodedLumaEquals(*dec_pic, expected2));
+  }
+
+  ::testing::AssertionResult
+    VerifyDecodedLumaEquals(const xvc_decoded_picture &dec_pic,
+                            xvc::Sample expected_sample) {
+    return xvc_test::TestYuvPic::AllSampleEqualTo(
+      dec_pic.stats.width, dec_pic.stats.height, dec_pic.stats.bitdepth,
+      dec_pic.bytes, dec_pic.size, expected_sample);
   }
 
   // Decoding exactly the same value depends on quantization

@@ -82,6 +82,7 @@ private:
   int output_bitdepth_ = 0;
   int decoder_ticks_ = 0;
   int max_tid_ = 0;
+  bool enforce_sliding_window_ = true;
   State state_ = State::kNoSegmentHeader;
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;

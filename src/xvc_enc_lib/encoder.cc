@@ -111,14 +111,15 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   // poc_ is initialized to 0.
   poc_++;
 
-  rec_pic->pic = nullptr;
-  rec_pic->size = 0;
+  if (rec_pic) {
+    rec_pic->pic = nullptr;
+    rec_pic->size = 0;
+  }
   // If enough pictures have been encoded, the reconstructed picture
   // with lowest poc can be output.
   if (poc_ >= segment_header_.max_sub_gop_length) {
     ReconstructOnePicture(output_rec, rec_pic);
   }
-
   if (nal_units_.size() > 0) {
     *nal_units = &nal_units_[0];
   }
@@ -156,8 +157,10 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   // Increase poc by one for each call to Flush.
   poc_++;
 
-  rec_pic->pic = nullptr;
-  rec_pic->size = 0;
+  if (rec_pic) {
+    rec_pic->pic = nullptr;
+    rec_pic->size = 0;
+  }
   // Check if reconstruction should be performed.
   ReconstructOnePicture(output_rec, rec_pic);
   if (nal_units_.size() > 0) {
@@ -230,7 +233,7 @@ void Encoder::ReconstructOnePicture(bool output_rec,
   auto rec_pic_out = pic_enc->GetRecPic();
 
   // Only perform reconstruction if it is requested and a picture was found.
-  if (output_rec && rec_pic_out) {
+  if (output_rec && rec_pic_out && rec_pic) {
     rec_pic_out->CopyToSameBitdepth(&output_pic_bytes_);
     rec_pic->size = output_pic_bytes_.size();
     rec_pic->pic = &output_pic_bytes_[0];

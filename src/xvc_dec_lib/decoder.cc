@@ -174,6 +174,8 @@ void Decoder::FlushBufferedTailPics() {
   if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
     return;
   }
+  // Remove restriction of minimum picture buffer size
+  enforce_sliding_window_ = false;
   // Preparing to start a new segment
   soc_++;
   prev_segment_header_ = curr_segment_header_;
@@ -195,6 +197,13 @@ void Decoder::FlushBufferedTailPics() {
 }
 
 bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
+  // Prevent outputing pictures if non are available
+  // otherwise reference pictures might be corrupted
+  if (enforce_sliding_window_ && !HasPictureReadyForOutput()) {
+    output_pic->size = 0;
+    output_pic->bytes = nullptr;
+    return false;
+  }
   // Find the picture with lowest Poc that has not been output.
   std::shared_ptr<PictureDecoder> pic_dec;
   PicNum lowest_poc = std::numeric_limits<PicNum>::max();
