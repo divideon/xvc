@@ -55,9 +55,9 @@ bool Y4M::ParseY4M(int &width, int &height, double &framerate,
         pos++;
         break;
       case 'A':  // sample aspect ratio
-        den = static_cast<int>(strtol(buf + pos, &end, 10));
+        strtol(buf + pos, &end, 10);
         pos = end - buf + 1;
-        num = static_cast<int>(strtol(buf + pos, &end, 10));
+        strtol(buf + pos, &end, 10);
         pos = end - buf;
         break;
       case 'C':  // colour space

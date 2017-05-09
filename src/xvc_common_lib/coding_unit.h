@@ -88,7 +88,7 @@ public:
   const CodingUnit* GetSubCu(int idx) const {
     return sub_cu_list_.at(idx);
   }
-  int IsFirstCuInQuad(int depth) const {
+  bool IsFirstCuInQuad(int depth) const {
     const int size = constants::kCtuSize >> depth;
     return (pos_x_ & (size - 1)) == 0 && (pos_y_ & (size - 1)) == 0;
   }

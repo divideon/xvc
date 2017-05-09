@@ -231,13 +231,15 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
                              const Sample *ref_samples, ptrdiff_t ref_stride,
                              Sample *output_buffer, ptrdiff_t output_stride) {
   Sample ref_flip_buffer[kRefSampleStride_ * 2];
-  bool is_horizontal = dir_mode < 18;
+  const bool is_horizontal = dir_mode < 18;
   const Sample *ref_ptr = ref_samples;
 
   // Compute flipped reference samples
   if (is_horizontal) {
+    const int top_size = width + height;
+    assert(top_size > 0);
     ref_flip_buffer[0] = ref_samples[0];
-    for (int i = 0; i < width + height; i++) {
+    for (int i = 0; i < top_size; i++) {
       ref_flip_buffer[1 + i] = ref_samples[ref_stride + i];
       ref_flip_buffer[ref_stride + i] = ref_samples[1 + i];
     }
@@ -396,11 +398,10 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
   }
 
   // Case when partial neighbors
-  Sample line_buffer[5 * constants::kMaxBlockSize];
-  Sample *line_temp;
+  std::array<Sample, 5 * constants::kMaxBlockSize> line_buffer;
 
   // 1. Initialize with default value
-  int total_refs = left_size + top_size + top_left_size;
+  const int total_refs = left_size + top_size + top_left_size;
   for (int i = 0; i < total_refs; i++) {
     line_buffer[i] = dc_val;
   }
@@ -408,7 +409,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
   // 2. Fill when available
   // Fill top-left sample
   const Sample *src_temp = input - input_stride - 1;
-  line_temp = line_buffer + left_size;
+  Sample *line_temp = &line_buffer[0] + left_size;
   if (neighbors.has_above_left) {
     for (int i = 0; i < top_left_size; i++) {
       line_temp[i] = src_temp[0];
@@ -437,7 +438,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
 
   // Fill above & above-right samples
   src_temp = input - input_stride;
-  line_temp = line_buffer + left_size + top_left_size;
+  line_temp = &line_buffer[left_size + top_left_size];
   if (neighbors.has_above) {
     for (int i = 0; i < width; i++) {
       line_temp[i] = src_temp[i];
@@ -497,11 +498,11 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
 
   // 4. Copy processed samples
   // TODO(Dev) can be done with memcpy
-  line_temp = line_buffer + left_size + top_left_size - 1;
+  line_temp = &line_buffer[left_size + top_left_size - 1];
   for (int x = 0; x < top_size + 1; x++) {
     output[x] = line_temp[x];
   }
-  line_temp = line_buffer + left_size - 1;
+  line_temp = &line_buffer[left_size - 1];
   for (int y = 0; y < left_size; y++) {
     output[output_stride + y] = line_temp[-y];
   }

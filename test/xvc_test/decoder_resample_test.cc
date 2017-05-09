@@ -56,7 +56,6 @@ protected:
     if (explicit_output) {
       decoder_->SetOutputBitdepth(bitdepth_dec);
     }
-    int bitdepth_shift = bitdepth_enc2 - bitdepth_enc1;
 
     DecodeSegmentHeader(encoded_nal_units_[0]);
     DecodePictureSuccess(encoded_nal_units_[1]);

@@ -99,10 +99,6 @@ public:
 
   static ScanOrder DetermineScanOrder(const CodingUnit & cu,
                                       YuvComponent comp);
-  static const uint16_t* GetScanTable(int width, int height,
-                                      ScanOrder scan_order);
-  static const uint16_t* GetScanTableSubblock(int width, int height,
-                                              ScanOrder scan_order);
   static void DeriveSubblockScan(ScanOrder scan_order, int width,
                                  int height, uint16_t *scan_table);
   static const uint8_t* GetCoeffScanTable2x2(ScanOrder scan_order) {

@@ -106,7 +106,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
       if (deblock_chroma && boundary_strength == 2) {
         int chroma_qp = (cu_p->GetQp(chroma) + cu_q->GetQp(chroma) + 1) >> 1;
         if (Restrictions::Get().disable_deblock_depending_on_qp) {
-          qp = 31;
+          chroma_qp = 31;
         }
         int chroma_x = x >> chroma_shift_x;
         int chroma_y = y >> chroma_shift_y;

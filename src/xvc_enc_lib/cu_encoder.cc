@@ -199,7 +199,6 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                       split_restiction, &splitcu_writer);
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
-      cu = *best_cu;
       // No more split evaluations
       *writer = splitcu_writer;
       return split_cost.dist;
