@@ -31,7 +31,7 @@ CuEncoder::CuEncoder(const YuvPicture &orig_pic,
                      YuvPicture *rec_pic, PictureData *pic_data,
                      const EncoderSettings &encoder_settings)
   : TransformEncoder(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
-                     orig_pic),
+                     orig_pic, encoder_settings),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
   rec_pic_(*rec_pic),
@@ -61,18 +61,35 @@ CuEncoder::~CuEncoder() {
 }
 
 void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
-  RdoSyntaxWriter rdo_writer(*bitstream_writer);
+  uint32_t frac_bits = bitstream_writer->GetFractionalBits();
+  if (!EncoderSettings::kEncoderCountActualWrittenBits) {
+    frac_bits = rsaddr == 0 ? 0 : last_ctu_frac_bits_;
+  }
+  RdoSyntaxWriter rdo_writer(*bitstream_writer, 0, frac_bits);
+
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   CompressCu(&ctu, 0, SplitRestriction::kNone, &rdo_writer);
   pic_data_.SetCtu(CuTree::Primary, rsaddr, ctu);
   if (pic_data_.HasSecondaryCuTree()) {
-    RdoSyntaxWriter rdo_writer2(*bitstream_writer);
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer2);
+    if (EncoderSettings::kEncoderStrictRdoBitCounting) {
+      CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer);
+    } else {
+      RdoSyntaxWriter rdo_writer2(*bitstream_writer);
+      CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer2);
+    }
     pic_data_.SetCtu(CuTree::Secondary, rsaddr, ctu2);
   }
+  last_ctu_frac_bits_ = rdo_writer.GetFractionalBits();
 
   WriteCtu(rsaddr, bitstream_writer);
+  if (EncoderSettings::kEncoderStrictRdoBitCounting &&
+      EncoderSettings::kEncoderCountActualWrittenBits) {
+    assert(rdo_writer.GetNumWrittenBits() ==
+           bitstream_writer->GetNumWrittenBits());
+    assert(rdo_writer.GetFractionalBits() ==
+           bitstream_writer->GetFractionalBits());
+  }
 }
 
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
@@ -226,6 +243,9 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
   Distortion dist = 0;
   Bits start_bits = rdo_writer->GetNumWrittenBits();
   SplitRestriction sub_split_restriction = SplitRestriction::kNone;
+  if (EncoderSettings::kEncoderStrictRdoBitCounting) {
+    cu_writer_.WriteSplit(*cu, split_restriction, rdo_writer);
+  }
   for (auto &sub_cu : cu->GetSubCu()) {
     if (sub_cu) {
       dist +=
@@ -233,7 +253,9 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
       sub_split_restriction = sub_cu->DeriveSiblingSplitRestriction(split_type);
     }
   }
-  cu_writer_.WriteSplit(*cu, split_restriction, rdo_writer);
+  if (!EncoderSettings::kEncoderStrictRdoBitCounting) {
+    cu_writer_.WriteSplit(*cu, split_restriction, rdo_writer);
+  }
   Bits bits = rdo_writer->GetNumWrittenBits() - start_bits;
   Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
   return RdoCost(cost, dist);
@@ -323,10 +345,15 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     cu_cache_.Store(*cu);
   }
 
+  if (EncoderSettings::kEncoderStrictRdoBitCounting) {
+    cu_writer_.WriteSplit(*cu, split_restriction, writer);
+  }
   for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     cu_writer_.WriteComponent(*cu, comp, writer);
   }
-  cu_writer_.WriteSplit(*cu, split_restriction, writer);
+  if (!EncoderSettings::kEncoderStrictRdoBitCounting) {
+    cu_writer_.WriteSplit(*cu, split_restriction, writer);
+  }
   return best_cost.dist;
 }
 
@@ -449,16 +476,18 @@ CuEncoder::GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
 }
 
 void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
-  writer->ResetBitCounting();
+  if (EncoderSettings::kEncoderCountActualWrittenBits) {
+    writer->ResetBitCounting();
+  }
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
   cu_writer_.WriteCtu(*ctu, writer);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
     cu_writer_.WriteCtu(*ctu2, writer);
   }
-#if HM_STRICT
-  writer->WriteEndOfSlice(false);
-#endif
+  if (Restrictions::Get().disable_ext_implicit_last_ctu) {
+    writer->WriteEndOfSlice(false);
+  }
 }
 
 bool CuEncoder::CanSkipAnySplitForCu(const PictureData &pic_data,

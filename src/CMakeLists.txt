@@ -2,14 +2,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Experimental mode (internal)
-set(EXPERIMENTAL "" CACHE INTERNAL "Enable experimental codec mode (internal use only)")
 # Restrictions control (internal)
 set(RESTRICTION_DEFINES "" CACHE INTERNAL "Restriction flag control (internal use only)")
-
-if(EXPERIMENTAL)
-  add_definitions(-DHM_STRICT=0)
-endif()
 
 if(ENABLE_ASSERTIONS)
   add_definitions(-UNDEBUG)

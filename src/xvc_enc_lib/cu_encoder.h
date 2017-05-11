@@ -69,6 +69,7 @@ private:
   IntraSearch intra_search_;
   CuWriter cu_writer_;
   CuCache cu_cache_;
+  uint32_t last_ctu_frac_bits_ = 0;
   // +2 for allow access to one depth lower than smallest CU in RDO
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;

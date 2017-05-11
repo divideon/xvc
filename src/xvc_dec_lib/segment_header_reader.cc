@@ -229,6 +229,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_ext = true;
     }
     if (bit_reader->ReadBit()) {
+      restr.disable_ext_implicit_last_ctu = true;
+    }
+    if (bit_reader->ReadBit()) {
       restr.disable_ext_tmvp_full_resolution = true;
     }
     if (bit_reader->ReadBit()) {
@@ -254,6 +257,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     }
     if (bit_reader->ReadBit()) {
       restr.disable_ext_transform_size_64 = true;
+    }
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext_intra_unrestricted_predictor = true;
     }
   }
 

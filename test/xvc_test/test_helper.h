@@ -174,7 +174,7 @@ public:
     return nullptr;
   }
 
-  std::unique_ptr<::xvc::Decoder> decoder_;
+  std::unique_ptr<xvc::Decoder> decoder_;
   xvc_decoded_picture last_decoded_picture_;
 };
 

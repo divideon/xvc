@@ -7,6 +7,7 @@
 #include "xvc_enc_lib/entropy_encoder.h"
 
 #include "xvc_common_lib/cabac.h"
+#include "xvc_enc_lib/encoder_settings.h"
 
 namespace xvc {
 
@@ -36,9 +37,9 @@ void EntropyEncoder::EncodeBin(uint32_t binval, ContextModel *ctx) {
     }
     return;
   }
-#if HM_STRICT
-  frac_bits_ += ctx->GetEntropyBits(binval);
-#endif
+  if (EncoderSettings::kEncoderCountActualWrittenBits) {
+    frac_bits_ += ctx->GetEntropyBits(binval);
+  }
   range_ -= lps;
 
   int num_bits;
@@ -66,9 +67,9 @@ void EntropyEncoder::EncodeBypass(uint32_t binval) {
     frac_bits_ += 32768;
     return;
   }
-#if HM_STRICT
-  frac_bits_ += 32768;
-#endif
+  if (EncoderSettings::kEncoderCountActualWrittenBits) {
+    frac_bits_ += 32768;
+  }
   low_ <<= 1;
   if (binval) {
     low_ += range_;
@@ -82,9 +83,9 @@ void EntropyEncoder::EncodeBypassBins(uint32_t binvals, int num_bins) {
     frac_bits_ += 32768 * num_bins;
     return;
   }
-#if HM_STRICT
-  frac_bits_ += 32768 * num_bins;
-#endif
+  if (EncoderSettings::kEncoderCountActualWrittenBits) {
+    frac_bits_ += 32768 * num_bins;
+  }
   while (num_bins > 8) {
     num_bins -= 8;
     uint32_t pattern = binvals >> num_bins;
@@ -108,9 +109,9 @@ void EntropyEncoder::EncodeBinTrm(uint32_t binval) {
     frac_bits_ += ContextModel::GetEntropyBitsTrm(binval);
     return;
   }
-#if HM_STRICT
-  frac_bits_ += ContextModel::GetEntropyBitsTrm(binval);
-#endif
+  if (EncoderSettings::kEncoderCountActualWrittenBits) {
+    frac_bits_ += ContextModel::GetEntropyBitsTrm(binval);
+  }
   range_ -= 2;
   int num_bits;
   if (binval) {

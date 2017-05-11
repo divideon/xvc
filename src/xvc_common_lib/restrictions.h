@@ -95,6 +95,7 @@ public:
 
   static bool GetExtRestrictions() {
     return instance.disable_ext ||
+      instance.disable_ext_implicit_last_ctu ||
       instance.disable_ext_tmvp_full_resolution ||
       instance.disable_ext_tmvp_exclude_intra_from_ref_list ||
       instance.disable_ext_ref_list_l0_trim ||
@@ -103,7 +104,8 @@ public:
       instance.disable_ext_cabac_alt_inter_dir_ctx ||
       instance.disable_ext_cabac_alt_last_pos_ctx ||
       instance.disable_ext_two_cu_trees ||
-      instance.disable_ext_transform_size_64;
+      instance.disable_ext_transform_size_64 ||
+      instance.disable_ext_intra_unrestricted_predictor;
   }
 
   bool disable_intra_ref_padding = false;
@@ -156,6 +158,7 @@ public:
   bool disable_deblock_depending_on_qp = false;
   bool disable_high_level_default_checksum_method = false;
   bool disable_ext = false;
+  bool disable_ext_implicit_last_ctu = false;
   bool disable_ext_tmvp_full_resolution = false;
   bool disable_ext_tmvp_exclude_intra_from_ref_list = false;
   bool disable_ext_ref_list_l0_trim = false;
@@ -165,6 +168,7 @@ public:
   bool disable_ext_cabac_alt_last_pos_ctx = false;
   bool disable_ext_two_cu_trees = false;
   bool disable_ext_transform_size_64 = false;
+  bool disable_ext_intra_unrestricted_predictor = false;
 
 private:
   // The GetRW function shall be used only when there is a need to

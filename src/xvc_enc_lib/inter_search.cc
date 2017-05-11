@@ -199,12 +199,10 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
     Distortion dist_zero =
       metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer());
     Distortion dist_fast = dist_orig;
-    // TODO(Dev) Investigate trade-off with using clipped samples for rdo
-#if HM_STRICT
-    if (cu->GetCbf(comp)) {
+    if (encoder_settings_.fast_inter_cbf_dist && cu->GetCbf(comp)) {
+      // Not really faster since we are calculating the true distortion anyway
       dist_fast = encoder->GetResidualDist(*cu, comp, &metric);
     }
-#endif
     bool force_comp_zero = false;
     if (!Restrictions::Get().disable_transform_cbf) {
       force_comp_zero = encoder->EvalCbfZero(cu, qp, comp, bitstream_writer,
@@ -600,42 +598,42 @@ MetricType InterSearch::GetFullpelMetric(const CodingUnit & cu) {
 
 Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
                                    const SyntaxWriter &bitstream_writer) {
-#if HM_STRICT
-  PicturePredictionType pic_pred_type = cu.GetPicType();
-  const ReferencePictureLists *ref_pic_list = cu.GetRefPicLists();
-  if (cu.GetInterDir() != InterDir::kBi) {
-    RefPicList ref_list =
-      cu.GetInterDir() == InterDir::kL0 ? RefPicList::kL0 : RefPicList::kL1;
-    int num_ref_idx = ref_pic_list->GetNumRefPics(ref_list);
-    int bits = pic_pred_type == PicturePredictionType::kUni ? 1 : 3;
-    bits += num_ref_idx <= 1 ? 0 : cu.GetRefIdx(ref_list) + 1;
-    bits -= num_ref_idx > 1 && cu.GetRefIdx(ref_list) == num_ref_idx - 1;
-    bits += GetMvpBits(cu.GetMvpIdx(ref_list),
-                       constants::kNumInterMvPredictors);
-    bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).x);
-    bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).y);
-    return bits;
-  } else {
-    int bits = 5;
-    for (int i = 0; i < 2; i++) {
-      RefPicList ref_list = static_cast<RefPicList>(i);
+  if (encoder_settings_.fast_inter_pred_bits) {
+    PicturePredictionType pic_pred_type = cu.GetPicType();
+    const ReferencePictureLists *ref_pic_list = cu.GetRefPicLists();
+    if (cu.GetInterDir() != InterDir::kBi) {
+      RefPicList ref_list =
+        cu.GetInterDir() == InterDir::kL0 ? RefPicList::kL0 : RefPicList::kL1;
       int num_ref_idx = ref_pic_list->GetNumRefPics(ref_list);
+      int bits = pic_pred_type == PicturePredictionType::kUni ? 1 : 3;
       bits += num_ref_idx <= 1 ? 0 : cu.GetRefIdx(ref_list) + 1;
       bits -= num_ref_idx > 1 && cu.GetRefIdx(ref_list) == num_ref_idx - 1;
       bits += GetMvpBits(cu.GetMvpIdx(ref_list),
                          constants::kNumInterMvPredictors);
       bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).x);
       bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).y);
+      return bits;
+    } else {
+      int bits = 5;
+      for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
+        RefPicList ref_list = static_cast<RefPicList>(i);
+        int num_ref_idx = ref_pic_list->GetNumRefPics(ref_list);
+        bits += num_ref_idx <= 1 ? 0 : cu.GetRefIdx(ref_list) + 1;
+        bits -= num_ref_idx > 1 && cu.GetRefIdx(ref_list) == num_ref_idx - 1;
+        bits += GetMvpBits(cu.GetMvpIdx(ref_list),
+                           constants::kNumInterMvPredictors);
+        bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).x);
+        bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).y);
+      }
+      return bits;
     }
-    return bits;
+  } else {
+    const PictureData *pic_data = cu.GetPicData();
+    CuWriter cu_writer(*pic_data, nullptr);
+    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+    cu_writer.WriteInterPrediction(cu, YuvComponent::kY, &rdo_writer);
+    return rdo_writer.GetNumWrittenBits();
   }
-#else
-  const PictureData *pic_data = cu.GetPicData();
-  CuWriter cu_writer(*pic_data, nullptr);
-  RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-  cu_writer.WriteInterPrediction(cu, YuvComponent::kY, &rdo_writer);
-  return rdo_writer.GetNumWrittenBits();
-#endif
 }
 
 Bits InterSearch::GetMvpBits(int mvp_idx, int num_mvp) {

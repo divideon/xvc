@@ -640,6 +640,12 @@ RdoSyntaxWriter::RdoSyntaxWriter(const SyntaxWriter &writer,
   entropy_instance_(nullptr, bits_written, writer.GetFractionalBits()) {
 }
 
+RdoSyntaxWriter::RdoSyntaxWriter(const SyntaxWriter & writer,
+                                 uint32_t bits_written, uint32_t frac_bits)
+  : SyntaxWriter(writer.GetContexts(), &entropy_instance_),
+  entropy_instance_(nullptr, bits_written, frac_bits) {
+}
+
 RdoSyntaxWriter& RdoSyntaxWriter::operator=(const RdoSyntaxWriter &writer) {
   ctx_ = writer.ctx_;
   // Assumes a null BitWriter is used

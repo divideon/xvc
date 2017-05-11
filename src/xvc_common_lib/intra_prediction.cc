@@ -91,11 +91,12 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   if (cu_left && cu_left->IsIntra()) {
     left = cu_left->GetIntraMode(YuvComponent::kY);
   }
-#if HM_STRICT
-  const CodingUnit *cu_above = cu.GetCodingUnitAboveIfSameCtu();
-#else
-  const CodingUnit *cu_above = cu.GetCodingUnitAbove();
-#endif
+  const CodingUnit *cu_above;
+  if (Restrictions::Get().disable_ext_intra_unrestricted_predictor) {
+    cu_above = cu.GetCodingUnitAboveIfSameCtu();
+  } else {
+    cu_above = cu.GetCodingUnitAbove();
+  }
   IntraMode above = IntraMode::kDC;
   if (cu_above && cu_above->IsIntra()) {
     above = cu_above->GetIntraMode(YuvComponent::kY);

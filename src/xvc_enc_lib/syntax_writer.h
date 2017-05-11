@@ -74,6 +74,8 @@ public:
   explicit RdoSyntaxWriter(const SyntaxWriter &writer);
   explicit RdoSyntaxWriter(const RdoSyntaxWriter &writer);
   RdoSyntaxWriter(const SyntaxWriter &writer, uint32_t bits_written);
+  RdoSyntaxWriter(const SyntaxWriter &writer, uint32_t bits_written,
+                  uint32_t frac_bits);
   RdoSyntaxWriter& operator=(const RdoSyntaxWriter &writer);
 private:
   EntropyEncoder entropy_instance_;

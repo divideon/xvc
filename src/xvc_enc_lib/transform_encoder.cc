@@ -11,8 +11,10 @@
 namespace xvc {
 
 TransformEncoder::TransformEncoder(int bitdepth, int num_components,
-                                   const YuvPicture &orig_pic)
-  : min_pel_(0),
+                                   const YuvPicture &orig_pic,
+                                   const EncoderSettings &encoder_settings)
+  : encoder_settings_(encoder_settings),
+  min_pel_(0),
   max_pel_((1 << bitdepth) - 1),
   num_components_(num_components),
   inv_transform_(bitdepth),
@@ -129,23 +131,17 @@ bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
   }
   Bits bits_non_zero = rdo_writer_nonzero.GetNumWrittenBits();
 
-  // TODO(Dev) Investigate gains of correct start state
-#if HM_STRICT
-  RdoSyntaxWriter rdo_writer_zero(rdo_writer_nonzero, 0);
-#else
-  RdoSyntaxWriter rdo_writer_zero(bitstream_writer, 0);
-#endif
-  // TODO(Dev) Investigate gains of using correct skip syntax
-#if HM_STRICT
-  rdo_writer_zero.WriteRootCbf(false);
-#else
-  if (cu->GetSkipFlag()) {
-    rdo_writer_zero.WriteSkipFlag(*cu, true);
+  Bits bits_zero;
+  if (encoder_settings_.fast_inter_root_cbf_zero_bits) {
+    // Note that root cbf is not used in case of skip, ok both are 1 bin...
+    rdo_writer_nonzero.WriteRootCbf(false);
+    bits_zero = rdo_writer_nonzero.GetNumWrittenBits() - bits_non_zero;
   } else {
+    RdoSyntaxWriter rdo_writer_zero(bitstream_writer, 0);
+    // Note that root cbf is not used in case of skip, ok both are 1 bin...
     rdo_writer_zero.WriteRootCbf(false);
+    bits_zero = rdo_writer_zero.GetNumWrittenBits();
   }
-#endif
-  Bits bits_zero = rdo_writer_zero.GetNumWrittenBits();
 
   Cost cost_zero = sum_dist_zero +
     static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);

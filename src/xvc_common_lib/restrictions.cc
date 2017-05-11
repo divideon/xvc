@@ -213,6 +213,10 @@ Restrictions::Restrictions() {
   disable_ext = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT_IMPLICIT_LAST_CTU
+  disable_ext_implicit_last_ctu = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT_TMVP_FULL_RESOLUTION
   disable_ext_tmvp_full_resolution = true;
 #endif
@@ -248,6 +252,10 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_EXT_TRANSFORM_SIZE_64
   disable_ext_transform_size_64 = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT_INTRA_UNRESTRICTED_PREDICTOR
+  disable_ext_intra_unrestricted_predictor = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
@@ -255,9 +263,11 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     return;
   }
   if (mode == RestrictedMode::kModeA || mode == RestrictedMode::kModeB) {
+    disable_ext_implicit_last_ctu = true;
     disable_ext_tmvp_full_resolution = true;
     disable_ext_tmvp_exclude_intra_from_ref_list = true;
     disable_ext_ref_list_l0_trim = true;
+    disable_ext_intra_unrestricted_predictor = true;
   }
   if (mode == RestrictedMode::kModeA) {
     disable_ext = true;

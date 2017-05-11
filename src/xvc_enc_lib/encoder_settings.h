@@ -24,6 +24,7 @@ struct EncoderSettings {
       case SpeedMode::kPlacebo:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 0;
+        fast_inter_pred_bits = 0;
         fast_merge_eval = 0;
         bipred_refinement_iterations = 4;
         always_evaluate_intra_in_inter = 1;
@@ -34,6 +35,7 @@ struct EncoderSettings {
       case SpeedMode::kSlow:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
+        fast_inter_pred_bits = 0;
         fast_merge_eval = 1;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
@@ -53,6 +55,7 @@ struct EncoderSettings {
       case RestrictedMode::kModeA:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
+        fast_inter_pred_bits = 1;
         fast_merge_eval = 0;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
@@ -63,6 +66,7 @@ struct EncoderSettings {
       case RestrictedMode::kModeB:
         eval_prev_mv_search_result = 0;
         fast_intra_mode_eval_level = 2;
+        fast_inter_pred_bits = 1;
         fast_merge_eval = 1;
         bipred_refinement_iterations = 1;
         always_evaluate_intra_in_inter = 0;
@@ -76,13 +80,25 @@ struct EncoderSettings {
     }
   }
 
+  // Encoder rdo behavior
+  static constexpr bool kEncoderStrictRdoBitCounting = false;
+  static constexpr bool kEncoderCountActualWrittenBits = true;
+  static_assert(EncoderSettings::kEncoderCountActualWrittenBits ||
+                EncoderSettings::kEncoderStrictRdoBitCounting,
+                "Fast bit counting should use strict rdo bit signaling");
+
+  // Fast encoder decisions (always used)
   static const bool fast_quad_split_based_on_binary_split = true;
   static const bool fast_cu_split_based_on_full_cu = true;
   static const bool fast_mode_selection_for_cached_cu = true;
   static const bool skip_mode_decision_for_identical_cu = false;
+  static const bool fast_inter_cbf_dist = true;  // not really any impact
+  static const bool fast_inter_root_cbf_zero_bits = true;  // very small loss
 
+  // Speed mode dependent settings
   int eval_prev_mv_search_result = -1;
   int fast_intra_mode_eval_level = -1;
+  int fast_inter_pred_bits = -1;
   int fast_merge_eval = -1;
   int bipred_refinement_iterations = -1;
   int always_evaluate_intra_in_inter = -1;

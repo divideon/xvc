@@ -11,6 +11,7 @@
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/transform.h"
 #include "xvc_common_lib/yuv_pic.h"
+#include "xvc_enc_lib/encoder_settings.h"
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
@@ -19,7 +20,8 @@ namespace xvc {
 class TransformEncoder {
 public:
   TransformEncoder(int bitdepth, int num_components,
-                   const YuvPicture &orig_pic);
+                   const YuvPicture &orig_pic,
+                   const EncoderSettings &encoder_settings);
 
   SampleBuffer& GetPredBuffer() { return temp_pred_; }
   Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
@@ -37,6 +39,7 @@ public:
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
+  const EncoderSettings &encoder_settings_;
   const Sample min_pel_;
   const Sample max_pel_;
   const int num_components_;

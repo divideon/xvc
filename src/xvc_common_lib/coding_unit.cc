@@ -119,7 +119,7 @@ CodingUnit::DeriveSiblingSplitRestriction(SplitType parent_split) const {
   if (parent_split == SplitType::kVertical &&
       split_state_ == SplitType::kHorizontal) {
     // This case is like quad split although with different coding order
-    return width_ > constants::kMinBinarySplitSize && GetBinaryDepth() == 1 ?
+    return width_ >= constants::kMinCuSize && GetBinaryDepth() == 1 ?
       SplitRestriction::kNoHorizontal : SplitRestriction::kNone;
   } else if (parent_split == SplitType::kHorizontal &&
              split_state_ == SplitType::kVertical) {

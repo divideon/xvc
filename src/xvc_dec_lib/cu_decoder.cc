@@ -50,11 +50,11 @@ void CuDecoder::ReadCtu(int rsaddr, SyntaxReader * reader) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
     cu_reader_.ReadCtu(ctu2, reader);
   }
-#if HM_STRICT
-  if (reader->ReadEndOfSlice()) {
-    assert(0);
+  if (Restrictions::Get().disable_ext_implicit_last_ctu) {
+    if (reader->ReadEndOfSlice()) {
+      assert(0);
+    }
   }
-#endif
 }
 
 void CuDecoder::DecompressCu(CodingUnit *cu) {

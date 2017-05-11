@@ -162,6 +162,8 @@ extern "C" {
           stream >> encoder_settings.eval_prev_mv_search_result;
         } else if (setting == "fast_intra_mode_eval_level") {
           stream >> encoder_settings.fast_intra_mode_eval_level;
+        } else if (setting == "fast_inter_pred_bits") {
+          stream >> encoder_settings.fast_inter_pred_bits;
         } else if (setting == "fast_merge_eval") {
           stream >> encoder_settings.fast_merge_eval;
         } else if (setting == "bipred_refinement_iterations") {
