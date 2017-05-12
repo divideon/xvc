@@ -173,9 +173,11 @@
   <ItemGroup>
     <ClCompile Include="decoder_app.cc" />
     <ClCompile Include="main_dec.cc" />
+    <ClCompile Include="y4m_writer.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="decoder_app.h" />
+    <ClInclude Include="y4m_writer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

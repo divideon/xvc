@@ -4,16 +4,16 @@
 * without the written permission of the copyright holder.
 ******************************************************************************/
 
-#include "xvc_enc_app/y4m.h"
+#include "xvc_enc_app/y4m_reader.h"
 
 #include <cassert>
 #include <cstring>
 
 namespace xvc_app {
 
-bool Y4M::ParseY4M(int &width, int &height, double &framerate,
-                   int &input_bitdepth, std::streamoff &start_skip,
-                   std::streamoff *picture_skip) {
+bool Y4mReader::Read(int &width, int &height, double &framerate,
+                     int &input_bitdepth, std::streamoff &start_skip,
+                     std::streamoff *picture_skip) {
   char buf[256];
   ifs_.read(buf, sizeof(buf) - 1);
   std::streamsize len = ifs_.gcount();

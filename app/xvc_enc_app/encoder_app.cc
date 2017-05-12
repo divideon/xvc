@@ -12,7 +12,7 @@
 #include <sstream>
 #include <vector>
 
-#include "xvc_enc_app/y4m.h"
+#include "xvc_enc_app/y4m_reader.h"
 
 namespace xvc_app {
 
@@ -40,9 +40,9 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
     } else if (i == argc - 1) {
       continue;
     } else if (arg == "-input-file") {
-      cli_.input_file = argv[++i];
+      cli_.input_filename = argv[++i];
     } else if (arg == "-output-file") {
-      cli_.output_file = argv[++i];
+      cli_.output_filename = argv[++i];
     } else if (arg == "-rec-file") {
       cli_.rec_file = argv[++i];
     } else if (arg == "-input-width") {
@@ -102,27 +102,28 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
 }
 
 bool EncoderApp::CheckParameters() {
-  if (cli_.input_file.empty()) {
+  if (cli_.input_filename.empty()) {
     std::cerr << "Error: Missing input file argument" << std::endl;
     PrintUsage();
     std::exit(1);
   }
 
-  if (cli_.output_file.empty()) {
+  if (cli_.output_filename.empty()) {
     std::cerr << "Error: Missing output file argument" << std::endl;
     PrintUsage();
     std::exit(1);
   }
 
-  input_stream_.open(cli_.input_file, std::ios_base::binary);
+  input_stream_.open(cli_.input_filename, std::ios_base::binary);
   if (!input_stream_) {
-    std::cerr << "Failed to open input file: " << cli_.input_file << std::endl;
+    std::cerr << "Failed to open input file: " << cli_.input_filename
+      << std::endl;
     std::exit(1);
   }
 
-  Y4M Y4MParser(input_stream_);
-  if (!Y4MParser.ParseY4M(cli_.width, cli_.height, cli_.framerate,
-                          cli_.input_bitdepth, start_skip_, &picture_skip_)) {
+  Y4mReader y4m_reader(input_stream_);
+  if (!y4m_reader.Read(cli_.width, cli_.height, cli_.framerate,
+                       cli_.input_bitdepth, start_skip_, &picture_skip_)) {
     start_skip_ = 0;
     picture_skip_ = 0;
   }
@@ -157,9 +158,9 @@ bool EncoderApp::CheckParameters() {
     std::exit(1);
   }
 
-  output_stream_.open(cli_.output_file, std::ios_base::binary);
-  if (!output_stream_) {
-    std::cerr << "Failed to open output file: " << cli_.output_file
+  file_output_stream_.open(cli_.output_filename, std::ios_base::binary);
+  if (!file_output_stream_) {
+    std::cerr << "Failed to open output file: " << cli_.output_filename
       << std::endl;
     std::exit(1);
   }
@@ -258,8 +259,8 @@ void EncoderApp::PrintEncoderSettings() {
   if (!params_) {
     return;
   }
-  std::cout << "Input:        " << cli_.input_file << std::endl;
-  std::cout << "Output:       " << cli_.output_file << std::endl;
+  std::cout << "Input:        " << cli_.input_filename << std::endl;
+  std::cout << "Output:       " << cli_.output_filename << std::endl;
   std::cout << "Size:         " << params_->width << "x" << params_->height
     << std::endl;
   std::cout << "Bitdepth:     " << params_->input_bitdepth << std::endl;
@@ -333,9 +334,9 @@ void EncoderApp::MainEncoderLoop() {
       nal_size[1] = (nal_units[i].size >> 8) & 0xFF;
       nal_size[2] = (nal_units[i].size >> 16) & 0xFF;
       nal_size[3] = (nal_units[i].size >> 24) & 0xFF;
-      output_stream_.write(nal_size, 4);
-      output_stream_.write(reinterpret_cast<char *>(nal_units[i].bytes),
-                           nal_units[i].size);
+      file_output_stream_.write(nal_size, 4);
+      file_output_stream_.write(reinterpret_cast<char *>(nal_units[i].bytes),
+                                nal_units[i].size);
       total_bytes_ += nal_units[i].size;
 
       // Conditionally print information for each Nal Unit that is written
@@ -368,7 +369,7 @@ void EncoderApp::CloseStream() {
   if (rec_stream_.is_open()) {
     rec_stream_.close();
   }
-  output_stream_.close();
+  file_output_stream_.close();
   input_stream_.close();
 }
 

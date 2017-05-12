@@ -11,21 +11,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="y4m.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main_enc.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="encoder_app.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="y4m_reader.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="y4m.h">
+    <ClInclude Include="encoder_app.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="encoder_app.h">
+    <ClInclude Include="y4m_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

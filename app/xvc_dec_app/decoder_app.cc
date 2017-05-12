@@ -6,11 +6,20 @@
 
 #include "xvc_dec_app/decoder_app.h"
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
+#include <algorithm>
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <vector>
+
+#include "xvc_dec_app/y4m_writer.h"
 
 namespace xvc_app {
 
@@ -39,9 +48,9 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
     } else if (i == argc - 1) {
       continue;
     } else if (arg == "-bitstream-file") {
-      cli_.input_file = argv[++i];
+      cli_.input_filename = argv[++i];
     } else if (arg == "-output-file") {
-      cli_.output_file = argv[++i];
+      cli_.output_filename = argv[++i];
     } else if (arg == "-output-width") {
       std::stringstream(argv[++i]) >> cli_.output_width;
     } else if (arg == "-output-height") {
@@ -65,25 +74,37 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
 }
 
 bool DecoderApp::CheckParameters() {
-  if (cli_.input_file.empty()) {
+  if (cli_.input_filename.empty()) {
     std::cerr << "Error: Missing bitstream file argument" << std::endl;
     PrintUsage();
     std::exit(1);
   }
 
-  input_stream_.open(cli_.input_file, std::ios_base::binary);
+  input_stream_.open(cli_.input_filename, std::ios_base::binary);
   if (!input_stream_) {
     std::cerr << "Failed to open bitstream file: "
-      << cli_.input_file << std::endl;
+      << cli_.input_filename << std::endl;
     std::exit(1);
   }
 
-  if (!cli_.output_file.empty()) {
-    output_stream_.open(cli_.output_file, std::ios_base::binary);
-    if (!output_stream_) {
-      std::cerr << "Failed to open output file for writing: "
-        << cli_.output_file << std::endl;
-      std::exit(1);
+  if (!cli_.output_filename.empty()) {
+    if (cli_.output_filename == "-") {
+      log_to_stderr_ = 1;
+      output_to_stdout_ = true;
+      output_y4m_format_ = true;
+    } else {
+      std::string filename_suffix =
+        cli_.output_filename.substr(
+          std::max(0, static_cast<int>(cli_.output_filename.size()) - 4));
+      if (filename_suffix == ".y4m") {
+        output_y4m_format_ = true;
+      }
+      file_output_stream_.open(cli_.output_filename, std::ios_base::binary);
+      if (!file_output_stream_) {
+        std::cerr << "Failed to open output file for writing: "
+          << cli_.output_filename << std::endl;
+        std::exit(1);
+      }
     }
   }
 
@@ -110,7 +131,7 @@ void DecoderApp::CreateAndConfigureApi() {
     params_->max_framerate = cli_.max_framerate;
   }
   if (xvc_api_->parameters_check(params_) != XVC_DEC_OK) {
-    std::cout << "Error. Invalid parameters. Please check the values of the"
+    std::cerr << "Error. Invalid parameters. Please check the values of the"
       " command line parameters." << std::endl;
     PrintUsage();
     std::exit(1);
@@ -122,8 +143,8 @@ void DecoderApp::PrintDecoderSettings() {
   if (!params_) {
     return;
   }
-  std::cout << "Bitstream-file:   " << cli_.input_file << std::endl;
-  std::cout << "Output:           " << cli_.output_file << std::endl;
+  GetLog() << "Bitstream-file:   " << cli_.input_filename << std::endl;
+  GetLog() << "Output:           " << cli_.output_filename << std::endl;
 }
 
 void DecoderApp::MainDecoderLoop() {
@@ -132,6 +153,16 @@ void DecoderApp::MainDecoderLoop() {
   xvc_dec_return_code ret;
   num_pictures_decoded_ = 0;
   start_ = std::chrono::steady_clock::now();
+  std::ostream &output_stream = output_to_stdout_ ?
+    std::cout : file_output_stream_;
+  if (output_to_stdout_) {
+    std::cout.setf(std::ios::unitbuf);
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+  }
+
+  Y4mWriter y4m_writer;
 
   while (true) {
     // Get size of next Nal Unit.
@@ -164,8 +195,11 @@ void DecoderApp::MainDecoderLoop() {
 
       // Check if there is a decoded picture ready to be output.
       if (xvc_api_->decoder_get_picture(decoder_, &decoded_pic) == XVC_DEC_OK) {
-        if (output_stream_.is_open()) {
-          output_stream_.write(decoded_pic.bytes, decoded_pic.size);
+        if (output_stream.good()) {
+          if (output_y4m_format_) {
+            y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);
+          }
+          output_stream.write(decoded_pic.bytes, decoded_pic.size);
         }
         if (cli_.verbose) {
           PrintPictureInfo(decoded_pic.stats);
@@ -175,8 +209,11 @@ void DecoderApp::MainDecoderLoop() {
     } else {
       // Flush out all remaining decoded pictures.
       while (xvc_api_->decoder_flush(decoder_, &decoded_pic) == XVC_DEC_OK) {
-        if (output_stream_.is_open()) {
-          output_stream_.write(decoded_pic.bytes, decoded_pic.size);
+        if (output_stream.good()) {
+          if (output_y4m_format_) {
+            y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);
+          }
+          output_stream.write(decoded_pic.bytes, decoded_pic.size);
         }
         PrintPictureInfo(decoded_pic.stats);
         num_pictures_decoded_++;
@@ -188,64 +225,65 @@ void DecoderApp::MainDecoderLoop() {
 }
 
 void DecoderApp::CloseStream() {
-  if (output_stream_.is_open()) {
-    output_stream_.close();
+  if (file_output_stream_.is_open()) {
+    file_output_stream_.close();
   }
   input_stream_.close();
 }
 
 void DecoderApp::PrintStatistics() {
-  std::cout << std::endl << "Decoded:    " << num_pictures_decoded_
+  GetLog() << std::endl;
+  GetLog() << "Decoded:    " << num_pictures_decoded_
     << " pictures" << std::endl;
-  std::cout << "Total time: " <<
+  GetLog() << "Total time: " <<
     std::chrono::duration<float>(end_ - start_).count() << " s" << std::endl;
 }
 
 int DecoderApp::CheckConformance() {
   if (num_pictures_decoded_ == 0) {
-    std::cout << std::endl;
-    std::cout << "No pictures were decoded." << std::endl;
-    std::cout << std::endl;
+    GetLog() << std::endl;
+    GetLog() << "No pictures were decoded." << std::endl;
+    GetLog() << std::endl;
     return XVC_DEC_NO_DECODED_PIC;
   }
   int num_corrupted_pics;
   xvc_dec_return_code ret;
   ret = xvc_api_->decoder_check_conformance(decoder_, &num_corrupted_pics);
   if (ret == XVC_DEC_NOT_CONFORMING) {
-    std::cout << std::endl;
-    std::cout << "Error: A decoding mismatch occured in " <<
+    GetLog() << std::endl;
+    GetLog() << "Error: A decoding mismatch occured in " <<
       num_corrupted_pics << " pictures." << std::endl;
-    std::cout << "The bitstream is NOT a conforming bitstream." << std::endl;
-    std::cout << std::endl;
+    GetLog() << "The bitstream is NOT a conforming bitstream." << std::endl;
+    GetLog() << std::endl;
     return ret;
   } else if (ret == XVC_DEC_OK) {
     assert(num_corrupted_pics == 0);
-    std::cout << std::endl;
-    std::cout << "Conformance verified." << std::endl;
-    std::cout << "The bitstream is a conforming bitstream." << std::endl;
-    std::cout << std::endl;
+    GetLog() << std::endl;
+    GetLog() << "Conformance verified." << std::endl;
+    GetLog() << "The bitstream is a conforming bitstream." << std::endl;
+    GetLog() << std::endl;
     return ret;
   }
-  std::cout << std::endl;
-  std::cout << "Error: Conformance check unsuccessful." << std::endl;
-  std::cout << std::endl;
+  GetLog() << std::endl;
+  GetLog() << "Error: Conformance check unsuccessful." << std::endl;
+  GetLog() << std::endl;
   return ret;
 }
 
 void DecoderApp::PrintUsage() {
-  std::cout << std::endl << "Usage: -bitstream-file <string>"
+  GetLog() << std::endl << "Usage: -bitstream-file <string>"
     " -output-file <string>  [Optional parameters]" << std::endl;
-  std::cout << std::endl << "Optional parameters:" << std::endl;
-  std::cout << "  -output-width <int>" << std::endl;
-  std::cout << "  -output-height <int>" << std::endl;
-  std::cout << "  -output-chroma-format <int>" << std::endl;
-  std::cout << "      0: Monochrome" << std::endl;
-  std::cout << "      1: 4:2:0" << std::endl;
-  std::cout << "      2: 4:2:2" << std::endl;
-  std::cout << "      3: 4:4:4" << std::endl;
-  std::cout << "  -output-bitdepth <int>" << std::endl;
-  std::cout << "  -max-framerate <int>" << std::endl;
-  std::cout << "  -verbose <0/1>" << std::endl;
+  GetLog() << std::endl << "Optional parameters:" << std::endl;
+  GetLog() << "  -output-width <int>" << std::endl;
+  GetLog() << "  -output-height <int>" << std::endl;
+  GetLog() << "  -output-chroma-format <int>" << std::endl;
+  GetLog() << "      0: Monochrome" << std::endl;
+  GetLog() << "      1: 4:2:0" << std::endl;
+  GetLog() << "      2: 4:2:2" << std::endl;
+  GetLog() << "      3: 4:4:4" << std::endl;
+  GetLog() << "  -output-bitdepth <int>" << std::endl;
+  GetLog() << "  -max-framerate <int>" << std::endl;
+  GetLog() << "  -verbose <0/1>" << std::endl;
 }
 
 size_t DecoderApp::ReadNextNalSize() {
@@ -263,57 +301,57 @@ size_t DecoderApp::ReadNextNalSize() {
 void DecoderApp::PrintPictureInfo(xvc_dec_pic_stats pic_stats) {
   if (!segment_info_printed_) {
     segment_info_printed_ = 1;
-    std::cout << "Width:" << std::setw(21) << pic_stats.width << std::endl;
-    std::cout << "Height:" << std::setw(20) << pic_stats.height << std::endl;
-    std::cout << "Output bitdepth:" << std::setw(11) << pic_stats.bitdepth
+    GetLog() << "Width:" << std::setw(21) << pic_stats.width << std::endl;
+    GetLog() << "Height:" << std::setw(20) << pic_stats.height << std::endl;
+    GetLog() << "Output bitdepth:" << std::setw(11) << pic_stats.bitdepth
       << std::endl;
-    std::cout << "Bitstream bitdepth:" << std::setw(8)
+    GetLog() << "Bitstream bitdepth:" << std::setw(8)
       << pic_stats.bitstream_bitdepth << std::endl;
     if (pic_stats.chroma_format == XVC_DEC_CHROMA_FORMAT_MONOCHROME) {
-      std::cout << "Chroma format:  Monochorome" << std::endl;
+      GetLog() << "Chroma format:  Monochorome" << std::endl;
     } else if (pic_stats.chroma_format == XVC_DEC_CHROMA_FORMAT_420) {
-      std::cout << "Chroma format:        4:2:0" << std::endl;
+      GetLog() << "Chroma format:        4:2:0" << std::endl;
     } else if (pic_stats.chroma_format == XVC_DEC_CHROMA_FORMAT_422) {
-      std::cout << "Chroma format:        4:2:2" << std::endl;
+      GetLog() << "Chroma format:        4:2:2" << std::endl;
     } else if (pic_stats.chroma_format == XVC_DEC_CHROMA_FORMAT_444) {
-      std::cout << "Chroma format:        4:4:4" << std::endl;
+      GetLog() << "Chroma format:        4:4:4" << std::endl;
     }
-    std::cout << "Output framerate:" << std::setw(10) << pic_stats.framerate
+    GetLog() << "Output framerate:" << std::setw(10) << pic_stats.framerate
       << std::endl;
-    std::cout << "Bitstream framerate:" << std::setw(7)
+    GetLog() << "Bitstream framerate:" << std::setw(7)
       << pic_stats.bitstream_framerate << std::endl << std::endl;
   }
   if (cli_.verbose) {
-    std::cout << "NUT:" << std::setw(6) << pic_stats.nal_unit_type;
-    std::cout << "  POC:" << std::setw(6) << pic_stats.poc;
-    std::cout << "  DOC:" << std::setw(6) << pic_stats.doc;
-    std::cout << "  SOC:" << std::setw(6) << pic_stats.soc;
-    std::cout << "  TID:" << std::setw(6) << pic_stats.tid;
-    std::cout << "   QP:" << std::setw(6) << pic_stats.qp;
+    GetLog() << "NUT:" << std::setw(6) << pic_stats.nal_unit_type;
+    GetLog() << "  POC:" << std::setw(6) << pic_stats.poc;
+    GetLog() << "  DOC:" << std::setw(6) << pic_stats.doc;
+    GetLog() << "  SOC:" << std::setw(6) << pic_stats.soc;
+    GetLog() << "  TID:" << std::setw(6) << pic_stats.tid;
+    GetLog() << "   QP:" << std::setw(6) << pic_stats.qp;
     if (pic_stats.l0[0] >= 0 || pic_stats.l1[0] >= 0) {
-      std::cout << "  RefPics: L0: { ";
+      GetLog() << "  RefPics: L0: { ";
       int length_l0 = sizeof(pic_stats.l0) / sizeof(pic_stats.l0[0]);
       for (int i = 0; i < length_l0; i++) {
         if (pic_stats.l0[i] > -1) {
           if (i > 0) {
-            std::cout << ", ";
+            GetLog() << ", ";
           }
-          std::cout << std::setw(3) << pic_stats.l0[i];
+          GetLog() << std::setw(3) << pic_stats.l0[i];
         }
       }
-      std::cout << " } L1: { ";
+      GetLog() << " } L1: { ";
       int length_l1 = sizeof(pic_stats.l1) / sizeof(pic_stats.l1[0]);
       for (int i = 0; i < length_l1; i++) {
         if (pic_stats.l1[i] > -1) {
           if (i > 0) {
-            std::cout << ", ";
+            GetLog() << ", ";
           }
-          std::cout << std::setw(3) << pic_stats.l1[i];
+          GetLog() << std::setw(3) << pic_stats.l1[i];
         }
       }
-      std::cout << " }";
+      GetLog() << " }";
     }
-    std::cout << std::endl;
+    GetLog() << std::endl;
   }
 }
 

@@ -289,8 +289,9 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   output_pic->stats.width = output_width_;
   output_pic->stats.height = output_height_;
   output_pic->stats.bitdepth = output_bitdepth_;
+  output_pic->stats.chroma_format =
+    xvc_dec_chroma_format(output_chroma_format_);
   output_pic->stats.bitstream_bitdepth = pic_data->GetBitdepth();
-  output_pic->stats.chroma_format = getChromaFormatApiStyle();
   output_pic->stats.framerate =
     SegmentHeader::GetFramerate(max_tid_, curr_segment_header_.bitstream_ticks,
                                 sliding_window_length_ - 1);

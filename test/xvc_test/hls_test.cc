@@ -20,7 +20,8 @@ public:
 
   void EncodeWithVersion(int major_version, int minor_version) {
     encoder_->SetResolution(0, 0);
-    EncodeFirstFrame();
+    std::vector<uint8_t> pic_bytes;
+    EncodeFirstFrame(pic_bytes, 8);
     // Rewrite version directly in bitstream
     uint8_t *segment_header = &encoded_nal_units_[0][0];
     segment_header++;   // nal_header (1 byte)
@@ -32,7 +33,8 @@ public:
 
   void EncodeWithRfeValue(int nal_rfe_value) {
     encoder_->SetResolution(0, 0);
-    EncodeFirstFrame();
+    std::vector<uint8_t> pic_bytes;
+    EncodeFirstFrame(pic_bytes, 8);
     // Rewrite value directly in bitstream
     uint8_t *nal_unit_header = &encoded_nal_units_[0][0];
     nal_unit_header[0] |= (nal_rfe_value & 3) << 6;

@@ -17,9 +17,15 @@
     <ClCompile Include="decoder_app.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="y4m_writer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="decoder_app.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="y4m_writer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

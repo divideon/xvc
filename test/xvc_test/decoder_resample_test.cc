@@ -14,26 +14,36 @@
 
 namespace {
 
-class DecoderResampleTest : public ::testing::Test,
+static const int kPicSize = 16;
+static const int kBitdepth = 8;
+// Decoding exactly the same sample value depends on quantization level...
+static const int kQp1 = 18;
+static const xvc::Sample kSample1 = 43;
+static const int kQp2 = 23;
+static const xvc::Sample kSample2 = 96;
+
+class DecoderResampleTest : public ::testing::TestWithParam<bool>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void SetUp() override {
     EncoderHelper::Init();
     DecoderHelper::Init();
-    encoder_->SetSubGopLength(1);
-    encoder_->SetSegmentLength(1);
   }
 
-  void EncodeDecodeResolution(int size_enc1, int size_enc2, int size_dec,
-                                   bool explicit_output_resolution) {
-    const int bitdepth = 8;
-    encoder_ = CreateEncoder(size_enc1, size_enc1, bitdepth, qp1);
-    EncodeFirstFrame(kSample1);
-    encoder_ = CreateEncoder(size_enc2, size_enc2, bitdepth, qp2);
-    EncodeFirstFrame(kSample2);
-    ASSERT_EQ(4, encoded_nal_units_.size());
+  void EncodeSegment(xvc::Sample orig_sample, int  qp, int resolution,
+                     int bitdepth,
+                     xvc::ChromaFormat chroma_fmt = xvc::ChromaFormat::k420) {
+    encoder_ = CreateEncoder(resolution, resolution, bitdepth, qp);
+    encoder_->SetSubGopLength(1);
+    encoder_->SetSegmentLength(1);
+    encoder_->SetChromaFormat(chroma_fmt);
+    auto pic_bytes = CreateSampleBuffer(orig_sample, bitdepth);
+    EncodeFirstFrame(pic_bytes, bitdepth);
+  }
 
-    if (explicit_output_resolution) {
+  void DecodeResolution(int size_dec) {
+    ASSERT_EQ(4, encoded_nal_units_.size());
+    if (GetParam()) {
       decoder_->SetOutputWidth(size_dec);
       decoder_->SetOutputHeight(size_dec);
     }
@@ -42,27 +52,42 @@ protected:
     auto dec_pic = DecodeAndFlush(GetNextNalToDecode());
     EXPECT_EQ(size_dec, dec_pic->stats.width);
     EXPECT_EQ(size_dec, dec_pic->stats.height);
+    EXPECT_EQ(kBitdepth, dec_pic->stats.bitdepth);
     EXPECT_TRUE(VerifyDecodedLumaEquals(*dec_pic, kSample1));
 
     DecodeSegmentHeaderSuccess(GetNextNalToDecode());
     dec_pic = DecodeAndFlush(GetNextNalToDecode());
     EXPECT_EQ(size_dec, dec_pic->stats.width);
     EXPECT_EQ(size_dec, dec_pic->stats.height);
+    EXPECT_EQ(kBitdepth, dec_pic->stats.bitdepth);
     EXPECT_TRUE(VerifyDecodedLumaEquals(*dec_pic, kSample2));
   }
 
-  void EncodeDecodeBitdepth(int bitdepth_enc1, int bitdepth_enc2,
-                            int bitdepth_dec, bool explicit_output) {
-    const int size_enc1 = 16;
-    const int size_enc2 = 16;
-    const int size_dec = 16;
-    encoder_ = CreateEncoder(size_enc1, size_enc1, bitdepth_enc1, qp1);
-    EncodeFirstFrame(kSample1, bitdepth_enc1);
-    encoder_ = CreateEncoder(size_enc2, size_enc2, bitdepth_enc2, qp2);
-    EncodeFirstFrame(kSample2, bitdepth_enc2);
+  void DecodeChromaFormat(xvc_dec_chroma_format chroma_fmt_dec) {
     ASSERT_EQ(4, encoded_nal_units_.size());
+    if (GetParam()) {
+      decoder_->SetOutputChromaFormat(chroma_fmt_dec);
+    }
 
-    if (explicit_output) {
+    DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    auto dec_pic = DecodeAndFlush(GetNextNalToDecode());
+    EXPECT_EQ(kPicSize, dec_pic->stats.width);
+    EXPECT_EQ(kPicSize, dec_pic->stats.height);
+    EXPECT_EQ(kBitdepth, dec_pic->stats.bitdepth);
+    EXPECT_EQ(chroma_fmt_dec, dec_pic->stats.chroma_format);
+
+    DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    dec_pic = DecodeAndFlush(GetNextNalToDecode());
+    EXPECT_EQ(kPicSize, dec_pic->stats.width);
+    EXPECT_EQ(kPicSize, dec_pic->stats.height);
+    EXPECT_EQ(kBitdepth, dec_pic->stats.bitdepth);
+    EXPECT_EQ(chroma_fmt_dec, dec_pic->stats.chroma_format);
+  }
+
+  void DecodeBitdepth(int size_dec, int bitdepth_enc1, int bitdepth_enc2,
+                      int bitdepth_dec) {
+    ASSERT_EQ(4, encoded_nal_units_.size());
+    if (GetParam()) {
       decoder_->SetOutputBitdepth(bitdepth_dec);
     }
 
@@ -102,70 +127,73 @@ protected:
       dec_pic.stats.width, dec_pic.stats.height, dec_pic.stats.bitdepth,
       dec_pic.bytes, dec_pic.size, expected_sample);
   }
-
-  // Decoding exactly the same value depends on quantization
-  const int qp1 = 18;
-  const int qp2 = 23;
-  static const xvc::Sample kSample1 = 43;
-  static const xvc::Sample kSample2 = 96;
 };
 
-TEST_F(DecoderResampleTest, DownscalingImplicit) {
-  EncodeDecodeResolution(16, 24, 16, false);
+TEST_P(DecoderResampleTest, DownscalingImplicit) {
+  EncodeSegment(kSample1, kQp1, 16, kBitdepth);
+  EncodeSegment(kSample2, kQp2, 24, kBitdepth);
+  DecodeResolution(16);
 }
 
-TEST_F(DecoderResampleTest, DownscalingExplicit) {
-  EncodeDecodeResolution(16, 24, 16, true);
+TEST_P(DecoderResampleTest, UpscalingImplicit) {
+  EncodeSegment(kSample1, kQp1, 24, kBitdepth);
+  EncodeSegment(kSample2, kQp2, 16, kBitdepth);
+  DecodeResolution(24);
 }
 
-TEST_F(DecoderResampleTest, UpscalingImplicit) {
-  EncodeDecodeResolution(24, 16, 24, false);
+TEST_P(DecoderResampleTest, Chroma420ToMono) {
+  EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth, xvc::ChromaFormat::k420);
+  EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth,
+                xvc::ChromaFormat::kMonochrome);
+  DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_420);
 }
 
-TEST_F(DecoderResampleTest, UpscalingExplicit) {
-  EncodeDecodeResolution(24, 16, 24, true);
+TEST_P(DecoderResampleTest, ChromaMonoTo420) {
+  EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth,
+                xvc::ChromaFormat::kMonochrome);
+  EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth, xvc::ChromaFormat::k420);
+  DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_MONOCHROME);
+}
+
+TEST_P(DecoderResampleTest, Chroma420To444) {
+  EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth, xvc::ChromaFormat::k420);
+  EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth, xvc::ChromaFormat::k444);
+  DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_420);
+}
+
+TEST_P(DecoderResampleTest, Chroma444To420) {
+  EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth, xvc::ChromaFormat::k444);
+  EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth, xvc::ChromaFormat::k420);
+  DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_444);
 }
 
 #if XVC_HIGH_BITDEPTH
-TEST_F(DecoderResampleTest, BitdepthUpConversionLowToHigh) {
-  EncodeDecodeBitdepth(8, 10, 8, false);
+TEST_P(DecoderResampleTest, BitdepthUpConversionLowToHigh) {
+  EncodeSegment(kSample1, kQp1, kPicSize, 8);
+  EncodeSegment(kSample2, kQp2, kPicSize, 10);
+  DecodeBitdepth(kPicSize, 8, 10, 8);
 }
 
-TEST_F(DecoderResampleTest, BitdepthUpConversionLowToHighExplicit) {
-  EncodeDecodeBitdepth(8, 10, 8, true);
+TEST_P(DecoderResampleTest, BitdepthUpConversionHighToHigh) {
+  EncodeSegment(kSample1, kQp1, kPicSize, 10);
+  EncodeSegment(kSample2, kQp2, kPicSize, 12);
+  DecodeBitdepth(kPicSize, 10, 12, 10);
 }
 
-TEST_F(DecoderResampleTest, BitdepthUpConversionHighToHigh) {
-  EncodeDecodeBitdepth(10, 12, 10, false);
+TEST_P(DecoderResampleTest, BitdepthDownConversionHighToLow) {
+  EncodeSegment(kSample1, kQp1, kPicSize, 10);
+  EncodeSegment(kSample2, kQp2, kPicSize, 8);
+  DecodeBitdepth(kPicSize, 10, 8, 10);
 }
 
-TEST_F(DecoderResampleTest, BitdepthUpConversionHighToHighExplicit) {
-  EncodeDecodeBitdepth(10, 12, 10, true);
-}
-
-TEST_F(DecoderResampleTest, BitdepthUpConversionExplicit) {
-  EncodeDecodeBitdepth(8, 10, 12, true);
-}
-
-TEST_F(DecoderResampleTest, BitdepthDownConversionHighToLow) {
-  EncodeDecodeBitdepth(10, 8, 10, false);
-}
-
-TEST_F(DecoderResampleTest, BitdepthDownConversionHighToLowExplicit) {
-  EncodeDecodeBitdepth(10, 8, 10, true);
-}
-
-TEST_F(DecoderResampleTest, BitdepthDownConversionHighToHigh) {
-  EncodeDecodeBitdepth(12, 10, 12, false);
-}
-
-TEST_F(DecoderResampleTest, BitdepthDownConversionHighToHighExplicit) {
-  EncodeDecodeBitdepth(12, 10, 12, true);
-}
-
-TEST_F(DecoderResampleTest, BitdepthDownConversionExplicit) {
-  EncodeDecodeBitdepth(12, 10, 8, true);
+TEST_P(DecoderResampleTest, BitdepthDownConversionHighToHigh) {
+  EncodeSegment(kSample1, kQp1, kPicSize, 12);
+  EncodeSegment(kSample2, kQp2, kPicSize, 10);
+  DecodeBitdepth(kPicSize, 12, 10, 12);
 }
 #endif
+
+INSTANTIATE_TEST_CASE_P(ExplicitOutput, DecoderResampleTest,
+                        ::testing::Values(false, true));
 
 }   // namespace

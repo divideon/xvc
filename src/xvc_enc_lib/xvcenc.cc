@@ -214,7 +214,7 @@ extern "C" {
     xvc_enc_set_speed_mode(encoder, param);
 
     encoder->SetResolution(param->width, param->height);
-    encoder->SetChromaFormat(param->chroma_format);
+    encoder->SetChromaFormat(xvc::ChromaFormat(param->chroma_format));
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);

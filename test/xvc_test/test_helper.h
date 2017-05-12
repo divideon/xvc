@@ -32,7 +32,7 @@ protected:
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder->SetEncoderSettings(std::move(encoder_settings));
     encoder->SetResolution(width, height);
-    encoder->SetChromaFormat(XVC_ENC_CHROMA_FORMAT_420);
+    encoder->SetChromaFormat(xvc::ChromaFormat::k420);
     encoder->SetInputBitdepth(8);
     encoder->SetInternalBitdepth(internal_bitdepth);
     encoder->SetSegmentLength(64);
@@ -61,11 +61,6 @@ protected:
                 static_cast<uint16_t>(fill_sample));
     }
     return pic_bytes;
-  }
-
-  void EncodeFirstFrame(xvc::Sample fill_sample = 0x7F, int bitdepth = 8) {
-    std::vector<uint8_t> pic_bytes = CreateSampleBuffer(fill_sample, bitdepth);
-    return EncodeFirstFrame(pic_bytes, bitdepth);
   }
 
   void EncodeFirstFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {

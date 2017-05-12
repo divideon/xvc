@@ -10,6 +10,7 @@
 #include <stddef.h>
 
 #include <chrono>
+#include <iostream>
 #include <fstream>
 #include <string>
 
@@ -34,17 +35,23 @@ private:
   void PrintUsage();
   size_t ReadNextNalSize();
   void PrintPictureInfo(xvc_dec_pic_stats pic_stats);
+  std::ostream& GetLog() {
+    return !log_to_stderr_ ? std::cout : std::cerr;
+  }
 
   std::ifstream input_stream_;
-  std::ofstream output_stream_;
+  std::ofstream file_output_stream_;
+  bool output_to_stdout_ = false;
+  bool log_to_stderr_ = false;
+  bool output_y4m_format_ = false;
 
   int num_pictures_decoded_ = 0;
   int segment_info_printed_ = 0;
 
   // command line arguments
   struct {
-    std::string input_file;
-    std::string output_file;
+    std::string input_filename;
+    std::string output_filename;
     int output_width = -1;
     int output_height = -1;
     xvc_dec_chroma_format output_chroma_format =

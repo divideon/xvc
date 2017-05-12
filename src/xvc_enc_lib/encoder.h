@@ -19,7 +19,6 @@
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/picture_encoder.h"
 #include "xvc_enc_lib/encoder_settings.h"
-#include "xvc_enc_lib/xvcenc.h"
 
 struct xvc_encoder {};
 
@@ -38,8 +37,8 @@ public:
     segment_header_.pic_width = width;
     segment_header_.pic_height = height;
   }
-  void SetChromaFormat(xvc_enc_chroma_format format) {
-    segment_header_.chroma_format = ChromaFormat(format);
+  void SetChromaFormat(ChromaFormat chroma_fmt) {
+    segment_header_.chroma_format = chroma_fmt;
   }
   int GetNumRefPics() const { return segment_header_.num_ref_pics; }
   void SetNumRefPics(int num) {

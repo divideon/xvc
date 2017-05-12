@@ -168,7 +168,7 @@
   <ItemGroup>
     <ClCompile Include="encoder_app.cc" />
     <ClCompile Include="main_enc.cc" />
-    <ClCompile Include="y4m.cc" />
+    <ClCompile Include="y4m_reader.cc" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\xvc_enc_lib\xvc_enc_lib.vcxproj">
@@ -177,7 +177,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="encoder_app.h" />
-    <ClInclude Include="y4m.h" />
+    <ClInclude Include="y4m_reader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

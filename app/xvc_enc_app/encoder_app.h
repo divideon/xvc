@@ -37,7 +37,7 @@ private:
   void PrintNalInfo(xvc_enc_nal_unit nal_unit);
 
   std::ifstream input_stream_;
-  std::ofstream output_stream_;
+  std::ofstream file_output_stream_;
   std::ofstream rec_stream_;
   std::streamoff start_skip_;
   std::streamoff picture_skip_;
@@ -47,8 +47,8 @@ private:
 
   // command line arguments
   struct {
-    std::string input_file;
-    std::string output_file;
+    std::string input_filename;
+    std::string output_filename;
     std::string rec_file;
     int width = 0;
     int height = 0;
