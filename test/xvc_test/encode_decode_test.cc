@@ -13,14 +13,14 @@
 
 namespace {
 
+static constexpr int kQp = 27;
+static constexpr double kPsnrThreshold = 28.0;
+static constexpr int kFramesEncoded = 8;
+static constexpr int kSegmentLength = kFramesEncoded * 3;
+
 class EncodeDecodeTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
-  static constexpr int kQp = 27;
-  static constexpr double kPsnrThreshold = 28.0;
-  static constexpr int kFramesEncoded = 8;
-  static constexpr int kSegmentLength = kFramesEncoded * 3;
-
   void SetUp() override {
     EncoderHelper::Init();
     DecoderHelper::Init();

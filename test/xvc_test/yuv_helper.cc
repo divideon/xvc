@@ -6,6 +6,7 @@
 
 #include "xvc_test/yuv_helper.h"
 
+#include <cmath>
 #include <limits>
 
 #include "xvc_common_lib/utils.h"
