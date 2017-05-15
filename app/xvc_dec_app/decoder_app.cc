@@ -15,6 +15,7 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -63,6 +64,8 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.output_bitdepth;
     } else if (arg == "-max-framerate") {
       std::stringstream(argv[++i]) >> cli_.max_framerate;
+    } else if (arg == "-loop") {
+      std::stringstream(argv[++i]) >> cli_.loop;
     } else if (arg == "-verbose") {
       std::stringstream(argv[++i]) >> cli_.verbose;
     } else {
@@ -161,66 +164,75 @@ void DecoderApp::MainDecoderLoop() {
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
   }
-
+  int loop_iterations = std::max(1, cli_.loop);
+  if (cli_.loop == 0) {
+    loop_iterations = std::numeric_limits<int>::max();
+  }
   Y4mWriter y4m_writer;
 
   while (true) {
     // Get size of next Nal Unit.
     // size = 0 means no more Nal Units (end of file).
-    size_t nal_size = ReadNextNalSize();
-
-    if (nal_size) {
-      // Read next Nal Unit from file.
-      nal_bytes_.resize(nal_size);
-      input_stream_.read(reinterpret_cast<char *>(&nal_bytes_[0]), nal_size);
-      if (static_cast<size_t>(input_stream_.gcount()) < nal_size) {
-        std::cerr << "Unable to read nal." << std::endl;
-        std::exit(1);
-      }
-
-      // Decode next Nal Unit.
-      ret = xvc_api_->decoder_decode_nal(decoder_, &nal_bytes_[0], nal_size);
-      if (ret == XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER) {
-        std::cerr << "The xvc version indicated in the segment header is " <<
-          "higher than the xvc version of the decoder." << std::endl <<
-          "Please update the xvc decoder to the latest version." << std::endl;
-        std::exit(XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER);
-      } else if (ret == XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH) {
-        std::cerr << "The bitstream is of higher bitdepth than what the " <<
-          "decoder has been compiled for." << std::endl << "Please "
-          "recompile the decoder to support higher bitdepth " <<
-          "(by setting XVC_HIGH_BITDEPTH equal to 1)." << std::endl;
-        std::exit(XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH);
-      }
-
-      // Check if there is a decoded picture ready to be output.
-      if (xvc_api_->decoder_get_picture(decoder_, &decoded_pic) == XVC_DEC_OK) {
-        if (output_stream.good()) {
-          if (output_y4m_format_) {
-            y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);
-          }
-          output_stream.write(decoded_pic.bytes, decoded_pic.size);
-        }
-        if (cli_.verbose) {
-          PrintPictureInfo(decoded_pic.stats);
-        }
-        num_pictures_decoded_++;
-      }
-    } else {
-      // Flush out all remaining decoded pictures.
-      while (xvc_api_->decoder_flush(decoder_, &decoded_pic) == XVC_DEC_OK) {
-        if (output_stream.good()) {
-          if (output_y4m_format_) {
-            y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);
-          }
-          output_stream.write(decoded_pic.bytes, decoded_pic.size);
-        }
-        PrintPictureInfo(decoded_pic.stats);
-        num_pictures_decoded_++;
+    size_t nal_size = ReadNextNalSize(&input_stream_);
+    if (!nal_size) {
+      if (--loop_iterations > 0) {
+        input_stream_.clear();
+        input_stream_.seekg(0, input_stream_.beg);
+        continue;
       }
       break;
     }
+
+    // Read next Nal Unit from file.
+    nal_bytes_.resize(nal_size);
+    input_stream_.read(reinterpret_cast<char *>(&nal_bytes_[0]), nal_size);
+    if (static_cast<size_t>(input_stream_.gcount()) < nal_size) {
+      std::cerr << "Unable to read nal." << std::endl;
+      std::exit(1);
+    }
+
+    // Decode next Nal Unit.
+    ret = xvc_api_->decoder_decode_nal(decoder_, &nal_bytes_[0], nal_size);
+    if (ret == XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER) {
+      std::cerr << "The xvc version indicated in the segment header is " <<
+        "higher than the xvc version of the decoder." << std::endl <<
+        "Please update the xvc decoder to the latest version." << std::endl;
+      std::exit(XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER);
+    } else if (ret == XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH) {
+      std::cerr << "The bitstream is of higher bitdepth than what the " <<
+        "decoder has been compiled for." << std::endl << "Please "
+        "recompile the decoder to support higher bitdepth " <<
+        "(by setting XVC_HIGH_BITDEPTH equal to 1)." << std::endl;
+      std::exit(XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH);
+    }
+
+    // Check if there is a decoded picture ready to be output.
+    if (xvc_api_->decoder_get_picture(decoder_, &decoded_pic) == XVC_DEC_OK) {
+      if (output_stream.good()) {
+        if (output_y4m_format_) {
+          y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);
+        }
+        output_stream.write(decoded_pic.bytes, decoded_pic.size);
+      }
+      if (cli_.verbose) {
+        PrintPictureInfo(decoded_pic.stats);
+      }
+      num_pictures_decoded_++;
+    }
   }
+
+  // Flush out all remaining decoded pictures.
+  while (xvc_api_->decoder_flush(decoder_, &decoded_pic) == XVC_DEC_OK) {
+    if (output_stream.good()) {
+      if (output_y4m_format_) {
+        y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);
+      }
+      output_stream.write(decoded_pic.bytes, decoded_pic.size);
+    }
+    PrintPictureInfo(decoded_pic.stats);
+    num_pictures_decoded_++;
+  }
+
   end_ = std::chrono::steady_clock::now();
 }
 
@@ -283,14 +295,15 @@ void DecoderApp::PrintUsage() {
   GetLog() << "      3: 4:4:4" << std::endl;
   GetLog() << "  -output-bitdepth <int>" << std::endl;
   GetLog() << "  -max-framerate <int>" << std::endl;
+  GetLog() << "  -loop <int>" << std::endl;
   GetLog() << "  -verbose <0/1>" << std::endl;
 }
 
-size_t DecoderApp::ReadNextNalSize() {
+size_t DecoderApp::ReadNextNalSize(std::istream *input) {
   size_t length;
   uint8_t nal_size[4];
-  input_stream_.read(reinterpret_cast<char *>(nal_size), 4);
-  if (input_stream_.gcount() < 4) {
+  input->read(reinterpret_cast<char *>(nal_size), 4);
+  if (input->gcount() < 4) {
     return 0;
   }
   length = nal_size[0] | (nal_size[1] << 8) | (nal_size[2] << 16) |

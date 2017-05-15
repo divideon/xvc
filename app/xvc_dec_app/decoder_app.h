@@ -33,7 +33,7 @@ public:
 
 private:
   void PrintUsage();
-  size_t ReadNextNalSize();
+  size_t ReadNextNalSize(std::istream *input);
   void PrintPictureInfo(xvc_dec_pic_stats pic_stats);
   std::ostream& GetLog() {
     return !log_to_stderr_ ? std::cout : std::cerr;
@@ -58,6 +58,7 @@ private:
       XVC_DEC_CHROMA_FORMAT_UNDEFINED;
     int output_bitdepth = -1;
     int max_framerate = -1;
+    int loop = -1;
     int verbose = 0;
   } cli_;
 

@@ -231,7 +231,8 @@ extern "C" {
       encoder->SetNumRefPics(param->num_ref_pics);
     }
     encoder->SetFlatLambda(param->flat_lambda != 0);
-    encoder->SetChecksumMode(param->checksum_mode);
+    encoder->SetChecksumMode(
+      static_cast<xvc::Checksum::Mode>(param->checksum_mode));
 
     int sub_gop_length = param->sub_gop_length;
     if (sub_gop_length == 0) {

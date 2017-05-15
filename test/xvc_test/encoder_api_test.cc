@@ -7,6 +7,7 @@
 #include "googletest/include/gtest/gtest.h"
 
 #include "xvc_common_lib/common.h"
+#include "xvc_common_lib/checksum.h"
 #include "xvc_enc_lib/xvcenc.h"
 
 namespace {
@@ -141,6 +142,14 @@ TEST(EncoderAPI, ParamCheck) {
   params->beta_offset = 31;
   params->tc_offset = -32;
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
+
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->checksum_mode = static_cast<int>(xvc::Checksum::Mode::kMinOverhead);
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
+
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->checksum_mode = static_cast<int>(xvc::Checksum::Mode::kTotalNumber);
+  EXPECT_EQ(XVC_ENC_INVALID_PARAMETER, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));

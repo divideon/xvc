@@ -62,8 +62,8 @@ public:
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
   void SetQp(int qp) { segment_qp_ = qp; }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
-  void SetChecksumMode(int mode) {
-    segment_header_.checksum_mode = Checksum::Mode(mode);
+  void SetChecksumMode(Checksum::Mode mode) {
+    segment_header_.checksum_mode = mode;
   }
   void SetRestrictedMode(int mode);
 

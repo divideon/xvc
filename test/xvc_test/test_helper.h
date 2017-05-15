@@ -38,7 +38,7 @@ protected:
     encoder->SetSegmentLength(64);
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);
-    encoder->SetChecksumMode(1);
+    encoder->SetChecksumMode(xvc::Checksum::Mode::kMaxRobust);
     encoder->SetDeblock(1);
     encoder->SetQp(qp);
     return encoder;
