@@ -57,7 +57,7 @@ private:
                                 Distortion ssd);
   int CalcDeltaQpFromVariance(const CodingUnit *cu);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
-  void CuEncoder::SetQpForAllCusInCtu(CodingUnit *ctu, int qp);
+  void SetQpForAllCusInCtu(CodingUnit *ctu, int qp);
 
   static bool CanSkipAnySplitForCu(const PictureData &pic_data,
                                     const CodingUnit &cu);

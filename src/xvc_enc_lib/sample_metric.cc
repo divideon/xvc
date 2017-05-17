@@ -478,8 +478,8 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
   uint64_t reco_reco_sum = 0;
   uint64_t orig_reco_sum = 0;
   int shift = (2 * (bitdepth_ - 8));
-  const uint64_t c1 = 26634l << shift;
-  const uint64_t c2 = 239708l << shift;
+  const uint64_t c1 = 26634ull << shift;
+  const uint64_t c2 = 239708ull << shift;
   const double c3 = 0.5;
   const uint64_t c4 = 128;
   uint64_t ssd = 0;
@@ -518,8 +518,8 @@ uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
   uint64_t reco_reco_sum = 0;
   uint64_t orig_reco_sum = 0;
   int shift = (2 * (bitdepth_ - 8));
-  const uint64_t c1 = 26634l << shift;
-  const uint64_t c2 = 239708l << shift;
+  const uint64_t c1 = 26634ull << shift;
+  const uint64_t c2 = 239708ull << shift;
   const double c3 = 0.5;
   const uint64_t c4 = 256;
   uint64_t ssd = 0;

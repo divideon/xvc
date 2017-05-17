@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -279,7 +280,6 @@ int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
   const YuvComponent luma = YuvComponent::kY;
   const int x = cu->GetPosX(luma);
   const int y = cu->GetPosY(luma);
-  const Sample *src = orig_pic_.GetSamplePtr(luma, x, y);
 
   auto calc_variance = [](const Sample* src, int block_size, ptrdiff_t stride) {
     uint64_t sum = 0;
@@ -302,16 +302,16 @@ int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
   uint64_t min_var = std::numeric_limits<uint64_t>::max();
   std::vector<uint64_t> v(h * w);
   for (int i = 0; i < h; i++) {
-    src = orig_pic_.GetSamplePtr(luma, x, y) +
+    const Sample *orig = orig_pic_.GetSamplePtr(luma, x, y) +
       i * kVarBlocksize * orig_pic_.GetStride(luma);
     for (int j = 0; j < w; j++) {
-      uint64_t variance = calc_variance(src, kVarBlocksize,
+      uint64_t variance = calc_variance(orig, kVarBlocksize,
                                         orig_pic_.GetStride(luma));
       if (variance < min_var) {
         min_var = variance;
       }
       v[i * w + j] = variance;
-      src += kVarBlocksize;
+      orig += kVarBlocksize;
     }
   }
   std::sort(v.begin(), v.end());
