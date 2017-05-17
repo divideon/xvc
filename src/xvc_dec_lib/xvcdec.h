@@ -81,7 +81,7 @@ extern "C" {
     xvc_decoder* (*decoder_create)(xvc_decoder_parameters *decoder_api);
     xvc_dec_return_code(*decoder_destroy)(xvc_decoder *decoder_api);
     xvc_dec_return_code(*decoder_decode_nal)(xvc_decoder *decoder_api,
-                                             uint8_t *nal_unit,
+                                             const uint8_t *nal_unit,
                                              size_t nal_unit_size);
     xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder_api,
                                               xvc_decoded_picture *pic_bytes);
@@ -89,8 +89,8 @@ extern "C" {
                                         xvc_decoded_picture *pic_bytes);
     xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder_api,
                                                     int *num);
+    const char*(*xvc_dec_get_error_text)(xvc_dec_return_code error_code);
   } xvc_decoder_api;
-
 
   const xvc_decoder_api* xvc_decoder_api_get();
 

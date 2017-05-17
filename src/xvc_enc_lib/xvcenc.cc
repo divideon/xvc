@@ -325,7 +325,7 @@ extern "C" {
         return  "Error. Invalid parameter. Please check the encoder"
           " parameters.";
       default:
-        return "Error in xvc library or xvc api.";
+        return "Unkown error";
     }
   }
 

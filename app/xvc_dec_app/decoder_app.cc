@@ -194,15 +194,10 @@ void DecoderApp::MainDecoderLoop() {
     // Decode next Nal Unit.
     ret = xvc_api_->decoder_decode_nal(decoder_, &nal_bytes_[0], nal_size);
     if (ret == XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER) {
-      std::cerr << "The xvc version indicated in the segment header is " <<
-        "higher than the xvc version of the decoder." << std::endl <<
-        "Please update the xvc decoder to the latest version." << std::endl;
+      std::cerr << xvc_api_->xvc_dec_get_error_text(ret) << std::endl;
       std::exit(XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER);
     } else if (ret == XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH) {
-      std::cerr << "The bitstream is of higher bitdepth than what the " <<
-        "decoder has been compiled for." << std::endl << "Please "
-        "recompile the decoder to support higher bitdepth " <<
-        "(by setting XVC_HIGH_BITDEPTH equal to 1)." << std::endl;
+      std::cerr << xvc_api_->xvc_dec_get_error_text(ret) << std::endl;
       std::exit(XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH);
     }
 

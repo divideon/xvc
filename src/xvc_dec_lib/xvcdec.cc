@@ -98,7 +98,7 @@ extern "C" {
   }
 
   xvc_dec_return_code xvc_dec_decoder_decode_nal(xvc_decoder *decoder,
-                                                 uint8_t *nal_unit,
+                                                 const uint8_t *nal_unit,
                                                  size_t nal_unit_size) {
     if (!decoder || !nal_unit || nal_unit_size < 1) {
       return XVC_DEC_INVALID_ARGUMENT;
@@ -162,6 +162,38 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
+  const char* xvc_dec_get_error_text(xvc_dec_return_code error_code) {
+    switch (error_code) {
+      case  XVC_DEC_OK:
+        return "";
+      case XVC_DEC_NO_DECODED_PIC:
+        return "No decoded picture";
+      case XVC_DEC_NOT_CONFORMING:
+        return "Non-conforming bitstream";
+      case XVC_DEC_INVALID_ARGUMENT:
+        return "Invalid api argument";
+      case XVC_DEC_FRAMERATE_OUT_OF_RANGE:
+        return "Invalid framerate";
+      case XVC_DEC_BITDEPTH_OUT_OF_RANGE:
+        return "Invalid bitdepth";
+      case XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER:
+        return "The xvc version indicated in the segment header is "
+          "higher than the xvc version of the decoder."
+          "Please update the xvc decoder to the latest version.";
+      case XVC_DEC_NO_SEGMENT_HEADER_DECODED:
+        return "No segment header decoded";
+      case XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH:
+        return "The bitstream is of higher bitdepth than what the "
+          "decoder has been compiled for. "
+          "Please recompile the decoder to support higher bitdepth "
+          "(by setting XVC_HIGH_BITDEPTH equal to 1).";
+      case XVC_DEC_INVALID_PARAMETER:
+        return "Invalid parameter";
+      default:
+        return "Unkown error";
+    }
+  }
+
   static const xvc_decoder_api xvc_dec_api_internal = {
     &xvc_dec_parameters_create,
     &xvc_dec_parameters_destroy,
@@ -173,6 +205,7 @@ extern "C" {
     &xvc_dec_decoder_get_picture,
     &xvc_dec_decoder_flush,
     &xvc_dec_decoder_check_conformance,
+    &xvc_dec_get_error_text,
   };
 
   const xvc_decoder_api* xvc_decoder_api_get() {
