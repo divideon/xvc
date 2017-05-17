@@ -7,11 +7,14 @@
 #ifndef XVC_ENC_LIB_SAMPLE_METRIC_H_
 #define XVC_ENC_LIB_SAMPLE_METRIC_H_
 
+#include <vector>
+
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/sample_buffer.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
+
 
 namespace xvc {
 
@@ -20,6 +23,7 @@ enum class MetricType {
   kSATD,
   kSAD,
   kSADFast,
+  kStructuralSsd,
 };
 
 class SampleMetric {
@@ -77,10 +81,21 @@ private:
   uint64_t ComputeSADFast(int width, int height,
                           const SampleT1 *sample1, ptrdiff_t stride1,
                           const SampleT2 *sample2, ptrdiff_t stride2);
+  template<typename SampleT1, typename SampleT2>
+  uint64_t ComputeStructuralSsd8(const SampleT1 *sample1, ptrdiff_t stride1,
+                       const SampleT2 *sample2, ptrdiff_t stride2);
+  template<typename SampleT1, typename SampleT2>
+  uint64_t ComputeStructuralSsd4(const SampleT1 *sample1, ptrdiff_t stride1,
+                        const SampleT2 *sample2, ptrdiff_t stride2);
+  template<typename SampleT1, typename SampleT2>
+  uint64_t ComputeStructuralSsd(int width, int height,
+                       const SampleT1 *sample1, ptrdiff_t stride1,
+                       const SampleT2 *sample2, ptrdiff_t stride2);
 
   MetricType type_;
   const QP &qp_;
   int bitdepth_;
+  std::vector<double> lambdas_;
 };
 
 }   // namespace xvc

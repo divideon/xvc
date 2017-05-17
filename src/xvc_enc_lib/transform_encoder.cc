@@ -79,7 +79,9 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     reco_buffer.CopyFrom(width, height, temp_pred_);
   }
 
-  SampleMetric metric(MetricType::kSSE, qp, rec_pic->GetBitdepth());
+  MetricType m = encoder_settings_.adaptive_qp > 1 && comp == YuvComponent::kY ?
+    MetricType::kStructuralSsd : MetricType::kSSE;
+  SampleMetric metric(m, qp, rec_pic->GetBitdepth());
   return metric.CompareSample(*cu, comp, orig_pic, reco_buffer);
 }
 

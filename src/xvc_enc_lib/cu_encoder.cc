@@ -68,15 +68,22 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
   RdoSyntaxWriter rdo_writer(*bitstream_writer, 0, frac_bits);
 
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  CompressCu(&ctu, 0, SplitRestriction::kNone, &rdo_writer);
+  int ctu_qp = pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
+  if (encoder_settings_.adaptive_qp) {
+    ctu_qp += CalcDeltaQpFromVariance(ctu);
+  }
+  ctu->SetQp(ctu_qp);
+  CompressCu(&ctu, 0, SplitRestriction::kNone, &rdo_writer, ctu->GetQp());
   pic_data_.SetCtu(CuTree::Primary, rsaddr, ctu);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
+    ctu2->SetQp(ctu_qp);
     if (EncoderSettings::kEncoderStrictRdoBitCounting) {
-      CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer);
+      CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer, ctu2->GetQp());
     } else {
       RdoSyntaxWriter rdo_writer2(*bitstream_writer);
-      CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer2);
+      CompressCu(&ctu2, 0, SplitRestriction::kNone, &rdo_writer2,
+                 ctu2->GetQp());
     }
     pic_data_.SetCtu(CuTree::Secondary, rsaddr, ctu2);
   }
@@ -94,11 +101,11 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
 
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                                  SplitRestriction split_restiction,
-                                 RdoSyntaxWriter *writer) {
-  const QP &qp = *pic_data_.GetPicQp();
+                                 RdoSyntaxWriter *writer, const QP &qp) {
   const int kMaxTrSize =
     !Restrictions::Get().disable_ext_transform_size_64 ? 64 : 32;
   CodingUnit *cu = *best_cu;  // Invariant: cu always points to *best_cu
+  cu->SetQp(qp);
   const int cu_tree = static_cast<int>(cu->GetCuTree());
   const int depth = cu->GetDepth();
   const bool do_quad_split = cu->GetBinaryDepth() == 0 &&
@@ -249,7 +256,8 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
   for (auto &sub_cu : cu->GetSubCu()) {
     if (sub_cu) {
       dist +=
-        CompressCu(&sub_cu, rdo_depth + 1, sub_split_restriction, rdo_writer);
+        CompressCu(&sub_cu, rdo_depth + 1, sub_split_restriction, rdo_writer,
+                   qp);
       sub_split_restriction = sub_cu->DeriveSiblingSplitRestriction(split_type);
     }
   }
@@ -261,13 +269,67 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
   return RdoCost(cost, dist);
 }
 
+
+int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
+  const int kStrength = 2;
+  const int kOffset = 16;
+  const int kVarBlocksize = 8;
+  const int kMeanDiv = 4;
+  const int kMaxAbsQpOffset = 10;
+  const YuvComponent luma = YuvComponent::kY;
+  const int x = cu->GetPosX(luma);
+  const int y = cu->GetPosY(luma);
+  const Sample *src = orig_pic_.GetSamplePtr(luma, x, y);
+
+  auto calc_variance = [](const Sample* src, int block_size, ptrdiff_t stride) {
+    uint64_t sum = 0;
+    uint64_t squares = 0;
+    uint64_t num = 0;
+    for (int k = 0; k < block_size; k++) {
+      for (int l = 0; l < block_size; l++) {
+        sum += *src;
+        squares += (*src)*(*src);
+        num++;
+        src++;
+      }
+      src += stride - block_size;
+    }
+    return (squares - (sum * sum) / num) / num;
+  };
+
+  const int h = cu->GetHeight(luma) / kVarBlocksize;
+  const int w = cu->GetHeight(luma) / kVarBlocksize;
+  uint64_t min_var = std::numeric_limits<uint64_t>::max();
+  std::vector<uint64_t> v(h * w);
+  for (int i = 0; i < h; i++) {
+    src = orig_pic_.GetSamplePtr(luma, x, y) +
+      i * kVarBlocksize * orig_pic_.GetStride(luma);
+    for (int j = 0; j < w; j++) {
+      uint64_t variance = calc_variance(src, kVarBlocksize,
+                                        orig_pic_.GetStride(luma));
+      if (variance < min_var) {
+        min_var = variance;
+      }
+      v[i * w + j] = variance;
+      src += kVarBlocksize;
+    }
+  }
+  std::sort(v.begin(), v.end());
+  min_var = v[v.size() / kMeanDiv];
+
+  return util::Clip3(static_cast<int>(kStrength * ((log2(256 * min_var) -
+    (kOffset + 2 * (orig_pic_.GetBitdepth() - 8))))),
+                     -kMaxAbsQpOffset, kMaxAbsQpOffset);
+}
+
+
 Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                       SplitRestriction split_restriction,
                                       RdoSyntaxWriter *writer) {
-  const QP &qp = *pic_data_.GetPicQp();
   CodingUnit::ReconstructionState *best_state =
     &temp_cu_state_[rdo_depth + 1];
   CodingUnit *cu = *best_cu;
+  const QP &qp = cu->GetQp();
   if (cu->GetSplit() != SplitType::kNone) {
     cu->UnSplit();
   }
@@ -480,15 +542,46 @@ void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
     writer->ResetBitCounting();
   }
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  cu_writer_.WriteCtu(*ctu, writer);
+  bool write_delta_qp = cu_writer_.WriteCtu(*ctu, writer);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    cu_writer_.WriteCtu(*ctu2, writer);
+    write_delta_qp |= cu_writer_.WriteCtu(*ctu2, writer);;
   }
+
+  if (pic_data_.GetAdaptiveQp() && write_delta_qp) {
+    writer->WriteQp(ctu->GetQp().GetQpRaw(YuvComponent::kY));
+  } else {
+    // Delta qp is not written if there was no cbf in the entire CTU.
+    int qp = pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
+    SetQpForAllCusInCtu(ctu, qp);
+    if (pic_data_.HasSecondaryCuTree()) {
+      CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
+      SetQpForAllCusInCtu(ctu2, qp);
+    }
+  }
+
   if (Restrictions::Get().disable_ext_implicit_last_ctu) {
     writer->WriteEndOfSlice(false);
   }
 }
+
+void CuEncoder::SetQpForAllCusInCtu(CodingUnit *ctu, int qp) {
+  ctu->SetQp(qp);
+  const int h = ctu->GetHeight(YuvComponent::kY);
+  const int w = ctu->GetWidth(YuvComponent::kY);
+  for (int i = 0; i < h; i += constants::kMinBlockSize) {
+    for (int j = 0; j < w; j += constants::kMinBlockSize) {
+      CodingUnit *tmp_cu =
+        pic_data_.GetCuAtForModification(ctu->GetCuTree(),
+                                         ctu->GetPosX(YuvComponent::kY) + j,
+                                         ctu->GetPosY(YuvComponent::kY) + i);
+      if (tmp_cu) {
+        tmp_cu->SetQp(qp);
+      }
+    }
+  }
+}
+
 
 bool CuEncoder::CanSkipAnySplitForCu(const PictureData &pic_data,
                                      const CodingUnit &cu) {

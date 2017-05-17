@@ -38,6 +38,8 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   bit_writer->WriteBits(segment_header->max_binary_split_depth, 2);
   bit_writer->WriteBits(static_cast<uint32_t>(segment_header->checksum_mode),
                         1);
+  assert(segment_header->adaptive_qp >= 0 && segment_header->adaptive_qp <= 3);
+  bit_writer->WriteBits(segment_header->adaptive_qp, 2);
   assert(segment_header->deblock >= 0 && segment_header->deblock <= 3);
   bit_writer->WriteBits(segment_header->deblock, 2);
   if (segment_header->deblock == 3) {

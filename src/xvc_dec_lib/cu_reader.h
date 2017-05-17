@@ -19,8 +19,10 @@ public:
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
-  void ReadCtu(CodingUnit *cu, SyntaxReader *reader) {
-    return ReadCu(cu, SplitRestriction::kNone, reader);
+  bool ReadCtu(CodingUnit *cu, SyntaxReader *reader) {
+    ctu_has_coeffs_ = false;
+    ReadCu(cu, SplitRestriction::kNone, reader);
+    return ctu_has_coeffs_;
   }
 
 private:
@@ -38,6 +40,7 @@ private:
 
   PictureData *pic_data_;
   const IntraPrediction &intra_pred_;
+  bool ctu_has_coeffs_ = false;
 };
 
 }   // namespace xvc

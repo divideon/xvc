@@ -20,25 +20,28 @@ public:
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
-  void WriteCtu(const CodingUnit &cu, SyntaxWriter *writer) const {
-    return WriteCu(cu, SplitRestriction::kNone, writer);
+  bool WriteCtu(const CodingUnit &cu, SyntaxWriter *writer) {
+    ctu_has_coeffs_ = false;
+    WriteCu(cu, SplitRestriction::kNone, writer);
+    return ctu_has_coeffs_;
   }
   void WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
-               SyntaxWriter *writer) const;
+               SyntaxWriter *writer);
   void WriteSplit(const CodingUnit &cu, SplitRestriction split_restriction,
-                  SyntaxWriter *writer) const;
+                  SyntaxWriter *writer);
   void WriteComponent(const CodingUnit &cu, YuvComponent comp,
-                      SyntaxWriter *writer)  const;
+                      SyntaxWriter *writer);
   void WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
-                            SyntaxWriter *writer) const;
+                            SyntaxWriter *writer);
   void WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
-                            SyntaxWriter *writer) const;
+                            SyntaxWriter *writer);
   void WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
-                         SyntaxWriter *writer) const;
+                         SyntaxWriter *writer);
 
 private:
   const PictureData &pic_data_;
   const IntraPrediction *intra_pred_;
+  bool ctu_has_coeffs_ = false;
 };
 
 }   // namespace xvc

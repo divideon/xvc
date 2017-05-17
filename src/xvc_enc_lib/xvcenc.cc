@@ -172,6 +172,8 @@ extern "C" {
           stream >> encoder_settings.always_evaluate_intra_in_inter;
         } else if (setting == "smooth_lambda_scaling") {
           stream >> encoder_settings.smooth_lambda_scaling;
+        } else if (setting == "adaptive_qp") {
+          stream >> encoder_settings.adaptive_qp;
         } else if (setting == "default_num_ref_pics") {
           stream >> encoder_settings.default_num_ref_pics;
         } else if (setting == "max_binary_split_depth") {

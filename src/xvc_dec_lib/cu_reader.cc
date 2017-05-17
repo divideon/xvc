@@ -19,6 +19,7 @@ void CuReader::ReadCu(CodingUnit *cu, SplitRestriction split_restriction,
     SplitRestriction sub_split_restriction = SplitRestriction::kNone;
     for (CodingUnit *sub_cu : cu->GetSubCu()) {
       if (sub_cu) {
+        sub_cu->SetQp(cu->GetQp().GetQpRaw(YuvComponent::kY));
         ReadCu(sub_cu, sub_split_restriction, reader);
         sub_split_restriction = sub_cu->DeriveSiblingSplitRestriction(split);
       }
@@ -192,9 +193,7 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
   // coefficient parsing is sparse so zero out in any case
   cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
   if (cbf) {
-    if (util::IsLuma(comp)) {
-      // TODO(dev) cu->SetQp(reader->ReadQp());
-    }
+    ctu_has_coeffs_ = true;
     reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
                              cu_coeff_buf.GetStride());
   }

@@ -62,7 +62,9 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
     SampleBuffer reco =
       rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
     MotionCompensation(*cu, comp, reco.GetDataPtr(), reco.GetStride());
-    SampleMetric metric(MetricType::kSSE, qp, rec_pic->GetBitdepth());
+    MetricType m = encoder_settings_.adaptive_qp > 1 &&
+      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+    SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     return metric.CompareSample(*cu, comp, orig_pic_, reco);
   } else {
     SampleBuffer &pred = encoder->GetPredBuffer();
@@ -183,7 +185,6 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 TransformEncoder *encoder,
                                 YuvPicture *rec_pic) {
-  SampleMetric metric(MetricType::kSSE, qp, bitdepth_);
   std::array<bool, constants::kMaxYuvComponents> cbf_modified = { false };
   Distortion final_dist = 0;
   Distortion sum_dist_zero = 0;
@@ -191,6 +192,9 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
 
   for (int c = 0; c < max_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
+    MetricType m = encoder_settings_.adaptive_qp > 1 &&
+      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+    SampleMetric metric(m, qp, bitdepth_);
     SampleBuffer &pred_buffer = encoder->GetPredBuffer();
     MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
                        pred_buffer.GetStride());
@@ -253,10 +257,12 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const QP &qp,
   cu->SetSkipFlag(true);
   cu->SetRootCbf(false);
 
-  SampleMetric metric(MetricType::kSSE, qp, rec_pic->GetBitdepth());
   Distortion sum_dist = 0;
   for (int c = 0; c < max_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
+    MetricType m = encoder_settings_.adaptive_qp > 1 &&
+      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+    SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     int posx = cu->GetPosX(comp);
     int posy = cu->GetPosY(comp);
     SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, posx, posy);

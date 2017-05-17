@@ -60,7 +60,10 @@ public:
   void SetDeblock(int deblock) { segment_header_.deblock = deblock; }
   void SetBetaOffset(int offset) { segment_header_.beta_offset = offset; }
   void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
-  void SetQp(int qp) { segment_qp_ = qp; }
+  void SetQp(int qp) {
+    segment_qp_ =
+      util::Clip3(qp, constants::kMinAllowedQp, constants::kMaxAllowedQp);
+  }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
   void SetChecksumMode(Checksum::Mode mode) {
     segment_header_.checksum_mode = mode;

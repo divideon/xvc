@@ -35,7 +35,8 @@ private:
 
   Distortion CompressCu(CodingUnit **cu, int rdo_depth,
                         SplitRestriction split_restiction,
-                        RdoSyntaxWriter *rdo_writer);
+                        RdoSyntaxWriter *rdo_writer,
+                        const QP &qp);
   RdoCost CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
                           SplitType split_type, SplitRestriction split_restrct,
                           RdoSyntaxWriter *rdo_writer);
@@ -54,7 +55,9 @@ private:
   RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 Distortion ssd);
+  int CalcDeltaQpFromVariance(const CodingUnit *cu);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
+  void CuEncoder::SetQpForAllCusInCtu(CodingUnit *ctu, int qp);
 
   static bool CanSkipAnySplitForCu(const PictureData &pic_data,
                                     const CodingUnit &cu);

@@ -12,7 +12,7 @@
 namespace xvc {
 
 void CuWriter::WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
-                       SyntaxWriter *writer) const {
+                       SyntaxWriter *writer) {
   WriteSplit(cu, split_restriction, writer);
   if (cu.GetSplit() != SplitType::kNone) {
     SplitRestriction sub_split_restriction = SplitRestriction::kNone;
@@ -33,7 +33,7 @@ void CuWriter::WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
 
 void CuWriter::WriteSplit(const CodingUnit &cu,
                           SplitRestriction split_restriction,
-                          SyntaxWriter *writer) const {
+                          SyntaxWriter *writer) {
   SplitType split_type = cu.GetSplit();
   int binary_depth = cu.GetBinaryDepth();
   int max_depth = pic_data_.GetMaxDepth(cu.GetCuTree());
@@ -52,7 +52,7 @@ void CuWriter::WriteSplit(const CodingUnit &cu,
 }
 
 void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
-                              SyntaxWriter *writer) const {
+                              SyntaxWriter *writer) {
   if (util::IsLuma(comp)) {
     if (!pic_data_.IsIntraPic()) {
       writer->WriteSkipFlag(cu, cu.GetSkipFlag());
@@ -81,7 +81,7 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
 }
 
 void CuWriter::WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
-                                    SyntaxWriter *writer) const {
+                                    SyntaxWriter *writer) {
   const CodingUnit *luma_cu = pic_data_.GetLumaCu(&cu);
   IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
   if (util::IsLuma(comp)) {
@@ -97,7 +97,7 @@ void CuWriter::WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
 }
 
 void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
-                                    SyntaxWriter *writer) const {
+                                    SyntaxWriter *writer) {
   if (util::IsLuma(comp)) {
     writer->WriteMergeFlag(cu.GetMergeFlag());
     if (cu.GetMergeFlag()) {
@@ -127,7 +127,7 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
 }
 
 void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
-                                 SyntaxWriter *writer) const {
+                                 SyntaxWriter *writer) {
   bool signal_root_cbf = cu.IsInter() &&
     !Restrictions::Get().disable_transform_root_cbf &&
     (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
@@ -160,10 +160,8 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
     // signaled by luma
   }
   if (cbf) {
+    ctu_has_coeffs_ = true;
     DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
-    if (util::IsLuma(comp)) {
-      // TODO(dev) writer->WriteQp(cu.GetQp().GetQpRaw(comp));
-    }
     writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
                               cu_coeff.GetStride());
   }

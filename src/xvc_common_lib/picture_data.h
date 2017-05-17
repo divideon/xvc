@@ -34,7 +34,12 @@ public:
 
   // General
   PicturePredictionType GetPredictionType() const;
-  const QP* GetPicQp() const { return pic_qp_.get(); }
+  const QP* GetPicQp() const {
+    return pic_qp_.get();
+  }
+  const QP* GetQp(int raw_qp) const {
+    return &qps_[util::Clip3(raw_qp, 0, constants::kMaxAllowedQp)];
+  }
   bool IsIntraPic() const {
     return GetPredictionType() == PicturePredictionType::kIntra;
   }
@@ -86,6 +91,11 @@ public:
       (posx / constants::kMinBlockSize);
     return cu_pic_table_[static_cast<int>(cu_tree)][cu_idx];
   }
+  CodingUnit* GetCuAtForModification(CuTree cu_tree, int posx, int posy) {
+    ptrdiff_t cu_idx = (posy / constants::kMinBlockSize) * cu_pic_stride_ +
+      (posx / constants::kMinBlockSize);
+    return cu_pic_table_[static_cast<int>(cu_tree)][cu_idx];
+  }
   const CodingUnit* GetLumaCu(const CodingUnit *cu) const;
   CodingUnit* CreateCu(CuTree cu_tree, int depth, int posx, int posy,
                        int width, int height) const;
@@ -117,6 +127,8 @@ public:
   bool GetTmvpValid() const { return tmvp_valid_; }
   RefPicList GetTmvpRefList() const { return tmvp_ref_list_; }
   int GetTmvpRefIdx() const { return tmvp_ref_idx_; }
+  void SetAdaptiveQp(bool adaptive_qp) { adaptive_qp_ = adaptive_qp; }
+  bool GetAdaptiveQp() const { return adaptive_qp_; }
   void SetDeblock(bool deblock) { deblock_ = deblock; }
   bool GetDeblock() const { return deblock_; }
   void SetBetaOffset(int offset) { beta_offset_ = offset; }
@@ -172,6 +184,7 @@ private:
   bool tmvp_valid_ = false;
   RefPicList tmvp_ref_list_ = RefPicList::kTotalNumber;
   int tmvp_ref_idx_ = -1;
+  bool adaptive_qp_ = false;
   bool deblock_ = true;
   int beta_offset_ = 0;
   int tc_offset_ = 0;

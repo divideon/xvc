@@ -31,6 +31,7 @@ struct EncoderSettings {
         smooth_lambda_scaling = 1;
         default_num_ref_pics = 3;
         max_binary_split_depth = 3;
+        adaptive_qp = 0;
         break;
       case SpeedMode::kSlow:
         eval_prev_mv_search_result = 1;
@@ -42,6 +43,7 @@ struct EncoderSettings {
         smooth_lambda_scaling = 1;
         default_num_ref_pics = 2;
         max_binary_split_depth = 2;
+        adaptive_qp = 0;
         break;
       default:
         assert(0);
@@ -62,6 +64,7 @@ struct EncoderSettings {
         smooth_lambda_scaling = 0;
         default_num_ref_pics = 2;
         max_binary_split_depth = 0;
+        adaptive_qp = 0;
         break;
       case RestrictedMode::kModeB:
         eval_prev_mv_search_result = 0;
@@ -73,6 +76,7 @@ struct EncoderSettings {
         smooth_lambda_scaling = 0;
         default_num_ref_pics = 2;
         max_binary_split_depth = 2;
+        adaptive_qp = 0;
         break;
       default:
         assert(0);
@@ -105,6 +109,7 @@ struct EncoderSettings {
   int smooth_lambda_scaling = -1;
   int default_num_ref_pics = -1;
   int max_binary_split_depth = -1;
+  int adaptive_qp = -1;
 };
 
 }   // namespace xvc

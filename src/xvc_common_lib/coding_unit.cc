@@ -34,7 +34,7 @@ CodingUnit::CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
   pred_mode_(PredictionMode::kIntra),
   cbf_({ { false, false, false } }),
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
-  qp_(nullptr),
+  qp_(pic_data.GetPicQp()),
   root_cbf_(false),
   intra_mode_luma_(IntraMode::kInvalid),
   intra_mode_chroma_(IntraChromaMode::kInvalid),
@@ -105,6 +105,7 @@ void CodingUnit::SetQp(const QP &qp) {
 }
 
 void CodingUnit::SetQp(int qp_value) {
+  qp_ = pic_data_.GetQp(qp_value);
 }
 
 int CodingUnit::GetQp(YuvComponent comp) const {

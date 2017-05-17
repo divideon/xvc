@@ -89,7 +89,7 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.flat_lambda;
     } else if (arg == "-speed-mode") {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
-    } else if (arg == "-explicit-speed-settings") {
+    } else if (arg == "-explicit-encoder-settings") {
       cli_.explicit_encoder_settings = argv[++i];
     } else if (arg == "-verbose") {
       std::stringstream(argv[++i]) >> cli_.verbose;

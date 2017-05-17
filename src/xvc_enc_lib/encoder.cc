@@ -50,6 +50,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   pic_data->SetDoc(doc);
   pic_data->SetTid(tid);
   pic_data->SetHighestLayer(tid == max_tid);
+  pic_data->SetAdaptiveQp(segment_header_.adaptive_qp > 0);
   pic_data->SetDeblock(segment_header_.deblock > 0);
   pic_data->SetBetaOffset(segment_header_.beta_offset);
   pic_data->SetTcOffset(segment_header_.tc_offset);
@@ -179,6 +180,7 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   encoder_settings_ = settings;
   segment_header_.num_ref_pics = settings.default_num_ref_pics;
   segment_header_.max_binary_split_depth = settings.max_binary_split_depth;
+  segment_header_.adaptive_qp = settings.adaptive_qp;
 }
 
 void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
@@ -200,7 +202,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
     pic->Encode(segment_header_, segment_qp_, sub_gop_length, bflag,
                 flat_lambda_, encoder_settings_);
 
-  // When a picture has been encoded the picture data is put into
+  // When a picture has been encoded, the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.
   xvc_enc_nal_unit nal;
   nal.bytes = &(*pic_bytes)[0];

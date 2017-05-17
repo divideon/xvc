@@ -78,9 +78,10 @@ void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp) {
   // Setup QP
   pic_qp_.reset(new QP(pic_qp));
   qps_.clear();
-  for (int i = -constants::kMaxQpDiff; i <= constants::kMaxQpDiff; i++) {
-    int qp_tmp = pic_qp.GetQpRaw(YuvComponent::kY) + i;
-    double lambda_tmp = pic_qp.GetLambda() * pow(2.0, i / 3.0);
+  for (int i = 0; i <= constants::kMaxAllowedQp; i++) {
+    int qp_tmp = i;
+    double lambda_tmp = pic_qp.GetLambda() *
+      pow(2.0, (i - pic_qp.GetQpRaw(YuvComponent::kY)) / 3.0);
     qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
   }
 

@@ -15,8 +15,8 @@
 #include "xvc_common_lib/sample_buffer.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
-#include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
 

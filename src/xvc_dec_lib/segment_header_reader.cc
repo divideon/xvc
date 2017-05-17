@@ -39,6 +39,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
                 "max binary split depth signaling");
   segment_header->max_binary_split_depth = bit_reader->ReadBits(2);
   segment_header->checksum_mode = Checksum::Mode(bit_reader->ReadBits(1));
+  segment_header->adaptive_qp = bit_reader->ReadBits(2);
   segment_header->deblock = bit_reader->ReadBits(2);
   if (segment_header->deblock == 3) {
     int d = constants::kDeblockOffsetBits;
@@ -46,7 +47,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     segment_header->tc_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
   }
 
-  // This is the only place where Restrictions::GetRW is allowed to be called.
   auto &restr = Restrictions::GetRW();
 
   // Note! Override the value of the restriction flags only if the flag is
