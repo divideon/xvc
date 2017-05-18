@@ -477,11 +477,12 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
   uint64_t orig_orig_sum = 0;
   uint64_t reco_reco_sum = 0;
   uint64_t orig_reco_sum = 0;
-  int shift = (2 * (bitdepth_ - 8));
-  const uint64_t c1 = 26634ull << shift;
-  const uint64_t c2 = 239708ull << shift;
+  const int n = 64;
+  const int shift = (2 * (bitdepth_ - 8));
+  const uint64_t c1 = (n * n * 26634ull >> 12) << shift;
+  const uint64_t c2 = (n * n * 239708ull >> 12) << shift;
   const double c3 = 0.5;
-  const uint64_t c4 = 128;
+  const uint64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
   uint64_t ssd = 0;
   for (int y = 0; y < 8; y++) {
     for (int x = 0; x < 8; x++) {
@@ -496,15 +497,14 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
     sample1 += stride1;
     sample2 += stride2;
   }
-
-  double a = 1.0 * (2 * orig_sum * reco_sum + c1) /
-    (orig_sum * orig_sum + reco_sum * reco_sum + c1);
-  double b = (2.0 * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
-    (64 * orig_orig_sum - orig_sum * orig_sum +
-     64 * reco_reco_sum - reco_sum * reco_sum + c2);
+  double m = (1.0 * orig_sum - reco_sum) / n;
+  double a = (c4 - m * m + c1) / (c4 + c1);
+  double b = (2.0 * n * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
+    (n * orig_orig_sum - orig_sum * orig_sum +
+     n * reco_reco_sum - reco_sum * reco_sum + c2);
 
   ssd >>= shift;
-  return static_cast<uint64_t>(c3 * ssd + c4 * (1 - a * b));
+  return static_cast<uint64_t>(c3 * ssd + (1 - c3) * c4 * (1 - a * b));
 }
 
 template<typename SampleT1, typename SampleT2>
@@ -517,11 +517,12 @@ uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
   uint64_t orig_orig_sum = 0;
   uint64_t reco_reco_sum = 0;
   uint64_t orig_reco_sum = 0;
-  int shift = (2 * (bitdepth_ - 8));
-  const uint64_t c1 = 26634ull << shift;
-  const uint64_t c2 = 239708ull << shift;
+  const int n = 16;
+  const int shift = (2 * (bitdepth_ - 8));
+  const uint64_t c1 = (n * n * 26634ull >> 12) << shift;
+  const uint64_t c2 = (n * n * 239708ull >> 12) << shift;
   const double c3 = 0.5;
-  const uint64_t c4 = 256;
+  const uint64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
   uint64_t ssd = 0;
   for (int y = 0; y < 4; y++) {
     for (int x = 0; x < 4; x++) {
@@ -536,15 +537,14 @@ uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
     sample1 += stride1;
     sample2 += stride2;
   }
-
-  double a = 1.0 * (2 * orig_sum * reco_sum + c1) /
-    (orig_sum * orig_sum + reco_sum * reco_sum + c1);
-  double b = (2.0 * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
-    (16 * orig_orig_sum - orig_sum * orig_sum +
-     16 * reco_reco_sum - reco_sum * reco_sum + c2);
+  double m = (1.0 * orig_sum - reco_sum) / n;
+  double a = (c4 - m * m + c1) / (c4 + c1);
+  double b = (2.0 * n * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
+    (n * orig_orig_sum - orig_sum * orig_sum +
+     n * reco_reco_sum - reco_sum * reco_sum + c2);
 
   ssd >>= shift;
-  return static_cast<uint64_t>(c3 * ssd + c4 * (1 - a * b));
+  return static_cast<uint64_t>(c3 * ssd + (1 - c3) * .5 * c4 * (1 - a * b));
 }
 
 template<typename SampleT1, typename SampleT2>

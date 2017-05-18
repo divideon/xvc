@@ -62,7 +62,7 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
     SampleBuffer reco =
       rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
     MotionCompensation(*cu, comp, reco.GetDataPtr(), reco.GetStride());
-    MetricType m = encoder_settings_.adaptive_qp > 1 &&
+    MetricType m = encoder_settings_.structural_ssd > 0 &&
       comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
     SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     return metric.CompareSample(*cu, comp, orig_pic_, reco);
@@ -192,7 +192,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
 
   for (int c = 0; c < max_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
-    MetricType m = encoder_settings_.adaptive_qp > 1 &&
+    MetricType m = encoder_settings_.structural_ssd > 0 &&
       comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
     SampleMetric metric(m, qp, bitdepth_);
     SampleBuffer &pred_buffer = encoder->GetPredBuffer();
@@ -260,7 +260,7 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const QP &qp,
   Distortion sum_dist = 0;
   for (int c = 0; c < max_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
-    MetricType m = encoder_settings_.adaptive_qp > 1 &&
+    MetricType m = encoder_settings_.structural_ssd > 0 &&
       comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
     SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     int posx = cu->GetPosX(comp);

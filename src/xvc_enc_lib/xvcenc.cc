@@ -158,26 +158,30 @@ extern "C" {
       std::string setting;
       std::stringstream stream(expl_values);
       while (stream >> setting) {
-        if (setting == "eval_prev_mv_search_result") {
-          stream >> encoder_settings.eval_prev_mv_search_result;
-        } else if (setting == "fast_intra_mode_eval_level") {
+        if (setting == "fast_intra_mode_eval_level") {
           stream >> encoder_settings.fast_intra_mode_eval_level;
-        } else if (setting == "fast_inter_pred_bits") {
-          stream >> encoder_settings.fast_inter_pred_bits;
         } else if (setting == "fast_merge_eval") {
           stream >> encoder_settings.fast_merge_eval;
         } else if (setting == "bipred_refinement_iterations") {
           stream >> encoder_settings.bipred_refinement_iterations;
         } else if (setting == "always_evaluate_intra_in_inter") {
           stream >> encoder_settings.always_evaluate_intra_in_inter;
-        } else if (setting == "smooth_lambda_scaling") {
-          stream >> encoder_settings.smooth_lambda_scaling;
-        } else if (setting == "adaptive_qp") {
-          stream >> encoder_settings.adaptive_qp;
         } else if (setting == "default_num_ref_pics") {
           stream >> encoder_settings.default_num_ref_pics;
         } else if (setting == "max_binary_split_depth") {
           stream >> encoder_settings.max_binary_split_depth;
+        } else if (setting == "eval_prev_mv_search_result") {
+          stream >> encoder_settings.eval_prev_mv_search_result;
+        } else if (setting == "fast_inter_pred_bits") {
+          stream >> encoder_settings.fast_inter_pred_bits;
+        } else if (setting == "smooth_lambda_scaling") {
+          stream >> encoder_settings.smooth_lambda_scaling;
+        } else if (setting == "adaptive_qp") {
+          stream >> encoder_settings.adaptive_qp;
+        } else if (setting == "aqp_strength") {
+          stream >> encoder_settings.aqp_strength;
+        } else if (setting == "structural_ssd") {
+          stream >> encoder_settings.structural_ssd;
         }
       }
     }
