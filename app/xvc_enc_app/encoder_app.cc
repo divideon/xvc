@@ -89,6 +89,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.flat_lambda;
     } else if (arg == "-speed-mode") {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
+    } else if (arg == "-tune") {
+      std::stringstream(argv[++i]) >> cli_.tune_mode;
     } else if (arg == "-explicit-encoder-settings") {
       cli_.explicit_encoder_settings = argv[++i];
     } else if (arg == "-verbose") {
@@ -242,6 +244,9 @@ void EncoderApp::CreateAndConfigureApi() {
   }
   if (cli_.speed_mode != -1) {
     params_->speed_mode = cli_.speed_mode;
+  }
+  if (cli_.tune_mode != -1) {
+    params_->tune_mode = cli_.tune_mode;
   }
   if (!cli_.explicit_encoder_settings.empty()) {
     params_->explicit_encoder_settings = &cli_.explicit_encoder_settings[0];
@@ -421,6 +426,9 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -tc-offset <int>" << std::endl;
   std::cout << "  -qp <int>" << std::endl;
   std::cout << "  -speed-mode <int>" << std::endl;
+  std::cout << "  -tune <int>" << std::endl;
+  std::cout << "      0: Visual quality (default)" << std::endl;
+  std::cout << "      1: PSNR" << std::endl;
   std::cout << "  -verbose <0/1>" << std::endl;
 }
 

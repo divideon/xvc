@@ -273,11 +273,12 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
 
 int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
   const double kStrength = encoder_settings_.aqp_strength *
-    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 2 : 1);
-  const double kOffset = 16;
+    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 0.8 : 0.5);
+  const double kOffset = 9;
   const int kVarBlocksize = 8;
   const int kMeanDiv = 4;
-  const int kMaxAbsQpOffset = 3;
+  const int kMinQpOffset = -3;
+  const int kMaxQpOffset = 5;
   const YuvComponent luma = YuvComponent::kY;
   const int x = cu->GetPosX(luma);
   const int y = cu->GetPosY(luma);
@@ -300,27 +301,24 @@ int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
 
   const int h = cu->GetHeight(luma) / kVarBlocksize;
   const int w = cu->GetHeight(luma) / kVarBlocksize;
-  uint64_t min_var = std::numeric_limits<uint64_t>::max();
   std::vector<uint64_t> v(h * w);
   for (int i = 0; i < h; i++) {
     const Sample *orig = orig_pic_.GetSamplePtr(luma, x, y) +
       i * kVarBlocksize * orig_pic_.GetStride(luma);
     for (int j = 0; j < w; j++) {
-      uint64_t variance = calc_variance(orig, kVarBlocksize,
-                                        orig_pic_.GetStride(luma));
-      if (variance < min_var) {
-        min_var = variance;
-      }
+      uint64_t variance =
+        calc_variance(orig, kVarBlocksize, orig_pic_.GetStride(luma));
       v[i * w + j] = variance;
       orig += kVarBlocksize;
     }
   }
   std::sort(v.begin(), v.end());
-  min_var = v[v.size() / kMeanDiv];
+  uint64_t variance = v[v.size() / kMeanDiv];
 
-  return util::Clip3(static_cast<int>(kStrength * ((log2(min_var) -
-    (kOffset + 2 * (orig_pic_.GetBitdepth() - 8))))),
-                     -kMaxAbsQpOffset, kMaxAbsQpOffset);
+  int bd = orig_pic_.GetBitdepth();
+  double dqp = kStrength * (std::log(variance) - (kOffset + 2 * (bd - 8)));
+
+  return util::Clip3(static_cast<int>(dqp), kMinQpOffset, kMaxQpOffset);
 }
 
 

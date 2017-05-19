@@ -17,6 +17,12 @@ enum struct SpeedMode {
   kTotalNumber = 2,
 };
 
+enum struct TuneMode {
+  kDefault = 0,
+  kPsnr = 1,
+  kTotalNumber = 2,
+};
+
 struct EncoderSettings {
   // Initialize based on speed mode setting
   void Initialize(SpeedMode speed_mode) {
@@ -78,6 +84,21 @@ struct EncoderSettings {
     }
   }
 
+  void Tune(TuneMode tune_mode) {
+    switch (tune_mode) {
+      case TuneMode::kDefault:
+        // No settings are changed in default mode.
+        break;
+      case TuneMode::kPsnr:
+        adaptive_qp = 0;
+        structural_ssd = 0;
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+
   // Encoder rdo behavior
   static constexpr bool kEncoderStrictRdoBitCounting = false;
   static constexpr bool kEncoderCountActualWrittenBits = true;
@@ -105,9 +126,9 @@ struct EncoderSettings {
   int eval_prev_mv_search_result = 1;
   int fast_inter_pred_bits = 0;
   int smooth_lambda_scaling = 1;
-  int adaptive_qp = 0;
+  int adaptive_qp = 1;
   double aqp_strength = 1.0;
-  int structural_ssd = 0;
+  int structural_ssd = 1;
 };
 
 }   // namespace xvc

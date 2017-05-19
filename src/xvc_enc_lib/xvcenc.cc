@@ -45,7 +45,7 @@ extern "C" {
     param->sub_gop_length = 0;  // determined in xvc_enc_encoder_create
     param->max_keypic_distance = 640;
     param->closed_gop = 0;
-    param->num_ref_pics = -1;  // determined in xvc_enc_set_speed_mode
+    param->num_ref_pics = -1;  // determined in xvc_enc_set_encoder_settings
     param->restricted_mode = 0;
     param->checksum_mode = 1;
     param->deblock = 1;
@@ -54,6 +54,7 @@ extern "C" {
     param->qp = 32;
     param->flat_lambda = 0;
     param->speed_mode = -1;  // determined in xvc_enc_encoder_create
+    param->tune_mode = 0;
     param->explicit_encoder_settings = nullptr;
     return XVC_ENC_OK;
   }
@@ -135,11 +136,15 @@ extern "C" {
         param->speed_mode >= static_cast<int>(xvc::SpeedMode::kTotalNumber)) {
       return XVC_ENC_INVALID_PARAMETER;
     }
+    if (param->tune_mode < 0 ||
+        param->tune_mode >= static_cast<int>(xvc::TuneMode::kTotalNumber)) {
+      return XVC_ENC_INVALID_PARAMETER;
+    }
     return XVC_ENC_OK;
   }
 
-  void xvc_enc_set_speed_mode(xvc::Encoder *encoder,
-                              const xvc_encoder_parameters *param) {
+  void xvc_enc_set_encoder_settings(xvc::Encoder *encoder,
+                                    const xvc_encoder_parameters *param) {
     xvc::EncoderSettings encoder_settings;
 
     if (param->speed_mode >= 0) {
@@ -150,6 +155,10 @@ extern "C" {
       encoder_settings.Initialize(xvc::RestrictedMode(param->restricted_mode));
     } else {
       encoder_settings.Initialize(xvc::SpeedMode::kSlow);
+    }
+
+    if (param->tune_mode > 0) {
+      encoder_settings.Tune(xvc::TuneMode(param->tune_mode));
     }
 
     // Explicit speed settings override the settings
@@ -217,7 +226,7 @@ extern "C" {
       return nullptr;
     }
     xvc::Encoder *encoder = new xvc::Encoder();
-    xvc_enc_set_speed_mode(encoder, param);
+    xvc_enc_set_encoder_settings(encoder, param);
 
     encoder->SetResolution(param->width, param->height);
     encoder->SetChromaFormat(xvc::ChromaFormat(param->chroma_format));

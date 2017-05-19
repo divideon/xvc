@@ -82,6 +82,7 @@ extern "C" {
     int qp;
     int flat_lambda;
     int speed_mode;
+    int tune_mode;
     int checksum_mode;
     char* explicit_encoder_settings;
   } xvc_encoder_parameters;
