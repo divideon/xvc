@@ -30,6 +30,7 @@ protected:
     std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder());
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
+    encoder_settings.Tune(xvc::TuneMode::kPsnr);
     encoder->SetEncoderSettings(std::move(encoder_settings));
     encoder->SetResolution(width, height);
     encoder->SetChromaFormat(xvc::ChromaFormat::k420);

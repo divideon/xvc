@@ -69,6 +69,7 @@ protected:
     pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
+    encoder_settings.Tune(xvc::TuneMode::kPsnr);
     return pic_encoder_->Encode(segment_, segment_qp_,
                                 segment_.max_sub_gop_length, buffer_flag,
                                 flat_lamda, encoder_settings);
