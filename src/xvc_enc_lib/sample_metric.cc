@@ -481,7 +481,6 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
   const int shift = (2 * (bitdepth_ - 8));
   const uint64_t c1 = (n * n * 26634ull >> 12) << shift;
   const uint64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const double c3 = 0.5;
   const uint64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
   uint64_t ssd = 0;
   for (int y = 0; y < 8; y++) {
@@ -521,7 +520,6 @@ uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
   const int shift = (2 * (bitdepth_ - 8));
   const uint64_t c1 = (n * n * 26634ull >> 12) << shift;
   const uint64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const double c3 = 0.5;
   const uint64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
   uint64_t ssd = 0;
   for (int y = 0; y < 4; y++) {
