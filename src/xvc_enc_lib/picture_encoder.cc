@@ -50,7 +50,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   QP base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
              lambda);
 
-  pic_data_->Init(segment, base_qp);
+  pic_data_->Init(segment, base_qp, encoder_settings.adaptive_qp > 0);
 
   bit_writer_.Clear();
   WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);

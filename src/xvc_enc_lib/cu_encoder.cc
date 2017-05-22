@@ -273,12 +273,12 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
 
 int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
   const double kStrength = encoder_settings_.aqp_strength *
-    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 0.8 : 0.5);
-  const double kOffset = 12;
+    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 1 : 0.5);
+  const double kOffset = 15;
   const int kVarBlocksize = 8;
   const int kMeanDiv = 4;
-  const int kMinQpOffset = -2;
-  const int kMaxQpOffset = 5;
+  const int kMinQpOffset = -3;
+  const int kMaxQpOffset = 3;
   const YuvComponent luma = YuvComponent::kY;
   const int x = cu->GetPosX(luma);
   const int y = cu->GetPosY(luma);
@@ -301,26 +301,33 @@ int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
 
   const int h = cu->GetHeight(luma) / kVarBlocksize;
   const int w = cu->GetHeight(luma) / kVarBlocksize;
-  std::vector<uint64_t> v(h * w);
+  std::vector<uint64_t> v(h * w, std::numeric_limits<uint64_t>::max());
+  int blocks = 0;
   for (int i = 0; i < h; i++) {
+    if (y + i * kVarBlocksize >= pic_data_.GetPictureHeight(luma)) {
+      continue;
+    }
     const Sample *orig = orig_pic_.GetSamplePtr(luma, x, y) +
       i * kVarBlocksize * orig_pic_.GetStride(luma);
     for (int j = 0; j < w; j++) {
+      if (x + j * kVarBlocksize >= pic_data_.GetPictureWidth(luma)) {
+        continue;
+      }
       uint64_t variance =
         calc_variance(orig, kVarBlocksize, orig_pic_.GetStride(luma));
-      v[i * w + j] = variance;
+      v[blocks++] = variance;
       orig += kVarBlocksize;
     }
   }
   std::sort(v.begin(), v.end());
-  uint64_t variance = v[v.size() / kMeanDiv];
+  uint64_t variance;
+  variance = v[blocks / kMeanDiv];
 
   int bd = orig_pic_.GetBitdepth();
   double dqp = kStrength * (1.5 * std::log(variance) - kOffset + 2 * (bd - 8));
 
   return util::Clip3(static_cast<int>(dqp), kMinQpOffset, kMaxQpOffset);
 }
-
 
 Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                       SplitRestriction split_restriction,

@@ -30,7 +30,8 @@ public:
   PictureData(ChromaFormat chroma_format, int width, int height, int bitdepth);
   ~PictureData();
 
-  void Init(const SegmentHeader &segment, const QP &pic_qp);
+  void Init(const SegmentHeader &segment, const QP &pic_qp,
+            bool recalculate_lambda);
 
   // General
   PicturePredictionType GetPredictionType() const;

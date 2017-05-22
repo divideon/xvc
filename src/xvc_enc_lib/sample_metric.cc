@@ -504,7 +504,7 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
      n * reco_reco_sum - reco_sum * reco_sum + c2);
 
   ssd >>= shift;
-  return static_cast<uint64_t>(c3 * ssd + (1 - c3) * c4 * (1 - a * b));
+  return static_cast<uint64_t>((ssd + (1 - a * b))) >> 1;
 }
 
 template<typename SampleT1, typename SampleT2>
@@ -544,7 +544,7 @@ uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
      n * reco_reco_sum - reco_sum * reco_sum + c2);
 
   ssd >>= shift;
-  return static_cast<uint64_t>(c3 * ssd + (1 - c3) * .25 * c4 * (1 - a * b));
+  return static_cast<uint64_t>(ssd + (c4 >> 2) * (1 - a * b)) >> 1;
 }
 
 template<typename SampleT1, typename SampleT2>

@@ -53,7 +53,8 @@ PictureData::~PictureData() {
   }
 }
 
-void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp) {
+void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp,
+                       bool recalculate_lambda) {
   // Determine number of CU trees
   if (!Restrictions::Get().disable_ext_two_cu_trees && IsIntraPic() &&
       max_num_components_ > 1) {
@@ -80,8 +81,13 @@ void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp) {
   qps_.clear();
   for (int i = 0; i <= constants::kMaxAllowedQp; i++) {
     int qp_tmp = i;
-    double lambda_tmp = pic_qp.GetLambda() *
-      pow(2.0, (i - pic_qp.GetQpRaw(YuvComponent::kY)) / 3.0);
+    double lambda_tmp;
+    if (recalculate_lambda) {
+      lambda_tmp = 0.57 * pow(2.0, (i - 12) / 3.0);
+    } else {
+      lambda_tmp = pic_qp.GetLambda() *
+        pow(2.0, (i - pic_qp.GetQpRaw(YuvComponent::kY)) / 3.0);
+    }
     qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
   }
 

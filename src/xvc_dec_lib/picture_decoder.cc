@@ -113,7 +113,7 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
   double lambda = 0;
   QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
-  pic_data_->Init(segment, qp);
+  pic_data_->Init(segment, qp, true);
 
   EntropyDecoder entropy_decoder(bit_reader);
   entropy_decoder.Start();
