@@ -273,7 +273,7 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
 
 int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
   const double kStrength = encoder_settings_.aqp_strength *
-    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 0.5 : 0.5);
+    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 0.5 : 0.4);
   const double kOffset = 13;
   const int kVarBlocksize = 8;
   const int kMeanDiv = 4;
