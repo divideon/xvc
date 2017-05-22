@@ -472,17 +472,17 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
                                              ptrdiff_t stride1,
                                              const SampleT2 *sample2,
                                              ptrdiff_t stride2) {
-  uint64_t orig_sum = 0;
-  uint64_t reco_sum = 0;
-  uint64_t orig_orig_sum = 0;
-  uint64_t reco_reco_sum = 0;
-  uint64_t orig_reco_sum = 0;
+  int64_t orig_sum = 0;
+  int64_t reco_sum = 0;
+  int64_t orig_orig_sum = 0;
+  int64_t reco_reco_sum = 0;
+  int64_t orig_reco_sum = 0;
   const int n = 64;
   const int shift = (2 * (bitdepth_ - 8));
-  const uint64_t c1 = (n * n * 26634ull >> 12) << shift;
-  const uint64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const uint64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
-  uint64_t ssd = 0;
+  const int64_t c1 = (n * n * 26634ull >> 12) << shift;
+  const int64_t c2 = (n * n * 239708ull >> 12) << shift;
+  const int64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
+  int64_t ssd = 0;
   for (int y = 0; y < 8; y++) {
     for (int x = 0; x < 8; x++) {
       orig_sum += sample1[x];
@@ -503,7 +503,7 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
      n * reco_reco_sum - reco_sum * reco_sum + c2);
 
   ssd >>= shift;
-  return static_cast<uint64_t>((ssd + (1 - a * b))) >> 1;
+  return static_cast<uint64_t>((ssd + c4 * (1 - a * b))) >> 1;
 }
 
 template<typename SampleT1, typename SampleT2>
@@ -511,17 +511,17 @@ uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
                                              ptrdiff_t stride1,
                                              const SampleT2 *sample2,
                                              ptrdiff_t stride2) {
-  uint64_t orig_sum = 0;
-  uint64_t reco_sum = 0;
-  uint64_t orig_orig_sum = 0;
-  uint64_t reco_reco_sum = 0;
-  uint64_t orig_reco_sum = 0;
+  int64_t orig_sum = 0;
+  int64_t reco_sum = 0;
+  int64_t orig_orig_sum = 0;
+  int64_t reco_reco_sum = 0;
+  int64_t orig_reco_sum = 0;
   const int n = 16;
   const int shift = (2 * (bitdepth_ - 8));
-  const uint64_t c1 = (n * n * 26634ull >> 12) << shift;
-  const uint64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const uint64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
-  uint64_t ssd = 0;
+  const int64_t c1 = (n * n * 26634ull >> 12) << shift;
+  const int64_t c2 = (n * n * 239708ull >> 12) << shift;
+  const int64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
+  int64_t ssd = 0;
   for (int y = 0; y < 4; y++) {
     for (int x = 0; x < 4; x++) {
       orig_sum += sample1[x];

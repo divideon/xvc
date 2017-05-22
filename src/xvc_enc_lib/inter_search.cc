@@ -203,7 +203,8 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
     Distortion dist_zero =
       metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer());
     Distortion dist_fast = dist_orig;
-    if (encoder_settings_.fast_inter_cbf_dist && cu->GetCbf(comp)) {
+    if (encoder_settings_.fast_inter_cbf_dist && cu->GetCbf(comp) &&
+        !encoder_settings_.structural_ssd) {
       // Not really faster since we are calculating the true distortion anyway
       dist_fast = encoder->GetResidualDist(*cu, comp, &metric);
     }
