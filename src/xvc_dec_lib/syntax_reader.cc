@@ -17,7 +17,7 @@
 
 namespace xvc {
 
-SyntaxReader::SyntaxReader(const QP &qp, PicturePredictionType pic_type,
+SyntaxReader::SyntaxReader(const Qp &qp, PicturePredictionType pic_type,
                            EntropyDecoder *entropydec)
   : entropydec_(entropydec) {
   ctx_.ResetStates(qp, pic_type);

@@ -19,7 +19,7 @@ namespace xvc {
 
 class SyntaxReader {
 public:
-  SyntaxReader(const QP &qp, PicturePredictionType pic_type,
+  SyntaxReader(const Qp &qp, PicturePredictionType pic_type,
                EntropyDecoder *entropydec);
   bool ReadCbf(const CodingUnit &cu, YuvComponent comp);
   int ReadQp();

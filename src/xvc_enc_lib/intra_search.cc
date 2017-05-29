@@ -25,7 +25,7 @@ IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
 }
 
 IntraMode
-IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const QP &qp,
+IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
                              const SyntaxWriter &bitstream_writer,
                              TransformEncoder *encoder, YuvPicture *rec_pic) {
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
@@ -51,7 +51,7 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const QP &qp,
     ComputeReferenceState(*cu, comp, reco, reco_stride);
 
   SampleBuffer &pred_buf = encoder->GetPredBuffer();
-  SampleMetric metric(MetricType::kSATD, qp, rec_pic->GetBitdepth());
+  SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
   std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber> modes_cost;
   for (int i = 0; i < IntraMode::kTotalNumber; i++) {
     IntraMode intra_mode = static_cast<IntraMode>(i);
@@ -121,7 +121,7 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const QP &qp,
 }
 
 IntraChromaMode
-IntraSearch::SearchIntraChroma(CodingUnit *cu, const QP &qp,
+IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                TransformEncoder *enc, YuvPicture *rec_pic) {
   const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
@@ -157,7 +157,7 @@ IntraSearch::SearchIntraChroma(CodingUnit *cu, const QP &qp,
 }
 
 Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
-                                      const QP &qp, TransformEncoder *encoder,
+                                      const Qp &qp, TransformEncoder *encoder,
                                       YuvPicture *rec_pic) {
   int cu_x = cu->GetPosX(comp);
   int cu_y = cu->GetPosY(comp);

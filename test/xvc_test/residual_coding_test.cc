@@ -24,7 +24,7 @@ class ResidualCoding : public ::testing::TestWithParam<int> {
 protected:
   void SetUp() override {
     double lambda = 0;
-    qp_.reset(new xvc::QP(32, chroma_format, bitdepth, lambda));
+    qp_.reset(new xvc::Qp(32, chroma_format, bitdepth, lambda));
     enc_coeff.fill(0);
     dec_coeff.fill(0xff);
   }
@@ -90,7 +90,7 @@ protected:
   const xvc::PredictionMode pred_mode = xvc::PredictionMode::kInter;
   std::array<xvc::Coeff, coeff_stride * kMaxHeight> enc_coeff;
   std::array<xvc::Coeff, coeff_stride * kMaxHeight> dec_coeff;
-  std::unique_ptr<xvc::QP> qp_;
+  std::unique_ptr<xvc::Qp> qp_;
   int width_ = kMaxWidth;
   int height_ = kMaxHeight;
 };

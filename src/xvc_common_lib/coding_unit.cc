@@ -96,11 +96,11 @@ bool CodingUnit::IsBinarySplitValid() const {
      height_ > constants::kMinBinarySplitSize);
 }
 
-const QP& CodingUnit::GetQp() const {
+const Qp& CodingUnit::GetQp() const {
   return *qp_;
 }
 
-void CodingUnit::SetQp(const QP &qp) {
+void CodingUnit::SetQp(const Qp &qp) {
   qp_ = &qp;
 }
 

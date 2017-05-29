@@ -111,7 +111,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
 bool PictureDecoder::Decode(const SegmentHeader &segment,
                             BitReader *bit_reader) {
   double lambda = 0;
-  QP qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
+  Qp qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
   pic_data_->Init(segment, qp, true);
 

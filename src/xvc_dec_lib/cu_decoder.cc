@@ -13,7 +13,7 @@
 
 namespace xvc {
 
-CuDecoder::CuDecoder(const QP &pic_qp, YuvPicture *decoded_pic,
+CuDecoder::CuDecoder(const Qp &pic_qp, YuvPicture *decoded_pic,
                      PictureData *pic_data)
   : min_pel_(0),
   max_pel_((1 << decoded_pic->GetBitdepth()) - 1),
@@ -83,7 +83,7 @@ void CuDecoder::DecompressCu(CodingUnit *cu) {
 }
 
 void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
-                                    const QP &qp) {
+                                    const Qp &qp) {
   int cu_x = cu->GetPosX(comp);
   int cu_y = cu->GetPosY(comp);
   int width = cu->GetWidth(comp);

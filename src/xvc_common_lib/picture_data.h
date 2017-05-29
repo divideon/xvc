@@ -30,15 +30,15 @@ public:
   PictureData(ChromaFormat chroma_format, int width, int height, int bitdepth);
   ~PictureData();
 
-  void Init(const SegmentHeader &segment, const QP &pic_qp,
+  void Init(const SegmentHeader &segment, const Qp &pic_qp,
             bool recalculate_lambda);
 
   // General
   PicturePredictionType GetPredictionType() const;
-  const QP* GetPicQp() const {
+  const Qp* GetPicQp() const {
     return pic_qp_.get();
   }
-  const QP* GetQp(int raw_qp) const {
+  const Qp* GetQp(int raw_qp) const {
     return &qps_[util::Clip3(raw_qp, 0, constants::kMaxAllowedQp)];
   }
   bool IsIntraPic() const {
@@ -177,8 +177,8 @@ private:
   int tid_ = 0;
   bool highest_layer_ = false;
   int max_binary_split_depth_ = 0;
-  std::unique_ptr<QP> pic_qp_;
-  std::vector<QP> qps_;
+  std::unique_ptr<Qp> pic_qp_;
+  std::vector<Qp> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;
   OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
   ReferencePictureLists ref_pic_lists_;

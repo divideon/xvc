@@ -36,23 +36,23 @@ private:
   Distortion CompressCu(CodingUnit **cu, int rdo_depth,
                         SplitRestriction split_restiction,
                         RdoSyntaxWriter *rdo_writer,
-                        const QP &qp);
-  RdoCost CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
+                        const Qp &qp);
+  RdoCost CompressSplitCu(CodingUnit *cu, int rdo_depth, const Qp &qp,
                           SplitType split_type, SplitRestriction split_restrct,
                           RdoSyntaxWriter *rdo_writer);
   Distortion CompressNoSplit(CodingUnit **cu, int rdo_depth,
                              SplitRestriction split_restrct,
                              RdoSyntaxWriter *rdo_writer);
-  Distortion CompressFast(CodingUnit *cu, const QP &qp,
+  Distortion CompressFast(CodingUnit *cu, const Qp &qp,
                           const SyntaxWriter &writer);
-  RdoCost CompressIntra(CodingUnit *cu, const QP &qp,
+  RdoCost CompressIntra(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer);
-  RdoCost CompressInter(CodingUnit *cu, const QP &qp,
+  RdoCost CompressInter(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer);
-  RdoCost CompressMerge(CodingUnit *cu, const QP &qp,
+  RdoCost CompressMerge(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer,
                         bool fast_merge_skip);
-  RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
+  RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 Distortion ssd);
   int CalcDeltaQpFromVariance(const CodingUnit *cu);

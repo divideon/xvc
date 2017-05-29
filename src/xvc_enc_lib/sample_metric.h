@@ -19,16 +19,16 @@
 namespace xvc {
 
 enum class MetricType {
-  kSSE,
-  kSATD,
-  kSAD,
-  kSADFast,
+  kSsd,
+  kSatd,
+  kSad,
+  kSadFast,
   kStructuralSsd,
 };
 
 class SampleMetric {
 public:
-  SampleMetric(MetricType type, const QP &qp, int bitdepth)
+  SampleMetric(MetricType type, const Qp &qp, int bitdepth)
     : type_(type), qp_(qp), bitdepth_(bitdepth) {
   }
   // Sample vs Sample
@@ -63,22 +63,22 @@ private:
                      const SampleT1 *src1, ptrdiff_t stride1,
                      const SampleT2 *src2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSSE(int width, int height,
+  uint64_t ComputeSsd(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
                       const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSATD(int width, int height,
+  uint64_t ComputeSatd(int width, int height,
                        const SampleT1 *sample1, ptrdiff_t stride1,
                        const SampleT2 *sample2, ptrdiff_t stride2);
   template<int W, int H, typename SampleT1, typename SampleT2>
-  int ComputeSATDNxM(const SampleT1 *sample1, ptrdiff_t stride1,
+  int ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
                      const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSAD(int width, int height,
+  uint64_t ComputeSad(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
                       const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSADFast(int width, int height,
+  uint64_t ComputeSadFast(int width, int height,
                           const SampleT1 *sample1, ptrdiff_t stride1,
                           const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
@@ -93,7 +93,7 @@ private:
                        const SampleT2 *sample2, ptrdiff_t stride2);
 
   MetricType type_;
-  const QP &qp_;
+  const Qp &qp_;
   int bitdepth_;
   std::vector<double> lambdas_;
 };

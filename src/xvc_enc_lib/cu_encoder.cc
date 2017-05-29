@@ -102,7 +102,7 @@ void CuEncoder::EncodeCtu(int rsaddr, SyntaxWriter *bitstream_writer) {
 
 Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                                  SplitRestriction split_restiction,
-                                 RdoSyntaxWriter *writer, const QP &qp) {
+                                 RdoSyntaxWriter *writer, const Qp &qp) {
   const int kMaxTrSize =
     !Restrictions::Get().disable_ext_transform_size_64 ? 64 : 32;
   CodingUnit *cu = *best_cu;  // Invariant: cu always points to *best_cu
@@ -239,7 +239,7 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
 }
 
 CuEncoder::RdoCost
-CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const QP &qp,
+CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const Qp &qp,
                            SplitType split_type,
                            SplitRestriction split_restriction,
                            RdoSyntaxWriter *rdo_writer) {
@@ -336,7 +336,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   CodingUnit::ReconstructionState *best_state =
     &temp_cu_state_[rdo_depth + 1];
   CodingUnit *cu = *best_cu;
-  const QP &qp = cu->GetQp();
+  const Qp &qp = cu->GetQp();
   if (cu->GetSplit() != SplitType::kNone) {
     cu->UnSplit();
   }
@@ -426,7 +426,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
   return best_cost.dist;
 }
 
-Distortion CuEncoder::CompressFast(CodingUnit *cu, const QP &qp,
+Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
                                    const SyntaxWriter &writer) {
   assert(cu->GetSplit() == SplitType::kNone);
   Distortion dist = 0;
@@ -444,7 +444,7 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const QP &qp,
 }
 
 CuEncoder::RdoCost
-CuEncoder::CompressIntra(CodingUnit *cu, const QP &qp,
+CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
                          const SyntaxWriter &writer) {
   cu->SetPredMode(PredictionMode::kIntra);
   cu->SetSkipFlag(false);
@@ -465,7 +465,7 @@ CuEncoder::CompressIntra(CodingUnit *cu, const QP &qp,
 }
 
 CuEncoder::RdoCost
-CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
+CuEncoder::CompressInter(CodingUnit *cu, const Qp &qp,
                          const SyntaxWriter &bitstream_writer) {
   Distortion dist =
     inter_search_.CompressInter(cu, qp, bitstream_writer, this, &rec_pic_);
@@ -473,7 +473,7 @@ CuEncoder::CompressInter(CodingUnit *cu, const QP &qp,
 }
 
 CuEncoder::RdoCost
-CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
+CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
                          const SyntaxWriter &bitstream_writer,
                          bool fast_merge_skip) {
   std::array<bool,
@@ -532,7 +532,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const QP &qp,
 }
 
 CuEncoder::RdoCost
-CuEncoder::GetCuCostWithoutSplit(const CodingUnit &cu, const QP &qp,
+CuEncoder::GetCuCostWithoutSplit(const CodingUnit &cu, const Qp &qp,
                                  const SyntaxWriter &bitstream_writer,
                                  Distortion ssd) {
   RdoSyntaxWriter rdo_writer(bitstream_writer, 0);

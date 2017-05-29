@@ -53,7 +53,7 @@ PictureData::~PictureData() {
   }
 }
 
-void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp,
+void PictureData::Init(const SegmentHeader &segment, const Qp &pic_qp,
                        bool recalculate_lambda) {
   // Determine number of CU trees
   if (!Restrictions::Get().disable_ext_two_cu_trees && IsIntraPic() &&
@@ -76,8 +76,8 @@ void PictureData::Init(const SegmentHeader &segment, const QP &pic_qp,
   max_binary_split_depth_ =
     std::min(segment.max_binary_split_depth, constants::kMaxBinarySplitDepth);
 
-  // Setup QP
-  pic_qp_.reset(new QP(pic_qp));
+  // Setup Qp
+  pic_qp_.reset(new Qp(pic_qp));
   qps_.clear();
   for (int i = 0; i <= constants::kMaxAllowedQp; i++) {
     int qp_tmp = i;

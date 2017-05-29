@@ -16,7 +16,7 @@
 
 namespace xvc {
 
-SyntaxWriter::SyntaxWriter(const QP &qp, PicturePredictionType pic_type,
+SyntaxWriter::SyntaxWriter(const Qp &qp, PicturePredictionType pic_type,
                            EntropyEncoder *entropyenc)
   : entropyenc_(entropyenc) {
   ctx_.ResetStates(qp, pic_type);

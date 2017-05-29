@@ -101,6 +101,10 @@ TEST(EncoderAPI, ParamCheck) {
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->color_matrix = XVC_ENC_COLOR_MATRIX_2020;
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
+
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
   params->num_ref_pics = 5;
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
 

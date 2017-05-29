@@ -25,12 +25,12 @@ public:
 
   SampleBuffer& GetPredBuffer() { return temp_pred_; }
   Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
-                                     const QP &qp, const YuvPicture &orig_pic,
+                                     const Qp &qp, const YuvPicture &orig_pic,
                                      YuvPicture *rec_pic);
-  bool EvalCbfZero(CodingUnit *cu, const QP &qp, YuvComponent comp,
+  bool EvalCbfZero(CodingUnit *cu, const Qp &qp, YuvComponent comp,
                    const SyntaxWriter &bitstream_writer,
                    Distortion dist_non_zero, Distortion dist_zero);
-  bool EvalRootCbfZero(CodingUnit *cu, const QP &qp,
+  bool EvalRootCbfZero(CodingUnit *cu, const Qp &qp,
                        const SyntaxWriter &bitstream_writer,
                        Distortion sum_dist_non_zero,
                        Distortion sum_dist_zero);

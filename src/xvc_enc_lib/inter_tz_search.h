@@ -27,7 +27,7 @@ public:
     bitdepth_(bitdepth),
     search_range_(search_range) {
   }
-  MotionVector Search(const CodingUnit &cu, const QP &qp, MetricType metric,
+  MotionVector Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
                       const MotionVector &mvp, const YuvPicture &ref_pic,
                       const MotionVector &mv_min, const MotionVector &mv_max,
                       const MotionVector &prev_search);

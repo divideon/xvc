@@ -43,11 +43,11 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
   int pic_qp = DerivePictureQp(*pic_data_, segment_qp);
   double lambda =
-    QP::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
+    Qp::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
                         lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
                         encoder_settings.smooth_lambda_scaling);
-  int scaled_qp = QP::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
-  QP base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
+  int scaled_qp = Qp::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
+  Qp base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
              lambda);
 
   pic_data_->Init(segment, base_qp, encoder_settings.adaptive_qp > 0);

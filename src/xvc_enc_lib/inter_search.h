@@ -31,17 +31,17 @@ public:
               const EncoderSettings &encoder_settings);
 
 
-  Distortion CompressInter(CodingUnit *cu, const QP &qp,
+  Distortion CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic);
-  Distortion CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
+  Distortion CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
                                TransformEncoder *encoder, YuvPicture *rec_pic);
-  Distortion CompressMergeCand(CodingUnit *cu, const QP &qp,
+  Distortion CompressMergeCand(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                const InterMergeCandidateList &merge_list,
                                int merge_idx, bool force_skip,
                                TransformEncoder *encoder, YuvPicture *rec_pic);
-  int SearchMergeCandidates(CodingUnit *cu, const QP &qp,
+  int SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
                             const SyntaxWriter &bitstream_writer,
                             const InterMergeCandidateList &merge_list,
                             TransformEncoder *encoder,
@@ -54,22 +54,22 @@ private:
   static constexpr int kFastMergeNumCand = 4;
   static constexpr double kFastMergeCostFactor = 1.25;
 
-  void SearchMotion(CodingUnit *cu, const QP &qp, bool uni_prediction_only,
+  void SearchMotion(CodingUnit *cu, const Qp &qp, bool uni_prediction_only,
                     const SyntaxWriter &bitstream_writer,
                     SampleBuffer *pred_buffer);
-  Distortion CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
+  Distortion CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 TransformEncoder *encoder, YuvPicture *rec_pic);
-  Distortion CompressSkipOnly(CodingUnit *cu, const QP &qp,
+  Distortion CompressSkipOnly(CodingUnit *cu, const Qp &qp,
                               const SyntaxWriter &bitstream_writer,
                               TransformEncoder *encoder, YuvPicture *rec_pic);
-  Distortion SearchBiIterative(CodingUnit *cu, const QP &qp,
+  Distortion SearchBiIterative(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                InterDir best_uni_dir,
                                Sample *pred_buf, ptrdiff_t pred_stride,
                                CodingUnit::InterState *best_state);
   template<typename TOrig>
-  Distortion SearchRefIdx(CodingUnit *cu, const QP &qp, RefPicList ref_list,
+  Distortion SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
                           const SyntaxWriter &bitstream_writer,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *pred, ptrdiff_t pred_stride,
@@ -78,7 +78,7 @@ private:
                           CodingUnit::InterState *best_unique = nullptr,
                           Distortion *best_unique_cost = nullptr);
   template<typename TOrig>
-  MotionVector MotionEstimation(const CodingUnit &cu, const QP &qp,
+  MotionVector MotionEstimation(const CodingUnit &cu, const Qp &qp,
                                 SearchMethod search_method,
                                 RefPicList ref_list, int ref_idx,
                                 const DataBuffer<TOrig> &orig_buffer,
@@ -86,12 +86,12 @@ private:
                                 const MotionVector *bipred_mv_start,
                                 Sample *pred, ptrdiff_t pred_stride,
                                 Distortion *out_dist);
-  MotionVector FullSearch(const CodingUnit &cu, const QP &qp,
+  MotionVector FullSearch(const CodingUnit &cu, const Qp &qp,
                           const MotionVector &mvp, const YuvPicture &ref_pic,
                           const MotionVector &mv_min,
                           const MotionVector &mv_max);
   template<typename TOrig>
-  MotionVector SubpelSearch(const CodingUnit &cu, const QP &qp,
+  MotionVector SubpelSearch(const CodingUnit &cu, const Qp &qp,
                             const YuvPicture &ref_pic, const MotionVector &mvp,
                             const MotionVector &mv_fullpel,
                             const DataBuffer<TOrig> &orig_buffer,
@@ -103,7 +103,7 @@ private:
                                  SampleMetric *metric, int mv_x, int mv_y,
                                  const DataBuffer<TOrig> &orig_buffer,
                                  Sample *pred_buf, ptrdiff_t pred_buf_stride);
-  int EvalStartMvp(const CodingUnit &cu, const QP &qp,
+  int EvalStartMvp(const CodingUnit &cu, const Qp &qp,
                    const InterPredictorList &mvp_list,
                    const YuvPicture &ref_pic, Sample *pred_buf,
                    ptrdiff_t pred_stride);

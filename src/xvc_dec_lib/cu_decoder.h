@@ -23,7 +23,7 @@ namespace xvc {
 
 class CuDecoder {
 public:
-  CuDecoder(const QP &pic_qp, YuvPicture *decoded_pic,
+  CuDecoder(const Qp &pic_qp, YuvPicture *decoded_pic,
             PictureData *picture_data);
   void DecodeCtu(int rsaddr, SyntaxReader *reader);
 
@@ -31,11 +31,11 @@ private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   void ReadCtu(int rsaddr, SyntaxReader *reader);
   void DecompressCu(CodingUnit *cu);
-  void DecompressComponent(CodingUnit *cu, YuvComponent comp, const QP &qp);
+  void DecompressComponent(CodingUnit *cu, YuvComponent comp, const Qp &qp);
 
   const Sample min_pel_;
   const Sample max_pel_;
-  const QP &pic_qp_;
+  const Qp &pic_qp_;
   YuvPicture &decoded_pic_;
   PictureData &pic_data_;
   InterPrediction inter_pred_;

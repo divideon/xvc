@@ -32,14 +32,6 @@ TEST(DecoderAPI, ParamCheck) {
   EXPECT_EQ(XVC_DEC_INVALID_PARAMETER, api->parameters_check(params));
 
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
-  params->output_chroma_format = static_cast<xvc_dec_chroma_format>(5);
-  EXPECT_EQ(XVC_DEC_INVALID_PARAMETER, api->parameters_check(params));
-
-  EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
-  params->output_color_matrix = static_cast<xvc_dec_color_matrix>(6);
-  EXPECT_EQ(XVC_DEC_INVALID_PARAMETER, api->parameters_check(params));
-
-  EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   params->output_bitdepth = 64;
   EXPECT_EQ(XVC_DEC_BITDEPTH_OUT_OF_RANGE, api->parameters_check(params));
 

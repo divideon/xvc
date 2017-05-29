@@ -28,7 +28,7 @@ TransformEncoder::TransformEncoder(int bitdepth, int num_components,
 
 Distortion
 TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
-                                          const QP & qp,
+                                          const Qp & qp,
                                           const YuvPicture &orig_pic,
                                           YuvPicture *rec_pic) {
   int cu_x = cu->GetPosX(comp);
@@ -80,12 +80,12 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
   }
 
   MetricType m = encoder_settings_.structural_ssd > 0 &&
-    comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+    comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSsd;
   SampleMetric metric(m, qp, rec_pic->GetBitdepth());
   return metric.CompareSample(*cu, comp, orig_pic, reco_buffer);
 }
 
-bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const QP &qp,
+bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
                                    YuvComponent comp,
                                    const SyntaxWriter &rdo_writer,
                                    Distortion dist_non_zero,
@@ -115,7 +115,7 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const QP &qp,
   return false;
 }
 
-bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const QP &qp,
+bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const Qp &qp,
                                        const SyntaxWriter &bitstream_writer,
                                        Distortion sum_dist_non_zero,
                                        Distortion sum_dist_zero) {

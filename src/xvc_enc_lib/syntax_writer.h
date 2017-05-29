@@ -19,7 +19,7 @@ namespace xvc {
 
 class SyntaxWriter {
 public:
-  SyntaxWriter(const QP &qp, PicturePredictionType pic_type,
+  SyntaxWriter(const Qp &qp, PicturePredictionType pic_type,
                EntropyEncoder *entropyenc);
   SyntaxWriter(const CabacContexts &contexts, EntropyEncoder *entropyenc);
   const CabacContexts &GetContexts() const { return ctx_; }

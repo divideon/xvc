@@ -45,7 +45,7 @@ InterSearch::InterSearch(int bitdepth, int max_components,
 }
 
 Distortion
-InterSearch::CompressInter(CodingUnit *cu, const QP &qp,
+InterSearch::CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic) {
   bool uni_pred_only = cu->GetPicType() == PicturePredictionType::kUni;
@@ -55,7 +55,7 @@ InterSearch::CompressInter(CodingUnit *cu, const QP &qp,
 }
 
 Distortion
-InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
+InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
                                TransformEncoder *encoder, YuvPicture *rec_pic) {
   if (!cu->GetCbf(comp)) {
     // Write prediction directly to reconstruction
@@ -63,7 +63,7 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
       rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
     MotionCompensation(*cu, comp, reco.GetDataPtr(), reco.GetStride());
     MetricType m = encoder_settings_.structural_ssd > 0 &&
-      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSsd;
     SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     return metric.CompareSample(*cu, comp, orig_pic_, reco);
   } else {
@@ -74,7 +74,7 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const QP &qp,
 }
 
 Distortion
-InterSearch::CompressMergeCand(CodingUnit *cu, const QP &qp,
+InterSearch::CompressMergeCand(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                const InterMergeCandidateList &merge_list,
                                int merge_idx, bool force_skip,
@@ -94,13 +94,13 @@ InterSearch::CompressMergeCand(CodingUnit *cu, const QP &qp,
 }
 
 int
-InterSearch::SearchMergeCandidates(CodingUnit *cu, const QP &qp,
+InterSearch::SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
                                    const SyntaxWriter & bitstream_writer,
                                    const InterMergeCandidateList &merge_list,
                                    TransformEncoder *encoder,
                                    MergeCandLookup *out_cand_list) {
   constexpr int max_merge_cand = constants::kNumInterMergeCandidates;
-  SampleMetric metric(MetricType::kSATD, qp, bitdepth_);
+  SampleMetric metric(MetricType::kSatd, qp, bitdepth_);
   SampleBuffer pred_buffer = encoder->GetPredBuffer();
   std::array<std::pair<int, double>, max_merge_cand> cand_cost;
   for (int merge_idx = 0; merge_idx < max_merge_cand; merge_idx++) {
@@ -128,7 +128,7 @@ InterSearch::SearchMergeCandidates(CodingUnit *cu, const QP &qp,
   return num_merge_cand;
 }
 
-void InterSearch::SearchMotion(CodingUnit *cu, const QP &qp,
+void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
                                bool uni_prediction_only,
                                const SyntaxWriter &bitstream_writer,
                                SampleBuffer *pred_buffer) {
@@ -181,7 +181,7 @@ void InterSearch::SearchMotion(CodingUnit *cu, const QP &qp,
 }
 
 Distortion
-InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
+InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 TransformEncoder *encoder,
                                 YuvPicture *rec_pic) {
@@ -193,7 +193,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
   for (int c = 0; c < max_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
     MetricType m = encoder_settings_.structural_ssd > 0 &&
-      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSsd;
     SampleMetric metric(m, qp, bitdepth_);
     SampleBuffer &pred_buffer = encoder->GetPredBuffer();
     MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
@@ -251,7 +251,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const QP &qp,
 }
 
 Distortion
-InterSearch::CompressSkipOnly(CodingUnit *cu, const QP &qp,
+InterSearch::CompressSkipOnly(CodingUnit *cu, const Qp &qp,
                               const SyntaxWriter &bitstream_writer,
                               TransformEncoder *encoder, YuvPicture *rec_pic) {
   assert(cu->GetPredMode() == PredictionMode::kInter);
@@ -262,7 +262,7 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const QP &qp,
   for (int c = 0; c < max_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
     MetricType m = encoder_settings_.structural_ssd > 0 &&
-      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSSE;
+      comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSsd;
     SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     int posx = cu->GetPosX(comp);
     int posy = cu->GetPosY(comp);
@@ -277,7 +277,7 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const QP &qp,
 }
 
 Distortion
-InterSearch::SearchBiIterative(CodingUnit *cu, const QP &qp,
+InterSearch::SearchBiIterative(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                InterDir best_uni_dir,
                                Sample *pred_buf, ptrdiff_t pred_stride,
@@ -318,7 +318,7 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const QP &qp,
 
 template<typename TOrig>
 Distortion
-InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp, RefPicList ref_list,
+InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
                           const SyntaxWriter &bitstream_writer,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *pred, ptrdiff_t pred_stride,
@@ -407,7 +407,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const QP &qp, RefPicList ref_list,
 
 template<typename TOrig>
 MotionVector
-InterSearch::MotionEstimation(const CodingUnit &cu, const QP &qp,
+InterSearch::MotionEstimation(const CodingUnit &cu, const Qp &qp,
                               SearchMethod search_method,
                               RefPicList ref_list, int ref_idx,
                               const DataBuffer<TOrig> &orig_buffer,
@@ -446,7 +446,7 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const QP &qp,
   return mv_subpel;
 }
 
-MotionVector InterSearch::FullSearch(const CodingUnit &cu, const QP &qp,
+MotionVector InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
                                      const MotionVector &mvp,
                                      const YuvPicture &ref_pic,
                                      const MotionVector &mv_min,
@@ -485,13 +485,13 @@ MotionVector InterSearch::FullSearch(const CodingUnit &cu, const QP &qp,
 
 template<typename TOrig>
 MotionVector
-InterSearch::SubpelSearch(const CodingUnit &cu, const QP &qp,
+InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
                           const YuvPicture &ref_pic, const MotionVector &mvp,
                           const MotionVector &mv_fullpel,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *buffer, ptrdiff_t buffer_stride,
                           Distortion *out_dist) {
-  SampleMetric metric = SampleMetric(MetricType::kSATD, qp, bitdepth_);
+  SampleMetric metric = SampleMetric(MetricType::kSatd, qp, bitdepth_);
   uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   MotionVector mv_subpel(mv_fullpel.x * (1 << constants::kMvPrecisionShift),
@@ -555,11 +555,11 @@ InterSearch::GetSubpelDistortion(const CodingUnit &cu,
                                orig_buffer.GetStride(), &buf[0], buf_stride);
 }
 
-int InterSearch::EvalStartMvp(const CodingUnit &cu, const QP &qp,
+int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
                               const InterPredictorList &mvp_list,
                               const YuvPicture &ref_pic, Sample *pred_buf,
                               ptrdiff_t pred_stride) {
-  SampleMetric metric(MetricType::kSAD, qp, bitdepth_);
+  SampleMetric metric(MetricType::kSad, qp, bitdepth_);
   uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   int best_mvp_idx = 0;
@@ -600,7 +600,7 @@ int InterSearch::EvalFinalMvpIdx(const CodingUnit &cu,
 
 MetricType InterSearch::GetFullpelMetric(const CodingUnit & cu) {
   return cu.GetHeight(YuvComponent::kY) > 8 ?
-    MetricType::kSADFast : MetricType::kSAD;
+    MetricType::kSadFast : MetricType::kSad;
 }
 
 Bits InterSearch::GetInterPredBits(const CodingUnit &cu,

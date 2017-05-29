@@ -17,14 +17,14 @@ namespace xvc {
 
 class CodingUnit;
 
-class QP {
+class Qp {
 public:
-  QP(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
+  Qp(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
      int chroma_offset = 0);
-  bool operator<(const QP &qp) const {
+  bool operator<(const Qp &qp) const {
     return qp_raw_[0] < qp.qp_raw_[0];
   }
-  bool operator<=(const QP &qp) const {
+  bool operator<=(const Qp &qp) const {
     return qp_raw_[0] <= qp.qp_raw_[0];
   }
   int GetQpRaw(YuvComponent comp) const {
@@ -57,7 +57,7 @@ private:
   static const int kNumScalingListRem_ = 6;
   static const int kFwdQuantScales_[kNumScalingListRem_];
   static const int kInvQuantScales_[kNumScalingListRem_];
-  static int ScaleChromaQP(int qp, ChromaFormat chroma_format, int bitdepth);
+  static int ScaleChromaQp(int qp, ChromaFormat chroma_format, int bitdepth);
   static double GetChromaDistWeight(int qp, ChromaFormat chroma_format);
 
   std::array<int, constants::kMaxYuvComponents> qp_raw_;
@@ -69,12 +69,12 @@ private:
 
 class Quantize {
 public:
-  int Forward(const CodingUnit &cu, YuvComponent comp, const QP &qp, int width,
+  int Forward(const CodingUnit &cu, YuvComponent comp, const Qp &qp, int width,
               int height,
               int bitdepth, PicturePredictionType pic_type,
               const Coeff *in, ptrdiff_t in_stride,
               Coeff *out, ptrdiff_t out_stride);
-  void Inverse(YuvComponent comp, const QP &qp, int width, int height,
+  void Inverse(YuvComponent comp, const Qp &qp, int width, int height,
                int bitdepth, const Coeff *in, ptrdiff_t in_stride, Coeff *out,
                ptrdiff_t out_stride);
 

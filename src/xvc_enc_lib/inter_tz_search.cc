@@ -17,7 +17,7 @@ template<typename TOrig>
 class TZSearch::DistortionWrapper {
 public:
   DistortionWrapper(MetricType metric, YuvComponent comp, const CodingUnit &cu,
-                    const QP &qp, int bitdepth,
+                    const Qp &qp, int bitdepth,
                     const DataBuffer<const TOrig> &src1, const YuvPicture &src2)
     : comp_(comp),
     width_(cu.GetWidth(comp)),
@@ -64,7 +64,7 @@ struct TZSearch::SearchState {
 };
 
 MotionVector
-TZSearch::Search(const CodingUnit &cu, const QP &qp, MetricType metric,
+TZSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
                  const MotionVector &mvp, const YuvPicture &ref_pic,
                  const MotionVector &mv_min, const MotionVector &mv_max,
                  const MotionVector &prev_search) {

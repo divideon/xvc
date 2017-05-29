@@ -304,7 +304,7 @@ inline static void Init(int qp, int slice_type,
   }
 }
 
-void CabacContexts::ResetStates(const QP &qp, PicturePredictionType pic_type) {
+void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   int q = qp.GetQpRaw(YuvComponent::kY);
   if (Restrictions::Get().disable_cabac_init_per_qp) {
     q = 32;

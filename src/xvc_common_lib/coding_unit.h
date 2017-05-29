@@ -20,7 +20,7 @@
 
 namespace xvc {
 
-class QP;
+class Qp;
 
 class CodingUnit {
 public:
@@ -74,8 +74,8 @@ public:
   void SetPartitionType(PartitionType part_type) {
     assert(part_type == PartitionType::kSize2Nx2N);
   }
-  const QP& GetQp() const;
-  void SetQp(const QP &qp);
+  const Qp& GetQp() const;
+  void SetQp(const Qp &qp);
   void SetQp(int qp_value);
   int GetQp(YuvComponent comp) const;
 
@@ -208,7 +208,7 @@ private:
   PredictionMode pred_mode_;
   std::array<bool, constants::kMaxYuvComponents> cbf_;
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
-  const QP *qp_;
+  const Qp *qp_;
   bool root_cbf_;
   // Intra
   IntraMode intra_mode_luma_;

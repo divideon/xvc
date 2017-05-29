@@ -74,7 +74,7 @@ public:
   static const int kNumTransformSkipFlagCtx = 1;
   static const int kNumTquantBypassFlagCtx = 1;
 
-  void ResetStates(const QP &qp, PicturePredictionType pic_type);
+  void ResetStates(const Qp &qp, PicturePredictionType pic_type);
 
   ContextModel& GetSkipFlagCtx(const CodingUnit &cu);
   ContextModel& GetSplitBinaryCtx(const CodingUnit &cu);
