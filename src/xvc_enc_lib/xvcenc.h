@@ -38,6 +38,13 @@ extern "C" {
     XVC_ENC_CHROMA_FORMAT_UNDEFINED = 255,
   };
 
+  enum xvc_enc_color_matrix {
+    XVC_ENC_COLOR_MATRIX_UNDEFINED = 0,
+    XVC_ENC_COLOR_MATRIX_601 = 1,
+    XVC_ENC_COLOR_MATRIX_709 = 2,
+    XVC_ENC_COLOR_MATRIX_2020 = 3,
+  };
+
   typedef struct xvc_enc_nal_stats {
     uint32_t nal_unit_type;
     uint32_t poc;
@@ -68,6 +75,7 @@ extern "C" {
     int width;
     int height;
     xvc_enc_chroma_format chroma_format;
+    xvc_enc_color_matrix color_matrix;
     uint32_t input_bitdepth;
     uint32_t internal_bitdepth;
     double framerate;

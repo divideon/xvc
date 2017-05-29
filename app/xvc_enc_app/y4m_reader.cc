@@ -60,7 +60,7 @@ bool Y4mReader::Read(int &width, int &height, double &framerate,
         strtol(buf + pos, &end, 10);
         pos = end - buf;
         break;
-      case 'C':  // colour space
+      case 'C':  // color space
         if (!strncmp(buf + pos, "420p10", 6)) {
           input_bitdepth = 10;
           pos += 6;

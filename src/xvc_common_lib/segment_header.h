@@ -32,6 +32,7 @@ struct SegmentHeader {
   int pic_width = 0;
   int pic_height = 0;
   ChromaFormat chroma_format = ChromaFormat::kUndefinedChromaFormat;
+  ColorMatrix color_matrix = ColorMatrix::kUndefinedColorMatrix;
   int internal_bitdepth = -1;
   int bitstream_ticks = 0;
   PicNum max_sub_gop_length = 0;

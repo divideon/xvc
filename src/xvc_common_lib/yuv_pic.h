@@ -44,10 +44,14 @@ public:
   void CopyToSameBitdepth(std::vector<uint8_t> *pic_bytes) const;
   void CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
               int out_height, ChromaFormat out_chroma_format,
-              int out_bitdepth) const;
+              int out_bitdepth, ColorMatrix out_color_matrix) const;
   void PadBorder();
 
 private:
+  template <typename T>
+  void ConvertColorSpace(uint8_t *dst, int width, int height, uint16_t *src,
+                         int bitdepth_, ColorMatrix color_matrix) const;
+
   ChromaFormat chroma_format_;
   int width_[constants::kMaxYuvComponents];
   int height_[constants::kMaxYuvComponents];

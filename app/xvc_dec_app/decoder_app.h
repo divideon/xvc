@@ -56,6 +56,7 @@ private:
     int output_height = -1;
     xvc_dec_chroma_format output_chroma_format =
       XVC_DEC_CHROMA_FORMAT_UNDEFINED;
+    xvc_dec_color_matrix output_color_matrix = XVC_DEC_COLOR_MATRIX_UNDEFINED;
     int output_bitdepth = -1;
     int max_framerate = -1;
     int loop = -1;

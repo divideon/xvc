@@ -49,6 +49,9 @@ public:
   void SetOutputChromaFormat(xvc_dec_chroma_format chroma_format) {
     output_chroma_format_ = ChromaFormat(chroma_format);
   }
+  void SetOutputColorMatrix(xvc_dec_color_matrix color_matrix) {
+    output_color_matrix_ = ColorMatrix(color_matrix);
+  }
   void SetOutputBitdepth(int bitdepth) { output_bitdepth_ = bitdepth; }
   void SetDecoderTicks(int ticks) { decoder_ticks_ = ticks; }
   State GetState() { return state_; }
@@ -79,6 +82,7 @@ private:
   int output_width_ = 0;
   int output_height_ = 0;
   ChromaFormat output_chroma_format_ = ChromaFormat::kUndefinedChromaFormat;
+  ColorMatrix output_color_matrix_ = ColorMatrix::kUndefinedColorMatrix;
   int output_bitdepth_ = 0;
   int decoder_ticks_ = 0;
   int max_tid_ = 0;

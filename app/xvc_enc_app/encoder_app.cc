@@ -38,7 +38,10 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       PrintUsage();
       std::exit(0);
     } else if (i == argc - 1) {
-      continue;
+      std::cerr << "Error: Invalid argument / Missing value: " << arg <<
+        std::endl;
+      PrintUsage();
+      std::exit(1);
     } else if (arg == "-input-file") {
       cli_.input_filename = argv[++i];
     } else if (arg == "-output-file") {
@@ -53,6 +56,10 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       int tmp;
       std::stringstream(argv[++i]) >> tmp;
       cli_.chroma_format = static_cast<xvc_enc_chroma_format>(tmp);
+    } else if (arg == "-input-color-matrix") {
+      int tmp;
+      std::stringstream(argv[++i]) >> tmp;
+      cli_.color_matrix = static_cast<xvc_enc_color_matrix>(tmp);
     } else if (arg == "-input-bitdepth") {
       std::stringstream(argv[++i]) >> cli_.input_bitdepth;
     } else if (arg == "-internal-bitdepth") {
@@ -199,6 +206,9 @@ void EncoderApp::CreateAndConfigureApi() {
   }
   if (cli_.chroma_format != XVC_ENC_CHROMA_FORMAT_UNDEFINED) {
     params_->chroma_format = cli_.chroma_format;
+  }
+  if (cli_.color_matrix != XVC_ENC_COLOR_MATRIX_UNDEFINED) {
+    params_->color_matrix = cli_.color_matrix;
   }
   if (cli_.input_bitdepth) {
     params_->input_bitdepth = cli_.input_bitdepth;

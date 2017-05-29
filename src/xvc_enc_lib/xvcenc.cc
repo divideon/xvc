@@ -39,6 +39,7 @@ extern "C" {
       return XVC_ENC_INVALID_ARGUMENT;
     }
     param->chroma_format = XVC_ENC_CHROMA_FORMAT_420;
+    param->color_matrix = XVC_ENC_COLOR_MATRIX_UNDEFINED;
     param->input_bitdepth = 8;
     param->internal_bitdepth = sizeof(xvc::Sample) > 1 ? 10 : 8;
     param->framerate = 60;
@@ -76,6 +77,10 @@ extern "C" {
         param->chroma_format == XVC_ENC_CHROMA_FORMAT_422 ||
         param->chroma_format > XVC_ENC_CHROMA_FORMAT_444) {
       return XVC_ENC_UNSUPPORTED_CHROMA_FORMAT;
+    }
+    if (param->color_matrix < XVC_ENC_COLOR_MATRIX_UNDEFINED ||
+        param->color_matrix > XVC_ENC_COLOR_MATRIX_2020) {
+      return XVC_ENC_INVALID_PARAMETER;
     }
     if (param->internal_bitdepth > 16 || param->internal_bitdepth < 8 ||
         param->input_bitdepth > 16 || param->input_bitdepth < 8) {
@@ -230,6 +235,7 @@ extern "C" {
 
     encoder->SetResolution(param->width, param->height);
     encoder->SetChromaFormat(xvc::ChromaFormat(param->chroma_format));
+    encoder->SetColorMatrix(xvc::ColorMatrix(param->color_matrix));
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);

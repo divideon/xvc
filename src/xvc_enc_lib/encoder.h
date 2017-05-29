@@ -40,6 +40,9 @@ public:
   void SetChromaFormat(ChromaFormat chroma_fmt) {
     segment_header_.chroma_format = chroma_fmt;
   }
+  void SetColorMatrix(ColorMatrix color_matrix) {
+    segment_header_.color_matrix = color_matrix;
+  }
   int GetNumRefPics() const { return segment_header_.num_ref_pics; }
   void SetNumRefPics(int num) {
     segment_header_.num_ref_pics = num;

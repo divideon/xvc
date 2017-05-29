@@ -53,6 +53,7 @@ private:
     int width = 0;
     int height = 0;
     xvc_enc_chroma_format chroma_format = XVC_ENC_CHROMA_FORMAT_UNDEFINED;
+    xvc_enc_color_matrix color_matrix = XVC_ENC_COLOR_MATRIX_UNDEFINED;
     int input_bitdepth = 0;
     int internal_bitdepth = 0;
     double framerate = 0;

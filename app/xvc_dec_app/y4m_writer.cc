@@ -30,15 +30,15 @@ void Y4mWriter::WriteGlobalHeader(const xvc_dec_pic_stats &stats,
     fps_num = static_cast<int>(1000 * stats.framerate);
     fps_denom = 1000;
   }
-  const char *colorspace = nullptr;
+  const char *chroma_format = nullptr;
   if (stats.chroma_format == XVC_DEC_CHROMA_FORMAT_420) {
-    colorspace = "420";
+    chroma_format = "420";
   } else if (stats.chroma_format == XVC_DEC_CHROMA_FORMAT_444) {
-    colorspace = "444";
+    chroma_format = "444";
   } else if (stats.chroma_format == XVC_DEC_CHROMA_FORMAT_422) {
-    colorspace = "422";
+    chroma_format = "422";
   } else if (stats.chroma_format == XVC_DEC_CHROMA_FORMAT_MONOCHROME) {
-    colorspace = "mono";
+    chroma_format = "mono";
   } else {
     assert(0);
   }
@@ -47,8 +47,8 @@ void Y4mWriter::WriteGlobalHeader(const xvc_dec_pic_stats &stats,
     << "W" << stats.width << " H" << stats.height << " "
     << "F" << fps_num << ":" << fps_denom << " "
     << "Ip";
-  if (colorspace) {
-    (*output) << " C" << colorspace;
+  if (chroma_format) {
+    (*output) << " C" << chroma_format;
     if (stats.bitdepth > 8) {
       (*output) << "p" << stats.bitdepth;
     }

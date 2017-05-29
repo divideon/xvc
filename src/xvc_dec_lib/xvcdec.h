@@ -28,12 +28,19 @@ extern "C" {
   };
 
   enum xvc_dec_chroma_format {
-    // Using naming and IDs from FOURCC
     XVC_DEC_CHROMA_FORMAT_MONOCHROME = 0,
     XVC_DEC_CHROMA_FORMAT_420 = 1,
     XVC_DEC_CHROMA_FORMAT_422 = 2,
     XVC_DEC_CHROMA_FORMAT_444 = 3,
+    XVC_DEC_CHROMA_FORMAT_ARGB = 4,
     XVC_DEC_CHROMA_FORMAT_UNDEFINED = 255,
+  };
+
+  enum xvc_dec_color_matrix {
+    XVC_DEC_COLOR_MATRIX_UNDEFINED = 0,
+    XVC_DEC_COLOR_MATRIX_601 = 1,
+    XVC_DEC_COLOR_MATRIX_709 = 2,
+    XVC_DEC_COLOR_MATRIX_2020 = 3,
   };
 
   typedef struct xvc_dec_pic_stats {
@@ -50,6 +57,7 @@ extern "C" {
     int32_t height;
     int32_t qp;
     xvc_dec_chroma_format chroma_format;
+    xvc_dec_color_matrix color_matrix;
     double framerate;
     double bitstream_framerate;
   } xvc_dec_pic_stats;
@@ -66,6 +74,7 @@ extern "C" {
     int output_width;
     int output_height;
     xvc_dec_chroma_format output_chroma_format;
+    xvc_dec_color_matrix output_color_matrix;
     int output_bitdepth;
     double max_framerate;
   } xvc_decoder_parameters;

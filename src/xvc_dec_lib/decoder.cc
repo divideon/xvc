@@ -61,6 +61,9 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     if (output_chroma_format_ == ChromaFormat::kUndefinedChromaFormat) {
       output_chroma_format_ = curr_segment_header_.chroma_format;
     }
+    if (output_color_matrix_ == ColorMatrix::kUndefinedColorMatrix) {
+      output_color_matrix_ = curr_segment_header_.color_matrix;
+    }
     if (output_bitdepth_ == 0) {
       output_bitdepth_ = curr_segment_header_.internal_bitdepth;
     }
@@ -225,7 +228,8 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   SetOutputStats(pic_dec, output_pic);
   auto decoded_pic = pic_dec->GetRecPic();
   decoded_pic->CopyTo(&output_pic_bytes_, output_width_, output_height_,
-                      output_chroma_format_, output_bitdepth_);
+                      output_chroma_format_, output_bitdepth_,
+                      output_color_matrix_);
   output_pic->size = output_pic_bytes_.size();
   output_pic->bytes = output_pic_bytes_.empty() ? nullptr :
     reinterpret_cast<char *>(&output_pic_bytes_[0]);
@@ -292,6 +296,8 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   output_pic->stats.bitdepth = output_bitdepth_;
   output_pic->stats.chroma_format =
     xvc_dec_chroma_format(output_chroma_format_);
+  output_pic->stats.color_matrix =
+    xvc_dec_color_matrix(output_color_matrix_);
   output_pic->stats.bitstream_bitdepth = pic_data->GetBitdepth();
   output_pic->stats.framerate =
     SegmentHeader::GetFramerate(max_tid_, curr_segment_header_.bitstream_ticks,

@@ -36,6 +36,7 @@ extern "C" {
     param->output_width = 0;
     param->output_height = 0;
     param->output_chroma_format = XVC_DEC_CHROMA_FORMAT_UNDEFINED;
+    param->output_color_matrix = XVC_DEC_COLOR_MATRIX_UNDEFINED;
     param->output_bitdepth = 0;
     param->max_framerate = xvc::constants::kTimeScale;
     return XVC_DEC_OK;
@@ -56,7 +57,14 @@ extern "C" {
         param->output_chroma_format != XVC_DEC_CHROMA_FORMAT_420 &&
         param->output_chroma_format != XVC_DEC_CHROMA_FORMAT_422 &&
         param->output_chroma_format != XVC_DEC_CHROMA_FORMAT_444 &&
+        param->output_chroma_format != XVC_DEC_CHROMA_FORMAT_ARGB &&
         param->output_chroma_format != XVC_DEC_CHROMA_FORMAT_UNDEFINED) {
+      return XVC_DEC_INVALID_PARAMETER;
+    }
+    if (param->output_color_matrix != XVC_DEC_COLOR_MATRIX_UNDEFINED &&
+        param->output_color_matrix != XVC_DEC_COLOR_MATRIX_601 &&
+        param->output_color_matrix != XVC_DEC_COLOR_MATRIX_709 &&
+        param->output_color_matrix != XVC_DEC_COLOR_MATRIX_2020) {
       return XVC_DEC_INVALID_PARAMETER;
     }
     if (param->output_bitdepth != 0 &&
@@ -83,6 +91,7 @@ extern "C" {
     decoder->SetOutputWidth(param->output_width);
     decoder->SetOutputHeight(param->output_height);
     decoder->SetOutputChromaFormat(param->output_chroma_format);
+    decoder->SetOutputColorMatrix(param->output_color_matrix);
     decoder->SetOutputBitdepth(param->output_bitdepth);
     decoder->SetDecoderTicks(static_cast<int>(xvc::constants::kTimeScale
                                               / param->max_framerate));

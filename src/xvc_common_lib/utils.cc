@@ -84,6 +84,9 @@ int ScaleChromaX(int size, ChromaFormat chroma_format) {
     case ChromaFormat::k444:
       return size;
       break;
+    case ChromaFormat::kArgb:
+      return size;
+      break;
     case ChromaFormat::kUndefinedChromaFormat:
     default:
       assert(0);
@@ -104,6 +107,9 @@ int ScaleChromaY(int size, ChromaFormat chroma_format) {
       return size;
       break;
     case ChromaFormat::k444:
+      return size;
+      break;
+    case ChromaFormat::kArgb:
       return size;
       break;
     case ChromaFormat::kUndefinedChromaFormat:

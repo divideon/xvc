@@ -47,7 +47,10 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
       PrintUsage();
       std::exit(0);
     } else if (i == argc - 1) {
-      continue;
+      std::cerr << "Error: Invalid argument / Missing value: " << arg <<
+        std::endl;
+      PrintUsage();
+      std::exit(1);
     } else if (arg == "-bitstream-file") {
       cli_.input_filename = argv[++i];
     } else if (arg == "-output-file") {
@@ -60,6 +63,10 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
       int tmp;
       std::stringstream(argv[++i]) >> tmp;
       cli_.output_chroma_format = static_cast<xvc_dec_chroma_format>(tmp);
+    } else if (arg == "-output-color-matrix") {
+      int tmp;
+      std::stringstream(argv[++i]) >> tmp;
+      cli_.output_color_matrix = static_cast<xvc_dec_color_matrix>(tmp);
     } else if (arg == "-output-bitdepth") {
       std::stringstream(argv[++i]) >> cli_.output_bitdepth;
     } else if (arg == "-max-framerate") {
@@ -126,6 +133,9 @@ void DecoderApp::CreateAndConfigureApi() {
   }
   if (cli_.output_chroma_format != XVC_DEC_CHROMA_FORMAT_UNDEFINED) {
     params_->output_chroma_format = cli_.output_chroma_format;
+  }
+  if (cli_.output_color_matrix != XVC_DEC_COLOR_MATRIX_UNDEFINED) {
+    params_->output_color_matrix = cli_.output_color_matrix;
   }
   if (cli_.output_bitdepth != -1) {
     params_->output_bitdepth = cli_.output_bitdepth;
@@ -323,6 +333,17 @@ void DecoderApp::PrintPictureInfo(xvc_dec_pic_stats pic_stats) {
       GetLog() << "Chroma format:        4:2:2" << std::endl;
     } else if (pic_stats.chroma_format == XVC_DEC_CHROMA_FORMAT_444) {
       GetLog() << "Chroma format:        4:4:4" << std::endl;
+    } else if (pic_stats.chroma_format == XVC_DEC_CHROMA_FORMAT_ARGB) {
+      GetLog() << "Chroma format:         ARGB" << std::endl;
+    } else {
+      GetLog() << "Chroma format:    " << pic_stats.chroma_format << std::endl;
+    }
+    if (pic_stats.color_matrix == XVC_DEC_COLOR_MATRIX_601) {
+      GetLog() << "Color matrix:        BT.601" << std::endl;
+    } else if (pic_stats.color_matrix == XVC_DEC_COLOR_MATRIX_709) {
+      GetLog() << "Color matrix:        BT.709" << std::endl;
+    } else if (pic_stats.color_matrix == XVC_DEC_COLOR_MATRIX_2020) {
+      GetLog() << "Color matrix:       BT.2020" << std::endl;
     }
     GetLog() << "Output framerate:" << std::setw(10) << pic_stats.framerate
       << std::endl;

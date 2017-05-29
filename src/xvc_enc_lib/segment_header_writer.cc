@@ -29,6 +29,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
                                               / framerate), 24);
   bit_writer->WriteBits(
     static_cast<uint32_t>(segment_header->max_sub_gop_length), 8);
+  bit_writer->WriteBits(static_cast<uint8_t>(segment_header->color_matrix), 3);
   // The open gop flag is set to 0 if the tail pictures
   // do not predict from the Intra picture in the next segment.
   bit_writer->WriteBit(open_gop);

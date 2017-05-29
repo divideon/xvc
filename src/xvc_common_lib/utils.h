@@ -65,6 +65,9 @@ inline int GetChromaNumSamples(int width, int height, ChromaFormat chroma_fmt) {
 }
 
 inline int GetTotalNumSamples(int width, int height, ChromaFormat chroma_fmt) {
+  if (chroma_fmt == ChromaFormat::kArgb) {
+    return 4 * GetLumaNumSamples(width, height);
+  }
   return GetLumaNumSamples(width, height) +
     (GetChromaNumSamples(width, height, chroma_fmt) << 1);
 }

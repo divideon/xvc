@@ -136,9 +136,7 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
   }
   entropy_decoder.Finish();
   int pic_tid = pic_data_->GetTid();
-  if (pic_tid == 0 || !pic_data_->IsHighestLayer()) {
-    rec_pic_->PadBorder();
-  }
+  rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
     return ValidateChecksum(bit_reader, segment.checksum_mode);

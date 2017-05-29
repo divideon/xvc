@@ -34,7 +34,15 @@ enum class ChromaFormat : uint8_t {
   k420 = 1,
   k422 = 2,
   k444 = 3,
+  kArgb = 4,
   kUndefinedChromaFormat = 255,
+};
+
+enum class ColorMatrix : uint8_t {
+  kUndefinedColorMatrix = 0,
+  k601 = 1,
+  k709 = 2,
+  k2020 = 3,
 };
 
 enum YuvComponent {
