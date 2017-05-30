@@ -301,7 +301,7 @@ void YuvPicture::ConvertColorSpace(uint8_t *out, int width, int height,
   uint16_t *s0 = src;
   uint16_t *s1 = src + size;
   uint16_t *s2 = src + 2 * size;
-  const T sample_max = (1 << bitdepth) - 1;
+  const Sample sample_max = (1 << bitdepth) - 1;
   const int shift = 10 + kColorConversionBitdepth - bitdepth;
   T *dst = reinterpret_cast<T*>(out);
 
@@ -342,7 +342,7 @@ void YuvPicture::ConvertColorSpace(uint8_t *out, int width, int height,
                      >> shift, sample_max));
       *dst++ = static_cast<T>(
         util::ClipBD((kM[k][2][0] * c + kM[k][2][1] * d) >> shift, sample_max));
-      *dst++ = sample_max;
+      *dst++ = static_cast<T>(sample_max);
       s0++;
       s1++;
       s2++;

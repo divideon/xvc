@@ -123,7 +123,9 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
     bytes_.resize(total_samples * 2);
     for (int i = 0; i < static_cast<int>(samples_.size()); i++) {
       bytes_[i * 2 + 0] = static_cast<uint8_t>(samples_[i] & 0xff);
-      bytes_[i * 2 + 1] = static_cast<uint8_t>(samples_[i] >> 8);
+#if XVC_HIGH_BITDEPTH
+        bytes_[i * 2 + 1] = static_cast<uint8_t>(samples_[i] >> 8);
+#endif
     }
   }
 }

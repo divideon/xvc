@@ -11,7 +11,7 @@
 #include <cstddef>
 
 #ifndef XVC_HIGH_BITDEPTH
-#define XVC_HIGH_BITDEPTH 1
+#define XVC_HIGH_BITDEPTH 0
 #endif
 
 namespace xvc {
