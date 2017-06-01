@@ -127,7 +127,7 @@ void YuvPicture::CopyToSameBitdepth(std::vector<uint8_t> *out_bytes) const {
 
 void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
                         int out_height, ChromaFormat out_chroma_format,
-                        int out_bitdepth, ColorMatrix out_color_matrix) const {
+                        int out_bitdepth, ColorMatrix out_color_matrix) {
   int num_samples_internal =
     util::GetTotalNumSamples(width_[YuvComponent::kY],
                              height_[YuvComponent::kY], chroma_format_);
@@ -147,11 +147,12 @@ void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
 
   uint8_t *out8 = &(*out_bytes)[0];
   uint16_t *out16 = reinterpret_cast<uint16_t*>(out8);
-  std::vector<uint8_t> tmp_bytes;
   if (out_chroma_format == ChromaFormat::kArgb) {
-    tmp_bytes.resize(pic_bytes);
-    out8 = &tmp_bytes[0];
-    out16 = reinterpret_cast<uint16_t*>(&tmp_bytes[0]);
+    if (tmp_bytes_.size() < pic_bytes) {
+      tmp_bytes_.resize(pic_bytes);
+    }
+    out8 = &tmp_bytes_[0];
+    out16 = reinterpret_cast<uint16_t*>(&tmp_bytes_[0]);
   }
 
   // Resampling is performed if resolution or chroma format is different.
@@ -170,7 +171,22 @@ void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
         int src_height = height_[c];
         ptrdiff_t src_stride = stride_[c];
         ptrdiff_t dst_stride = dst_width;
-        if (dst_bitdepth > 8) {
+        if (dst_width == src_width && dst_height == src_height) {
+          CopyWithShift(out8, width_[c], height_[c], stride_[c],
+                        dst_bitdepth, comp_pel_[c], bitdepth_);
+        } else if (comp != YuvComponent::kY &&
+                   dst_width == 2 * src_width &&
+                   dst_height == 2 * src_height) {
+          if (dst_bitdepth > 8) {
+            resample::BilinearResample<Sample, uint16_t>
+              (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
+               src8, src_width, src_height, src_stride, bitdepth_);
+          } else {
+            resample::BilinearResample<Sample, uint8_t>
+              (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
+               src8, src_width, src_height, src_stride, bitdepth_);
+          }
+        } else if (dst_bitdepth > 8) {
           resample::Resample<Sample, uint16_t>
             (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
              src8, src_width, src_height, src_stride, bitdepth_);
@@ -192,70 +208,85 @@ void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
         ConvertColorSpace<uint16_t>(&(*out_bytes)[0], out_width, out_height,
                                     out16, out_bitdepth, out_color_matrix);
       } else {
-        ConvertColorSpace<uint8_t>(&(*out_bytes)[0], out_width, out_height,
-                                   out16, out_bitdepth, out_color_matrix);
+        if (out_color_matrix == ColorMatrix::kUndefinedColorMatrix ||
+            out_color_matrix == ColorMatrix::k709) {
+          ConvertColorSpace8bit709(&(*out_bytes)[0], out_width, out_height,
+                                   out16);
+        } else {
+          ConvertColorSpace<uint8_t>(&(*out_bytes)[0], out_width, out_height,
+                                     out16, out_bitdepth, out_color_matrix);
+        }
       }
     }
     return;
   }
 
   for (int c = 0; c < num_components_out; c++) {
-    YuvComponent comp = YuvComponent(c);
     const Sample *src = comp_pel_[c];
-    if (out_bitdepth > 8) {
-      if (out_bitdepth == bitdepth_) {
-        for (int y = 0; y < height_[comp]; y++) {
-          memcpy(out16, src, width_[comp] * sizeof(Sample));
-          out16 += width_[comp];
-          src += stride_[c];
+    out8 = CopyWithShift(out8, width_[c], height_[c], stride_[c], out_bitdepth,
+                         src, bitdepth_);
+  }
+}
+
+uint8_t* YuvPicture::CopyWithShift(uint8_t *out8, int width, int height,
+                                   ptrdiff_t stride, int out_bitdepth,
+                                   const Sample *src, int bitdepth) const {
+  if (out_bitdepth > 8) {
+    uint16_t *out16 = reinterpret_cast<uint16_t*>(out8);
+    if (out_bitdepth == bitdepth) {
+      for (int y = 0; y < height; y++) {
+        memcpy(out16, src, width * sizeof(Sample));
+        out16 += width;
+        src += stride;
+      }
+    } else if (out_bitdepth > bitdepth) {
+      int bit_shift = out_bitdepth - bitdepth;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          *out16++ = src[x] << bit_shift;
         }
-      } else if (out_bitdepth > bitdepth_) {
-        int bit_shift = out_bitdepth - bitdepth_;
-        for (int y = 0; y < height_[comp]; y++) {
-          for (int x = 0; x < width_[comp]; x++) {
-            *out16++ = src[x] << bit_shift;
-          }
-          src += stride_[c];
+        src += stride;
+      }
+    } else {
+      int bit_shift = bitdepth - out_bitdepth;
+      Sample sample_max = (1 << out_bitdepth) - 1;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          *out16++ = static_cast<uint16_t>(util::ClipBD(
+            (src[x] + (1 << (bit_shift - 1))) >> bit_shift,
+            sample_max));
+        }
+        src += stride;
+      }
+    }
+    return reinterpret_cast<uint8_t*>(out16);
+  } else {
+    if (bitdepth <= 8) {
+      if (sizeof(Sample) == 1) {
+        for (int y = 0; y < height; y++) {
+          memcpy(out8, src, width * sizeof(Sample));
+          out8 += width;
+          src += stride;
         }
       } else {
-        int bit_shift = bitdepth_ - out_bitdepth;
-        Sample sample_max = (1 << out_bitdepth) - 1;
-        for (int y = 0; y < height_[comp]; y++) {
-          for (int x = 0; x < width_[comp]; x++) {
-            *out16++ = static_cast<uint16_t>(util::ClipBD(
-              (src[x] + (1 << (bit_shift - 1))) >> bit_shift,
-              sample_max));
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            *out8++ = static_cast<uint8_t>(src[x]);
           }
-          src += stride_[c];
+          src += stride;
         }
       }
     } else {
-      if (bitdepth_ <= 8) {
-        if (sizeof(Sample) == 1) {
-          for (int y = 0; y < height_[comp]; y++) {
-            memcpy(out8, src, width_[comp] * sizeof(Sample));
-            out8 += width_[comp];
-            src += stride_[c];
-          }
-        } else {
-          for (int y = 0; y < height_[comp]; y++) {
-            for (int x = 0; x < width_[comp]; x++) {
-              *out8++ = static_cast<uint8_t>(src[x]);
-            }
-            src += stride_[c];
-          }
+      int bit_shift = bitdepth - out_bitdepth;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          *out8++ = static_cast<uint8_t>(util::Clip3(
+            (src[x] + (1 << (bit_shift - 1))) >> bit_shift, 0, 255));
         }
-      } else {
-        int bit_shift = bitdepth_ - out_bitdepth;
-        for (int y = 0; y < height_[comp]; y++) {
-          for (int x = 0; x < width_[comp]; x++) {
-            *out8++ = static_cast<uint8_t>(util::Clip3(
-              (src[x] + (1 << (bit_shift - 1))) >> bit_shift, 0, 255));
-          }
-          src += stride_[c];
-        }
+        src += stride;
       }
     }
+    return out8;
   }
 }
 
@@ -295,12 +326,12 @@ void YuvPicture::PadBorder() {
 
 template <typename T>
 void YuvPicture::ConvertColorSpace(uint8_t *out, int width, int height,
-                                   uint16_t *src, int bitdepth,
+                                   const uint16_t *src, int bitdepth,
                                    ColorMatrix color_matrix) const {
-  int size = width * height;
-  uint16_t *s0 = src;
-  uint16_t *s1 = src + size;
-  uint16_t *s2 = src + 2 * size;
+  const int size = width * height;
+  const uint16_t *s0 = src;
+  const uint16_t *s1 = src + size;
+  const uint16_t *s2 = src + 2 * size;
   const Sample sample_max = (1 << bitdepth) - 1;
   const int shift = 10 + kColorConversionBitdepth - bitdepth;
   T *dst = reinterpret_cast<T*>(out);
@@ -310,7 +341,7 @@ void YuvPicture::ConvertColorSpace(uint8_t *out, int width, int height,
       { 1192, 0, 1877 },
       { 1192, -223, -558 },
       { 1192, 2212, 0 }
-      } },
+    } },
     { {  // BT.601
       { 1192, 0, 1671 },
       { 1192, -410, -851 },
@@ -332,20 +363,44 @@ void YuvPicture::ConvertColorSpace(uint8_t *out, int width, int height,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      int c = *s0 - (16 << (kColorConversionBitdepth - 8));
-      int d = *s1 - (128 << (kColorConversionBitdepth - 8));
-      int e = *s2 - (128 << (kColorConversionBitdepth - 8));
-      *dst++ = static_cast<T>(
+      int c = *s0++ - (16 << (kColorConversionBitdepth - 8));
+      int d = *s1++ - (128 << (kColorConversionBitdepth - 8));
+      int e = *s2++ - (128 << (kColorConversionBitdepth - 8));
+      dst[0] = static_cast<T>(
         util::ClipBD((kM[k][0][0] * c + kM[k][0][2] * e) >> shift, sample_max));
-      *dst++ = static_cast<T>(
+      dst[1] = static_cast<T>(
         util::ClipBD((kM[k][1][0] * c + kM[k][1][1] * d + kM[k][1][2] * e)
                      >> shift, sample_max));
-      *dst++ = static_cast<T>(
+      dst[2] = static_cast<T>(
         util::ClipBD((kM[k][2][0] * c + kM[k][2][1] * d) >> shift, sample_max));
-      *dst++ = static_cast<T>(sample_max);
-      s0++;
-      s1++;
-      s2++;
+      dst[3] = static_cast<T>(sample_max);
+      dst += 4;
+    }
+  }
+}
+
+void YuvPicture::ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
+                                          const uint16_t *src) const {
+  const int size = width * height;
+  const uint16_t *s0 = src;
+  const uint16_t *s1 = src + size;
+  const uint16_t *s2 = src + 2 * size;
+  const Sample sample_max = 255;
+  const int shift = kColorConversionBitdepth + 2;
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      const int c = 1192 * (*s0++ - (16 << (kColorConversionBitdepth - 8)));
+      const int d = *s1++ - (128 << (kColorConversionBitdepth - 8));
+      const int e = *s2++ - (128 << (kColorConversionBitdepth - 8));
+      dst[0] = static_cast<uint8_t>(
+        util::ClipBD((c + 1877 * e) >> shift, sample_max));
+      dst[1] = static_cast<uint8_t>(
+        util::ClipBD((c - 223 * d - 558 * e) >> shift, sample_max));
+      dst[2] = static_cast<uint8_t>(
+        util::ClipBD((c + 2212 * d) >> shift, sample_max));
+      dst[3] = static_cast<uint8_t>(sample_max);
+      dst += 4;
     }
   }
 }

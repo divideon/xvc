@@ -19,6 +19,12 @@ void Resample(uint8_t *dst_start, int dst_width, int dst_height,
               const uint8_t *src_start, int src_width, int src_height,
               ptrdiff_t src_stride, int src_bitdepth);
 
+template <typename T, typename U>
+void BilinearResample(uint8_t *dst_start, int dst_width, int dst_height,
+                      ptrdiff_t dst_stride, int dst_bitdepth,
+                      const uint8_t *src_start, int src_width, int src_height,
+                      ptrdiff_t src_stride, int src_bitdepth);
+
 }   // namespace resample
 
 }   // namespace xvc

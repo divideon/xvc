@@ -317,6 +317,67 @@ template void Resample<Sample, uint16_t>(uint8_t *dst_start, int dst_width,
                                          ptrdiff_t src_stride,
                                          int src_bitdepth);
 
+template <typename T, typename U>
+void BilinearResample(uint8_t *dst_start, int dst_width, int dst_height,
+                      ptrdiff_t dst_stride, int dst_bitdepth,
+                      const uint8_t *src_start, int src_width, int src_height,
+                      ptrdiff_t src_stride, int src_bitdepth) {
+  const T* src = reinterpret_cast<const T*>(src_start);
+  U* dst = reinterpret_cast<U *>(dst_start);
+
+  int shift = dst_bitdepth - src_bitdepth;
+  if (shift > 0) {
+    for (int i = 0; i < src_height; i++) {
+      for (int j = 0; j < src_width; j++) {
+        dst[2 * j] = static_cast<U>(src[j] << shift);
+        dst[2 * j + 1] = static_cast<U>((src[j] + src[j + 1]) << (shift - 1));
+        dst[2 * j + dst_stride] =
+          static_cast<U>((src[j] + src[j + src_stride]) << (shift - 1));
+        dst[2 * j + dst_stride + 1] =
+          static_cast<U>((src[j] + src[j + 1] + src[j + src_stride] + src[j +
+                          src_stride + 1] + 2) << (shift - 2));
+      }
+      dst += 2 * dst_stride;
+      src += src_stride;
+    }
+  } else {
+    shift = -shift;
+    for (int i = 0; i < src_height; i++) {
+      for (int j = 0; j < src_width; j++) {
+        dst[2 * j] = static_cast<U>(src[j] >> shift);
+        dst[2 * j + 1] = static_cast<U>((src[j] + src[j + 1]) >> (shift + 1));
+        dst[2 * j + dst_stride] =
+          static_cast<U>((src[j] + src[j + src_stride]) >> (shift + 1));
+        dst[2 * j + dst_stride + 1] =
+          static_cast<U>((src[j] + src[j + 1] + src[j + src_stride] + src[j +
+                          src_stride + 1] + 2) >> (shift + 2));
+      }
+      dst += 2 * dst_stride;
+      src += src_stride;
+    }
+  }
+}
+
+template void BilinearResample<Sample, uint8_t>(uint8_t *dst_start,
+                                                int dst_width,
+                                                int dst_height,
+                                                ptrdiff_t dst_stride,
+                                                int dst_bitdepth,
+                                                const uint8_t *src_start,
+                                                int src_width, int src_height,
+                                                ptrdiff_t src_stride,
+                                                int src_bitdepth);
+
+template void BilinearResample<Sample, uint16_t>(uint8_t *dst_start,
+                                                 int dst_width,
+                                                 int dst_height,
+                                                 ptrdiff_t dst_stride,
+                                                 int dst_bitdepth,
+                                                 const uint8_t *src_start,
+                                                 int src_width, int src_height,
+                                                 ptrdiff_t src_stride,
+                                                 int src_bitdepth);
+
 }   // namespace resample
 
 }   // namespace xvc

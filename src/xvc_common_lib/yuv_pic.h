@@ -44,13 +44,19 @@ public:
   void CopyToSameBitdepth(std::vector<uint8_t> *pic_bytes) const;
   void CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
               int out_height, ChromaFormat out_chroma_format,
-              int out_bitdepth, ColorMatrix out_color_matrix) const;
+              int out_bitdepth, ColorMatrix out_color_matrix);
   void PadBorder();
 
 private:
+  uint8_t* CopyWithShift(uint8_t *out8, int width,
+                         int height, ptrdiff_t stride, int out_bitdepth,
+                         const Sample *src, int bitdepth) const;
   template <typename T>
-  void ConvertColorSpace(uint8_t *dst, int width, int height, uint16_t *src,
-                         int bitdepth_, ColorMatrix color_matrix) const;
+  void ConvertColorSpace(uint8_t *dst, int width, int height,
+                         const uint16_t *src, int bitdepth,
+                         ColorMatrix color_matrix) const;
+  void ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
+                                const uint16_t *src) const;
 
   ChromaFormat chroma_format_;
   int width_[constants::kMaxYuvComponents];
@@ -61,6 +67,7 @@ private:
   int shifty_[constants::kMaxYuvComponents];
   int bitdepth_;
   std::vector<Sample> sample_buffer_;
+  std::vector<uint8_t> tmp_bytes_;
   Sample *comp_pel_[constants::kMaxYuvComponents];
 };
 
