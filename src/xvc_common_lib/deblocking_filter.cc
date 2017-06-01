@@ -32,7 +32,7 @@ void DeblockingFilter::DeblockPicture() {
   bool has_secondary_tree = pic_data_->HasSecondaryCuTree();
   int num_ctus = pic_data_->GetNumberOfCtu();
   int subblock_size = kSubblockSize;
-  if (!Restrictions::Get().disable_ext) {
+  if (!Restrictions::Get().disable_ext_sink) {
     subblock_size = kSubblockSizeExt;
   }
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {

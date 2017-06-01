@@ -209,8 +209,8 @@ Restrictions::Restrictions() {
   disable_high_level_default_checksum_method = true;
 #endif
 
-#if RESTRICTION_DISABLE_EXT
-  disable_ext = true;
+#if RESTRICTION_DISABLE_EXT_SINK
+  disable_ext_sink = true;
 #endif
 
 #if RESTRICTION_DISABLE_EXT_IMPLICIT_LAST_CTU
@@ -270,7 +270,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_intra_unrestricted_predictor = true;
   }
   if (mode == RestrictedMode::kModeA) {
-    disable_ext = true;
+    disable_ext_sink = true;
     disable_ext_implicit_partition_type = true;
     disable_ext_cabac_alt_split_flag_ctx = true;
     disable_ext_cabac_alt_inter_dir_ctx = true;

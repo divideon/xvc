@@ -49,6 +49,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   }
 
   auto &restr = Restrictions::GetRW();
+  restr = Restrictions();
 
   // Note! Override the value of the restriction flags only if the flag is
   // set to true in the bitstream.
@@ -227,7 +228,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   int ext_restrictions = bit_reader->ReadBit();
   if (ext_restrictions) {
     if (bit_reader->ReadBit()) {
-      restr.disable_ext = true;
+      restr.disable_ext_sink = true;
     }
     if (bit_reader->ReadBit()) {
       restr.disable_ext_implicit_last_ctu = true;

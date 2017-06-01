@@ -94,7 +94,7 @@ public:
   }
 
   static bool GetExtRestrictions() {
-    return instance.disable_ext ||
+    return instance.disable_ext_sink ||
       instance.disable_ext_implicit_last_ctu ||
       instance.disable_ext_tmvp_full_resolution ||
       instance.disable_ext_tmvp_exclude_intra_from_ref_list ||
@@ -157,7 +157,7 @@ public:
   bool disable_deblock_two_samples_weak_filter = false;
   bool disable_deblock_depending_on_qp = false;
   bool disable_high_level_default_checksum_method = false;
-  bool disable_ext = false;
+  bool disable_ext_sink = false;
   bool disable_ext_implicit_last_ctu = false;
   bool disable_ext_tmvp_full_resolution = false;
   bool disable_ext_tmvp_exclude_intra_from_ref_list = false;

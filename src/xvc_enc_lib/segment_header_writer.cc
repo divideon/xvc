@@ -131,7 +131,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   }
   if (Restrictions::GetExtRestrictions()) {
     bit_writer->WriteBit(1);  // ext_restrictions
-    bit_writer->WriteBit(restr.disable_ext);
+    bit_writer->WriteBit(restr.disable_ext_sink);
     bit_writer->WriteBit(restr.disable_ext_implicit_last_ctu);
     bit_writer->WriteBit(restr.disable_ext_tmvp_full_resolution);
     bit_writer->WriteBit(restr.disable_ext_tmvp_exclude_intra_from_ref_list);
