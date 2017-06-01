@@ -46,7 +46,7 @@ CuReader::ReadSplit(CodingUnit *cu, SplitRestriction split_restriction,
       split = SplitType::kQuad;
     }
   }
-  if (split != SplitType::kQuad && !Restrictions::Get().disable_ext_sink) {
+  if (split != SplitType::kQuad) {
     if (cu->IsBinarySplitValid()) {
       split = reader->ReadSplitBinary(*cu, split_restriction);
     }

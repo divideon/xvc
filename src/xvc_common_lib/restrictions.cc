@@ -256,6 +256,10 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_EXT_INTRA_UNRESTRICTED_PREDICTOR
   disable_ext_intra_unrestricted_predictor = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT_DEBLOCK_SUBBLOCK_SIZE_4
+  disable_ext_deblock_subblock_size_4 = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
@@ -277,6 +281,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_cabac_alt_last_pos_ctx = true;
     disable_ext_two_cu_trees = true;
     disable_ext_transform_size_64 = true;
+    disable_ext_deblock_subblock_size_4 = true;
   }
 }
 

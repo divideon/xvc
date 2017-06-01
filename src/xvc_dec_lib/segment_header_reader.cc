@@ -263,6 +263,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     if (bit_reader->ReadBit()) {
       restr.disable_ext_intra_unrestricted_predictor = true;
     }
+    if (bit_reader->ReadBit()) {
+      restr.disable_ext_deblock_subblock_size_4 = true;
+    }
   }
 
   segment_header->soc = segment_counter;

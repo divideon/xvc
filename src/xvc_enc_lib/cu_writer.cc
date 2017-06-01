@@ -44,7 +44,7 @@ void CuWriter::WriteSplit(const CodingUnit &cu,
       assert(split_type != SplitType::kNone);
     }
   }
-  if (split_type != SplitType::kQuad && !Restrictions::Get().disable_ext_sink) {
+  if (split_type != SplitType::kQuad) {
     if (cu.IsBinarySplitValid()) {
       writer->WriteSplitBinary(cu, split_restriction, split_type);
     }

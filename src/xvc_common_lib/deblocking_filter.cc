@@ -31,9 +31,9 @@ static const std::array<uint8_t, constants::kMaxAllowedQp + 1> kBetaTable = {
 void DeblockingFilter::DeblockPicture() {
   bool has_secondary_tree = pic_data_->HasSecondaryCuTree();
   int num_ctus = pic_data_->GetNumberOfCtu();
-  int subblock_size = kSubblockSize;
-  if (!Restrictions::Get().disable_ext_sink) {
-    subblock_size = kSubblockSizeExt;
+  int subblock_size = kSubblockSizeExt;
+  if (Restrictions::Get().disable_ext_deblock_subblock_size_4) {
+    subblock_size = kSubblockSize;
   }
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
     DeblockCtu(rsaddr, CuTree::Primary, Direction::kVertical, subblock_size);

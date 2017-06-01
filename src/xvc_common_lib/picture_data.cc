@@ -73,8 +73,7 @@ void PictureData::Init(const SegmentHeader &segment, const Qp &pic_qp,
   }
 
   // CU structure
-  max_binary_split_depth_ =
-    std::min(segment.max_binary_split_depth, constants::kMaxBinarySplitDepth);
+  max_binary_split_depth_ = segment.max_binary_split_depth;
 
   // Setup Qp
   pic_qp_.reset(new Qp(pic_qp));
