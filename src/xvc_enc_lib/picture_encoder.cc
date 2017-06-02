@@ -22,8 +22,7 @@ namespace xvc {
 
 PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
                                int height, int bitdepth)
-  : checksum_(Restrictions::Get().disable_high_level_default_checksum_method ?
-              Checksum::kFallbackMethod : Checksum::kDefaultMethod),
+  : checksum_(),
   orig_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
                                          bitdepth, false)),
   pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
@@ -111,7 +110,10 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
 void PictureEncoder::WriteChecksum(BitWriter *bit_writer,
                                    Checksum::Mode checksum_mode) {
   checksum_.Clear();
-  checksum_.HashPicture(*rec_pic_, checksum_mode);
+  Checksum::Method checksum_method =
+    Restrictions::Get().disable_high_level_default_checksum_method ?
+    Checksum::kFallbackMethod : Checksum::kDefaultMethod;
+  checksum_.HashPicture(*rec_pic_, checksum_method, checksum_mode);
   std::vector<uint8_t> hash = checksum_.GetHash();
   assert(hash.size() < UINT8_MAX);
   bit_writer->WriteByte(static_cast<uint8_t>(hash.size()));

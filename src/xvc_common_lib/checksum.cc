@@ -12,14 +12,14 @@
 
 namespace xvc {
 
-void Checksum::HashPicture(const YuvPicture &pic, Mode mode) {
-  switch (method_) {
-    case Method::kCRC:
-      CalculateCRC(pic, mode);
+void Checksum::HashPicture(const YuvPicture &pic, Method method, Mode mode) {
+  switch (method) {
+    case Method::kCrc:
+      CalculateCrc(pic, mode);
       break;
 
-    case Method::kMD5:
-      CalculateMD5(pic, mode);
+    case Method::kMd5:
+      CalculateMd5(pic, mode);
       break;
 
     default:
@@ -28,7 +28,7 @@ void Checksum::HashPicture(const YuvPicture &pic, Mode mode) {
   }
 }
 
-void Checksum::CalculateCRC(const YuvPicture &pic, Mode mode) {
+void Checksum::CalculateCrc(const YuvPicture &pic, Mode mode) {
   assert(mode == Mode::kMinOverhead || mode == Mode::kMaxRobust);
   int num_components = util::GetNumComponents(pic.GetChromaFormat());
   uint32_t crcVal = 0xffff;
@@ -77,7 +77,7 @@ void Checksum::CalculateCRC(const YuvPicture &pic, Mode mode) {
   }
 }
 
-void Checksum::CalculateMD5(const YuvPicture &pic, Mode mode) {
+void Checksum::CalculateMd5(const YuvPicture &pic, Mode mode) {
   assert(mode == Mode::kMinOverhead || mode == Mode::kMaxRobust);
   int num_components = util::GetNumComponents(pic.GetChromaFormat());
   util::MD5 md5;

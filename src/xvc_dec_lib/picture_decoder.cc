@@ -27,8 +27,7 @@ PictureDecoder::PictureDecoder(ChromaFormat chroma_format, int width,
                                             bitdepth)),
   rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
                                         bitdepth, true)),
-  checksum_(Restrictions::Get().disable_high_level_default_checksum_method ?
-            Checksum::kFallbackMethod : Checksum::kDefaultMethod),
+  checksum_(),
   first_peek_(1) {
 }
 
@@ -186,9 +185,13 @@ bool PictureDecoder::ValidateChecksum(BitReader *bit_reader,
   checksum_bytes.resize(checksum_len);
   bit_reader->ReadBytes(&checksum_bytes[0], checksum_len);
 
+  Checksum::Method checksum_method =
+    Restrictions::Get().disable_high_level_default_checksum_method ?
+    Checksum::kFallbackMethod : Checksum::kDefaultMethod;
+
   checksum_.Clear();
-  checksum_.HashPicture(*rec_pic_, checksum_mode);
-  return checksum_ == Checksum(checksum_.GetMethod(), checksum_bytes);
+  checksum_.HashPicture(*rec_pic_, checksum_method, checksum_mode);
+  return checksum_.GetHash() == checksum_bytes;
 }
 
 }   // namespace xvc

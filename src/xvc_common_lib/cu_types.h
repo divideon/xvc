@@ -36,12 +36,12 @@ enum class PartitionType {
   kSize2NxnD,
   kSizenLx2N,
   kSizenRx2N,
-  kSizeNONE = 15,
+  kSizeNone = 15,
 };
 
 enum IntraMode : int {
   kPlanar = 0,
-  kDC = 1,
+  kDc = 1,
   kHorizontal = 10,
   kVertical = 26,
 
@@ -51,11 +51,11 @@ enum IntraMode : int {
 
 enum class IntraChromaMode : int {
   kPlanar = 0,
-  kDC = 1,
+  kDc = 1,
   kHorizontal = 10,
   kVertical = 26,
   kVerticalPlus8 = 34,
-  kDMChroma = 36,
+  kDmChroma = 36,
   kInvalid = 99,
 };
 

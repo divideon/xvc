@@ -48,7 +48,7 @@ public:
                             MergeCandLookup *out_cand_list);
 
 private:
-  enum class SearchMethod { TZSearch, FullSearch };
+  enum class SearchMethod { TzSearch, FullSearch };
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
   static constexpr int kFastMergeNumCand = 4;
@@ -136,7 +136,7 @@ private:
   // Best fullpel search mv per ref list, ref idx and picture
   std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> previous_fullpel_;
-  friend class TZSearch;
+  friend class TzSearch;
 };
 
 }   // namespace xvc

@@ -407,7 +407,7 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
 
 void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
                                         IntraPredictorChroma chroma_preds) {
-  if (chroma_mode == IntraChromaMode::kDMChroma) {
+  if (chroma_mode == IntraChromaMode::kDmChroma) {
     entropyenc_->EncodeBin(0, &ctx_.intra_pred_chroma[0]);
     return;
   }

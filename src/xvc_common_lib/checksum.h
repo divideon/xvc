@@ -11,6 +11,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/yuv_pic.h"
+#include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
 
@@ -18,8 +19,8 @@ class Checksum {
 public:
   enum class Method {
     kNone = 0,
-    kCRC = 1,
-    kMD5 = 2,
+    kCrc = 1,
+    kMd5 = 2,
   };
   enum class Mode {
     kMinOverhead = 0,
@@ -27,31 +28,22 @@ public:
     kTotalNumber = 2,
     kInvalid = 99,
   };
-  static const Method kDefaultMethod = Method::kMD5;
-  static const Method kFallbackMethod = Method::kCRC;
+  static const Method kDefaultMethod = Method::kMd5;
+  static const Method kFallbackMethod = Method::kCrc;
 
-  explicit Checksum(Method method) : method_(method) {}
-  Checksum(Method method, const std::vector<uint8_t> &hash)
-    : hash_(hash), method_(method) {}
+  Checksum() = default;
+  explicit Checksum(const std::vector<uint8_t> &hash)
+    : hash_(hash) {}
 
   void Clear() { hash_.clear(); }
-  void HashPicture(const YuvPicture &pic, Mode mode);
-  Method GetMethod() const { return method_; }
+  void HashPicture(const YuvPicture &pic, Method method, Mode mode);
   std::vector<uint8_t> GetHash() const { return hash_; }
 
-  bool operator==(const Checksum &other) const {
-    return hash_ == other.hash_;
-  }
-  bool operator!=(const Checksum &other) const {
-    return !(*this == other);
-  }
-
 private:
-  void CalculateCRC(const YuvPicture &pic, Mode mode);
-  void CalculateMD5(const YuvPicture &pic, Mode mode);
+  void CalculateCrc(const YuvPicture &pic, Mode mode);
+  void CalculateMd5(const YuvPicture &pic, Mode mode);
 
   std::vector<uint8_t> hash_;
-  Method method_;
 };
 
 }   // namespace xvc

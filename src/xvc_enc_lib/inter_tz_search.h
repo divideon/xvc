@@ -16,9 +16,9 @@
 
 namespace xvc {
 
-class TZSearch {
+class TzSearch {
 public:
-  TZSearch(int bitdepth, const YuvPicture &orig_pic,
+  TzSearch(int bitdepth, const YuvPicture &orig_pic,
            const InterPrediction &inter_pred,
            const EncoderSettings &encoder_settings, int search_range)
     : orig_pic_(orig_pic),

@@ -127,7 +127,7 @@ IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
   const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
   IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
   IntraPredictorChroma chroma_modes = GetPredictorsChroma(luma_mode);
-  IntraChromaMode best_mode = IntraChromaMode::kDMChroma;
+  IntraChromaMode best_mode = IntraChromaMode::kDmChroma;
   Cost best_cost = std::numeric_limits<Cost>::max();
   if (Restrictions::Get().disable_intra_chroma_predictor) {
     return best_mode;

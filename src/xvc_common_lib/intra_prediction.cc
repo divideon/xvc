@@ -44,14 +44,14 @@ void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
   bool post_filter = comp == kY && cu.GetWidth(comp) <= 16 &&
     cu.GetHeight(comp) <= 16;
   IntraMode mode = (Restrictions::Get().disable_intra_planar &&
-                    intra_mode == kPlanar) ? kDC : intra_mode;
+                    intra_mode == kPlanar) ? kDc : intra_mode;
   switch (mode) {
     case kPlanar:
       PlanarPred(cu.GetWidth(comp), cu.GetHeight(comp), ref_samples,
                  kRefSampleStride_, output_buffer, output_stride);
       break;
 
-    case kDC:
+    case kDc:
       PredIntraDC(cu.GetWidth(comp), cu.GetHeight(comp), post_filter,
                   &ref_state.ref_samples[0], kRefSampleStride_, output_buffer,
                   output_stride);
@@ -87,7 +87,7 @@ IntraPrediction::ComputeReferenceState(const CodingUnit &cu, YuvComponent comp,
 IntraPredictorLuma
 IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   const CodingUnit *cu_left = cu.GetCodingUnitLeft();
-  IntraMode left = IntraMode::kDC;
+  IntraMode left = IntraMode::kDc;
   if (cu_left && cu_left->IsIntra()) {
     left = cu_left->GetIntraMode(YuvComponent::kY);
   }
@@ -97,7 +97,7 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   } else {
     cu_above = cu.GetCodingUnitAbove();
   }
-  IntraMode above = IntraMode::kDC;
+  IntraMode above = IntraMode::kDc;
   if (cu_above && cu_above->IsIntra()) {
     above = cu_above->GetIntraMode(YuvComponent::kY);
   }
@@ -105,19 +105,19 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   if (Restrictions::Get().disable_intra_mpm_prediction) {
     mpm.num_neighbor_modes = 1;
     mpm[0] = IntraMode::kPlanar;
-    mpm[1] = IntraMode::kDC;
+    mpm[1] = IntraMode::kDc;
     mpm[2] = IntraMode::kVertical;
     return mpm;
   }
   if (left == above) {
     mpm.num_neighbor_modes = 1;
-    if (left > IntraMode::kDC) {
+    if (left > IntraMode::kDc) {
       mpm[0] = left;
       mpm[1] = static_cast<IntraMode>(((left + 29) % 32) + 2);
       mpm[2] = static_cast<IntraMode>(((left - 1) % 32) + 2);
     } else {
       mpm[0] = IntraMode::kPlanar;
-      mpm[1] = IntraMode::kDC;
+      mpm[1] = IntraMode::kDc;
       mpm[2] = IntraMode::kVertical;
     }
   } else {
@@ -127,7 +127,7 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
     if (left > IntraMode::kPlanar && above > IntraMode::kPlanar) {
       mpm[2] = IntraMode::kPlanar;
     } else {
-      mpm[2] = (left + above) < 2 ? IntraMode::kVertical : IntraMode::kDC;
+      mpm[2] = (left + above) < 2 ? IntraMode::kVertical : IntraMode::kDc;
     }
   }
   return mpm;
@@ -139,8 +139,8 @@ IntraPrediction::GetPredictorsChroma(IntraMode luma_mode) const {
   chroma_preds[0] = IntraChromaMode::kPlanar;
   chroma_preds[1] = IntraChromaMode::kVertical;
   chroma_preds[2] = IntraChromaMode::kHorizontal;
-  chroma_preds[3] = IntraChromaMode::kDC;
-  chroma_preds[4] = IntraChromaMode::kDMChroma;
+  chroma_preds[3] = IntraChromaMode::kDc;
+  chroma_preds[4] = IntraChromaMode::kDmChroma;
   for (int i = 0; i < static_cast<int>(chroma_preds.size()) - 1; i++) {
     if (static_cast<int>(chroma_preds[i]) == luma_mode) {
       chroma_preds[i] = IntraChromaMode::kVerticalPlus8;

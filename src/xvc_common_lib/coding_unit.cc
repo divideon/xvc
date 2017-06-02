@@ -271,7 +271,7 @@ IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
     assert(cu_tree_ == CuTree::Primary);
     return intra_mode_luma_;
   }
-  if (intra_mode_chroma_ == IntraChromaMode::kDMChroma) {
+  if (intra_mode_chroma_ == IntraChromaMode::kDmChroma) {
     if (cu_tree_ == CuTree::Primary) {
       return intra_mode_luma_;
     }

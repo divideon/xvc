@@ -419,7 +419,7 @@ IntraChromaMode
 SyntaxReader::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
   uint32_t not_dm_chroma = entropydec_->DecodeBin(&ctx_.intra_pred_chroma[0]);
   if (!not_dm_chroma) {
-    return IntraChromaMode::kDMChroma;
+    return IntraChromaMode::kDmChroma;
   }
   uint32_t chroma_index = entropydec_->DecodeBypassBins(2);
   return chroma_preds[chroma_index];

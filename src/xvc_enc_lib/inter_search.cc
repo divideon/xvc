@@ -332,7 +332,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
   const bool bipred = cu->GetInterDir() == InterDir::kBi;
   const double weight = bipred ? 0.5 : 1;
   const SearchMethod search_method =
-    bipred ? SearchMethod::FullSearch : SearchMethod::TZSearch;
+    bipred ? SearchMethod::FullSearch : SearchMethod::TzSearch;
   Distortion cost_best = initial_best_cost;
   Distortion cost_best_unique = std::numeric_limits<Distortion>::max();
   if (!bipred) {
@@ -429,9 +429,9 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const Qp &qp,
   MotionVector mv_fullpel;
   if (search_method == SearchMethod::FullSearch) {
     mv_fullpel = FullSearch(cu, qp, mvp, *ref_pic, clip_min, clip_max);
-  } else if (search_method == SearchMethod::TZSearch) {
+  } else if (search_method == SearchMethod::TzSearch) {
     MetricType metric_type = GetFullpelMetric(cu);
-    TZSearch tz_search(bitdepth_, orig_pic_, *this, encoder_settings_,
+    TzSearch tz_search(bitdepth_, orig_pic_, *this, encoder_settings_,
                        kSearchRangeUni);
     mv_fullpel =
       tz_search.Search(cu, qp, metric_type, mvp, *ref_pic, clip_min, clip_max,

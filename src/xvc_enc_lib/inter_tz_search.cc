@@ -14,7 +14,7 @@
 namespace xvc {
 
 template<typename TOrig>
-class TZSearch::DistortionWrapper {
+class TzSearch::DistortionWrapper {
 public:
   DistortionWrapper(MetricType metric, YuvComponent comp, const CodingUnit &cu,
                     const Qp &qp, int bitdepth,
@@ -46,7 +46,7 @@ private:
   SampleMetric metric_;
 };
 
-struct TZSearch::SearchState {
+struct TzSearch::SearchState {
   SearchState(DistortionWrapper<Sample> *dist_wrap, const MotionVector &mvpred,
               const MotionVector &mvmin, const MotionVector &mvmax)
     : dist(dist_wrap), mvp(mvpred), mv_min(mvmin), mv_max(mvmax) {
@@ -64,7 +64,7 @@ struct TZSearch::SearchState {
 };
 
 MotionVector
-TZSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
+TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
                  const MotionVector &mvp, const YuvPicture &ref_pic,
                  const MotionVector &mv_min, const MotionVector &mv_max,
                  const MotionVector &prev_search) {
@@ -155,7 +155,7 @@ TZSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
   return state.mv_best;
 }
 
-bool TZSearch::FullpelDiamondSearch(SearchState *state,
+bool TzSearch::FullpelDiamondSearch(SearchState *state,
                                     const MotionVector &mv_base, int range) {
   bool mod = false;
   if (range == 1) {
@@ -194,7 +194,7 @@ bool TZSearch::FullpelDiamondSearch(SearchState *state,
   return mod;
 }
 
-void TZSearch::FullpelNeighborPointSearch(SearchState *state) {
+void TzSearch::FullpelNeighborPointSearch(SearchState *state) {
   const int r = 1;
   MotionVector mv_base = state->mv_best;
   switch (state->last_position) {
@@ -243,7 +243,7 @@ void TZSearch::FullpelNeighborPointSearch(SearchState *state) {
   }
 }
 
-Distortion TZSearch::GetCost(SearchState *state, int mv_x, int mv_y) {
+Distortion TzSearch::GetCost(SearchState *state, int mv_x, int mv_y) {
   const int mv_scale = state->mv_precision;
   Distortion dist = state->dist->GetDist(mv_x, mv_y);
   Bits mvd = InterSearch::GetMvdBits(state->mvp, mv_x, mv_y, mv_scale);
@@ -251,7 +251,7 @@ Distortion TZSearch::GetCost(SearchState *state, int mv_x, int mv_y) {
   return dist + bits;
 }
 
-bool TZSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
+bool TzSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
   Distortion cost = GetCost(state, mv_x, mv_y);
   if (cost < state->cost_best) {
     state->cost_best = cost;
@@ -264,32 +264,32 @@ bool TZSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
 
 template<class Dir>
 bool
-TZSearch::IsInside(int mv_x, int mv_y, const_mv *mv_min, const_mv *mv_max) {
+TzSearch::IsInside(int mv_x, int mv_y, const_mv *mv_min, const_mv *mv_max) {
   return false;
 }
 template<>
-bool TZSearch::IsInside<TZSearch::Up>(int mv_x, int mv_y,
+bool TzSearch::IsInside<TzSearch::Up>(int mv_x, int mv_y,
                                       const_mv *mv_min, const_mv *mv_max) {
   return mv_y >= mv_min->y;
 }
 template<>
-bool TZSearch::IsInside<TZSearch::Down>(int mv_x, int mv_y,
+bool TzSearch::IsInside<TzSearch::Down>(int mv_x, int mv_y,
                                         const_mv *mv_min, const_mv *mv_max) {
   return mv_y <= mv_max->y;
 }
 template<>
-bool TZSearch::IsInside<TZSearch::Left>(int mv_x, int mv_y,
+bool TzSearch::IsInside<TzSearch::Left>(int mv_x, int mv_y,
                                         const_mv *mv_min, const_mv *mv_max) {
   return mv_x >= mv_min->x;
 }
 template<>
-bool TZSearch::IsInside<TZSearch::Right>(int mv_x, int mv_y,
+bool TzSearch::IsInside<TzSearch::Right>(int mv_x, int mv_y,
                                          const_mv *mv_min, const_mv *mv_max) {
   return mv_x <= mv_max->x;
 }
 
 template<class Dir>
-bool TZSearch::CheckCost1(SearchState *state, int mv_x, int mv_y,
+bool TzSearch::CheckCost1(SearchState *state, int mv_x, int mv_y,
                           int range) {
   if (!IsInside<Dir>(mv_x, mv_y, &state->mv_min, &state->mv_max)) {
     return false;
@@ -303,7 +303,7 @@ bool TZSearch::CheckCost1(SearchState *state, int mv_x, int mv_y,
 }
 
 template<class Dir1, class Dir2>
-bool TZSearch::CheckCost2(SearchState *state, int mv_x, int mv_y,
+bool TzSearch::CheckCost2(SearchState *state, int mv_x, int mv_y,
                           int range) {
   if (!IsInside<Dir1>(mv_x, mv_y, &state->mv_min, &state->mv_max) ||
       !IsInside<Dir2>(mv_x, mv_y, &state->mv_min, &state->mv_max)) {
