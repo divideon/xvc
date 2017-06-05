@@ -59,6 +59,7 @@ private:
     xvc_dec_color_matrix output_color_matrix = XVC_DEC_COLOR_MATRIX_UNDEFINED;
     int output_bitdepth = -1;
     int max_framerate = -1;
+    int simd_mask = -1;
     int loop = -1;
     int verbose = 0;
   } cli_;

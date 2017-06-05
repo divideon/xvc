@@ -9,6 +9,7 @@
 
 #include <limits>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,7 @@
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/segment_header.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/picture_encoder.h"
 #include "xvc_enc_lib/encoder_settings.h"
@@ -33,6 +35,9 @@ public:
             xvc_enc_pic_buffer *rec_pic);
   const SegmentHeader* GetCurrentSegment() const { return &segment_header_; }
 
+  void SetCpuCapabilities(std::set<CpuCapability> capabilities) {
+    simd_ = SimdFunctions(capabilities);
+  }
   void SetResolution(int width, int height) {
     segment_header_.pic_width = width;
     segment_header_.pic_height = height;
@@ -101,6 +106,7 @@ private:
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   int segment_qp_ = std::numeric_limits<int>::max();
   bool flat_lambda_ = false;
+  SimdFunctions simd_;
   EncoderSettings encoder_settings_;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;

@@ -28,8 +28,9 @@ struct CuEncoder::RdoCost {
   Distortion dist;
 };
 
-CuEncoder::CuEncoder(const YuvPicture &orig_pic,
-                     YuvPicture *rec_pic, PictureData *pic_data,
+CuEncoder::CuEncoder(const SimdFunctions &simd,
+                     const YuvPicture &orig_pic, YuvPicture *rec_pic,
+                     PictureData *pic_data,
                      const EncoderSettings &encoder_settings)
   : TransformEncoder(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
                      orig_pic, encoder_settings),

@@ -18,7 +18,10 @@
 
 namespace xvc {
 
-Encoder::Encoder() {
+Encoder::Encoder()
+  : segment_header_(),
+  simd_(SimdCpu::GetRuntimeCapabilities()),
+  encoder_settings_() {
   segment_header_.codec_identifier = constants::kXvcCodecIdentifier;
   segment_header_.major_version = constants::kXvcMajorVersion;
   segment_header_.minor_version = constants::kXvcMinorVersion;
@@ -246,7 +249,7 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   // Allocate a new PictureEncoder if the number of buffered pictures
   // is lower than the maximum that will be used.
   if (pic_encoders_.size() < pic_buffering_num_) {
-    auto pic = std::make_shared<PictureEncoder>(
+    auto pic = std::make_shared<PictureEncoder>(simd_,
       segment_header_.chroma_format, segment_header_.pic_width,
       segment_header_.pic_height, segment_header_.internal_bitdepth);
     pic_encoders_.push_back(pic);

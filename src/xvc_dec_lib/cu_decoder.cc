@@ -13,8 +13,8 @@
 
 namespace xvc {
 
-CuDecoder::CuDecoder(const Qp &pic_qp, YuvPicture *decoded_pic,
-                     PictureData *pic_data)
+CuDecoder::CuDecoder(const SimdFunctions &simd, const Qp &pic_qp,
+                     YuvPicture *decoded_pic, PictureData *pic_data)
   : min_pel_(0),
   max_pel_((1 << decoded_pic->GetBitdepth()) - 1),
   pic_qp_(pic_qp),

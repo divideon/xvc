@@ -77,6 +77,12 @@
     <ClInclude Include="reference_list_sorter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="simd_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simd_cpu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common.cc">
@@ -131,6 +137,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="segment_header.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="simd_functions.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="simd_cpu.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

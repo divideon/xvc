@@ -18,6 +18,12 @@
 
 namespace xvc {
 
+Decoder::Decoder()
+  : curr_segment_header_(),
+  prev_segment_header_(),
+  simd_(SimdCpu::GetRuntimeCapabilities()) {
+}
+
 bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
   // First check the nal_rfe to see if the Nal Unit shall be ignored.
   BitReader bit_reader(nal_unit, nal_unit_size);
@@ -250,7 +256,8 @@ std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
   // is lower than the maximum that will be used.
   if (pic_decoders_.size() < pic_buffering_num_) {
     auto pic =
-      std::make_shared<PictureDecoder>(chroma_format, width, height, bitdepth);
+      std::make_shared<PictureDecoder>(simd_, chroma_format, width, height,
+                                       bitdepth);
     pic_decoders_.push_back(pic);
     return pic;
   }
@@ -282,7 +289,8 @@ std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
       chroma_format != pic_data->GetChromaFormat() ||
       bitdepth != pic_data->GetBitdepth()) {
     *pic_it =
-      std::make_shared<PictureDecoder>(chroma_format, width, height, bitdepth);
+      std::make_shared<PictureDecoder>(simd_, chroma_format, width, height,
+                                       bitdepth);
   }
   assert(*pic_it);
   return *pic_it;

@@ -56,6 +56,7 @@ extern "C" {
     param->flat_lambda = 0;
     param->speed_mode = -1;  // determined in xvc_enc_encoder_create
     param->tune_mode = 0;
+    param->simd_mask = static_cast<uint32_t>(-1);
     param->explicit_encoder_settings = nullptr;
     return XVC_ENC_OK;
   }
@@ -233,6 +234,7 @@ extern "C" {
     xvc::Encoder *encoder = new xvc::Encoder();
     xvc_enc_set_encoder_settings(encoder, param);
 
+    encoder->SetCpuCapabilities(xvc::SimdCpu::GetMaskedCaps(param->simd_mask));
     encoder->SetResolution(param->width, param->height);
     encoder->SetChromaFormat(xvc::ChromaFormat(param->chroma_format));
     encoder->SetColorMatrix(xvc::ColorMatrix(param->color_matrix));

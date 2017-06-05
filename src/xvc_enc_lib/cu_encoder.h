@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/cu_cache.h"
@@ -25,8 +26,9 @@ namespace xvc {
 
 class CuEncoder : public TransformEncoder {
 public:
-  CuEncoder(const YuvPicture &orig_pic, YuvPicture *rec_pic,
-            PictureData *pic_data, const EncoderSettings &encoder_settings);
+  CuEncoder(const SimdFunctions &simd, const YuvPicture &orig_pic,
+            YuvPicture *rec_pic, PictureData *pic_data,
+            const EncoderSettings &encoder_settings);
   ~CuEncoder();
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 

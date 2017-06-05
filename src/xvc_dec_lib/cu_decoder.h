@@ -14,6 +14,7 @@
 #include "xvc_common_lib/intra_prediction.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/transform.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_dec_lib/cu_reader.h"
@@ -23,8 +24,8 @@ namespace xvc {
 
 class CuDecoder {
 public:
-  CuDecoder(const Qp &pic_qp, YuvPicture *decoded_pic,
-            PictureData *picture_data);
+  CuDecoder(const SimdFunctions &simd, const Qp &pic_qp,
+            YuvPicture *decoded_pic, PictureData *picture_data);
   void DecodeCtu(int rsaddr, SyntaxReader *reader);
 
 private:

@@ -39,6 +39,7 @@ extern "C" {
     param->output_color_matrix = XVC_DEC_COLOR_MATRIX_UNDEFINED;
     param->output_bitdepth = 0;
     param->max_framerate = xvc::constants::kTimeScale;
+    param->simd_mask = static_cast<uint32_t>(-1);
     return XVC_DEC_OK;
   }
 
@@ -88,6 +89,7 @@ extern "C" {
       return nullptr;
     }
     xvc::Decoder *decoder = new xvc::Decoder;
+    decoder->SetCpuCapabilities(xvc::SimdCpu::GetMaskedCaps(param->simd_mask));
     decoder->SetOutputWidth(param->output_width);
     decoder->SetOutputHeight(param->output_height);
     decoder->SetOutputChromaFormat(param->output_chroma_format);

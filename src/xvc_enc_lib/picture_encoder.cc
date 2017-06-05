@@ -20,9 +20,10 @@
 
 namespace xvc {
 
-PictureEncoder::PictureEncoder(ChromaFormat chroma_format, int width,
+PictureEncoder::PictureEncoder(const SimdFunctions &simd,
+                               ChromaFormat chroma_format, int width,
                                int height, int bitdepth)
-  : checksum_(),
+  : simd_(simd),
   orig_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
                                          bitdepth, false)),
   pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
@@ -59,7 +60,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   SyntaxWriter writer(base_qp, pic_data_->GetPredictionType(),
                       &entropy_encoder);
   std::unique_ptr<CuEncoder>
-    cu_encoder(new CuEncoder(*orig_pic_, rec_pic_.get(), pic_data_.get(),
+    cu_encoder(new CuEncoder(simd_, *orig_pic_, rec_pic_.get(), pic_data_.get(),
                              encoder_settings));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {

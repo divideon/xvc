@@ -85,7 +85,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>XVC_ARCH_x86;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalIncludeDirectories>..</AdditionalIncludeDirectories>
@@ -104,7 +104,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>XVC_ARCH_x86;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalIncludeDirectories>..</AdditionalIncludeDirectories>
@@ -125,7 +125,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>XVC_ARCH_x86;WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalIncludeDirectories>..</AdditionalIncludeDirectories>
@@ -148,7 +148,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>XVC_ARCH_x86;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalIncludeDirectories>..</AdditionalIncludeDirectories>
@@ -183,6 +183,8 @@
     <ClInclude Include="restrictions.h" />
     <ClInclude Include="sample_buffer.h" />
     <ClInclude Include="segment_header.h" />
+    <ClInclude Include="simd_cpu.h" />
+    <ClInclude Include="simd_functions.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="utils_md5.h" />
     <ClInclude Include="quantize.h" />
@@ -203,6 +205,8 @@
     <ClCompile Include="resample.cc" />
     <ClCompile Include="restrictions.cc" />
     <ClCompile Include="segment_header.cc" />
+    <ClCompile Include="simd_cpu.cc" />
+    <ClCompile Include="simd_functions.cc" />
     <ClCompile Include="utils.cc" />
     <ClCompile Include="utils_md5.cc" />
     <ClCompile Include="quantize.cc" />

@@ -10,11 +10,13 @@
 #include <deque>
 #include <limits>
 #include <memory>
+#include <set>
 #include <vector>
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/segment_header.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_dec_lib/bit_reader.h"
 #include "xvc_dec_lib/picture_decoder.h"
 #include "xvc_dec_lib/xvcdec.h"
@@ -33,7 +35,7 @@ public:
     kBitstreamBitdepthTooHigh,
   };
 
-  Decoder() : curr_segment_header_(), prev_segment_header_() {}
+  Decoder();
 
   bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size);
   void DecodeOneBufferedNal(const std::vector<uint8_t> &nal);
@@ -44,6 +46,9 @@ public:
     return num_pics_in_buffer_ >= sliding_window_length_;
   }
   PicNum GetNumCorruptedPics() { return num_corrupted_pics_; }
+  void SetCpuCapabilities(std::set<CpuCapability> capabilities) {
+    simd_ = SimdFunctions(capabilities);
+  }
   void SetOutputWidth(int width) { output_width_ = width; }
   void SetOutputHeight(int height) { output_height_ = height; }
   void SetOutputChromaFormat(xvc_dec_chroma_format chroma_format) {
@@ -88,6 +93,7 @@ private:
   int max_tid_ = 0;
   bool enforce_sliding_window_ = true;
   State state_ = State::kNoSegmentHeader;
+  SimdFunctions simd_;
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;
   std::deque<std::vector<uint8_t>> nal_buffer_;

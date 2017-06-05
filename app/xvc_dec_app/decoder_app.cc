@@ -71,6 +71,8 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.output_bitdepth;
     } else if (arg == "-max-framerate") {
       std::stringstream(argv[++i]) >> cli_.max_framerate;
+    } else if (arg == "-simd-mask") {
+      std::stringstream(argv[++i]) >> cli_.simd_mask;
     } else if (arg == "-loop") {
       std::stringstream(argv[++i]) >> cli_.loop;
     } else if (arg == "-verbose") {
@@ -142,6 +144,9 @@ void DecoderApp::CreateAndConfigureApi() {
   }
   if (cli_.max_framerate != -1) {
     params_->max_framerate = cli_.max_framerate;
+  }
+  if (cli_.simd_mask != -1) {
+    params_->simd_mask = cli_.simd_mask;
   }
   if (xvc_api_->parameters_check(params_) != XVC_DEC_OK) {
     std::cerr << "Error. Invalid parameters. Please check the values of the"

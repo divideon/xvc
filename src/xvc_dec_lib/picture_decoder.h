@@ -15,6 +15,7 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/segment_header.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_dec_lib/bit_reader.h"
 #include "xvc_dec_lib/syntax_reader.h"
@@ -24,8 +25,8 @@ namespace xvc {
 
 class PictureDecoder {
 public:
-  explicit PictureDecoder(ChromaFormat chroma_format, int width,
-                          int height, int bitdepth);
+  PictureDecoder(const SimdFunctions &simd, ChromaFormat chroma_format,
+                 int width, int height, int bitdepth);
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
@@ -43,6 +44,7 @@ public:
 private:
   bool ValidateChecksum(BitReader *bit_reader, Checksum::Mode checksum_mode);
 
+  const SimdFunctions &simd_;
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;

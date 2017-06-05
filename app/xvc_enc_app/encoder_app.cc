@@ -98,6 +98,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
     } else if (arg == "-tune") {
       std::stringstream(argv[++i]) >> cli_.tune_mode;
+    } else if (arg == "-simd-mask") {
+      std::stringstream(argv[++i]) >> cli_.simd_mask;
     } else if (arg == "-explicit-encoder-settings") {
       cli_.explicit_encoder_settings = argv[++i];
     } else if (arg == "-verbose") {
@@ -257,6 +259,9 @@ void EncoderApp::CreateAndConfigureApi() {
   }
   if (cli_.tune_mode != -1) {
     params_->tune_mode = cli_.tune_mode;
+  }
+  if (cli_.simd_mask != -1) {
+    params_->simd_mask = cli_.simd_mask;
   }
   if (!cli_.explicit_encoder_settings.empty()) {
     params_->explicit_encoder_settings = &cli_.explicit_encoder_settings[0];

@@ -92,6 +92,7 @@ extern "C" {
     int speed_mode;
     int tune_mode;
     int checksum_mode;
+    uint32_t simd_mask;
     char* explicit_encoder_settings;
   } xvc_encoder_parameters;
 

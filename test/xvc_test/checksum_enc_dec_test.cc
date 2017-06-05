@@ -11,6 +11,7 @@
 #include "googletest/include/gtest/gtest.h"
 
 #include "xvc_common_lib/segment_header.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_dec_lib/picture_decoder.h"
 #include "xvc_enc_lib/picture_encoder.h"
 
@@ -49,13 +50,14 @@ protected:
     for (int i = 0; i < static_cast<int>(input_pic_.size()); i++) {
       input_pic_[i] = i & mask;  // random yuv file
     }
+    xvc::SimdFunctions simd(xvc::SimdCpu::GetRuntimeCapabilities());
     pic_encoder_ =
-      std::make_shared<xvc::PictureEncoder>(segment_.chroma_format,
+      std::make_shared<xvc::PictureEncoder>(simd, segment_.chroma_format,
                                             segment_.pic_width,
                                             segment_.pic_height,
                                             segment_.internal_bitdepth);
     pic_decoder_ =
-      std::make_shared<xvc::PictureDecoder>(segment_.chroma_format,
+      std::make_shared<xvc::PictureDecoder>(simd, segment_.chroma_format,
                                             segment_.pic_width,
                                             segment_.pic_height,
                                             segment_.internal_bitdepth);

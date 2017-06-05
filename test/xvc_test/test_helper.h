@@ -101,6 +101,10 @@ protected:
     }
   }
 
+  void ResetBitstreamPosition() {
+    decoded_nals_units = 0;
+  }
+
   NalUnit& GetNextNalToDecode() {
     return encoded_nal_units_[decoded_nals_units++];
   }

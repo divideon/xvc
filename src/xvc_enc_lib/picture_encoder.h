@@ -15,6 +15,7 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/segment_header.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/encoder_settings.h"
@@ -25,8 +26,8 @@ namespace xvc {
 
 class PictureEncoder {
 public:
-  PictureEncoder(ChromaFormat chroma_format, int width, int height,
-                 int bitdepth);
+  PictureEncoder(const SimdFunctions &simd, ChromaFormat chroma_format,
+                 int width, int height, int bitdepth);
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
@@ -47,6 +48,7 @@ private:
   void WriteChecksum(BitWriter *bit_writer, Checksum::Mode checksum_mode);
   int DerivePictureQp(const PictureData &pic_data, int segment_qp) const;
 
+  const SimdFunctions &simd_;
   BitWriter bit_writer_;
   Checksum checksum_;
   std::shared_ptr<YuvPicture> orig_pic_;

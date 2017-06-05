@@ -10,6 +10,7 @@ option(HIGH_BITDEPTH "Store pixel samples as 16bit values." ON)
 option(BUILD_SHARED_LIBS "Build shared instead of static libraries." OFF)
 option(BUILD_TESTS "Build all test code" ON)
 option(BUILD_TESTS_LIBS "Build all test code as library" OFF)
+option(ENABLE_ASSEMBLY "Compile with assembly coded functions" ON)
 option(ENABLE_ASSERTIONS "Compile with assertions" ON)
 option(CODE_ANALYZE "Compile with code analyzer (MSVC)" OFF)
 if (CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -18,6 +19,40 @@ endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+# Target arch detection
+set(XVC_HAVE_NEON FALSE)
+if(NOT XVC_TARGET_ARCH)
+  # Determine arch based on host cpu and generator used
+  if("${CMAKE_GENERATOR}" MATCHES "^Visual Studio .+ ARM$")
+    set(XVC_TARGET_ARCH "ARM")
+    set(XVC_HAVE_NEON TRUE)
+  elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64" OR
+    "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64" OR
+    "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i386" OR
+    "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86")
+    set(XVC_TARGET_ARCH "x86")
+  else()
+    message(FATAL_ERROR "Unexpected host cpu: ${CMAKE_SYSTEM_PROCESSOR}")
+  endif()
+else()
+  # Extract architecture family from user specified arch
+  if("${XVC_TARGET_ARCH}" STREQUAL "x86_64")
+    set(XVC_TARGET_ARCH "x86")
+  elseif("${XVC_TARGET_ARCH}" MATCHES "^arm")
+    if ("${XVC_TARGET_ARCH}" MATCHES "^arm64")
+      set(XVC_HAVE_NEON TRUE)
+    elseif ("${XVC_TARGET_ARCH}" MATCHES "^armv7|^arm.*-v7")
+      set(XVC_HAVE_NEON TRUE)
+    endif()
+    set(XVC_TARGET_ARCH "ARM")
+  elseif("${XVC_TARGET_ARCH}" MATCHES "^mips")
+    set(XVC_TARGET_ARCH "MIPS")
+  endif()
+endif()
+if(NOT "${XVC_TARGET_ARCH}" MATCHES "^(x86|ARM|MIPS)$")
+  message(FATAL_ERROR "Unexpected target architecture: ${XVC_TARGET_ARCH}")
 endif()
 
 if(HIGH_BITDEPTH)
