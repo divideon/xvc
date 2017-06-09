@@ -12,6 +12,7 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/sample_buffer.h"
+#include "xvc_common_lib/simd_functions.h"
 
 namespace xvc {
 
@@ -38,7 +39,10 @@ public:
   static const int kInternalOffset = 1 << (kInternalPrecision - 1);
   static const int kMergeLevelShift = 2;
 
-  explicit InterPrediction(int bitdepth) : bitdepth_(bitdepth) {}
+  InterPrediction(const SimdFunctions &simd, int bitdepth)
+    : simd_(simd),
+    bitdepth_(bitdepth) {
+  }
 
   InterPredictorList GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
                                      int ref_idx);
@@ -53,6 +57,7 @@ public:
   void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
                          int center_x, int center_y, int search_range,
                          MotionVector *mv_min, MotionVector *mv_max) const;
+  static void RegisterSimdFunctions(SimdFunctions *simd);
 
 protected:
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
@@ -102,6 +107,7 @@ private:
                 Sample *pred, ptrdiff_t pred_stride);
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
 
+  const SimdFunctions &simd_;
   std::array<int16_t, kBufSize> filter_buffer_;
   std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;
   int bitdepth_;

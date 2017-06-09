@@ -11,6 +11,7 @@
 #include "xvc_common_lib/utils.h"
 #include "xvc_common_lib/reference_picture_lists.h"
 #include "xvc_common_lib/restrictions.h"
+#include "xvc_common_lib/simd_cpu.h"
 
 namespace xvc {
 
@@ -888,16 +889,27 @@ void InterPrediction::AddAvgBi(const CodingUnit &cu, YuvComponent comp,
                                const int16_t *src_l0, ptrdiff_t src_l0_stride,
                                const int16_t *src_l1, ptrdiff_t src_l1_stride,
                                Sample *pred, ptrdiff_t pred_stride) {
-  int width = cu.GetWidth(comp);
-  int height = cu.GetHeight(comp);
-  Sample min_val = 0;
-  Sample max_val = (1 << bitdepth_) - 1;
-  int shift = std::max(2, kInternalPrecision - bitdepth_) + 1;
-  int offset = (1 << (shift - 1)) + 2 * kInternalOffset;
-  DataBuffer<const int16_t> src1(src_l0, src_l0_stride);
-  DataBuffer<const int16_t> src2(src_l1, src_l1_stride);
-  SampleBuffer pred_buffer(pred, pred_stride);
-  pred_buffer.AddAvg(width, height, src1, src2, offset, shift,
+  const int width = cu.GetWidth(comp);
+  const int height = cu.GetHeight(comp);
+  const int shift = std::max(2, kInternalPrecision - bitdepth_) + 1;
+  const int offset = (1 << (shift - 1)) + 2 * kInternalOffset;
+  const int idx = width >= 8;
+  simd_.inter_prediction.add_avg[idx](width, height, offset, shift,
+                                      bitdepth_, src_l0, src_l0_stride,
+                                      src_l1, src_l1_stride, pred, pred_stride);
+}
+
+static void AddAvg(int width, int height, int offset,
+                   int shift, int bitdepth,
+                   const int16_t *src1, intptr_t stride1,
+                   const int16_t *src2, intptr_t stride2,
+                   Sample *dst, intptr_t dst_stride) {
+  const Sample min_val = 0;
+  const Sample max_val = (1 << bitdepth) - 1;
+  DataBuffer<const int16_t> src1_buf(src1, stride1);
+  DataBuffer<const int16_t> src2_buf(src2, stride2);
+  SampleBuffer pred_buffer(dst, dst_stride);
+  pred_buffer.AddAvg(width, height, src1_buf, src2_buf, offset, shift,
                      min_val, max_val);
 }
 
@@ -911,6 +923,11 @@ MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu) {
   cand.ref_idx[kL0] = cu.GetRefIdx(RefPicList::kL0);
   cand.ref_idx[kL1] = cu.GetRefIdx(RefPicList::kL1);
   return cand;
+}
+
+void InterPrediction::RegisterSimdFunctions(SimdFunctions *simd) {
+  simd->inter_prediction.add_avg[0] = &AddAvg;
+  simd->inter_prediction.add_avg[1] = &AddAvg;
 }
 
 }   // namespace xvc

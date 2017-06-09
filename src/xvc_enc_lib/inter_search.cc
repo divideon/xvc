@@ -26,11 +26,11 @@ static const std::array<std::pair<int8_t, int8_t>, 9> kSquareXYQpel = { {
   {0, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {1, 1}
 } };
 
-InterSearch::InterSearch(int bitdepth, int max_components,
-                         const YuvPicture &orig_pic,
+InterSearch::InterSearch(const SimdFunctions &simd, int bitdepth,
+                         int max_components, const YuvPicture &orig_pic,
                          const ReferencePictureLists &ref_pic_list,
                          const EncoderSettings &encoder_settings)
-  : InterPrediction(bitdepth),
+  : InterPrediction(simd, bitdepth),
   bitdepth_(bitdepth),
   max_components_(max_components),
   orig_pic_(orig_pic),

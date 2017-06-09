@@ -28,7 +28,7 @@ std::set<CpuCapability> SimdCpu::GetMaskedCaps(uint32_t mask) {
   return out;
 }
 
-#if XVC_ARCH_x86
+#if XVC_ARCH_X86
 
 static void cpuinfo_x86(uint32_t eax, uint32_t ecx, int registers[4]) {
 #ifdef _MSC_VER

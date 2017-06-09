@@ -13,6 +13,7 @@
 #include "xvc_common_lib/inter_prediction.h"
 #include "xvc_common_lib/reference_picture_lists.h"
 #include "xvc_common_lib/sample_buffer.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_enc_lib/encoder_settings.h"
@@ -26,7 +27,8 @@ class InterSearch : public InterPrediction {
 public:
   using MergeCandLookup = std::array<int, constants::kNumInterMergeCandidates>;
 
-  InterSearch(int bitdepth, int max_components, const YuvPicture &orig_pic,
+  InterSearch(const SimdFunctions &simd, int bitdepth, int max_components,
+              const YuvPicture &orig_pic,
               const ReferencePictureLists &ref_pic_list,
               const EncoderSettings &encoder_settings);
 
