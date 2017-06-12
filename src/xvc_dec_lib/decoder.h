@@ -33,6 +33,7 @@ public:
     kPicDecoded,
     kDecoderVersionTooLow,
     kBitstreamBitdepthTooHigh,
+    kChecksumMismatch,
   };
 
   Decoder();

@@ -166,13 +166,14 @@ void Decoder::DecodeOneBufferedNal(const std::vector<uint8_t> &nal) {
                                      pic_dec->GetPicData()->GetRefPicLists());
 
   // Decode the picture.
-  if (!pic_dec->Decode(*segment_header, &pic_bit_reader)) {
+  if (pic_dec->Decode(*segment_header, &pic_bit_reader)) {
+    if (state_ != State::kChecksumMismatch) {
+      state_ = State::kPicDecoded;
+    }
+  } else {
+    state_ = State::kChecksumMismatch;
     num_corrupted_pics_++;
   }
-  if (num_corrupted_pics_ == 1) {
-    std::cerr << "Detected checksum mismatch!" << std::endl;
-  }
-  state_ = State::kPicDecoded;
   // Increase global decode order counter.
   doc_ = pic_data->GetDoc() + 1;
 }

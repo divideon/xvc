@@ -131,14 +131,15 @@ extern "C" {
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
     lib_decoder->DecodeNal(nal_unit, nal_unit_size);
 
-    if (lib_decoder->GetState() == xvc::Decoder::State::kDecoderVersionTooLow) {
+    xvc::Decoder::State dec_state = lib_decoder->GetState();
+    if (dec_state == xvc::Decoder::State::kDecoderVersionTooLow) {
       return XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER;
-    } else if (lib_decoder->GetState() ==
-               xvc::Decoder::State::kBitstreamBitdepthTooHigh) {
+    } else if (dec_state == xvc::Decoder::State::kBitstreamBitdepthTooHigh) {
       return XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH;
-    } else if (lib_decoder->GetState() ==
-               xvc::Decoder::State::kNoSegmentHeader) {
+    } else if (dec_state == xvc::Decoder::State::kNoSegmentHeader) {
       return XVC_DEC_NO_SEGMENT_HEADER_DECODED;
+    } else if (dec_state == xvc::Decoder::State::kChecksumMismatch) {
+      return XVC_DEC_NOT_CONFORMING;
     }
     return XVC_DEC_OK;
   }
@@ -149,7 +150,8 @@ extern "C" {
       return XVC_DEC_INVALID_ARGUMENT;
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
-    if (lib_decoder->GetState() == xvc::Decoder::State::kNoSegmentHeader) {
+    xvc::Decoder::State dec_state = lib_decoder->GetState();
+    if (dec_state == xvc::Decoder::State::kNoSegmentHeader) {
       return XVC_DEC_NO_SEGMENT_HEADER_DECODED;
     }
     if (lib_decoder->HasPictureReadyForOutput() &&
