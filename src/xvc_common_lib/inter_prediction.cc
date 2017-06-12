@@ -539,8 +539,12 @@ InterPrediction::MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
   auto ref_buffer =
     GetFullpelRef(cu, comp, ref_pic, mv.x, mv.y, &frac_x, &frac_y);
   if (frac_x == 0 && frac_y == 0) {
-    FilterCopyBipred(width, height, ref_buffer.GetDataPtr(),
-                     ref_buffer.GetStride(), pred, pred_stride);
+    const int shift = kInternalPrecision - bitdepth_;
+    const int offset = kInternalOffset;
+    const int i = width >= 8;
+    simd_.inter_prediction.filter_copy_bipred[i](
+      width, height, offset, shift,
+      ref_buffer.GetDataPtr(), ref_buffer.GetStride(), pred, pred_stride);
     return;
   }
   if (util::IsLuma(comp)) {
@@ -819,11 +823,9 @@ void InterPrediction::FilterChroma(int width, int height,
   }
 }
 
-void InterPrediction::FilterCopyBipred(int width, int height,
-                                       const Sample *ref, ptrdiff_t ref_stride,
-                                       int16_t *pred, ptrdiff_t pred_stride) {
-  const int shift = kInternalPrecision - bitdepth_;
-  const int offset = kInternalOffset;
+static void FilterCopyBipred(int width, int height, int16_t offset, int shift,
+                             const Sample *ref, ptrdiff_t ref_stride,
+                             int16_t *pred, ptrdiff_t pred_stride) {
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int16_t val = ref[x] << shift;
@@ -925,9 +927,11 @@ MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu) {
   return cand;
 }
 
-void InterPrediction::RegisterSimdFunctions(SimdFunctions *simd) {
+void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd) {
   simd->inter_prediction.add_avg[0] = &AddAvg;
   simd->inter_prediction.add_avg[1] = &AddAvg;
+  simd->inter_prediction.filter_copy_bipred[0] = &FilterCopyBipred;
+  simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipred;
 }
 
 }   // namespace xvc

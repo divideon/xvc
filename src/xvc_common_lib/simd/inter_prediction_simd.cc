@@ -13,14 +13,21 @@
 #include <arm_neon.h>
 #endif
 
+#include "xvc_common_lib/simd_functions.h"
+
+#ifdef _MSC_VER
+#define __attribute__(SPEC)
+#endif
+
 namespace xvc {
 namespace simd {
 
 #if XVC_ARCH_X86
-void AddAvgSse2(int width, int height, int offset, int shift, int bitdepth,
-                const int16_t *src1, intptr_t stride1,
-                const int16_t *src2, intptr_t stride2,
-                Sample *dst, intptr_t dst_stride) {
+__attribute__((target("sse2")))
+static void AddAvgSse2(int width, int height, int offset, int shift,
+                       int bitdepth, const int16_t *src1, intptr_t stride1,
+                       const int16_t *src2, intptr_t stride2,
+                       Sample *dst, intptr_t dst_stride) {
 #if XVC_HIGH_BITDEPTH
   __m128i min = _mm_set1_epi16(0);
   __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
@@ -48,10 +55,10 @@ void AddAvgSse2(int width, int height, int offset, int shift, int bitdepth,
 #endif  // XVC_ARCH_X86
 
 #if XVC_HAVE_NEON
-void AddAvgNeon(int width, int height, int offset, int shift, int bitdepth,
-                const int16_t *src1, intptr_t stride1,
-                const int16_t *src2, intptr_t stride2,
-                Sample *dst, intptr_t dst_stride) {
+static void AddAvgNeon(int width, int height, int offset, int shift,
+                       int bitdepth, const int16_t *src1, intptr_t stride1,
+                       const int16_t *src2, intptr_t stride2,
+                       Sample *dst, intptr_t dst_stride) {
   int16x8_t vec_shift = vdupq_n_s16((int16_t)shift * -1);
 #if XVC_HIGH_BITDEPTH
   int16x8_t min = vdupq_n_s16(0);
@@ -77,6 +84,76 @@ void AddAvgNeon(int width, int height, int offset, int shift, int bitdepth,
   }
 }
 #endif  // XVC_HAVE_NEON
+
+#if XVC_ARCH_X86
+__attribute__((target("sse2")))
+static void FilterCopyBipredSse2(int width, int height,
+                                 int16_t offset, int shift,
+                                 const Sample *ref, ptrdiff_t ref_stride,
+                                 int16_t *dst, ptrdiff_t dst_stride) {
+  __m128i vec_offset = _mm_set1_epi16(offset);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x += 8) {
+#if XVC_HIGH_BITDEPTH
+      __m128i s1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ref + x));
+#else
+      __m128i vec_ref =
+        _mm_loadl_epi64(reinterpret_cast<const __m128i*>(ref + x));
+      __m128i s1 = _mm_unpacklo_epi8(vec_ref, _mm_setzero_si128());
+#endif
+      __m128i out = _mm_sub_epi16(_mm_slli_epi16(s1, shift), vec_offset);
+      _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), out);
+    }
+    ref += ref_stride;
+    dst += dst_stride;
+  }
+}
+#endif  // #if XVC_ARCH_X86
+
+#if XVC_HAVE_NEON
+static void FilterCopyBipredNeon(int width, int height,
+                                 int16_t offset, int shift,
+                                 const Sample *ref, ptrdiff_t ref_stride,
+                                 int16_t *dst, ptrdiff_t dst_stride) {
+  int16x8_t vec_shift = vdupq_n_s16((int16_t)shift);
+  int16x8_t vec_offset = vdupq_n_s16(offset);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x += 8) {
+#if XVC_HIGH_BITDEPTH
+      int16x8_t s1 = vreinterpretq_s16_u16(vld1q_u16(ref + x));
+#else
+      uint8x8_t vec_ref = vld1_u8(ref + x);
+      int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(vec_ref));
+#endif
+      int16x8_t out = vsubq_s16(vshlq_s16(s1, vec_shift), vec_offset);
+      vst1q_s16(dst + x, out);
+    }
+    ref += ref_stride;
+    dst += dst_stride;
+  }
+}
+#endif
+
+
+void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
+                                   xvc::SimdFunctions *simd) {
+#if XVC_HAVE_NEON
+  if (caps.find(CpuCapability::kNeon) != caps.end()) {
+    simd->inter_prediction.add_avg[1] = &AddAvgNeon;
+    simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipredNeon;
+  }
+#endif  // XVC_HAVE_NEON
+
+#if XVC_ARCH_X86
+  if (caps.find(CpuCapability::kSse2) != caps.end()) {
+    simd->inter_prediction.add_avg[1] = &AddAvgSse2;
+    simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipredSse2;
+  }
+#endif  // XVC_ARCH_X86
+
+#if XVC_ARCH_MIPS
+#endif  // XVC_ARCH_MIPS
+}
 
 }   // namespace simd
 }   // namespace xvc

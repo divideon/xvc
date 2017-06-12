@@ -57,7 +57,7 @@ public:
   void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
                          int center_x, int center_y, int search_range,
                          MotionVector *mv_min, MotionVector *mv_max) const;
-  static void RegisterSimdFunctions(SimdFunctions *simd);
+  static void RegisterDefaultFunctions(SimdFunctions *simd);
 
 protected:
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
@@ -92,9 +92,6 @@ private:
   void FilterChroma(int width, int height, int frac_x, int frac_y,
                     const Sample *ref, ptrdiff_t ref_stride,
                     Sample *pred, ptrdiff_t pred_stride);
-  void FilterCopyBipred(int width, int height,
-                        const Sample *ref, ptrdiff_t ref_stride,
-                        int16_t *pred, ptrdiff_t pred_stride);
   void FilterLumaBipred(int width, int height, int frac_x, int frac_y,
                         const Sample *ref, ptrdiff_t ref_stride,
                         int16_t *pred, ptrdiff_t pred_stride);

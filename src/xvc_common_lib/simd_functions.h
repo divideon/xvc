@@ -14,21 +14,23 @@
 
 namespace xvc {
 
+
 struct SimdFunctions {
+  // 0: width < 8, 1: width >= 8
+  static const int kW8 = 2;
+
   explicit SimdFunctions(const std::set<CpuCapability> &capabilities);
 
   struct {
-    // 0: width < 8, 1: width >= 8
-    void(*add_avg[2])(int width, int height, int offset, int shift,
-                      int bitdepth, const int16_t *src1, intptr_t stride1,
-                      const int16_t *src2, intptr_t stride2,
-                      Sample *dst, intptr_t dst_stride);
+    void(*add_avg[kW8])(int width, int height, int offset, int shift,
+                        int bitdepth, const int16_t *src1, intptr_t stride1,
+                        const int16_t *src2, intptr_t stride2,
+                        Sample *dst, intptr_t dst_stride);
+    void(*filter_copy_bipred[kW8])(int width, int height,
+                                   int16_t offset, int shift,
+                                   const Sample *ref, ptrdiff_t ref_stride,
+                                   int16_t *pred, ptrdiff_t pred_stride);
   } inter_prediction;
-
-private:
-  void OverrideNeon(const std::set<CpuCapability> &caps);
-  void OverrideX86(const std::set<CpuCapability> &caps);
-  void OverrideMips(const std::set<CpuCapability> &caps);
 };
 
 }   // namespace xvc
