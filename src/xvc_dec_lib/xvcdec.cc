@@ -96,7 +96,7 @@ extern "C" {
     decoder->SetOutputColorMatrix(param->output_color_matrix);
     decoder->SetOutputBitdepth(param->output_bitdepth);
     decoder->SetDecoderTicks(static_cast<int>(xvc::constants::kTimeScale
-                                              / param->max_framerate));
+                                              / param->max_framerate + 0.5));
     return decoder;
   }
 
@@ -108,6 +108,20 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
+  xvc_dec_return_code xvc_dec_decoder_update_parameters(
+    xvc_decoder *decoder, xvc_decoder_parameters *param) {
+    if (xvc_dec_parameters_check(param) != XVC_DEC_OK) {
+      return XVC_DEC_INVALID_ARGUMENT;
+    }
+    xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
+
+    // Framerate is the only parameter that is updated.
+    // Changes in other parameters will be ignored.
+    lib_decoder->SetDecoderTicks(static_cast<int>(xvc::constants::kTimeScale
+                                                  / param->max_framerate + .5));
+    return XVC_DEC_OK;
+  }
+
   xvc_dec_return_code xvc_dec_decoder_decode_nal(xvc_decoder *decoder,
                                                  const uint8_t *nal_unit,
                                                  size_t nal_unit_size) {
@@ -116,6 +130,7 @@ extern "C" {
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
     lib_decoder->DecodeNal(nal_unit, nal_unit_size);
+
     if (lib_decoder->GetState() == xvc::Decoder::State::kDecoderVersionTooLow) {
       return XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER;
     } else if (lib_decoder->GetState() ==
@@ -128,8 +143,8 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_decoder_get_picture(xvc_decoder *decoder,
-                                          xvc_decoded_picture *pic_bytes) {
+  xvc_dec_return_code xvc_dec_decoder_get_picture(
+    xvc_decoder *decoder, xvc_decoded_picture *pic_bytes) {
     if (!decoder || !pic_bytes) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -161,7 +176,7 @@ extern "C" {
   }
 
   xvc_dec_return_code xvc_dec_decoder_check_conformance(xvc_decoder *decoder,
-                                                int *num) {
+                                                        int *num) {
     if (!decoder || !num) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -212,6 +227,7 @@ extern "C" {
     &xvc_dec_parameters_check,
     &xvc_dec_decoder_create,
     &xvc_dec_decoder_destroy,
+    &xvc_dec_decoder_update_parameters,
     &xvc_dec_decoder_decode_nal,
     &xvc_dec_decoder_get_picture,
     &xvc_dec_decoder_flush,

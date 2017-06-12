@@ -83,21 +83,23 @@ extern "C" {
   typedef struct xvc_decoder_api {
     xvc_decoder_parameters* (*parameters_create)();
     xvc_dec_return_code(*parameters_destroy)(
-      xvc_decoder_parameters *param_api);
+      xvc_decoder_parameters *param);
     xvc_dec_return_code(*parameters_set_default)(
-      xvc_decoder_parameters *param_api);
-    xvc_dec_return_code(*parameters_check)(xvc_decoder_parameters *param_api);
-
-    xvc_decoder* (*decoder_create)(xvc_decoder_parameters *decoder_api);
-    xvc_dec_return_code(*decoder_destroy)(xvc_decoder *decoder_api);
-    xvc_dec_return_code(*decoder_decode_nal)(xvc_decoder *decoder_api,
+      xvc_decoder_parameters *param);
+    xvc_dec_return_code(*parameters_check)(xvc_decoder_parameters *param);
+    xvc_decoder* (*decoder_create)(xvc_decoder_parameters *decoder);
+    xvc_dec_return_code(*decoder_destroy)(xvc_decoder *decoder);
+    xvc_dec_return_code(*decoder_update_parameters)(xvc_decoder *decoder,
+                                                   xvc_decoder_parameters
+                                                   *param);
+    xvc_dec_return_code(*decoder_decode_nal)(xvc_decoder *decoder,
                                              const uint8_t *nal_unit,
                                              size_t nal_unit_size);
-    xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder_api,
+    xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder,
                                               xvc_decoded_picture *pic_bytes);
-    xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder_api,
+    xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder,
                                         xvc_decoded_picture *pic_bytes);
-    xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder_api,
+    xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder,
                                                     int *num);
     const char*(*xvc_dec_get_error_text)(xvc_dec_return_code error_code);
   } xvc_decoder_api;

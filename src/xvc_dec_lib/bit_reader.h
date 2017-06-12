@@ -16,7 +16,7 @@ namespace xvc {
 
 class BitReader {
 public:
-  explicit BitReader(const uint8_t *buffer, size_t length)
+  BitReader(const uint8_t *buffer, size_t length)
     : bit_mask_(0x80), consumed_(0), buffer_(buffer),
     length_(length) {
   }

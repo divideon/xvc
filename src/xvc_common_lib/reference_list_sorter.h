@@ -20,7 +20,7 @@ namespace xvc {
 template<class T>
 class ReferenceListSorter {
 public:
-  explicit ReferenceListSorter(bool prev_segment_open_gop, int num_ref_pics)
+  ReferenceListSorter(bool prev_segment_open_gop, int num_ref_pics)
     : prev_segment_open_gop_(prev_segment_open_gop),
     num_ref_pics_(num_ref_pics) {
   }

@@ -73,10 +73,8 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     if (output_bitdepth_ == 0) {
       output_bitdepth_ = curr_segment_header_.internal_bitdepth;
     }
-    max_tid_ =
-      SegmentHeader::GetFramerateMaxTid(decoder_ticks_,
-                                        curr_segment_header_.bitstream_ticks,
-                                        sub_gop_length_);
+    max_tid_ = SegmentHeader::GetFramerateMaxTid(
+      decoder_ticks_, curr_segment_header_.bitstream_ticks, sub_gop_length_);
     return true;
   } else if (state_ == State::kNoSegmentHeader ||
              state_ == State::kDecoderVersionTooLow ||
@@ -94,6 +92,14 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     int buffer_flag = bit_reader.ReadBit();
 
     int tid = bit_reader.ReadBits(3);
+    int new_desired_max_tid = SegmentHeader::GetFramerateMaxTid(
+      decoder_ticks_, curr_segment_header_.bitstream_ticks,
+      curr_segment_header_.max_sub_gop_length);
+    if (new_desired_max_tid < max_tid_ || tid == 0) {
+    // Number of temporal layers can always be decreased,
+    // but only increased at temporal layer 0 pictures.
+      max_tid_ = new_desired_max_tid;
+    }
     if (tid > max_tid_) {
       // Ignore (drop) picture if it belongs to a temporal layer that
       // should not be decoded.

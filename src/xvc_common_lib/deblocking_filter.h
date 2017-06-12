@@ -20,8 +20,8 @@ enum class Direction {
 
 class DeblockingFilter {
 public:
-  explicit DeblockingFilter(PictureData *pic_data, YuvPicture *rec_pic,
-                            int beta_offset, int tc_offset) :
+  DeblockingFilter(PictureData *pic_data, YuvPicture *rec_pic,
+                   int beta_offset, int tc_offset) :
     pic_data_(pic_data),
     rec_pic_(rec_pic),
     beta_offset_(beta_offset),
