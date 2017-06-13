@@ -134,7 +134,7 @@ static void FilterCopyBipredNeon(int width, int height,
 }
 #endif
 
-
+#if XVC_ARCH_ARM
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd) {
 #if XVC_HAVE_NEON
@@ -143,17 +143,24 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
     simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipredNeon;
   }
 #endif  // XVC_HAVE_NEON
+}
+#endif  // XVC_ARCH_ARM
 
 #if XVC_ARCH_X86
+void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
+                                   xvc::SimdFunctions *simd) {
   if (caps.find(CpuCapability::kSse2) != caps.end()) {
     simd->inter_prediction.add_avg[1] = &AddAvgSse2;
     simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipredSse2;
   }
+}
 #endif  // XVC_ARCH_X86
 
 #if XVC_ARCH_MIPS
-#endif  // XVC_ARCH_MIPS
+void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
+                                   xvc::SimdFunctions *simd) {
 }
+#endif  // XVC_ARCH_MIPS
 
 }   // namespace simd
 }   // namespace xvc

@@ -7,13 +7,17 @@
 #include "xvc_common_lib/simd_functions.h"
 
 #include "xvc_common_lib/inter_prediction.h"
+#if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
 #include "xvc_common_lib/simd/inter_prediction_simd.h"
+#endif
 
 namespace xvc {
 
 SimdFunctions::SimdFunctions(const std::set<CpuCapability> &capabilities) {
   InterPrediction::RegisterDefaultFunctions(this);
+#if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
   simd::InterPredictionSimd::Register(capabilities, this);
+#endif
 }
 
 }   // namespace xvc
