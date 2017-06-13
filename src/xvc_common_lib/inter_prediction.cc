@@ -542,9 +542,9 @@ InterPrediction::MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
     const int shift = kInternalPrecision - bitdepth_;
     const int offset = kInternalOffset;
     const int i = width >= 8;
-    simd_.inter_prediction.filter_copy_bipred[i](
-      width, height, offset, shift,
-      ref_buffer.GetDataPtr(), ref_buffer.GetStride(), pred, pred_stride);
+    simd_.filter_copy_bipred[i](width, height, offset, shift,
+                                ref_buffer.GetDataPtr(),
+                                ref_buffer.GetStride(), pred, pred_stride);
     return;
   }
   if (util::IsLuma(comp)) {
@@ -590,10 +590,10 @@ InterPrediction::GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
 }
 
 template<int N>
-static void FilterHorToSample(int width, int height, int bitdepth,
-                              const int16_t *filter,
-                              const Sample *src, ptrdiff_t src_stride,
-                              Sample *dst, ptrdiff_t dst_stride) {
+static void FilterHorSampleSample(int width, int height, int bitdepth,
+                                  const int16_t *filter,
+                                  const Sample *src, ptrdiff_t src_stride,
+                                  Sample *dst, ptrdiff_t dst_stride) {
   const int shift = InterPrediction::kFilterPrecision;
   const int offset = 1 << (shift - 1);
   const Sample sample_max = (1 << bitdepth) - 1;
@@ -781,8 +781,8 @@ void InterPrediction::FilterLuma(int width, int height, int frac_x, int frac_y,
   const int16_t *filter_hor = &kLumaFilter[frac_x][0];
   const int16_t *filter_ver = &kLumaFilter[frac_y][0];
   if (frac_y == 0) {
-    FilterHorToSample<N>(width, height, bitdepth_, filter_hor,
-                         ref, ref_stride, pred, pred_stride);
+    simd_.filter_h_sample_sample[0](width, height, bitdepth_, filter_hor,
+                                    ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
     FilterVerFromSample<N>(width, height, bitdepth_,
                            ref, ref_stride, pred, pred_stride, filter_ver);
@@ -806,8 +806,8 @@ void InterPrediction::FilterChroma(int width, int height,
   const int16_t *filter_hor = &kChromaFilter[frac_x][0];
   const int16_t *filter_ver = &kChromaFilter[frac_y][0];
   if (frac_y == 0) {
-    FilterHorToSample<N>(width, height, bitdepth_, filter_hor,
-                         ref, ref_stride, pred, pred_stride);
+    simd_.filter_h_sample_sample[1](width, height, bitdepth_, filter_hor,
+                                    ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
     FilterVerFromSample<N>(width, height, bitdepth_,
                            ref, ref_stride, pred, pred_stride, filter_ver);
@@ -896,9 +896,9 @@ void InterPrediction::AddAvgBi(const CodingUnit &cu, YuvComponent comp,
   const int shift = std::max(2, kInternalPrecision - bitdepth_) + 1;
   const int offset = (1 << (shift - 1)) + 2 * kInternalOffset;
   const int idx = width >= 8;
-  simd_.inter_prediction.add_avg[idx](width, height, offset, shift,
-                                      bitdepth_, src_l0, src_l0_stride,
-                                      src_l1, src_l1_stride, pred, pred_stride);
+  simd_.add_avg[idx](width, height, offset, shift, bitdepth_,
+                     src_l0, src_l0_stride, src_l1, src_l1_stride,
+                     pred, pred_stride);
 }
 
 static void AddAvg(int width, int height, int offset,
@@ -927,11 +927,14 @@ MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu) {
   return cand;
 }
 
-void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd) {
-  simd->inter_prediction.add_avg[0] = &AddAvg;
-  simd->inter_prediction.add_avg[1] = &AddAvg;
-  simd->inter_prediction.filter_copy_bipred[0] = &FilterCopyBipred;
-  simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipred;
+void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd_functions) {
+  auto &simd = simd_functions->inter_prediction;
+  simd.add_avg[0] = &AddAvg;
+  simd.add_avg[1] = &AddAvg;
+  simd.filter_copy_bipred[0] = &FilterCopyBipred;
+  simd.filter_copy_bipred[1] = &FilterCopyBipred;
+  simd.filter_h_sample_sample[0] = &FilterHorSampleSample<kNumTapsLuma>;
+  simd.filter_h_sample_sample[1] = &FilterHorSampleSample<kNumTapsChroma>;
 }
 
 }   // namespace xvc

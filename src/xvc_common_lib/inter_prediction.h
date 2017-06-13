@@ -40,7 +40,7 @@ public:
   static const int kMergeLevelShift = 2;
 
   InterPrediction(const SimdFunctions &simd, int bitdepth)
-    : simd_(simd),
+    : simd_(simd.inter_prediction),
     bitdepth_(bitdepth) {
   }
 
@@ -104,7 +104,7 @@ private:
                 Sample *pred, ptrdiff_t pred_stride);
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
 
-  const SimdFunctions &simd_;
+  const SimdFunctions::InterPredictionFunctions &simd_;
   std::array<int16_t, kBufSize> filter_buffer_;
   std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;
   int bitdepth_;

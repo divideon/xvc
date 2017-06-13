@@ -14,6 +14,7 @@
 #endif
 
 #include "xvc_common_lib/simd_functions.h"
+#include "xvc_common_lib/inter_prediction.h"
 
 #ifdef _MSC_VER
 #define __attribute__(SPEC)
@@ -21,6 +22,10 @@
 
 namespace xvc {
 namespace simd {
+
+constexpr int kBin8_01_00_11_10 = 0x4E;
+constexpr int kBin8_10_11_00_01 = 0xB1;
+constexpr int kBin8_11_01_10_00 = 0xD8;
 
 #if XVC_ARCH_X86
 __attribute__((target("sse2")))
@@ -43,7 +48,7 @@ static void AddAvgSse2(int width, int height, int offset, int shift,
       __m128i out = _mm_max_epi16(min, _mm_min_epi16(sum, max));
       _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), out);
 #else
-      __m128i out = _mm_packus_epi16(sum, _mm_setzero_si128());
+      __m128i out = _mm_packus_epi16(sum, sum);
       _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + x), out);
 #endif
     }
@@ -134,13 +139,159 @@ static void FilterCopyBipredNeon(int width, int height,
 }
 #endif
 
+#if XVC_ARCH_X86
+__attribute__((target("sse2")))
+static
+void FilterHorSampleSampleLumaSse2(int width, int height, int bitdepth,
+                                   const int16_t *filter,
+                                   const Sample *src, ptrdiff_t src_stride,
+                                   Sample *dst, ptrdiff_t dst_stride) {
+  const int shift = InterPrediction::kFilterPrecision;
+  const int offset = 1 << (shift - 1);
+  static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
+  const __m128i voffset = _mm_set1_epi32(static_cast<int16_t>(offset));
+  const __m128i vfilter =
+    _mm_loadu_si128(reinterpret_cast<const __m128i*>(filter));
+#if XVC_HIGH_BITDEPTH
+  const __m128i min = _mm_set1_epi16(0);
+  const __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
+#endif
+
+  src -= InterPrediction::kNumTapsLuma / 2 - 1;
+
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x += 8) {
+      auto filter_2sample_lo = [&vfilter](const Sample *sample) {
+#if XVC_HIGH_BITDEPTH
+        __m128i ref_a =
+          _mm_loadu_si128(reinterpret_cast<const __m128i*>(sample + 0));
+        __m128i ref_b =
+          _mm_loadu_si128(reinterpret_cast<const __m128i*>(sample + 1));
+#else
+        __m128i ref_a64 =
+          _mm_loadl_epi64(reinterpret_cast<const __m128i*>(sample + 0));
+        __m128i ref_b64 =
+          _mm_loadl_epi64(reinterpret_cast<const __m128i*>(sample + 1));
+        __m128i ref_a = _mm_unpacklo_epi8(ref_a64, _mm_setzero_si128());
+        __m128i ref_b = _mm_unpacklo_epi8(ref_b64, _mm_setzero_si128());
+#endif
+        // | a01 | a12 | a45 | a67 |
+        __m128i prod_a128 = _mm_madd_epi16(ref_a, vfilter);
+        __m128i prod_a128_rot = _mm_shuffle_epi32(prod_a128, kBin8_01_00_11_10);
+        __m128i prod_a_lo = _mm_add_epi32(prod_a128, prod_a128_rot);
+        // | b01 | b12 | b45 | b67 |
+        __m128i prod_b128 = _mm_madd_epi16(ref_b, vfilter);
+        __m128i prod_b128_rot = _mm_shuffle_epi32(prod_b128, kBin8_01_00_11_10);
+        __m128i prod_b_lo = _mm_add_epi32(prod_b128, prod_b128_rot);
+        // | a0145 | a2367 | b0145 | b2367 |
+        __m128i sum_ab = _mm_unpacklo_epi64(prod_a_lo, prod_b_lo);
+        __m128i sum_ab_rot = _mm_shuffle_epi32(sum_ab, kBin8_10_11_00_01);
+        __m128i sumAB_lo = _mm_add_epi32(sum_ab, sum_ab_rot);
+        // | a01452367 | b01452367 | X | X |
+        return _mm_shuffle_epi32(sumAB_lo, kBin8_11_01_10_00);
+      };
+
+      __m128i prod_ab_lo = filter_2sample_lo(src + x + 0);
+      __m128i prod_cd_lo = filter_2sample_lo(src + x + 2);
+      __m128i prod_abcd = _mm_unpacklo_epi64(prod_ab_lo, prod_cd_lo);
+      __m128i sum_abcd_offset = _mm_add_epi32(prod_abcd, voffset);
+      __m128i sum_abcd = _mm_srai_epi32(sum_abcd_offset, shift);
+
+      __m128i prod_ef_lo = filter_2sample_lo(src + x + 4);
+      __m128i prod_gh_lo = filter_2sample_lo(src + x + 6);
+      __m128i prod_efgh = _mm_unpacklo_epi64(prod_ef_lo, prod_gh_lo);
+      __m128i sum_efgh_offset = _mm_add_epi32(prod_efgh, voffset);
+      __m128i sum_efgh = _mm_srai_epi32(sum_efgh_offset, shift);
+
+      __m128i sum = _mm_packs_epi32(sum_abcd, sum_efgh);
+#if XVC_HIGH_BITDEPTH
+      __m128i out = _mm_max_epi16(min, _mm_min_epi16(sum, max));
+      _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), out);
+#else
+      __m128i out = _mm_packus_epi16(sum, sum);
+      _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + x), out);
+#endif
+    }
+    src += src_stride;
+    dst += dst_stride;
+  }
+}
+#endif  // XVC_ARCH_X86
+
+#if XVC_HAVE_NEON
+static
+void FilterHorSampleSampleLumaNeon(int width, int height, int bitdepth,
+                                   const int16_t *filter,
+                                   const Sample *src, ptrdiff_t src_stride,
+                                   Sample *dst, ptrdiff_t dst_stride) {
+  const int shift = InterPrediction::kFilterPrecision;
+  const int offset = 1 << (shift - 1);
+  const int32x4_t vshift = vdupq_n_s32((int16_t)shift * -1);
+  const int32x4_t voffset = vdupq_n_s32(offset);
+  static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
+  const int16x8_t vfilter = vld1q_s16(filter);
+  const int16x4_t vfilter_lo = vget_low_s16(vfilter);
+  const int16x4_t vfilter_hi = vget_high_s16(vfilter);
+#if XVC_HIGH_BITDEPTH
+  int16x8_t min = vdupq_n_s16(0);
+  int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);
+#endif
+
+  src -= InterPrediction::kNumTapsLuma / 2 - 1;
+
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x += 8) {
+      auto filter_4sample = [&](const Sample *ref4) {
+        auto filter_2sample = [&](const Sample *ref2) {
+          auto filter_1sample_lo = [&](const Sample *ref1) {
+#if XVC_HIGH_BITDEPTH
+            int16x8_t vref_a = vreinterpretq_s16_u16(vld1q_u16(ref1));
+#else
+            uint8x8_t vref_a8 = vld1_u8(ref2);
+            int16x8_t vref_a = vreinterpretq_s16_u16(vmovl_u8(vref_a8));
+#endif
+            int32x4_t prod_a_lo = vmull_s16(vget_low_s16(vref_a), vfilter_lo);
+            int32x4_t prod_a_hi = vmull_s16(vget_high_s16(vref_a), vfilter_hi);
+            int32x4_t prod_a = vaddq_s32(prod_a_lo, prod_a_hi);
+            return vadd_s32(vget_low_s16(prod_a), vget_high_s16(prod_a));
+          };
+          int32x2_t sum_a_lo = filter_1sample_lo(ref2 + 0);  // a0426 a1537
+          int32x2_t sum_b_lo = filter_1sample_lo(ref2 + 1);  // b0426 b1537
+          return vpadd_s32(sum_a_lo, sum_b_lo);
+        };
+        int32x2_t prod_ab = filter_2sample(ref4 + 0);
+        int32x2_t prod_cd = filter_2sample(ref4 + 2);
+        int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
+        int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
+        return vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
+      };
+      int16x4_t sum_abcd = filter_4sample(src + x + 0);
+      int16x4_t sum_efgh = filter_4sample(src + x + 4);
+      int16x8_t sum = vcombine_s16(sum_abcd, sum_efgh);
+#if XVC_HIGH_BITDEPTH
+      int16x8_t out = vmaxq_s16(min, vminq_s16(sum, max));
+      vst1q_u16(dst + x, vreinterpretq_u16_s16(out));
+#else
+      uint8x8_t out = vqmovun_s16(sum);
+      vst1_u8(dst + x, out);
+#endif
+    }
+    src += src_stride;
+    dst += dst_stride;
+  }
+}
+#endif  // XVC_ARCH_X86
+
+
 #if XVC_ARCH_ARM
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
-                                   xvc::SimdFunctions *simd) {
+                                   xvc::SimdFunctions *simd_functions) {
 #if XVC_HAVE_NEON
+  auto &simd = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kNeon) != caps.end()) {
-    simd->inter_prediction.add_avg[1] = &AddAvgNeon;
-    simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipredNeon;
+    simd.add_avg[1] = &AddAvgNeon;
+    simd.filter_copy_bipred[1] = &FilterCopyBipredNeon;
+    simd.filter_h_sample_sample[0] = &FilterHorSampleSampleLumaNeon;
   }
 #endif  // XVC_HAVE_NEON
 }
@@ -148,17 +299,19 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
 
 #if XVC_ARCH_X86
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
-                                   xvc::SimdFunctions *simd) {
+                                   xvc::SimdFunctions *simd_functions) {
+  auto &simd = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kSse2) != caps.end()) {
-    simd->inter_prediction.add_avg[1] = &AddAvgSse2;
-    simd->inter_prediction.filter_copy_bipred[1] = &FilterCopyBipredSse2;
+    simd.add_avg[1] = &AddAvgSse2;
+    simd.filter_copy_bipred[1] = &FilterCopyBipredSse2;
+    simd.filter_h_sample_sample[0] = &FilterHorSampleSampleLumaSse2;
   }
 }
 #endif  // XVC_ARCH_X86
 
 #if XVC_ARCH_MIPS
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
-                                   xvc::SimdFunctions *simd) {
+                                   xvc::SimdFunctions *simd_functions) {
 }
 #endif  // XVC_ARCH_MIPS
 
