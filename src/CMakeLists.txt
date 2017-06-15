@@ -51,7 +51,7 @@ if(SANITIZE_BUILD)
 endif()
 
 # xvc_common_lib
-file (GLOB SRC_COMMON_LIB xvc_common_lib/*.cc)
+file (GLOB SRC_COMMON_LIB xvc_common_lib/*.cc xvc_common_lib/*.h)
 add_library (xvc_common_lib OBJECT ${SRC_COMMON_LIB})
 target_compile_options(xvc_common_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories(xvc_common_lib PUBLIC .)
@@ -59,7 +59,7 @@ set(xvc_common_lib_extra "")
 
 if(ENABLE_ASSEMBLY)
   # xvc_common_lib_simd
-  file (GLOB SRC_COMMON_LIB_SIMD xvc_common_lib/simd/*.cc)
+  file (GLOB SRC_COMMON_LIB_SIMD xvc_common_lib/simd/*.cc xvc_common_lib/simd/*.h)
   add_library (xvc_common_lib_simd OBJECT ${SRC_COMMON_LIB_SIMD})
   target_compile_options(xvc_common_lib_simd PRIVATE ${cxx_default} ${cxx_strict})
   target_include_directories (xvc_common_lib_simd PUBLIC .)
@@ -67,14 +67,14 @@ if(ENABLE_ASSEMBLY)
 endif()
 
 # xvc_enc_lib
-file (GLOB SRC_ENC_LIB xvc_enc_lib/*.cc)
+file (GLOB SRC_ENC_LIB xvc_enc_lib/*.cc xvc_enc_lib/*.h)
 add_library (xvc_enc_lib ${SRC_ENC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
 target_compile_options(xvc_enc_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_enc_lib PUBLIC .)
 target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags})
 
 # xvc_dec_lib
-file (GLOB SRC_DEC_LIB xvc_dec_lib/*.cc)
+file (GLOB SRC_DEC_LIB xvc_dec_lib/*.cc xvc_dec_lib/*.h)
 add_library (xvc_dec_lib ${SRC_DEC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
 target_compile_options(xvc_dec_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_dec_lib PUBLIC .)
