@@ -161,7 +161,8 @@ void FilterHorSampleSampleLumaSse2(int width, int height, int bitdepth,
 
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x += 8) {
-      auto filter_2sample_lo = [&vfilter](const Sample *sample) {
+      auto filter_2sample_lo = [&vfilter](const Sample *sample)
+        __attribute__((target("sse2"))) {
 #if XVC_HIGH_BITDEPTH
         __m128i ref_a =
           _mm_loadu_si128(reinterpret_cast<const __m128i*>(sample + 0));
@@ -280,7 +281,7 @@ void FilterHorSampleSampleLumaNeon(int width, int height, int bitdepth,
     dst += dst_stride;
   }
 }
-#endif  // XVC_ARCH_X86
+#endif  // XVC_HAVE_NEON
 
 
 #if XVC_ARCH_ARM
