@@ -651,10 +651,10 @@ static void FilterHorToIntermediate(int width, int height, int bitdepth,
 }
 
 template<int N>
-static void FilterVerFromSample(int width, int height, int bitdepth,
-                                const Sample *src, ptrdiff_t src_stride,
-                                Sample *dst, ptrdiff_t dst_stride,
-                                const int16_t *filter) {
+static void FilterVerSampleSample(int width, int height, int bitdepth,
+                                  const int16_t *filter,
+                                  const Sample *src, ptrdiff_t src_stride,
+                                  Sample *dst, ptrdiff_t dst_stride) {
   const int shift = InterPrediction::kFilterPrecision;
   const int offset = 1 << (shift - 1);
   const Sample sample_max = (1 << bitdepth) - 1;
@@ -784,8 +784,8 @@ void InterPrediction::FilterLuma(int width, int height, int frac_x, int frac_y,
     simd_.filter_h_sample_sample[0](width, height, bitdepth_, filter_hor,
                                     ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
-    FilterVerFromSample<N>(width, height, bitdepth_,
-                           ref, ref_stride, pred, pred_stride, filter_ver);
+    simd_.filter_v_sample_sample[0](width, height, bitdepth_, filter_ver,
+                                    ref, ref_stride, pred, pred_stride);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
     FilterHorToIntermediate<N>(width, height + N - 1, bitdepth_, filter_hor,
@@ -809,8 +809,8 @@ void InterPrediction::FilterChroma(int width, int height,
     simd_.filter_h_sample_sample[1](width, height, bitdepth_, filter_hor,
                                     ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
-    FilterVerFromSample<N>(width, height, bitdepth_,
-                           ref, ref_stride, pred, pred_stride, filter_ver);
+    simd_.filter_v_sample_sample[1](width, height, bitdepth_, filter_ver,
+                                    ref, ref_stride, pred, pred_stride);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
     FilterHorToIntermediate<N>(width, height + N - 1, bitdepth_, filter_hor,
@@ -935,6 +935,8 @@ void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd_functions) {
   simd.filter_copy_bipred[1] = &FilterCopyBipred;
   simd.filter_h_sample_sample[0] = &FilterHorSampleSample<kNumTapsLuma>;
   simd.filter_h_sample_sample[1] = &FilterHorSampleSample<kNumTapsChroma>;
+  simd.filter_v_sample_sample[0] = &FilterVerSampleSample<kNumTapsLuma>;
+  simd.filter_v_sample_sample[1] = &FilterVerSampleSample<kNumTapsChroma>;
 }
 
 }   // namespace xvc
