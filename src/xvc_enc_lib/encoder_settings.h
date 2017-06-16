@@ -66,6 +66,7 @@ struct EncoderSettings {
         structural_ssd = 0;
         break;
       case RestrictedMode::kModeB:
+        fast_quad_split_based_on_binary_split = 2;
         eval_prev_mv_search_result = 0;
         fast_intra_mode_eval_level = 2;
         fast_inter_pred_bits = 1;
@@ -107,7 +108,6 @@ struct EncoderSettings {
                 "Fast bit counting should use strict rdo bit signaling");
 
   // Fast encoder decisions (always used)
-  static const bool fast_quad_split_based_on_binary_split = true;
   static const bool fast_cu_split_based_on_full_cu = true;
   static const bool fast_mode_selection_for_cached_cu = true;
   static const bool skip_mode_decision_for_identical_cu = false;
@@ -123,6 +123,7 @@ struct EncoderSettings {
   int max_binary_split_depth = -1;
 
   // Setting with default values used in all speed modes
+  int fast_quad_split_based_on_binary_split = 1;
   int eval_prev_mv_search_result = 1;
   int fast_inter_pred_bits = 0;
   int smooth_lambda_scaling = 1;

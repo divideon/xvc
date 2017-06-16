@@ -161,12 +161,20 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     return best_cost.dist;
   }
 
+  bool best_binary_depth_greater_than_one = false;
+  Cost hor_cost = 0;
   // Horizontal split
   if (do_hor_split) {
     RdoSyntaxWriter splitcu_writer(*writer);
     RdoCost split_cost =
       CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kHorizontal,
                       split_restiction, &splitcu_writer);
+    hor_cost = split_cost.cost;
+    for (auto &sub_cu : (*temp_cu)->GetSubCu()) {
+      if (sub_cu && sub_cu->GetSplit() != SplitType::kNone) {
+        best_binary_depth_greater_than_one = true;
+      }
+    }
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
       cu = *best_cu;
@@ -191,6 +199,14 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     RdoCost split_cost =
       CompressSplitCu(*temp_cu, rdo_depth, qp, SplitType::kVertical,
                       split_restiction, &splitcu_writer);
+    if (split_cost.cost < hor_cost) {
+      best_binary_depth_greater_than_one = false;
+      for (auto &sub_cu : (*temp_cu)->GetSubCu()) {
+        if (sub_cu && sub_cu->GetSplit() != SplitType::kNone) {
+          best_binary_depth_greater_than_one = true;
+        }
+      }
+    }
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
       cu = *best_cu;
@@ -209,10 +225,15 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     }
   }
 
+  bool can_skip_quad_split =
+    do_quad_split && do_hor_split && do_ver_split &&
+    CanSkipQuadSplitForCu(pic_data_, *cu) &&
+    (encoder_settings_.fast_quad_split_based_on_binary_split == 2 ||
+    (encoder_settings_.fast_quad_split_based_on_binary_split == 1 &&
+     !best_binary_depth_greater_than_one));
+
   // Encoder quad split speed-up
-  if (encoder_settings_.fast_quad_split_based_on_binary_split &&
-      do_quad_split && do_hor_split && do_ver_split &&
-      CanSkipQuadSplitForCu(pic_data_, *cu)) {
+  if (can_skip_quad_split) {
     *writer = best_writer;
     return best_cost.dist;
   }

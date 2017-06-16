@@ -185,6 +185,8 @@ extern "C" {
           stream >> encoder_settings.default_num_ref_pics;
         } else if (setting == "max_binary_split_depth") {
           stream >> encoder_settings.max_binary_split_depth;
+        } else if (setting == "fast_quad_split_based_on_binary_split") {
+          stream >> encoder_settings.fast_quad_split_based_on_binary_split;
         } else if (setting == "eval_prev_mv_search_result") {
           stream >> encoder_settings.eval_prev_mv_search_result;
         } else if (setting == "fast_inter_pred_bits") {
