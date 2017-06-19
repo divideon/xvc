@@ -43,6 +43,18 @@ struct SimdFunctions {
                                        const int16_t *filter,
                                        const Sample *src, ptrdiff_t src_stride,
                                        Sample *dst, ptrdiff_t dst_stride);
+    void(*filter_v_sample_short[kLC])(int width, int height, int bitdepth,
+                                      const int16_t *filter,
+                                      const Sample *src, ptrdiff_t src_stride,
+                                      int16_t *dst, ptrdiff_t dst_stride);
+    void(*filter_v_short_sample[kLC])(int width, int height, int bitdepth,
+                                      const int16_t *filter,
+                                      const int16_t *src, ptrdiff_t src_stride,
+                                      Sample *dst, ptrdiff_t dst_stride);
+    void(*filter_v_short_short[kLC])(int width, int height, int bitdepth,
+                                     const int16_t *filter,
+                                     const int16_t *src, ptrdiff_t src_stride,
+                                     int16_t *dst, ptrdiff_t dst_stride);
   } inter_prediction;
 };
 

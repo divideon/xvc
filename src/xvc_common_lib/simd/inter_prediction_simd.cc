@@ -13,6 +13,8 @@
 #include <arm_neon.h>
 #endif
 
+#include <type_traits>
+
 #include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/inter_prediction.h"
 
@@ -333,19 +335,18 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
 #endif  // XVC_HAVE_NEON
 
 #if XVC_ARCH_X86
+template<typename SrcT, typename DstT, bool Clip>
 __attribute__((target("sse2")))
 static
-void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
-                                   const int16_t *filter,
-                                   const Sample *src, ptrdiff_t src_stride,
-                                   Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::GetFilterShift<Sample, true>(bitdepth);
-  const int offset = InterPrediction::GetFilterOffset<Sample, true>(shift);
+void FilterVerLumaSse2(int width, int height, int bitdepth,
+                              const int16_t *filter,
+                              const SrcT *src, ptrdiff_t src_stride,
+                              DstT *dst, ptrdiff_t dst_stride) {
+  const int shift = InterPrediction::GetFilterShift<SrcT, Clip>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<SrcT, Clip>(shift);
   const __m128i voffset = _mm_set1_epi32(static_cast<int32_t>(offset));
-#if XVC_HIGH_BITDEPTH
   const __m128i min = _mm_set1_epi16(0);
   const __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
-#endif
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
   const __m128i vfilter01 = _mm_set1_epi32(
     (filter[0] & 0xFFFF) | (static_cast<uint16_t>(filter[1]) << 16));
@@ -372,32 +373,34 @@ void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
       __m128i row9 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 9 * src_stride));
       __m128i row10 =
         _mm_loadl_epi64(CAST_M128_CONST(src + x + 10 * src_stride));
-#if XVC_HIGH_BITDEPTH
-      __m128i row01 = _mm_unpacklo_epi16(row0, row1);
-      __m128i row12 = _mm_unpacklo_epi16(row1, row2);
-      __m128i row23 = _mm_unpacklo_epi16(row2, row3);
-      __m128i row34 = _mm_unpacklo_epi16(row3, row4);
-      __m128i row45 = _mm_unpacklo_epi16(row4, row5);
-      __m128i row56 = _mm_unpacklo_epi16(row5, row6);
-      __m128i row67 = _mm_unpacklo_epi16(row6, row7);
-      __m128i row78 = _mm_unpacklo_epi16(row7, row8);
-      __m128i row89 = _mm_unpacklo_epi16(row8, row9);
-      __m128i row90 = _mm_unpacklo_epi16(row9, row10);
-#else
-      // TODO(PH) Loaded twice as much data as needed
-      __m128i zero = _mm_setzero_si128();
-      __m128i row01 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row0, row1), zero);
-      __m128i row12 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row1, row2), zero);
-      __m128i row23 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row2, row3), zero);
-      __m128i row34 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row3, row4), zero);
-      __m128i row45 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row4, row5), zero);
-      __m128i row56 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row5, row6), zero);
-      __m128i row67 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row6, row7), zero);
-      __m128i row78 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row7, row8), zero);
-      __m128i row89 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row8, row9), zero);
-      __m128i row90 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row9, row10), zero);
-#endif
-
+      __m128i row01, row12, row23, row34, row45, row56, row67, row78, row89,
+        row90;
+      if (std::is_same<SrcT, uint16_t>::value ||
+          std::is_same<SrcT, int16_t>::value) {
+        row01 = _mm_unpacklo_epi16(row0, row1);
+        row12 = _mm_unpacklo_epi16(row1, row2);
+        row23 = _mm_unpacklo_epi16(row2, row3);
+        row34 = _mm_unpacklo_epi16(row3, row4);
+        row45 = _mm_unpacklo_epi16(row4, row5);
+        row56 = _mm_unpacklo_epi16(row5, row6);
+        row67 = _mm_unpacklo_epi16(row6, row7);
+        row78 = _mm_unpacklo_epi16(row7, row8);
+        row89 = _mm_unpacklo_epi16(row8, row9);
+        row90 = _mm_unpacklo_epi16(row9, row10);
+      } else if (std::is_same<SrcT, uint8_t>::value) {
+        // TODO(PH) Loaded twice as much data as needed
+        __m128i zero = _mm_setzero_si128();
+        row01 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row0, row1), zero);
+        row12 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row1, row2), zero);
+        row23 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row2, row3), zero);
+        row34 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row3, row4), zero);
+        row45 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row4, row5), zero);
+        row56 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row5, row6), zero);
+        row67 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row6, row7), zero);
+        row78 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row7, row8), zero);
+        row89 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row8, row9), zero);
+        row90 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row9, row10), zero);
+      }
       auto filter_8rows_lo = [&](const __m128i &data01, const __m128i &data23,
                                  const __m128i &data56, const __m128i &data67)
         __attribute__((target("sse2"))) {
@@ -416,37 +419,39 @@ void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
       __m128i sum1 = filter_8rows_lo(row12, row34, row56, row78);
       __m128i sum2 = filter_8rows_lo(row23, row45, row67, row89);
       __m128i sum3 = filter_8rows_lo(row34, row56, row78, row90);
-
       __m128i sum01 = _mm_packs_epi32(sum0, sum1);
       __m128i sum23 = _mm_packs_epi32(sum2, sum3);
 
-#if XVC_HIGH_BITDEPTH
-      __m128i out01 = _mm_max_epi16(min, _mm_min_epi16(sum01, max));
-      __m128i out23 = _mm_max_epi16(min, _mm_min_epi16(sum23, max));
-      _mm_storel_epi64(
-        reinterpret_cast<__m128i*>(dst + x + 0 * dst_stride), out01);
-      __m128i out1 = _mm_shuffle_epi32(out01, kBin8_01_00_11_10);
-      _mm_storel_epi64(
-        reinterpret_cast<__m128i*>(dst + x + 1 * dst_stride), out1);
-      _mm_storel_epi64(
-        reinterpret_cast<__m128i*>(dst + x + 2 * dst_stride), out23);
-      __m128i out3 = _mm_shuffle_epi32(out23, kBin8_01_00_11_10);
-      _mm_storel_epi64(
-        reinterpret_cast<__m128i*>(dst + x + 3 * dst_stride), out3);
-#else
-      __m128i out01 = _mm_packus_epi16(sum01, sum01);
-      __m128i out23 = _mm_packus_epi16(sum23, sum23);
-      *reinterpret_cast<int32_t*>(dst + x + 0 * dst_stride) =
-        _mm_cvtsi128_si32(out01);
-      __m128i out1 = _mm_srli_si128(out01, 4);
-      *reinterpret_cast<int32_t*>(dst + x + 1 * dst_stride) =
-        _mm_cvtsi128_si32(out1);
-      *reinterpret_cast<int32_t*>(dst + x + 2 * dst_stride) =
-        _mm_cvtsi128_si32(out23);
-      __m128i out3 = _mm_srli_si128(out23, 4);
-      *reinterpret_cast<int32_t*>(dst + x + 3 * dst_stride) =
-        _mm_cvtsi128_si32(out3);
-#endif
+      if (std::is_same<DstT, uint16_t>::value ||
+          std::is_same<DstT, int16_t>::value) {
+        __m128i out01 =
+          Clip ? _mm_max_epi16(min, _mm_min_epi16(sum01, max)) : sum01;
+        __m128i out23 =
+          Clip ? _mm_max_epi16(min, _mm_min_epi16(sum23, max)) : sum23;
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 0 * dst_stride), out01);
+        __m128i out1 = _mm_shuffle_epi32(out01, kBin8_01_00_11_10);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 1 * dst_stride), out1);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 2 * dst_stride), out23);
+        __m128i out3 = _mm_shuffle_epi32(out23, kBin8_01_00_11_10);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 3 * dst_stride), out3);
+      } else if (std::is_same<DstT, uint8_t>::value) {
+        __m128i out01 = _mm_packus_epi16(sum01, sum01);
+        __m128i out23 = _mm_packus_epi16(sum23, sum23);
+        *reinterpret_cast<int32_t*>(dst + x + 0 * dst_stride) =
+          _mm_cvtsi128_si32(out01);
+        __m128i out1 = _mm_srli_si128(out01, 4);
+        *reinterpret_cast<int32_t*>(dst + x + 1 * dst_stride) =
+          _mm_cvtsi128_si32(out1);
+        *reinterpret_cast<int32_t*>(dst + x + 2 * dst_stride) =
+          _mm_cvtsi128_si32(out23);
+        __m128i out3 = _mm_srli_si128(out23, 4);
+        *reinterpret_cast<int32_t*>(dst + x + 3 * dst_stride) =
+          _mm_cvtsi128_si32(out3);
+      }
     }
     src += src_stride * 4;
     dst += dst_stride * 4;
@@ -455,19 +460,18 @@ void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
 #endif  // XVC_ARCH_X86
 
 #if XVC_HAVE_NEON
+template<typename SrcT, typename DstT, bool Clip>
 static
-void FilterVerSampleSampleLumaNeon(int width, int height, int bitdepth,
-                                   const int16_t *filter,
-                                   const Sample *src, ptrdiff_t src_stride,
-                                   Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::GetFilterShift<Sample, true>(bitdepth);
-  const int offset = InterPrediction::GetFilterOffset<Sample, true>(shift);
+void FilterVerLumaNeon(int width, int height, int bitdepth,
+                       const int16_t *filter,
+                       const SrcT *src, ptrdiff_t src_stride,
+                       DstT *dst, ptrdiff_t dst_stride) {
+  const int shift = InterPrediction::GetFilterShift<SrcT, Clip>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<SrcT, Clip>(shift);
   const int32x4_t vshift = vdupq_n_s32(static_cast<int32_t>(shift) * -1);
   const int32x4_t voffset = vdupq_n_s32(static_cast<int32_t>(offset));
-#if XVC_HIGH_BITDEPTH
-  int16x8_t min = vdupq_n_s16(0);
-  int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);
-#endif
+  const int16x8_t min = vdupq_n_s16(0);
+  const int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
   const int16x4_t vfilter0 = vdup_n_s16(filter[0]);
   const int16x4_t vfilter1 = vdup_n_s16(filter[1]);
@@ -482,27 +486,42 @@ void FilterVerSampleSampleLumaNeon(int width, int height, int bitdepth,
 
   for (int y = 0; y < height; y += 4) {
     for (int x = 0; x < width; x += 4) {
-#if XVC_HIGH_BITDEPTH
-      auto load_row = [](const Sample *src2) {
-        return vreinterpret_s16_u16(vld1_u16(src2));
-      };
-#else
-      auto load_row = [](const Sample *src2) {
-        // TODO(PH) Loading twice as much data as needed
-        return vreinterpret_s16_u16(vget_low_u16(vmovl_u8(vld1_u8(src2))));
-      };
-#endif
-      int16x4_t row0 = load_row(src + x + 0 * src_stride);
-      int16x4_t row1 = load_row(src + x + 1 * src_stride);
-      int16x4_t row2 = load_row(src + x + 2 * src_stride);
-      int16x4_t row3 = load_row(src + x + 3 * src_stride);
-      int16x4_t row4 = load_row(src + x + 4 * src_stride);
-      int16x4_t row5 = load_row(src + x + 5 * src_stride);
-      int16x4_t row6 = load_row(src + x + 6 * src_stride);
-      int16x4_t row7 = load_row(src + x + 7 * src_stride);
-      int16x4_t row8 = load_row(src + x + 8 * src_stride);
-      int16x4_t row9 = load_row(src + x + 9 * src_stride);
-      int16x4_t row10 = load_row(src + x + 10 * src_stride);
+      int16x4_t row0, row1, row2, row3, row4, row5, row6, row7, row8, row9,
+        row10;
+      if (std::is_same<SrcT, uint16_t>::value ||
+          std::is_same<SrcT, int16_t>::value) {
+        auto load_row = [](const SrcT *src2) {
+          return vld1_s16(reinterpret_cast<const int16_t*>(src2));
+        };
+        row0 = load_row(src + x + 0 * src_stride);
+        row1 = load_row(src + x + 1 * src_stride);
+        row2 = load_row(src + x + 2 * src_stride);
+        row3 = load_row(src + x + 3 * src_stride);
+        row4 = load_row(src + x + 4 * src_stride);
+        row5 = load_row(src + x + 5 * src_stride);
+        row6 = load_row(src + x + 6 * src_stride);
+        row7 = load_row(src + x + 7 * src_stride);
+        row8 = load_row(src + x + 8 * src_stride);
+        row9 = load_row(src + x + 9 * src_stride);
+        row10 = load_row(src + x + 10 * src_stride);
+      } else if (std::is_same<SrcT, uint8_t>::value) {
+        auto load_row = [](const SrcT *src2) {
+          // TODO(PH) Loading twice as much data as needed
+          auto *p = reinterpret_cast<const uint8_t*>(src2);
+          return vreinterpret_s16_u16(vget_low_u16(vmovl_u8(vld1_u8(p))));
+        };
+        row0 = load_row(src + x + 0 * src_stride);
+        row1 = load_row(src + x + 1 * src_stride);
+        row2 = load_row(src + x + 2 * src_stride);
+        row3 = load_row(src + x + 3 * src_stride);
+        row4 = load_row(src + x + 4 * src_stride);
+        row5 = load_row(src + x + 5 * src_stride);
+        row6 = load_row(src + x + 6 * src_stride);
+        row7 = load_row(src + x + 7 * src_stride);
+        row8 = load_row(src + x + 8 * src_stride);
+        row9 = load_row(src + x + 9 * src_stride);
+        row10 = load_row(src + x + 10 * src_stride);
+      }
       auto fir_8r = [&](int16x4_t r0, int16x4_t r1, int16x4_t r2,
                         int16x4_t r3, int16x4_t r4, int16x4_t r5,
                         int16x4_t r6, int16x4_t r7) {
@@ -522,32 +541,40 @@ void FilterVerSampleSampleLumaNeon(int width, int height, int bitdepth,
       int16x4_t sum1 = fir_8r(row1, row2, row3, row4, row5, row6, row7, row8);
       int16x4_t sum2 = fir_8r(row2, row3, row4, row5, row6, row7, row8, row9);
       int16x4_t sum3 = fir_8r(row3, row4, row5, row6, row7, row8, row9, row10);
-      int16x8_t sum01 = vcombine_s16(sum0, sum1);
-      int16x8_t sum23 = vcombine_s16(sum2, sum3);
-
-#if XVC_HIGH_BITDEPTH
-      int16x8_t out01 = vmaxq_s16(min, vminq_s16(sum01, max));
-      int16x8_t out23 = vmaxq_s16(min, vminq_s16(sum23, max));
-      vst1_u16(dst + x + 0 * dst_stride,
-               vreinterpret_u16_s16(vget_low_s16(out01)));
-      vst1_u16(dst + x + 1 * dst_stride,
-               vreinterpret_u16_s16(vget_high_s16(out01)));
-      vst1_u16(dst + x + 2 * dst_stride,
-               vreinterpret_u16_s16(vget_low_s16(out23)));
-      vst1_u16(dst + x + 3 * dst_stride,
-               vreinterpret_u16_s16(vget_high_s16(out23)));
-#else
-      uint32x2_t out01 = vreinterpret_u32_u8(vqmovun_s16(sum01));
-      uint32x2_t out23 = vreinterpret_u32_u8(vqmovun_s16(sum23));
-      vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 0 * dst_stride),
-                    out01, 0);
-      vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 1 * dst_stride),
-                    out01, 1);
-      vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 2 * dst_stride),
-                    out23, 0);
-      vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 3 * dst_stride),
-                    out23, 1);
-#endif
+      if (!Clip) {
+        // Replace DstT reinterpret_cast with C++17 if constexpr
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 0 * dst_stride), sum0);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 1 * dst_stride), sum1);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 2 * dst_stride), sum2);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 3 * dst_stride), sum3);
+      } else if (std::is_same<DstT, uint16_t>::value ||
+                 std::is_same<DstT, int16_t>::value) {
+        int16x8_t sum01 = vcombine_s16(sum0, sum1);
+        int16x8_t sum23 = vcombine_s16(sum2, sum3);
+        int16x8_t out01 = vmaxq_s16(min, vminq_s16(sum01, max));
+        int16x8_t out23 = vmaxq_s16(min, vminq_s16(sum23, max));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 0 * dst_stride),
+                 vreinterpret_u16_s16(vget_low_s16(out01)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 1 * dst_stride),
+                 vreinterpret_u16_s16(vget_high_s16(out01)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 2 * dst_stride),
+                 vreinterpret_u16_s16(vget_low_s16(out23)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 3 * dst_stride),
+                 vreinterpret_u16_s16(vget_high_s16(out23)));
+      } else if (std::is_same<DstT, uint8_t>::value) {
+        int16x8_t sum01 = vcombine_s16(sum0, sum1);
+        int16x8_t sum23 = vcombine_s16(sum2, sum3);
+        uint32x2_t out01 = vreinterpret_u32_u8(vqmovun_s16(sum01));
+        uint32x2_t out23 = vreinterpret_u32_u8(vqmovun_s16(sum23));
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 0 * dst_stride),
+                      out01, 0);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 1 * dst_stride),
+                      out01, 1);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 2 * dst_stride),
+                      out23, 0);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 3 * dst_stride),
+                      out23, 1);
+      }
     }
     src += src_stride * 4;
     dst += dst_stride * 4;
@@ -566,7 +593,10 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
     simd.filter_copy_bipred[1] = &FilterCopyBipredNeon;
     simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaNeon<Sample, true>;
     simd.filter_h_sample_short[0] = &FilterHorSampleTLumaNeon<int16_t, false>;
-    simd.filter_v_sample_sample[0] = &FilterVerSampleSampleLumaNeon;
+    simd.filter_v_sample_sample[0] = &FilterVerLumaNeon<Sample, Sample, true>;
+    simd.filter_v_sample_short[0] = &FilterVerLumaNeon<Sample, int16_t, false>;
+    simd.filter_v_short_sample[0] = &FilterVerLumaNeon<int16_t, Sample, true>;
+    simd.filter_v_short_short[0] = &FilterVerLumaNeon<int16_t, int16_t, false>;
   }
 #endif  // XVC_HAVE_NEON
 }
@@ -581,7 +611,10 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
     simd.filter_copy_bipred[1] = &FilterCopyBipredSse2;
     simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaSse2<Sample, true>;
     simd.filter_h_sample_short[0] = &FilterHorSampleTLumaSse2<int16_t, false>;
-    simd.filter_v_sample_sample[0] = &FilterVerSampleSampleLumaSse2;
+    simd.filter_v_sample_sample[0] = &FilterVerLumaSse2<Sample, Sample, true>;
+    simd.filter_v_sample_short[0] = &FilterVerLumaSse2<Sample, int16_t, false>;
+    simd.filter_v_short_sample[0] = &FilterVerLumaSse2<int16_t, Sample, true>;
+    simd.filter_v_short_short[0] = &FilterVerLumaSse2<int16_t, int16_t, false>;
   }
 }
 #endif  // XVC_ARCH_X86

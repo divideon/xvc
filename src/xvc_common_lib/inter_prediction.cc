@@ -681,10 +681,10 @@ static void FilterVerSampleSample(int width, int height, int bitdepth,
 }
 
 template<int N>
-static void FilterVerToIntermediate(int width, int height, int bitdepth,
-                                    const Sample *src, ptrdiff_t src_stride,
-                                    int16_t *dst, ptrdiff_t dst_stride,
-                                    const int16_t *filter) {
+static void FilterVerSampleShort(int width, int height, int bitdepth,
+                                 const int16_t *filter,
+                                 const Sample *src, ptrdiff_t src_stride,
+                                 int16_t *dst, ptrdiff_t dst_stride) {
   const int shift = InterPrediction::GetFilterShift<Sample, false>(bitdepth);
   const int offset = InterPrediction::GetFilterOffset<Sample, false>(shift);
   src -= (N / 2 - 1) * src_stride;
@@ -710,10 +710,10 @@ static void FilterVerToIntermediate(int width, int height, int bitdepth,
 }
 
 template<int N>
-static void FilterVerFromIntermediate(int width, int height, int bitdepth,
-                                      const int16_t *src, ptrdiff_t src_stride,
-                                      Sample *dst, ptrdiff_t dst_stride,
-                                      const int16_t *filter) {
+static void FilterVerShortSample(int width, int height, int bitdepth,
+                                 const int16_t *filter,
+                                 const int16_t *src, ptrdiff_t src_stride,
+                                 Sample *dst, ptrdiff_t dst_stride) {
   const int shift = InterPrediction::GetFilterShift<int16_t, true>(bitdepth);
   const int offset = InterPrediction::GetFilterOffset<int16_t, true>(shift);
   const Sample sample_max = (1 << bitdepth) - 1;
@@ -741,11 +741,10 @@ static void FilterVerFromIntermediate(int width, int height, int bitdepth,
 }
 
 template<int N>
-static void FilterVerFromToIntermediate(int width, int height, int bitdepth,
-                                        const int16_t *src,
-                                        ptrdiff_t src_stride, int16_t *dst,
-                                        ptrdiff_t dst_stride,
-                                        const int16_t *filter) {
+static void FilterVerShortShort(int width, int height, int bitdepth,
+                                const int16_t *filter,
+                                const int16_t *src, ptrdiff_t src_stride,
+                                int16_t *dst, ptrdiff_t dst_stride) {
   const int shift = InterPrediction::GetFilterShift<int16_t, false>(bitdepth);
   const int offset = InterPrediction::GetFilterOffset<int16_t, false>(bitdepth);
   src -= (N / 2 - 1) * src_stride;
@@ -788,9 +787,9 @@ void InterPrediction::FilterLuma(int width, int height, int frac_x, int frac_y,
                                    ref - hor_offset, ref_stride,
                                    &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
-    FilterVerFromIntermediate<N>(width, height, bitdepth_,
-                                 &filter_buffer_[ver_offset], width,
-                                 pred, pred_stride, filter_ver);
+    simd_.filter_v_short_sample[0](width, height, bitdepth_, filter_ver,
+                                   &filter_buffer_[ver_offset], width,
+                                   pred, pred_stride);
   }
 }
 
@@ -813,9 +812,9 @@ void InterPrediction::FilterChroma(int width, int height,
                                    ref - hor_offset, ref_stride,
                                    &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
-    FilterVerFromIntermediate<N>(width, height, bitdepth_,
-                                 &filter_buffer_[ver_offset], width,
-                                 pred, pred_stride, filter_ver);
+    simd_.filter_v_short_sample[1](width, height, bitdepth_, filter_ver,
+                                   &filter_buffer_[ver_offset], width,
+                                   pred, pred_stride);
   }
 }
 
@@ -843,17 +842,17 @@ InterPrediction::FilterLumaBipred(int width, int height, int frac_x, int frac_y,
     simd_.filter_h_sample_short[0](width, height, bitdepth_, filter_hor,
                                    ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
-    FilterVerToIntermediate<N>(width, height, bitdepth_,
-                               ref, ref_stride, pred, pred_stride, filter_ver);
+    simd_.filter_v_sample_short[0](width, height, bitdepth_, filter_ver,
+                                   ref, ref_stride, pred, pred_stride);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
     simd_.filter_h_sample_short[0](width, height + N - 1, bitdepth_, filter_hor,
                                    ref - hor_offset, ref_stride,
                                    &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
-    FilterVerFromToIntermediate<N>(width, height, bitdepth_,
-                                   &filter_buffer_[ver_offset], width,
-                                   pred, pred_stride, filter_ver);
+    simd_.filter_v_short_short[0](width, height, bitdepth_, filter_ver,
+                                  &filter_buffer_[ver_offset], width,
+                                  pred, pred_stride);
   }
 }
 
@@ -869,17 +868,17 @@ InterPrediction::FilterChromaBipred(int width, int height,
     simd_.filter_h_sample_short[1](width, height, bitdepth_, filter_hor,
                                    ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
-    FilterVerToIntermediate<N>(width, height, bitdepth_,
-                               ref, ref_stride, pred, pred_stride, filter_ver);
+    simd_.filter_v_sample_short[1](width, height, bitdepth_, filter_ver,
+                                   ref, ref_stride, pred, pred_stride);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
     simd_.filter_h_sample_short[1](width, height + N - 1, bitdepth_, filter_hor,
                                    ref - hor_offset, ref_stride,
                                    &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
-    FilterVerFromToIntermediate<N>(width, height, bitdepth_,
-                                   &filter_buffer_[ver_offset], width,
-                                   pred, pred_stride, filter_ver);
+    simd_.filter_v_short_short[1](width, height, bitdepth_, filter_ver,
+                                  &filter_buffer_[ver_offset], width,
+                                  pred, pred_stride);
   }
 }
 
@@ -935,6 +934,12 @@ void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd_functions) {
   simd.filter_h_sample_short[1] = &FilterHorSampleShort<kNumTapsChroma>;
   simd.filter_v_sample_sample[0] = &FilterVerSampleSample<kNumTapsLuma>;
   simd.filter_v_sample_sample[1] = &FilterVerSampleSample<kNumTapsChroma>;
+  simd.filter_v_sample_short[0] = &FilterVerSampleShort<kNumTapsLuma>;
+  simd.filter_v_sample_short[1] = &FilterVerSampleShort<kNumTapsChroma>;
+  simd.filter_v_short_sample[0] = &FilterVerShortSample<kNumTapsLuma>;
+  simd.filter_v_short_sample[1] = &FilterVerShortSample<kNumTapsChroma>;
+  simd.filter_v_short_short[0] = &FilterVerShortShort<kNumTapsLuma>;
+  simd.filter_v_short_short[1] = &FilterVerShortShort<kNumTapsChroma>;
 }
 
 }   // namespace xvc
