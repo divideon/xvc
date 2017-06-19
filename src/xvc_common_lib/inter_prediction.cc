@@ -612,7 +612,7 @@ static void FilterHorSampleSample(int width, int height, int bitdepth,
         sum += src[x + 6] * filter[6];
         sum += src[x + 7] * filter[7];
       }
-      int16_t val = static_cast<int16_t>((sum + offset) >> shift);
+      int val = (sum + offset) >> shift;
       dst[x] = util::ClipBD(val, sample_max);
     }
     src += src_stride;
@@ -621,10 +621,10 @@ static void FilterHorSampleSample(int width, int height, int bitdepth,
 }
 
 template<int N>
-static void FilterHorToIntermediate(int width, int height, int bitdepth,
-                                    const int16_t *filter,
-                                    const Sample *src, ptrdiff_t src_stride,
-                                    int16_t *dst, ptrdiff_t dst_stride) {
+static void FilterHorSampleShort(int width, int height, int bitdepth,
+                                 const int16_t *filter,
+                                 const Sample *src, ptrdiff_t src_stride,
+                                 int16_t *dst, ptrdiff_t dst_stride) {
   const int head_room = InterPrediction::kInternalPrecision - bitdepth;
   const int shift = InterPrediction::kFilterPrecision - head_room;
   const int offset = -(InterPrediction::kInternalOffset << shift);
@@ -788,9 +788,9 @@ void InterPrediction::FilterLuma(int width, int height, int frac_x, int frac_y,
                                     ref, ref_stride, pred, pred_stride);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
-    FilterHorToIntermediate<N>(width, height + N - 1, bitdepth_, filter_hor,
-                               ref - hor_offset, ref_stride,
-                               &filter_buffer_[0], width);
+    simd_.filter_h_sample_short[0](width, height + N - 1, bitdepth_, filter_hor,
+                                   ref - hor_offset, ref_stride,
+                                   &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
     FilterVerFromIntermediate<N>(width, height, bitdepth_,
                                  &filter_buffer_[ver_offset], width,
@@ -813,9 +813,9 @@ void InterPrediction::FilterChroma(int width, int height,
                                     ref, ref_stride, pred, pred_stride);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
-    FilterHorToIntermediate<N>(width, height + N - 1, bitdepth_, filter_hor,
-                               ref - hor_offset, ref_stride,
-                               &filter_buffer_[0], width);
+    simd_.filter_h_sample_short[1](width, height + N - 1, bitdepth_, filter_hor,
+                                   ref - hor_offset, ref_stride,
+                                   &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
     FilterVerFromIntermediate<N>(width, height, bitdepth_,
                                  &filter_buffer_[ver_offset], width,
@@ -844,16 +844,16 @@ InterPrediction::FilterLumaBipred(int width, int height, int frac_x, int frac_y,
   const int16_t *filter_hor = &kLumaFilter[frac_x][0];
   const int16_t *filter_ver = &kLumaFilter[frac_y][0];
   if (frac_y == 0) {
-    FilterHorToIntermediate<N>(width, height, bitdepth_, filter_hor,
-                               ref, ref_stride, pred, pred_stride);
+    simd_.filter_h_sample_short[0](width, height, bitdepth_, filter_hor,
+                                   ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
     FilterVerToIntermediate<N>(width, height, bitdepth_,
                                ref, ref_stride, pred, pred_stride, filter_ver);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
-    FilterHorToIntermediate<N>(width, height + N - 1, bitdepth_, filter_hor,
-                               ref - hor_offset, ref_stride,
-                               &filter_buffer_[0], width);
+    simd_.filter_h_sample_short[0](width, height + N - 1, bitdepth_, filter_hor,
+                                   ref - hor_offset, ref_stride,
+                                   &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
     FilterVerFromToIntermediate<N>(width, height, bitdepth_,
                                    &filter_buffer_[ver_offset], width,
@@ -870,16 +870,16 @@ InterPrediction::FilterChromaBipred(int width, int height,
   const int16_t *filter_hor = &kChromaFilter[frac_x][0];
   const int16_t *filter_ver = &kChromaFilter[frac_y][0];
   if (frac_y == 0) {
-    FilterHorToIntermediate<N>(width, height, bitdepth_, filter_hor,
-                               ref, ref_stride, pred, pred_stride);
+    simd_.filter_h_sample_short[1](width, height, bitdepth_, filter_hor,
+                                   ref, ref_stride, pred, pred_stride);
   } else if (frac_x == 0) {
     FilterVerToIntermediate<N>(width, height, bitdepth_,
                                ref, ref_stride, pred, pred_stride, filter_ver);
   } else {
     ptrdiff_t hor_offset = (N / 2 - 1) * ref_stride;
-    FilterHorToIntermediate<N>(width, height + N - 1, bitdepth_, filter_hor,
-                               ref - hor_offset, ref_stride,
-                               &filter_buffer_[0], width);
+    simd_.filter_h_sample_short[1](width, height + N - 1, bitdepth_, filter_hor,
+                                   ref - hor_offset, ref_stride,
+                                   &filter_buffer_[0], width);
     int ver_offset = (N / 2 - 1) * width;
     FilterVerFromToIntermediate<N>(width, height, bitdepth_,
                                    &filter_buffer_[ver_offset], width,
@@ -935,6 +935,8 @@ void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd_functions) {
   simd.filter_copy_bipred[1] = &FilterCopyBipred;
   simd.filter_h_sample_sample[0] = &FilterHorSampleSample<kNumTapsLuma>;
   simd.filter_h_sample_sample[1] = &FilterHorSampleSample<kNumTapsChroma>;
+  simd.filter_h_sample_short[0] = &FilterHorSampleShort<kNumTapsLuma>;
+  simd.filter_h_sample_short[1] = &FilterHorSampleShort<kNumTapsChroma>;
   simd.filter_v_sample_sample[0] = &FilterVerSampleSample<kNumTapsLuma>;
   simd.filter_v_sample_sample[1] = &FilterVerSampleSample<kNumTapsChroma>;
 }

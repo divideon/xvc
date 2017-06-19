@@ -144,14 +144,18 @@ static void FilterCopyBipredNeon(int width, int height,
 #endif
 
 #if XVC_ARCH_X86
+template<typename DstT, bool Clip>
 __attribute__((target("sse2")))
 static
-void FilterHorSampleSampleLumaSse2(int width, int height, int bitdepth,
-                                   const int16_t *filter,
-                                   const Sample *src, ptrdiff_t src_stride,
-                                   Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::kFilterPrecision;
-  const int offset = 1 << (shift - 1);
+void FilterHorSampleTLumaSse2(int width, int height, int bitdepth,
+                              const int16_t *filter,
+                              const Sample *src, ptrdiff_t src_stride,
+                              DstT *dst, ptrdiff_t dst_stride) {
+  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
+  const int shift = Clip ? InterPrediction::kFilterPrecision :
+    InterPrediction::kFilterPrecision - head_room;
+  const int offset = Clip ? 1 << (shift - 1) :
+    -(InterPrediction::kInternalOffset << shift);
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
   const __m128i voffset = _mm_set1_epi32(static_cast<int16_t>(offset));
   const __m128i vfilter = _mm_loadu_si128(CAST_M128_CONST(filter));
@@ -204,13 +208,17 @@ void FilterHorSampleSampleLumaSse2(int width, int height, int bitdepth,
       __m128i sum_efgh = _mm_srai_epi32(sum_efgh_offset, shift);
 
       __m128i sum = _mm_packs_epi32(sum_abcd, sum_efgh);
+      if (Clip) {
 #if XVC_HIGH_BITDEPTH
-      __m128i out = _mm_max_epi16(min, _mm_min_epi16(sum, max));
-      _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), out);
+        __m128i out = _mm_max_epi16(min, _mm_min_epi16(sum, max));
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), out);
 #else
-      __m128i out = _mm_packus_epi16(sum, sum);
-      _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + x), out);
+        __m128i out = _mm_packus_epi16(sum, sum);
+        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + x), out);
 #endif
+      } else {
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), sum);
+      }
     }
     src += src_stride;
     dst += dst_stride;
@@ -219,13 +227,17 @@ void FilterHorSampleSampleLumaSse2(int width, int height, int bitdepth,
 #endif  // XVC_ARCH_X86
 
 #if XVC_HAVE_NEON
+template<typename DstT, bool Clip>
 static
-void FilterHorSampleSampleLumaNeon(int width, int height, int bitdepth,
-                                   const int16_t *filter,
-                                   const Sample *src, ptrdiff_t src_stride,
-                                   Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::kFilterPrecision;
-  const int offset = 1 << (shift - 1);
+void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
+                              const int16_t *filter,
+                              const Sample *src, ptrdiff_t src_stride,
+                              DstT *dst, ptrdiff_t dst_stride) {
+  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
+  const int shift = Clip ? InterPrediction::kFilterPrecision :
+    InterPrediction::kFilterPrecision - head_room;
+  const int offset = Clip ? 1 << (shift - 1) :
+    -(InterPrediction::kInternalOffset << shift);
   const int32x4_t vshift = vdupq_n_s32((int16_t)shift * -1);
   const int32x4_t voffset = vdupq_n_s32(offset);
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
@@ -268,13 +280,19 @@ void FilterHorSampleSampleLumaNeon(int width, int height, int bitdepth,
       int16x4_t sum_abcd = filter_4sample(src + x + 0);
       int16x4_t sum_efgh = filter_4sample(src + x + 4);
       int16x8_t sum = vcombine_s16(sum_abcd, sum_efgh);
+      if (Clip) {
 #if XVC_HIGH_BITDEPTH
-      int16x8_t out = vmaxq_s16(min, vminq_s16(sum, max));
-      vst1q_u16(dst + x, vreinterpretq_u16_s16(out));
+        int16x8_t out = vmaxq_s16(min, vminq_s16(sum, max));
+        vst1q_u16(reinterpret_cast<uint16_t*>(dst + x),
+                  vreinterpretq_u16_s16(out));
 #else
-      uint8x8_t out = vqmovun_s16(sum);
-      vst1_u8(dst + x, out);
+        uint8x8_t out = vqmovun_s16(sum);
+        vst1_u8(reinterpret_cast<uint8_t*>(dst + x), out);
 #endif
+      } else {
+        // Replace DstT reinterpret_cast with C++17 if constexpr
+        vst1q_s16(reinterpret_cast<int16_t*>(dst + x), sum);
+      }
     }
     src += src_stride;
     dst += dst_stride;
@@ -297,14 +315,14 @@ void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
   const __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
 #endif
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
-  const __m128i vfilter01 =
-    _mm_set1_epi32((filter[0] & 0xFFFF) | (filter[1] << 16));
-  const __m128i vfilter23 =
-    _mm_set1_epi32((filter[2] & 0xFFFF) | (filter[3] << 16));
-  const __m128i vfilter45 =
-    _mm_set1_epi32((filter[4] & 0xFFFF) | (filter[5] << 16));
-  const __m128i vfilter67 =
-    _mm_set1_epi32((filter[6] & 0xFFFF) | (filter[7] << 16));
+  const __m128i vfilter01 = _mm_set1_epi32(
+    (filter[0] & 0xFFFF) | (static_cast<uint16_t>(filter[1]) << 16));
+  const __m128i vfilter23 = _mm_set1_epi32(
+    (filter[2] & 0xFFFF) | (static_cast<uint16_t>(filter[3]) << 16));
+  const __m128i vfilter45 = _mm_set1_epi32(
+    (filter[4] & 0xFFFF) | (static_cast<uint16_t>(filter[5]) << 16));
+  const __m128i vfilter67 = _mm_set1_epi32(
+    (filter[6] & 0xFFFF) | (static_cast<uint16_t>(filter[7]) << 16));
 
   src -= (InterPrediction::kNumTapsLuma / 2 - 1) * src_stride;
 
@@ -348,8 +366,8 @@ void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
       __m128i row90 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row9, row10), zero);
 #endif
 
-      auto filter_8rows_lo = [&](__m128i data01, __m128i data23,
-                                 __m128i data56, __m128i data67)
+      auto filter_8rows_lo = [&](const __m128i &data01, const __m128i &data23,
+                                 const __m128i &data56, const __m128i &data67)
         __attribute__((target("sse2"))) {
         __m128i prod0_01 = _mm_madd_epi16(data01, vfilter01);
         __m128i prod0_23 = _mm_madd_epi16(data23, vfilter23);
@@ -514,7 +532,8 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
   if (caps.find(CpuCapability::kNeon) != caps.end()) {
     simd.add_avg[1] = &AddAvgNeon;
     simd.filter_copy_bipred[1] = &FilterCopyBipredNeon;
-    simd.filter_h_sample_sample[0] = &FilterHorSampleSampleLumaNeon;
+    simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaNeon<Sample, true>;
+    simd.filter_h_sample_short[0] = &FilterHorSampleTLumaNeon<int16_t, false>;
     simd.filter_v_sample_sample[0] = &FilterVerSampleSampleLumaNeon;
   }
 #endif  // XVC_HAVE_NEON
@@ -528,7 +547,8 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
   if (caps.find(CpuCapability::kSse2) != caps.end()) {
     simd.add_avg[1] = &AddAvgSse2;
     simd.filter_copy_bipred[1] = &FilterCopyBipredSse2;
-    simd.filter_h_sample_sample[0] = &FilterHorSampleSampleLumaSse2;
+    simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaSse2<Sample, true>;
+    simd.filter_h_sample_short[0] = &FilterHorSampleTLumaSse2<int16_t, false>;
     simd.filter_v_sample_sample[0] = &FilterVerSampleSampleLumaSse2;
   }
 }
