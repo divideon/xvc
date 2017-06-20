@@ -57,6 +57,10 @@ public:
   void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
                          int center_x, int center_y, int search_range,
                          MotionVector *mv_min, MotionVector *mv_max) const;
+  template<typename SrcT, bool Clip>
+  static int GetFilterShift(int bitdepth);
+  template<typename SrcT, bool Clip>
+  static int GetFilterOffset(int shift);
   static void RegisterDefaultFunctions(SimdFunctions *simd);
 
 protected:
@@ -109,6 +113,44 @@ private:
   std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;
   int bitdepth_;
 };
+
+template<>
+inline int InterPrediction::GetFilterShift<int16_t, true>(int bitdepth) {
+  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
+  return InterPrediction::kFilterPrecision + head_room;
+}
+template<>
+inline int InterPrediction::GetFilterShift<int16_t, false>(int bitdepth) {
+  return InterPrediction::kFilterPrecision;
+}
+template<>
+inline int InterPrediction::GetFilterShift<Sample, false>(int bitdepth) {
+  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
+  return InterPrediction::kFilterPrecision - head_room;
+}
+template<>
+inline int InterPrediction::GetFilterShift<Sample, true>(int bitdepth) {
+  return InterPrediction::kFilterPrecision;
+}
+
+template<>
+inline int InterPrediction::GetFilterOffset<int16_t, true>(int shift) {
+  return
+    (InterPrediction::kInternalOffset << InterPrediction::kFilterPrecision) +
+    (1 << (shift - 1));
+}
+template<>
+inline int InterPrediction::GetFilterOffset<int16_t, false>(int shift) {
+  return 0;
+}
+template<>
+inline int InterPrediction::GetFilterOffset<Sample, false>(int shift) {
+  return -(InterPrediction::kInternalOffset << shift);
+}
+template<>
+inline int InterPrediction::GetFilterOffset<Sample, true>(int shift) {
+  return 1 << (shift - 1);
+}
 
 }   // namespace xvc
 

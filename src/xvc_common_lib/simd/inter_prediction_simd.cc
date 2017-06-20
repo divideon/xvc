@@ -151,13 +151,10 @@ void FilterHorSampleTLumaSse2(int width, int height, int bitdepth,
                               const int16_t *filter,
                               const Sample *src, ptrdiff_t src_stride,
                               DstT *dst, ptrdiff_t dst_stride) {
-  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
-  const int shift = Clip ? InterPrediction::kFilterPrecision :
-    InterPrediction::kFilterPrecision - head_room;
-  const int offset = Clip ? 1 << (shift - 1) :
-    -(InterPrediction::kInternalOffset << shift);
+  const int shift = InterPrediction::GetFilterShift<Sample, Clip>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, Clip>(shift);
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
-  const __m128i voffset = _mm_set1_epi32(static_cast<int16_t>(offset));
+  const __m128i voffset = _mm_set1_epi32(static_cast<int32_t>(offset));
   const __m128i vfilter = _mm_loadu_si128(CAST_M128_CONST(filter));
 #if XVC_HIGH_BITDEPTH
   const __m128i min = _mm_set1_epi16(0);
@@ -233,13 +230,10 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
                               const int16_t *filter,
                               const Sample *src, ptrdiff_t src_stride,
                               DstT *dst, ptrdiff_t dst_stride) {
-  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
-  const int shift = Clip ? InterPrediction::kFilterPrecision :
-    InterPrediction::kFilterPrecision - head_room;
-  const int offset = Clip ? 1 << (shift - 1) :
-    -(InterPrediction::kInternalOffset << shift);
-  const int32x4_t vshift = vdupq_n_s32((int16_t)shift * -1);
-  const int32x4_t voffset = vdupq_n_s32(offset);
+  const int shift = InterPrediction::GetFilterShift<Sample, Clip>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, Clip>(shift);
+  const int32x4_t vshift = vdupq_n_s32(static_cast<int32_t>(shift) * -1);
+  const int32x4_t voffset = vdupq_n_s32(static_cast<int32_t>(offset));
   static_assert(InterPrediction::kNumTapsLuma == 8, "8 tap filter");
   const int16x8_t vfilter = vld1q_s16(filter);
   const int16x4_t vfilter_lo = vget_low_s16(vfilter);
@@ -307,9 +301,9 @@ void FilterVerSampleSampleLumaSse2(int width, int height, int bitdepth,
                                    const int16_t *filter,
                                    const Sample *src, ptrdiff_t src_stride,
                                    Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::kFilterPrecision;
-  const int offset = 1 << (shift - 1);
-  const __m128i voffset = _mm_set1_epi32(static_cast<int16_t>(offset));
+  const int shift = InterPrediction::GetFilterShift<Sample, true>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, true>(shift);
+  const __m128i voffset = _mm_set1_epi32(static_cast<int32_t>(offset));
 #if XVC_HIGH_BITDEPTH
   const __m128i min = _mm_set1_epi16(0);
   const __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
@@ -428,10 +422,10 @@ void FilterVerSampleSampleLumaNeon(int width, int height, int bitdepth,
                                    const int16_t *filter,
                                    const Sample *src, ptrdiff_t src_stride,
                                    Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::kFilterPrecision;
-  const int offset = 1 << (shift - 1);
-  const int32x4_t vshift = vdupq_n_s32((int16_t)shift * -1);
-  const int32x4_t voffset = vdupq_n_s32(offset);
+  const int shift = InterPrediction::GetFilterShift<Sample, true>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, true>(shift);
+  const int32x4_t vshift = vdupq_n_s32(static_cast<int32_t>(shift) * -1);
+  const int32x4_t voffset = vdupq_n_s32(static_cast<int32_t>(offset));
 #if XVC_HIGH_BITDEPTH
   int16x8_t min = vdupq_n_s16(0);
   int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);

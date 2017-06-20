@@ -594,8 +594,8 @@ static void FilterHorSampleSample(int width, int height, int bitdepth,
                                   const int16_t *filter,
                                   const Sample *src, ptrdiff_t src_stride,
                                   Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::kFilterPrecision;
-  const int offset = 1 << (shift - 1);
+  const int shift = InterPrediction::GetFilterShift<Sample, true>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, true>(shift);
   const Sample sample_max = (1 << bitdepth) - 1;
   src -= N / 2 - 1;
 
@@ -625,9 +625,8 @@ static void FilterHorSampleShort(int width, int height, int bitdepth,
                                  const int16_t *filter,
                                  const Sample *src, ptrdiff_t src_stride,
                                  int16_t *dst, ptrdiff_t dst_stride) {
-  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
-  const int shift = InterPrediction::kFilterPrecision - head_room;
-  const int offset = -(InterPrediction::kInternalOffset << shift);
+  const int shift = InterPrediction::GetFilterShift<Sample, false>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, false>(shift);
   src -= N / 2 - 1;
 
   for (int y = 0; y < height; y++) {
@@ -655,8 +654,8 @@ static void FilterVerSampleSample(int width, int height, int bitdepth,
                                   const int16_t *filter,
                                   const Sample *src, ptrdiff_t src_stride,
                                   Sample *dst, ptrdiff_t dst_stride) {
-  const int shift = InterPrediction::kFilterPrecision;
-  const int offset = 1 << (shift - 1);
+  const int shift = InterPrediction::GetFilterShift<Sample, true>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, true>(shift);
   const Sample sample_max = (1 << bitdepth) - 1;
   src -= (N / 2 - 1) * src_stride;
 
@@ -686,9 +685,8 @@ static void FilterVerToIntermediate(int width, int height, int bitdepth,
                                     const Sample *src, ptrdiff_t src_stride,
                                     int16_t *dst, ptrdiff_t dst_stride,
                                     const int16_t *filter) {
-  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
-  const int shift = InterPrediction::kFilterPrecision - head_room;
-  const int offset = -(InterPrediction::kInternalOffset << shift);
+  const int shift = InterPrediction::GetFilterShift<Sample, false>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<Sample, false>(shift);
   src -= (N / 2 - 1) * src_stride;
 
   for (int y = 0; y < height; y++) {
@@ -716,11 +714,8 @@ static void FilterVerFromIntermediate(int width, int height, int bitdepth,
                                       const int16_t *src, ptrdiff_t src_stride,
                                       Sample *dst, ptrdiff_t dst_stride,
                                       const int16_t *filter) {
-  const int head_room = InterPrediction::kInternalPrecision - bitdepth;
-  const int shift = InterPrediction::kFilterPrecision + head_room;
-  const int offset =
-    (InterPrediction::kInternalOffset << InterPrediction::kFilterPrecision) +
-    (1 << (shift - 1));
+  const int shift = InterPrediction::GetFilterShift<int16_t, true>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<int16_t, true>(shift);
   const Sample sample_max = (1 << bitdepth) - 1;
   src -= (N / 2 - 1) * src_stride;
 
@@ -751,7 +746,8 @@ static void FilterVerFromToIntermediate(int width, int height, int bitdepth,
                                         ptrdiff_t src_stride, int16_t *dst,
                                         ptrdiff_t dst_stride,
                                         const int16_t *filter) {
-  const int shift = InterPrediction::kFilterPrecision;
+  const int shift = InterPrediction::GetFilterShift<int16_t, false>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<int16_t, false>(bitdepth);
   src -= (N / 2 - 1) * src_stride;
 
   for (int y = 0; y < height; y++) {
@@ -767,7 +763,7 @@ static void FilterVerFromToIntermediate(int width, int height, int bitdepth,
         sum += src[x + 6 * src_stride] * filter[6];
         sum += src[x + 7 * src_stride] * filter[7];
       }
-      dst[x] = static_cast<int16_t>(sum >> shift);
+      dst[x] = static_cast<int16_t>((sum + offset) >> shift);
     }
     src += src_stride;
     dst += dst_stride;

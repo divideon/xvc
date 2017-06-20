@@ -22,15 +22,6 @@ static constexpr int kSegmentLength = kSubGopLength * 3;
 class SimdTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
-  void SetUp() override {
-  }
-
-  void TearDown() override {
-    for (int poc = 0; poc < static_cast<int>(verified_.size()); poc++) {
-      ASSERT_TRUE(verified_[poc]) << "Picture poc " << poc;
-    }
-  }
-
   void Encode(int width, int height, int frames, bool use_simd) {
     EncoderHelper::Init();
     encoder_->SetInternalBitdepth(GetParam());
@@ -70,6 +61,10 @@ protected:
     while (DecoderFlush()) {
       VerifyPicture(width, height, last_decoded_picture_, &dec_pic_bytes);
     }
+    for (int poc = 0; poc < static_cast<int>(verified_.size()); poc++) {
+      EXPECT_TRUE(verified_[poc]) << "Picture poc " << poc;
+      verified_[poc] = false;
+    }
     return dec_pic_bytes;
   }
 
@@ -104,11 +99,9 @@ protected:
 
 TEST_P(SimdTest, VerifyDecodeWithWithout) {
   Encode(kWidth, kHeight, kSubGopLength + 1, false);
+  ResetBitstreamPosition();
   auto dec_plain = Decode(kWidth, kHeight, kSubGopLength + 1, false);
   ResetBitstreamPosition();
-  for (int i = 0; i < static_cast<int>(verified_.size()); i++) {
-    verified_[i] = false;
-  }
   auto dec_simd = Decode(kWidth, kHeight, kSubGopLength + 1, true);
   AssertPicturesEqual(dec_plain, dec_simd);
 }
@@ -117,7 +110,7 @@ INSTANTIATE_TEST_CASE_P(NormalBitdepth, SimdTest,
                         ::testing::Values(8));
 #if XVC_HIGH_BITDEPTH
 INSTANTIATE_TEST_CASE_P(HighBitdepth, SimdTest,
-                        ::testing::Values(10));
+                        ::testing::Values(10, 12));
 #endif
 
 }   // namespace

@@ -6,6 +6,7 @@
 
 #include "xvc_test/yuv_helper.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -77,6 +78,13 @@ xvc_test::TestYuvPic::kTestSamples = { {
   515,516,516,508,513,507,505,513,513,511,507,510,510,509,508,509,509,524,520,513,515,517,516,509,508,504,505,512,513,509,504,512,512,511,509,510,510,524,517,512,  // NOLINT
 } };
 
+constexpr float GetRndFracX(int i) {
+  return (i % 3) / 3.0f;
+}
+constexpr float GetRndFracY(int i) {
+  return (i % 7) / 7.0f;
+}
+
 TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
                        xvc::ChromaFormat chroma_fmt)
   : width_(width),
@@ -84,17 +92,26 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
   bitdepth_(bitdepth) {
   assert(dx + width <= kInternalPicSize);
   assert(dy + height <= kInternalPicSize);
-  const int down_shift = kInternalBitdepth - bitdepth;
+  const int down_shift = std::max(0, kInternalBitdepth - bitdepth);
+  const int up_shift = std::max(0, bitdepth - kInternalBitdepth);
+  const Sample max_val = (1 << bitdepth) - 1;
   const int total_samples =
     xvc::util::GetTotalNumSamples(width, height, chroma_fmt);
   samples_.resize(total_samples);
-  int i = 0;
+  const float fx = GetRndFracX(dx);
+  const float fy = GetRndFracY(dy);
+  const float w[3] = { (1 + std::abs(1 - fx - dx) + std::abs(1 - fy - dy)) / 3,
+    (std::abs(fx - dx)) / 3, (std::abs(fy - dy)) / 3 };
 
   const ptrdiff_t strideY = kInternalPicSize;
   const uint16_t *srcY = &kTestSamples[dy * strideY + dx];
+  int i = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
-      samples_[i++] = static_cast<Sample>(srcY[x] >> down_shift);
+      int16_t tmp = static_cast<int16_t>(
+        srcY[x] * w[0] + srcY[x + 1] * w[1] + srcY[strideY] * w[2]);
+      samples_[i++] =
+        xvc::util::ClipBD((tmp >> down_shift) << up_shift, max_val);
     }
     srcY += strideY;
   }
@@ -106,7 +123,9 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
     for (int c = 1; c < 3; c++) {
       for (int y = 0; y < height >> 1; y++) {
         for (int x = 0; x < width >> 1; x++) {
-          samples_[i++] = static_cast<Sample>(srcUV[x] >> down_shift);
+          int16_t tmp = static_cast<int16_t>(
+            srcUV[x] * w[0] + srcUV[x + 1] * w[1] + srcUV[strideUV] * w[2]);
+          samples_[i++] = static_cast<Sample>((tmp >> down_shift) << up_shift);
         }
         srcUV += strideUV;
       }
@@ -124,7 +143,7 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
     for (int j = 0; j < static_cast<int>(samples_.size()); j++) {
       bytes_[j * 2 + 0] = static_cast<uint8_t>(samples_[j] & 0xff);
 #if XVC_HIGH_BITDEPTH
-        bytes_[j * 2 + 1] = static_cast<uint8_t>(samples_[j] >> 8);
+      bytes_[j * 2 + 1] = static_cast<uint8_t>(samples_[j] >> 8);
 #endif
     }
   }
