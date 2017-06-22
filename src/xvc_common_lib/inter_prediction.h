@@ -12,7 +12,6 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/sample_buffer.h"
-#include "xvc_common_lib/simd_functions.h"
 
 namespace xvc {
 
@@ -38,9 +37,10 @@ public:
   static const int kFilterPrecision = 6;
   static const int kInternalOffset = 1 << (kInternalPrecision - 1);
   static const int kMergeLevelShift = 2;
+  struct SimdFunc;
 
-  InterPrediction(const SimdFunctions &simd, int bitdepth)
-    : simd_(simd.inter_prediction),
+  InterPrediction(const SimdFunc &simd, int bitdepth)
+    : simd_(simd),
     bitdepth_(bitdepth) {
   }
 
@@ -61,7 +61,6 @@ public:
   static int GetFilterShift(int bitdepth);
   template<typename SrcT, bool Clip>
   static int GetFilterOffset(int shift);
-  static void RegisterDefaultFunctions(SimdFunctions *simd);
 
 protected:
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
@@ -108,10 +107,49 @@ private:
                 Sample *pred, ptrdiff_t pred_stride);
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
 
-  const SimdFunctions::InterPredictionFunctions &simd_;
+  const InterPrediction::SimdFunc &simd_;
   std::array<int16_t, kBufSize> filter_buffer_;
   std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;
   int bitdepth_;
+};
+
+struct InterPrediction::SimdFunc {
+  // 0: luma, 1: chroma
+  static const int kLC = 2;
+
+  SimdFunc();
+  void(*add_avg)(int width, int height, int offset, int shift,
+                 int bitdepth, const int16_t *src1, intptr_t stride1,
+                 const int16_t *src2, intptr_t stride2,
+                 Sample *dst, intptr_t dst_stride);
+  void(*filter_copy_bipred)(int width, int height,
+                            int16_t offset, int shift,
+                            const Sample *ref, ptrdiff_t ref_stride,
+                            int16_t *pred, ptrdiff_t pred_stride);
+  void(*filter_h_sample_sample[kLC])(int width, int height, int bitdepth,
+                                     const int16_t *filter,
+                                     const Sample *src, ptrdiff_t src_stride,
+                                     Sample *dst, ptrdiff_t dst_stride);
+  void(*filter_h_sample_short[kLC])(int width, int height, int bitdepth,
+                                    const int16_t *filter,
+                                    const Sample *src, ptrdiff_t src_stride,
+                                    int16_t *dst, ptrdiff_t dst_stride);
+  void(*filter_v_sample_sample[kLC])(int width, int height, int bitdepth,
+                                     const int16_t *filter,
+                                     const Sample *src, ptrdiff_t src_stride,
+                                     Sample *dst, ptrdiff_t dst_stride);
+  void(*filter_v_sample_short[kLC])(int width, int height, int bitdepth,
+                                    const int16_t *filter,
+                                    const Sample *src, ptrdiff_t src_stride,
+                                    int16_t *dst, ptrdiff_t dst_stride);
+  void(*filter_v_short_sample[kLC])(int width, int height, int bitdepth,
+                                    const int16_t *filter,
+                                    const int16_t *src, ptrdiff_t src_stride,
+                                    Sample *dst, ptrdiff_t dst_stride);
+  void(*filter_v_short_short[kLC])(int width, int height, int bitdepth,
+                                   const int16_t *filter,
+                                   const int16_t *src, ptrdiff_t src_stride,
+                                   int16_t *dst, ptrdiff_t dst_stride);
 };
 
 template<>

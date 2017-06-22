@@ -541,10 +541,9 @@ InterPrediction::MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
   if (frac_x == 0 && frac_y == 0) {
     const int shift = kInternalPrecision - bitdepth_;
     const int offset = kInternalOffset;
-    const int i = width >= 8;
-    simd_.filter_copy_bipred[i](width, height, offset, shift,
-                                ref_buffer.GetDataPtr(),
-                                ref_buffer.GetStride(), pred, pred_stride);
+    simd_.filter_copy_bipred(width, height, offset, shift,
+                             ref_buffer.GetDataPtr(),
+                             ref_buffer.GetStride(), pred, pred_stride);
     return;
   }
   if (util::IsLuma(comp)) {
@@ -890,10 +889,9 @@ void InterPrediction::AddAvgBi(const CodingUnit &cu, YuvComponent comp,
   const int height = cu.GetHeight(comp);
   const int shift = std::max(2, kInternalPrecision - bitdepth_) + 1;
   const int offset = (1 << (shift - 1)) + 2 * kInternalOffset;
-  const int idx = width >= 8;
-  simd_.add_avg[idx](width, height, offset, shift, bitdepth_,
-                     src_l0, src_l0_stride, src_l1, src_l1_stride,
-                     pred, pred_stride);
+  simd_.add_avg(width, height, offset, shift, bitdepth_,
+                src_l0, src_l0_stride, src_l1, src_l1_stride,
+                pred, pred_stride);
 }
 
 static void AddAvg(int width, int height, int offset,
@@ -922,24 +920,21 @@ MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu) {
   return cand;
 }
 
-void InterPrediction::RegisterDefaultFunctions(SimdFunctions *simd_functions) {
-  auto &simd = simd_functions->inter_prediction;
-  simd.add_avg[0] = &AddAvg;
-  simd.add_avg[1] = &AddAvg;
-  simd.filter_copy_bipred[0] = &FilterCopyBipred;
-  simd.filter_copy_bipred[1] = &FilterCopyBipred;
-  simd.filter_h_sample_sample[0] = &FilterHorSampleSample<kNumTapsLuma>;
-  simd.filter_h_sample_sample[1] = &FilterHorSampleSample<kNumTapsChroma>;
-  simd.filter_h_sample_short[0] = &FilterHorSampleShort<kNumTapsLuma>;
-  simd.filter_h_sample_short[1] = &FilterHorSampleShort<kNumTapsChroma>;
-  simd.filter_v_sample_sample[0] = &FilterVerSampleSample<kNumTapsLuma>;
-  simd.filter_v_sample_sample[1] = &FilterVerSampleSample<kNumTapsChroma>;
-  simd.filter_v_sample_short[0] = &FilterVerSampleShort<kNumTapsLuma>;
-  simd.filter_v_sample_short[1] = &FilterVerSampleShort<kNumTapsChroma>;
-  simd.filter_v_short_sample[0] = &FilterVerShortSample<kNumTapsLuma>;
-  simd.filter_v_short_sample[1] = &FilterVerShortSample<kNumTapsChroma>;
-  simd.filter_v_short_short[0] = &FilterVerShortShort<kNumTapsLuma>;
-  simd.filter_v_short_short[1] = &FilterVerShortShort<kNumTapsChroma>;
+InterPrediction::SimdFunc::SimdFunc() {
+  add_avg = &AddAvg;
+  filter_copy_bipred = &FilterCopyBipred;
+  filter_h_sample_sample[0] = &FilterHorSampleSample<kNumTapsLuma>;
+  filter_h_sample_sample[1] = &FilterHorSampleSample<kNumTapsChroma>;
+  filter_h_sample_short[0] = &FilterHorSampleShort<kNumTapsLuma>;
+  filter_h_sample_short[1] = &FilterHorSampleShort<kNumTapsChroma>;
+  filter_v_sample_sample[0] = &FilterVerSampleSample<kNumTapsLuma>;
+  filter_v_sample_sample[1] = &FilterVerSampleSample<kNumTapsChroma>;
+  filter_v_sample_short[0] = &FilterVerSampleShort<kNumTapsLuma>;
+  filter_v_sample_short[1] = &FilterVerSampleShort<kNumTapsChroma>;
+  filter_v_short_sample[0] = &FilterVerShortSample<kNumTapsLuma>;
+  filter_v_short_sample[1] = &FilterVerShortSample<kNumTapsChroma>;
+  filter_v_short_short[0] = &FilterVerShortShort<kNumTapsLuma>;
+  filter_v_short_short[1] = &FilterVerShortShort<kNumTapsChroma>;
 }
 
 }   // namespace xvc

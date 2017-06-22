@@ -30,7 +30,7 @@ InterSearch::InterSearch(const SimdFunctions &simd, int bitdepth,
                          int max_components, const YuvPicture &orig_pic,
                          const ReferencePictureLists &ref_pic_list,
                          const EncoderSettings &encoder_settings)
-  : InterPrediction(simd, bitdepth),
+  : InterPrediction(simd.inter_prediction, bitdepth),
   bitdepth_(bitdepth),
   max_components_(max_components),
   orig_pic_(orig_pic),
