@@ -19,10 +19,10 @@
 
 namespace xvc {
 
-static const std::array<std::pair<int8_t, int8_t>, 9> kSquareXYHalf = { {
+static const std::array<std::array<int8_t, 2>, 9> kSquareXYHalf = { {
   {0, 0}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}
 } };
-static const std::array<std::pair<int8_t, int8_t>, 9> kSquareXYQpel = { {
+static const std::array<std::array<int8_t, 2>, 9> kSquareXYQpel = { {
   {0, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {1, 1}
 } };
 
@@ -501,8 +501,8 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
 
   // Half-pel
   for (int i = 0; i < static_cast<int>(kSquareXYHalf.size()); i++) {
-    int mv_x = mv_subpel.x + kSquareXYHalf[i].first * 2;
-    int mv_y = mv_subpel.y + kSquareXYHalf[i].second * 2;
+    int mv_x = mv_subpel.x + kSquareXYHalf[i][0] * 2;
+    int mv_y = mv_subpel.y + kSquareXYHalf[i][1] * 2;
     Distortion dist = GetSubpelDistortion(cu, ref_pic, &metric, mv_x, mv_y,
                                           orig_buffer, buffer, buffer_stride);
     Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0))) >> 16;
@@ -514,15 +514,15 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
     }
   }
   if (best_idx > 0) {
-    mv_subpel.x += kSquareXYHalf[best_idx].first * 2;
-    mv_subpel.y += kSquareXYHalf[best_idx].second * 2;
+    mv_subpel.x += kSquareXYHalf[best_idx][0] * 2;
+    mv_subpel.y += kSquareXYHalf[best_idx][1] * 2;
   }
   best_idx = 0;
 
   // Qpel
   for (int i = 1; i < static_cast<int>(kSquareXYQpel.size()); i++) {
-    int mv_x = mv_subpel.x + kSquareXYQpel[i].first;
-    int mv_y = mv_subpel.y + kSquareXYQpel[i].second;
+    int mv_x = mv_subpel.x + kSquareXYQpel[i][0];
+    int mv_y = mv_subpel.y + kSquareXYQpel[i][1];
     Distortion dist = GetSubpelDistortion(cu, ref_pic, &metric, mv_x, mv_y,
                                           orig_buffer, buffer, buffer_stride);
     Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0))) >> 16;
@@ -534,8 +534,8 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
     }
   }
   if (best_idx > 0) {
-    mv_subpel.x += kSquareXYQpel[best_idx].first;
-    mv_subpel.y += kSquareXYQpel[best_idx].second;
+    mv_subpel.x += kSquareXYQpel[best_idx][0];
+    mv_subpel.y += kSquareXYQpel[best_idx][1];
   }
   return mv_subpel;
 }

@@ -128,7 +128,7 @@ public:
   void ZeroOut(int width, int height) {
     Coeff *dst = GetDataPtr();
     for (int y = 0; y < height; y++) {
-      std::fill(dst, dst + width, 0);
+      std::fill(dst, dst + width, static_cast<Coeff>(0));
       dst += GetStride();
     }
   }

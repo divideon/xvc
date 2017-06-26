@@ -645,8 +645,8 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
 #if XVC_HAVE_NEON
   auto &simd = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kNeon) != caps.end()) {
-    simd.add_avg = &AddAvgNeon;
-    simd.filter_copy_bipred = &FilterCopyBipredNeon;
+    simd.add_avg[1] = &AddAvgNeon;
+    simd.filter_copy_bipred[1] = &FilterCopyBipredNeon;
     simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaNeon<Sample, true>;
     simd.filter_h_sample_short[0] = &FilterHorSampleTLumaNeon<int16_t, false>;
     simd.filter_v_sample_sample[0] = &FilterVerLumaNeon<Sample, Sample, true>;
@@ -663,8 +663,8 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd_functions) {
   auto &simd = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kSse2) != caps.end()) {
-    simd.add_avg = &AddAvgSse2;
-    simd.filter_copy_bipred = &FilterCopyBipredSse2;
+    simd.add_avg[1] = &AddAvgSse2;
+    simd.filter_copy_bipred[1] = &FilterCopyBipredSse2;
     simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaSse2<Sample, true>;
     simd.filter_h_sample_short[0] = &FilterHorSampleTLumaSse2<int16_t, false>;
     simd.filter_v_sample_sample[0] = &FilterVerLumaSse2<Sample, Sample, true>;

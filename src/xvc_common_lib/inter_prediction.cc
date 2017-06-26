@@ -541,9 +541,10 @@ InterPrediction::MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
   if (frac_x == 0 && frac_y == 0) {
     const int shift = kInternalPrecision - bitdepth_;
     const int offset = kInternalOffset;
-    simd_.filter_copy_bipred(width, height, offset, shift,
-                             ref_buffer.GetDataPtr(),
-                             ref_buffer.GetStride(), pred, pred_stride);
+    const int i = width > 2;
+    simd_.filter_copy_bipred[i](width, height, offset, shift,
+                                ref_buffer.GetDataPtr(),
+                                ref_buffer.GetStride(), pred, pred_stride);
     return;
   }
   if (util::IsLuma(comp)) {
@@ -889,9 +890,10 @@ void InterPrediction::AddAvgBi(const CodingUnit &cu, YuvComponent comp,
   const int height = cu.GetHeight(comp);
   const int shift = std::max(2, kInternalPrecision - bitdepth_) + 1;
   const int offset = (1 << (shift - 1)) + 2 * kInternalOffset;
-  simd_.add_avg(width, height, offset, shift, bitdepth_,
-                src_l0, src_l0_stride, src_l1, src_l1_stride,
-                pred, pred_stride);
+  const int i = width > 2;
+  simd_.add_avg[i](width, height, offset, shift, bitdepth_,
+                   src_l0, src_l0_stride, src_l1, src_l1_stride,
+                   pred, pred_stride);
 }
 
 static void AddAvg(int width, int height, int offset,
@@ -921,8 +923,10 @@ MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu) {
 }
 
 InterPrediction::SimdFunc::SimdFunc() {
-  add_avg = &AddAvg;
-  filter_copy_bipred = &FilterCopyBipred;
+  add_avg[0] = &AddAvg;
+  add_avg[1] = &AddAvg;
+  filter_copy_bipred[0] = &FilterCopyBipred;
+  filter_copy_bipred[1] = &FilterCopyBipred;
   filter_h_sample_sample[0] = &FilterHorSampleSample<kNumTapsLuma>;
   filter_h_sample_sample[1] = &FilterHorSampleSample<kNumTapsChroma>;
   filter_h_sample_short[0] = &FilterHorSampleShort<kNumTapsLuma>;
