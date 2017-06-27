@@ -124,7 +124,8 @@ static void AddAvgNeon(int width, int height,
       vst1_u16(dst + width8, vreinterpret_u16_s16(out));
 #else
       uint8x8_t out = vqmovun_s16(vcombine_s16(sum, sum));
-      vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + width8), out, 0);
+      vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + width8),
+                    vreinterpret_u32_u8(out), 0);
 #endif
     }
     src1 += stride1;
@@ -157,8 +158,8 @@ static void FilterCopyBipredSse2(int width, int height,
 #if XVC_HIGH_BITDEPTH
       __m128i s1 = _mm_loadl_epi64(CAST_M128_CONST(ref + width8));
 #else
-      __m128i vref =
-        _mm_set1_epi32(*reinterpret_cast<const int32_t*>(ref + width8));
+      // TODO(PH) Loading twice as much data as needed
+      __m128i vref = _mm_loadl_epi64(CAST_M128_CONST(ref + width8));
       __m128i s1 = _mm_unpacklo_epi8(vref, _mm_setzero_si128());
 #endif
       __m128i out = _mm_sub_epi16(_mm_slli_epi16(s1, shift), voffset);
@@ -334,7 +335,7 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
       int32x4_t prod_a_lo = vmull_s16(vget_low_s16(vref_a), vfilter_lo);
       int32x4_t prod_a_hi = vmull_s16(vget_high_s16(vref_a), vfilter_hi);
       int32x4_t prod_a = vaddq_s32(prod_a_lo, prod_a_hi);
-      return vadd_s32(vget_low_s16(prod_a), vget_high_s16(prod_a));
+      return vadd_s32(vget_low_s32(prod_a), vget_high_s32(prod_a));
     };
     auto fir_2samples_s32 = [&fir_1sample_s32](const Sample *sample) {
       int32x2_t sum_a_lo = fir_1sample_s32(sample + 0);  // a0426 a1537

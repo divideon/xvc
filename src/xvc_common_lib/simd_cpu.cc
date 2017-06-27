@@ -149,10 +149,6 @@ std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {
   std::set<CpuCapability> caps;
 
 #if XVC_HAVE_NEON
-#if __ARM_NEON__
-  // Assume NEON support is guaranteed
-  caps.insert(CpuCapability::kNeon);
-#else   // __ARM_NEON__
   int ret = cpu_has_neon_arm();
   if (ret > 0) {
     caps.insert(CpuCapability::kNeon);
@@ -160,7 +156,6 @@ std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {
     // don't know => assume NEON
     caps.insert(CpuCapability::kNeon);
   }
-#endif
 #endif  // XVC_HAVE_NEON
 
   return caps;
