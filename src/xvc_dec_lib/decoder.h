@@ -39,7 +39,6 @@ public:
   Decoder();
 
   bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size);
-  void DecodeOneBufferedNal(const std::vector<uint8_t> &nal);
   bool GetDecodedPicture(xvc_decoded_picture *dec_pic);
   void FlushBufferedTailPics();
   PicNum GetNumDecodedPics() { return num_pics_in_buffer_; }
@@ -62,14 +61,15 @@ public:
   void SetDecoderTicks(int ticks) { decoder_ticks_ = ticks; }
   State GetState() { return state_; }
   xvc_dec_chroma_format getChromaFormatApiStyle() {
-    return xvc_dec_chroma_format(curr_segment_header_.chroma_format);
+    return xvc_dec_chroma_format(curr_segment_header_->chroma_format);
   }
 
 private:
   void DecodeAllBufferedNals();
+  bool DecodeSegmentHeaderNal(BitReader *bit_reader);
+  void DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal);
   std::shared_ptr<PictureDecoder> GetNewPictureDecoder(
     ChromaFormat chroma_format, int width, int height, int bitdepth);
-
   void SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                       xvc_decoded_picture *output_pic);
 
@@ -77,8 +77,8 @@ private:
   PicNum sub_gop_start_poc_ = 0;
   PicNum doc_ = 0;
   SegmentNum soc_ = static_cast<SegmentNum>(-1);
-  SegmentHeader curr_segment_header_;
-  SegmentHeader prev_segment_header_;
+  std::shared_ptr<SegmentHeader> curr_segment_header_;
+  std::shared_ptr<SegmentHeader> prev_segment_header_;
   PicNum num_pics_in_buffer_ = 0;
   PicNum num_corrupted_pics_ = 0;
   PicNum sliding_window_length_ = 0;
@@ -97,7 +97,7 @@ private:
   SimdFunctions simd_;
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;
-  std::deque<std::vector<uint8_t>> nal_buffer_;
+  std::deque<std::unique_ptr<std::vector<uint8_t>>> nal_buffer_;
 };
 
 }   // namespace xvc

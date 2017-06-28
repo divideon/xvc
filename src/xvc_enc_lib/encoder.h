@@ -33,48 +33,50 @@ public:
              bool output_rec, xvc_enc_pic_buffer *rec_pic);
   int Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
             xvc_enc_pic_buffer *rec_pic);
-  const SegmentHeader* GetCurrentSegment() const { return &segment_header_; }
+  const SegmentHeader* GetCurrentSegment() const {
+    return segment_header_.get();
+  }
 
   void SetCpuCapabilities(std::set<CpuCapability> capabilities) {
     simd_ = SimdFunctions(capabilities);
   }
   void SetResolution(int width, int height) {
-    segment_header_.pic_width = width;
-    segment_header_.pic_height = height;
+    segment_header_->pic_width = width;
+    segment_header_->pic_height = height;
   }
   void SetChromaFormat(ChromaFormat chroma_fmt) {
-    segment_header_.chroma_format = chroma_fmt;
+    segment_header_->chroma_format = chroma_fmt;
   }
   void SetColorMatrix(ColorMatrix color_matrix) {
-    segment_header_.color_matrix = color_matrix;
+    segment_header_->color_matrix = color_matrix;
   }
-  int GetNumRefPics() const { return segment_header_.num_ref_pics; }
+  int GetNumRefPics() const { return segment_header_->num_ref_pics; }
   void SetNumRefPics(int num) {
-    segment_header_.num_ref_pics = num;
+    segment_header_->num_ref_pics = num;
   }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
   void SetInternalBitdepth(int bitdepth) {
-    segment_header_.internal_bitdepth = bitdepth;
+    segment_header_->internal_bitdepth = bitdepth;
   }
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
-    segment_header_.max_sub_gop_length = sub_gop_length;
-    pic_buffering_num_ = sub_gop_length + segment_header_.num_ref_pics;
+    segment_header_->max_sub_gop_length = sub_gop_length;
+    pic_buffering_num_ = sub_gop_length + segment_header_->num_ref_pics;
   }
   void SetSegmentLength(PicNum length) { segment_length_ = length; }
   void SetClosedGopInterval(PicNum interval) {
     closed_gop_interval_ = interval;
   }
-  void SetDeblock(int deblock) { segment_header_.deblock = deblock; }
-  void SetBetaOffset(int offset) { segment_header_.beta_offset = offset; }
-  void SetTcOffset(int offset) { segment_header_.tc_offset = offset; }
+  void SetDeblock(int deblock) { segment_header_->deblock = deblock; }
+  void SetBetaOffset(int offset) { segment_header_->beta_offset = offset; }
+  void SetTcOffset(int offset) { segment_header_->tc_offset = offset; }
   void SetQp(int qp) {
     segment_qp_ =
       util::Clip3(qp, constants::kMinAllowedQp, constants::kMaxAllowedQp);
   }
   void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
   void SetChecksumMode(Checksum::Mode mode) {
-    segment_header_.checksum_mode = mode;
+    segment_header_->checksum_mode = mode;
   }
   void SetRestrictedMode(int mode);
 
@@ -91,9 +93,10 @@ private:
   void SetNalStats(xvc_enc_nal_unit *nal, std::shared_ptr<PictureEncoder> pic);
 
   int input_bitdepth_ = 8;
-  int buffer_flag_ = 0;
+  bool encode_with_buffer_flag_ = false;
   double framerate_ = 0;
-  SegmentHeader segment_header_;
+  std::unique_ptr<SegmentHeader> segment_header_;
+  std::unique_ptr<SegmentHeader> prev_segment_header_;
   PicNum sub_gop_end_poc_ = 0;
   PicNum sub_gop_start_poc_ = 0;
   bool prev_segment_open_gop_ = false;
