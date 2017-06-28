@@ -455,7 +455,11 @@ void FilterHorSampleTChromaSse2(int width, int height, int bitdepth,
         _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + x), sum);
       }
     }
+#if XVC_HIGH_BITDEPTH
     if (Width4(width)) {
+#else
+    if (width & 4) {
+#endif
       __m128i sum_abcd = fir_4samples_epi32(src + width8);
       __m128i sum = _mm_packs_epi32(sum_abcd, sum_abcd);
       if (Clip) {
@@ -470,6 +474,25 @@ void FilterHorSampleTChromaSse2(int width, int height, int bitdepth,
         _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + width8), sum);
       }
     }
+#if !XVC_HIGH_BITDEPTH
+    // Special handling of non 4-byte aligned stores
+    // This happens for non high bitdepth builds and when CU width is 2
+    if (width & 2) {
+      const int width2 = width & ~2;
+      for (int x = 0; x < 2; x++) {
+        int sum = src[width2 + x + 0] * filter[0];
+        sum += src[width2 + x + 1] * filter[1];
+        sum += src[width2 + x + 2] * filter[2];
+        sum += src[width2 + x + 3] * filter[3];
+        if (Clip) {
+          dst[width2 + x] =
+            util::ClipBD((sum + offset) >> shift, (1 << bitdepth) - 1);
+        } else {
+          dst[width2 + x] = static_cast<DstT>((sum + offset) >> shift);
+        }
+      }
+    }
+#endif
     src += src_stride;
     dst += dst_stride;
   }
