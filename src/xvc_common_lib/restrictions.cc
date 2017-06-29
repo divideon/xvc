@@ -10,7 +10,7 @@
 
 namespace xvc {
 
-Restrictions Restrictions::instance;
+thread_local Restrictions Restrictions::instance;
 
 Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_INTRA_REF_PADDING

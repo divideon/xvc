@@ -9,6 +9,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/checksum.h"
+#include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
 
@@ -44,6 +45,7 @@ struct SegmentHeader {
   int deblock = -1;
   int beta_offset = 0;
   int tc_offset = 0;
+  Restrictions restrictions;
 
 private:
   static PicNum DocToPoc(PicNum sub_gop_length, PicNum doc);

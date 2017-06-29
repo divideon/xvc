@@ -24,89 +24,92 @@ enum class RestrictedMode {
 // initialized to true.
 typedef struct Restrictions {
 public:
-  static const Restrictions& Get() { return instance; }
-
-  static bool GetIntraRestrictions() {
-    return instance.disable_intra_ref_padding ||
-      instance.disable_intra_ref_sample_filter ||
-      instance.disable_intra_dc_post_filter ||
-      instance.disable_intra_ver_hor_post_filter ||
-      instance.disable_intra_planar ||
-      instance.disable_intra_mpm_prediction ||
-      instance.disable_intra_chroma_predictor;
+  Restrictions();
+  static const Restrictions &Get() {
+    return instance;
   }
 
-  static bool GetInterRestrictions() {
-    return instance.disable_inter_mvp ||
-      instance.disable_inter_scaling_mvp ||
-      instance.disable_inter_tmvp_mvp ||
-      instance.disable_inter_tmvp_merge ||
-      instance.disable_inter_tmvp_ref_list_derivation ||
-      instance.disable_inter_merge_candidates ||
-      instance.disable_inter_merge_mode ||
-      instance.disable_inter_merge_bipred ||
-      instance.disable_inter_skip_mode ||
-      instance.disable_inter_chroma_subpel ||
-      instance.disable_inter_mvd_greater_than_flags ||
-      instance.disable_inter_bipred;
+  bool GetIntraRestrictions() const {
+    return disable_intra_ref_padding ||
+      disable_intra_ref_sample_filter ||
+      disable_intra_dc_post_filter ||
+      disable_intra_ver_hor_post_filter ||
+      disable_intra_planar ||
+      disable_intra_mpm_prediction ||
+      disable_intra_chroma_predictor;
   }
 
-  static bool GetTransformRestrictions() {
-    return instance.disable_transform_adaptive_scan_order ||
-      instance.disable_transform_residual_greater_than_flags ||
-      instance.disable_transform_residual_greater2 ||
-      instance.disable_transform_last_position ||
-      instance.disable_transform_root_cbf ||
-      instance.disable_transform_cbf ||
-      instance.disable_transform_subblock_csbf ||
-      instance.disable_transform_sign_hiding ||
-      instance.disable_transform_adaptive_exp_golomb;
+  bool GetInterRestrictions() const {
+    return disable_inter_mvp ||
+      disable_inter_scaling_mvp ||
+      disable_inter_tmvp_mvp ||
+      disable_inter_tmvp_merge ||
+      disable_inter_tmvp_ref_list_derivation ||
+      disable_inter_merge_candidates ||
+      disable_inter_merge_mode ||
+      disable_inter_merge_bipred ||
+      disable_inter_skip_mode ||
+      disable_inter_chroma_subpel ||
+      disable_inter_mvd_greater_than_flags ||
+      disable_inter_bipred;
   }
 
-  static bool GetCabacRestrictions() {
-    return instance.disable_cabac_ctx_update ||
-      instance.disable_cabac_split_flag_ctx ||
-      instance.disable_cabac_skip_flag_ctx ||
-      instance.disable_cabac_inter_dir_ctx ||
-      instance.disable_cabac_subblock_csbf_ctx ||
-      instance.disable_cabac_coeff_sig_ctx ||
-      instance.disable_cabac_coeff_greater1_ctx ||
-      instance.disable_cabac_coeff_greater2_ctx ||
-      instance.disable_cabac_coeff_last_pos_ctx ||
-      instance.disable_cabac_init_per_pic_type ||
-      instance.disable_cabac_init_per_qp;
+  bool GetTransformRestrictions() const {
+    return disable_transform_adaptive_scan_order ||
+      disable_transform_residual_greater_than_flags ||
+      disable_transform_residual_greater2 ||
+      disable_transform_last_position ||
+      disable_transform_root_cbf ||
+      disable_transform_cbf ||
+      disable_transform_subblock_csbf ||
+      disable_transform_sign_hiding ||
+      disable_transform_adaptive_exp_golomb;
   }
 
-  static bool GetDeblockRestrictions() {
-    return instance.disable_deblock_strong_filter ||
-      instance.disable_deblock_weak_filter ||
-      instance.disable_deblock_chroma_filter ||
-      instance.disable_deblock_boundary_strength_zero ||
-      instance.disable_deblock_boundary_strength_one ||
-      instance.disable_deblock_initial_sample_decision ||
-      instance.disable_deblock_weak_sample_decision ||
-      instance.disable_deblock_two_samples_weak_filter ||
-      instance.disable_deblock_depending_on_qp;
+  bool GetCabacRestrictions() const {
+    return disable_cabac_ctx_update ||
+      disable_cabac_split_flag_ctx ||
+      disable_cabac_skip_flag_ctx ||
+      disable_cabac_inter_dir_ctx ||
+      disable_cabac_subblock_csbf_ctx ||
+      disable_cabac_coeff_sig_ctx ||
+      disable_cabac_coeff_greater1_ctx ||
+      disable_cabac_coeff_greater2_ctx ||
+      disable_cabac_coeff_last_pos_ctx ||
+      disable_cabac_init_per_pic_type ||
+      disable_cabac_init_per_qp;
   }
 
-  static bool GetHighLevelRestrictions() {
-      return instance.disable_high_level_default_checksum_method;
+  bool GetDeblockRestrictions() const {
+    return disable_deblock_strong_filter ||
+      disable_deblock_weak_filter ||
+      disable_deblock_chroma_filter ||
+      disable_deblock_boundary_strength_zero ||
+      disable_deblock_boundary_strength_one ||
+      disable_deblock_initial_sample_decision ||
+      disable_deblock_weak_sample_decision ||
+      disable_deblock_two_samples_weak_filter ||
+      disable_deblock_depending_on_qp;
   }
 
-  static bool GetExtRestrictions() {
-    return instance.disable_ext_sink ||
-      instance.disable_ext_implicit_last_ctu ||
-      instance.disable_ext_tmvp_full_resolution ||
-      instance.disable_ext_tmvp_exclude_intra_from_ref_list ||
-      instance.disable_ext_ref_list_l0_trim ||
-      instance.disable_ext_implicit_partition_type ||
-      instance.disable_ext_cabac_alt_split_flag_ctx ||
-      instance.disable_ext_cabac_alt_inter_dir_ctx ||
-      instance.disable_ext_cabac_alt_last_pos_ctx ||
-      instance.disable_ext_two_cu_trees ||
-      instance.disable_ext_transform_size_64 ||
-      instance.disable_ext_intra_unrestricted_predictor ||
-      instance.disable_ext_deblock_subblock_size_4;
+  bool GetHighLevelRestrictions() const {
+      return disable_high_level_default_checksum_method;
+  }
+
+  bool GetExtRestrictions() const {
+    return disable_ext_sink ||
+      disable_ext_implicit_last_ctu ||
+      disable_ext_tmvp_full_resolution ||
+      disable_ext_tmvp_exclude_intra_from_ref_list ||
+      disable_ext_ref_list_l0_trim ||
+      disable_ext_implicit_partition_type ||
+      disable_ext_cabac_alt_split_flag_ctx ||
+      disable_ext_cabac_alt_inter_dir_ctx ||
+      disable_ext_cabac_alt_last_pos_ctx ||
+      disable_ext_two_cu_trees ||
+      disable_ext_transform_size_64 ||
+      disable_ext_intra_unrestricted_predictor ||
+      disable_ext_deblock_subblock_size_4;
   }
 
   bool disable_intra_ref_padding = false;
@@ -182,10 +185,11 @@ private:
   // accessible by its friend classes.
   friend class SegmentHeaderReader;
   friend class Encoder;
-  static Restrictions instance;
-  static Restrictions& GetRW() { return instance; }
+  friend class Decoder;
+  friend class ThreadDecoder;
+  static thread_local Restrictions instance;
+  static Restrictions &GetRW() { return instance; }
 
-  Restrictions();
   void EnableRestrictedMode(RestrictedMode mode);
 } Restrictions;
 

@@ -39,7 +39,7 @@ extern "C" {
     param->output_color_matrix = XVC_DEC_COLOR_MATRIX_UNDEFINED;
     param->output_bitdepth = 0;
     param->max_framerate = xvc::constants::kTimeScale;
-    param->threads = 0;
+    param->threads = -1;
     param->simd_mask = static_cast<uint32_t>(-1);
     return XVC_DEC_OK;
   }

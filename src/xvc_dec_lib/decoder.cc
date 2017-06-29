@@ -135,7 +135,7 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   }
   sub_gop_length_ = curr_segment_header_->max_sub_gop_length;
   if (sub_gop_length_ + 1 > sliding_window_length_) {
-    sliding_window_length_ = sub_gop_length_ + 1;
+    sliding_window_length_ = sub_gop_length_ + 1 + (thread_decoder_ ? 1 : 0);
   }
   pic_buffering_num_ =
     sliding_window_length_ + curr_segment_header_->num_ref_pics;
@@ -183,6 +183,11 @@ Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
                                  doc_, soc_, num_tail_pics_);
   doc_ = pic_header.doc + 1;
 
+  // Reload restriction flags for current thread if segment has changed
+  thread_local SegmentNum loaded_restrictions_soc = static_cast<SegmentNum>(-1);
+  if (loaded_restrictions_soc != segment_header->soc) {
+    Restrictions::GetRW() = segment_header->restrictions;
+  }
 
   // Determine dependencies for reference picture based on poc and tid
   const bool is_intra_nal =

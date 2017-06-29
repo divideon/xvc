@@ -50,7 +50,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   }
 
   auto &restr = Restrictions::Get();
-  if (Restrictions::GetIntraRestrictions()) {
+  if (restr.GetIntraRestrictions()) {
     bit_writer->WriteBit(1);  // intra_restrictions
     bit_writer->WriteBit(restr.disable_intra_ref_padding);
     bit_writer->WriteBit(restr.disable_intra_ref_sample_filter);
@@ -62,7 +62,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // intra_restrictions
   }
-  if (Restrictions::GetInterRestrictions()) {
+  if (restr.GetInterRestrictions()) {
     bit_writer->WriteBit(1);  // inter_restrictions
     bit_writer->WriteBit(restr.disable_inter_mvp);
     bit_writer->WriteBit(restr.disable_inter_scaling_mvp);
@@ -79,7 +79,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // inter_restrictions
   }
-  if (Restrictions::GetTransformRestrictions()) {
+  if (restr.GetTransformRestrictions()) {
     bit_writer->WriteBit(1);  // transform_restrictions
     bit_writer->WriteBit(restr.disable_transform_adaptive_scan_order);
     bit_writer->WriteBit(restr.disable_transform_residual_greater_than_flags);
@@ -93,7 +93,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // transform_restrictions
   }
-  if (Restrictions::GetCabacRestrictions()) {
+  if (restr.GetCabacRestrictions()) {
     bit_writer->WriteBit(1);  // cabac_restrictions
     bit_writer->WriteBit(restr.disable_cabac_ctx_update);
     bit_writer->WriteBit(restr.disable_cabac_split_flag_ctx);
@@ -109,7 +109,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // cabac_restrictions
   }
-  if (Restrictions::GetDeblockRestrictions()) {
+  if (restr.GetDeblockRestrictions()) {
     bit_writer->WriteBit(1);  // deblock_restrictions
     bit_writer->WriteBit(restr.disable_deblock_strong_filter);
     bit_writer->WriteBit(restr.disable_deblock_weak_filter);
@@ -123,13 +123,13 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // deblock_restrictions
   }
-  if (Restrictions::GetHighLevelRestrictions()) {
+  if (restr.GetHighLevelRestrictions()) {
     bit_writer->WriteBit(1);  // high_level_restrictions
     bit_writer->WriteBit(restr.disable_high_level_default_checksum_method);
   } else {
     bit_writer->WriteBit(0);  // high_level_restrictions
   }
-  if (Restrictions::GetExtRestrictions()) {
+  if (restr.GetExtRestrictions()) {
     bit_writer->WriteBit(1);  // ext_restrictions
     bit_writer->WriteBit(restr.disable_ext_sink);
     bit_writer->WriteBit(restr.disable_ext_implicit_last_ctu);

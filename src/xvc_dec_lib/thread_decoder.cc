@@ -123,6 +123,13 @@ void ThreadDecoder::WorkerMain() {
     }
     lock.unlock();
 
+    // Load restriction flags for current thread unles already done
+    thread_local SegmentNum restriction_soc = static_cast<SegmentNum>(-1);
+    if (restriction_soc != work.segment_header->soc) {
+      Restrictions::GetRW() = work.segment_header->restrictions;
+      restriction_soc = work.segment_header->soc;
+    }
+
     // Decode picture
     BitReader bit_reader(&(*work.nal)[0] + work.nal_offset,
                          work.nal->size() - work.nal_offset);
