@@ -31,6 +31,8 @@ public:
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
+  void SetOutputStatus(OutputStatus status) { output_status_ = status; }
+  OutputStatus GetOutputStatus() const { return output_status_; }
 
   void DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                     PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
@@ -49,8 +51,8 @@ private:
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;
   Checksum checksum_;
-  int first_peek_;
   int pic_qp_ = -1;
+  OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
 };
 
 }   // namespace xvc

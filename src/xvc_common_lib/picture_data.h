@@ -18,11 +18,6 @@
 
 namespace xvc {
 
-enum class OutputStatus {
-  kHasNotBeenOutput,
-  kHasBeenOutput,
-};
-
 class CodingUnit;
 
 class PictureData {
@@ -107,8 +102,6 @@ public:
   // High level syntax
   void SetNalType(NalUnitType type) { nal_type_ = type; }
   NalUnitType GetNalType() const { return nal_type_; }
-  void SetOutputStatus(OutputStatus status) { output_status_ = status; }
-  OutputStatus GetOutputStatus() { return output_status_; }
   void SetPoc(PicNum poc) { poc_ = poc; }
   PicNum GetPoc() const { return poc_; }
   void SetDoc(PicNum doc) { doc_ = doc; }
@@ -137,16 +130,6 @@ public:
   void SetTcOffset(int offset) { tc_offset_ = offset; }
   int GetTcOffset() const { return tc_offset_; }
 
-  // Helper
-  static bool IsSameDimension(const PictureData &pic1,
-                              const PictureData &pic2) {
-    const YuvComponent luma = YuvComponent::kY;
-    return pic1.GetPictureWidth(luma) == pic2.GetPictureWidth(luma) &&
-      pic1.GetPictureHeight(luma) == pic2.GetPictureHeight(luma) &&
-      pic1.GetChromaFormat() == pic2.GetChromaFormat() &&
-      pic1.GetBitdepth() == pic2.GetBitdepth();
-  }
-
 private:
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void AllocateAllCtu(CuTree cu_tree);
@@ -171,16 +154,15 @@ private:
   int num_cu_trees_;
   int ctu_num_x_;
   int ctu_num_y_;
-  PicNum poc_ = 0;
-  PicNum doc_ = 0;
-  SegmentNum soc_ = 0;
-  int tid_ = 0;
+  PicNum poc_ = static_cast<PicNum>(-1);
+  PicNum doc_ = static_cast<PicNum>(-1);
+  SegmentNum soc_ = static_cast<SegmentNum>(-1);
+  int tid_ = -1;
   bool highest_layer_ = false;
   int max_binary_split_depth_ = 0;
   std::unique_ptr<Qp> pic_qp_;
   std::vector<Qp> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;
-  OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
   ReferencePictureLists ref_pic_lists_;
   bool tmvp_valid_ = false;
   RefPicList tmvp_ref_list_ = RefPicList::kTotalNumber;

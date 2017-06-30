@@ -26,10 +26,9 @@ PictureDecoder::PictureDecoder(const SimdFunctions &simd,
                                int height, int bitdepth)
   : simd_(simd),
   pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
-                                            bitdepth)),
+                                          bitdepth)),
   rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
-                                        bitdepth, true)),
-  first_peek_(1) {
+                                        bitdepth, true)) {
 }
 
 void PictureDecoder::DecodeHeader(BitReader *bit_reader,
@@ -100,7 +99,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   int max_tid = SegmentHeader::GetMaxTid(*sub_gop_length);
 
   // Set High-level syntax parameters of the current picture
-  pic_data_->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  output_status_ = OutputStatus::kHasNotBeenOutput;
   pic_data_->SetDoc(doc);
   pic_data_->SetPoc(
     SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc));

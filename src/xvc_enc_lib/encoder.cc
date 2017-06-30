@@ -34,7 +34,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   // Set picture parameters and get bytes for original picture
   auto pic_enc = GetNewPictureEncoder();
   auto pic_data = pic_enc->GetPicData();
-  pic_data->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   pic_data->SetPoc(poc_);
   if (segment_header_->num_ref_pics == 0) {
     pic_data->SetNalType(NalUnitType::kIntraPicture);
@@ -201,9 +201,11 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
     !buffer_flag ? *segment_header_ : *prev_segment_header_;
 
   ReferenceListSorter<PictureEncoder>
-    ref_list_sorter(prev_segment_open_gop_, segment_header_->num_ref_pics);
-  ref_list_sorter.PrepareRefPicLists(pic->GetPicData(), pic_encoders_,
-                                     pic->GetPicData()->GetRefPicLists());
+    ref_list_sorter(segment_header, prev_segment_open_gop_);
+  ref_list_sorter.Prepare(pic->GetPicData()->GetPoc(),
+                          pic->GetPicData()->GetTid(),
+                          pic->GetPicData()->IsIntraPic(),
+                          pic_encoders_, pic->GetPicData()->GetRefPicLists());
 
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> *pic_bytes =
@@ -230,8 +232,8 @@ void Encoder::ReconstructOnePicture(bool output_rec,
   PicNum lowest_poc = std::numeric_limits<PicNum>::max();
   for (auto &pic : pic_encoders_) {
     auto pd = pic->GetPicData();
-    if ((pd->GetOutputStatus() == OutputStatus::kHasNotBeenOutput) &&
-      (pd->GetPoc() < lowest_poc)) {
+    if (pic->GetOutputStatus() == OutputStatus::kHasNotBeenOutput &&
+        pd->GetPoc() < lowest_poc) {
       pic_enc = pic;
       lowest_poc = pd->GetPoc();
     }
@@ -239,7 +241,7 @@ void Encoder::ReconstructOnePicture(bool output_rec,
   if (!pic_enc) {
     return;
   }
-  pic_enc->GetPicData()->SetOutputStatus(OutputStatus::kHasBeenOutput);
+  pic_enc->SetOutputStatus(OutputStatus::kHasBeenOutput);
   auto rec_pic_out = pic_enc->GetRecPic();
 
   // Only perform reconstruction if it is requested and a picture was found.
@@ -273,7 +275,7 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   std::shared_ptr<PictureEncoder> pic_enc;
   for (auto &pic : pic_encoders_) {
     auto pic_data = pic->GetPicData();
-    if ((pic_data->GetOutputStatus() == OutputStatus::kHasBeenOutput) &&
+    if (pic->GetOutputStatus() == OutputStatus::kHasBeenOutput &&
         pic_data->GetTid() > 0) {
       return pic;
     } else if (pic_data->GetPoc() < lowest_poc) {

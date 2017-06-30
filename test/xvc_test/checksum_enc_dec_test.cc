@@ -66,9 +66,12 @@ protected:
   std::vector<uint8_t>* EncodePicture(xvc::Sample *orig) {
     int buffer_flag = 0;
     bool flat_lamda = false;
+    pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
+    pic_encoder_->GetPicData()->SetPoc(0);
+    pic_encoder_->GetPicData()->SetDoc(0);
+    pic_encoder_->GetPicData()->SetTid(0);
     pic_encoder_->GetOrigPic()->CopyFrom(reinterpret_cast<uint8_t*>(orig),
                                          input_bitdepth_);
-    pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder_settings.Tune(xvc::TuneMode::kPsnr);

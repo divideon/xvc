@@ -170,10 +170,12 @@ Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
   pic_data->SetTcOffset(segment_header->tc_offset);
 
   ReferenceListSorter<PictureDecoder>
-    ref_list_sorter(prev_segment_header_->open_gop,
-                    segment_header->num_ref_pics);
-  ref_list_sorter.PrepareRefPicLists(pic_dec->GetPicData(), pic_decoders_,
-                                     pic_dec->GetPicData()->GetRefPicLists());
+    ref_list_sorter(*segment_header, prev_segment_header_->open_gop);
+  ref_list_sorter.Prepare(pic_dec->GetPicData()->GetPoc(),
+                          pic_dec->GetPicData()->GetTid(),
+                          pic_dec->GetPicData()->IsIntraPic(),
+                          pic_decoders_,
+                          pic_dec->GetPicData()->GetRefPicLists());
 
   // Decode the picture.
   if (pic_dec->Decode(*segment_header, &pic_bit_reader)) {
@@ -236,8 +238,8 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   PicNum lowest_poc = std::numeric_limits<PicNum>::max();
   for (auto &pic : pic_decoders_) {
     auto pd = pic->GetPicData();
-    if ((pd->GetOutputStatus() == OutputStatus::kHasNotBeenOutput) &&
-      (pd->GetPoc() < lowest_poc)) {
+    if (pic->GetOutputStatus() == OutputStatus::kHasNotBeenOutput &&
+        pd->GetPoc() < lowest_poc) {
       pic_dec = pic;
       lowest_poc = pd->GetPoc();
     }
@@ -247,7 +249,7 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
     output_pic->bytes = nullptr;
     return false;
   }
-  pic_dec->GetPicData()->SetOutputStatus(OutputStatus::kHasBeenOutput);
+  pic_dec->SetOutputStatus(OutputStatus::kHasBeenOutput);
   SetOutputStats(pic_dec, output_pic);
   auto decoded_pic = pic_dec->GetRecPic();
   decoded_pic->CopyTo(&output_pic_bytes_, output_width_, output_height_,
@@ -290,7 +292,7 @@ std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
   for (; it != pic_decoders_.end(); ++it) {
     auto pic = *it;
     auto pic_data = pic->GetPicData();
-    if ((pic_data->GetOutputStatus() == OutputStatus::kHasBeenOutput) &&
+    if (pic->GetOutputStatus() == OutputStatus::kHasBeenOutput &&
         pic_data->GetTid() > 0) {
       pic_it = it;
       break;

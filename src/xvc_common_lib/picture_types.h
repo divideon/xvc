@@ -27,6 +27,12 @@ enum class NalUnitType {
   kEndOfSegment = 19,
 };
 
+enum class OutputStatus {
+  kProcessing,
+  kHasNotBeenOutput,
+  kHasBeenOutput,
+};
+
 enum class PicturePredictionType {
   kIntra = 2,
   kUni = 1,
