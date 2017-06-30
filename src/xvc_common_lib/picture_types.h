@@ -29,6 +29,7 @@ enum class NalUnitType {
 
 enum class OutputStatus {
   kProcessing,
+  kFinishedProcessing,
   kHasNotBeenOutput,
   kHasBeenOutput,
 };

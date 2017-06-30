@@ -73,6 +73,8 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.max_framerate;
     } else if (arg == "-simd-mask") {
       std::stringstream(argv[++i]) >> cli_.simd_mask;
+    } else if (arg == "-threads") {
+      std::stringstream(argv[++i]) >> cli_.threads;
     } else if (arg == "-loop") {
       std::stringstream(argv[++i]) >> cli_.loop;
     } else if (arg == "-verbose") {
@@ -147,6 +149,9 @@ void DecoderApp::CreateAndConfigureApi() {
   }
   if (cli_.simd_mask != -1) {
     params_->simd_mask = cli_.simd_mask;
+  }
+  if (cli_.threads != -1) {
+    params_->threads = cli_.threads;
   }
   if (xvc_api_->parameters_check(params_) != XVC_DEC_OK) {
     std::cerr << "Error. Invalid parameters. Please check the values of the"

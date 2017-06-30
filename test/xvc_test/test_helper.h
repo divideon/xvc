@@ -117,8 +117,8 @@ protected:
 
 class DecoderHelper {
 public:
-  void Init() {
-    decoder_ = std::unique_ptr<xvc::Decoder>(new ::xvc::Decoder());
+  void Init(int num_threads = 0) {
+    decoder_ = std::unique_ptr<xvc::Decoder>(new ::xvc::Decoder(num_threads));
   }
 
   void DecodeSegmentHeaderSuccess(const NalUnit &nal) {

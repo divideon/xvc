@@ -5,6 +5,8 @@ endif()
 
 project (xvc CXX C)
 
+find_package(Threads REQUIRED)
+
 # Project options
 option(HIGH_BITDEPTH "Store pixel samples as 16bit values." ON)
 option(BUILD_SHARED_LIBS "Build shared instead of static libraries." OFF)

@@ -77,6 +77,7 @@ extern "C" {
     xvc_dec_color_matrix output_color_matrix;
     int output_bitdepth;
     double max_framerate;
+    int threads;
     uint32_t simd_mask;
   } xvc_decoder_parameters;
 

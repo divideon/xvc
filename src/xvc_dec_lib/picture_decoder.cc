@@ -31,25 +31,17 @@ PictureDecoder::PictureDecoder(const SimdFunctions &simd,
                                         bitdepth, true)) {
 }
 
-void PictureDecoder::DecodeHeader(BitReader *bit_reader,
-                                  PicNum *sub_gop_end_poc,
-                                  PicNum *sub_gop_start_poc,
-                                  PicNum *sub_gop_length,
-                                  PicNum max_sub_gop_length,
-                                  PicNum prev_sub_gop_length,
-                                  PicNum doc,
-                                  SegmentNum soc,
-                                  int num_buffered_nals) {
+PictureDecoder::PicNalHeader
+PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
+                             PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
+                             PicNum max_sub_gop_length,
+                             PicNum prev_sub_gop_length, PicNum doc,
+                             SegmentNum soc_counter, int num_buffered_nals) {
   // Start by reading the picture header data
-  uint32_t header = bit_reader->ReadBits(8);
-  NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
-  pic_data_->SetNalType(nal_unit_type);
+  uint32_t header_byte = bit_reader->ReadBits(8);
+  NalUnitType nal_unit_type = NalUnitType((header_byte >> 1) & 31);
   int buffer_flag = bit_reader->ReadBits(1);
-  if (buffer_flag) {
-    pic_data_->SetSoc(soc - 1);
-  } else {
-    pic_data_->SetSoc(soc);
-  }
+  SegmentNum soc =  (buffer_flag) ? soc_counter - 1 : soc_counter;
   int tid = bit_reader->ReadBits(3);
   if (tid == 0) {
     PicNum length = max_sub_gop_length;
@@ -66,7 +58,7 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
   } else if (max_sub_gop_length > *sub_gop_length) {
     *sub_gop_length = max_sub_gop_length;
   }
-  pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
+  int pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bit_reader->SkipBits();
 
   // Ensure that Sub Gop start is updated to include the current doc.
@@ -96,22 +88,48 @@ void PictureDecoder::DecodeHeader(BitReader *bit_reader,
     *sub_gop_end_poc =
       SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
   }
-  int max_tid = SegmentHeader::GetMaxTid(*sub_gop_length);
 
   // Set High-level syntax parameters of the current picture
-  output_status_ = OutputStatus::kHasNotBeenOutput;
-  pic_data_->SetDoc(doc);
-  pic_data_->SetPoc(
-    SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc));
-  pic_data_->SetTid(tid);
-  pic_data_->SetHighestLayer(tid == max_tid);
+  PictureDecoder::PicNalHeader header;
+  header.nal_unit_type = nal_unit_type;
+  header.soc = soc;
+  header.poc =
+    SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
+  header.doc = doc;
+  header.tid = tid;
+  header.pic_qp = pic_qp_;
+  header.highest_layer = tid == SegmentHeader::GetMaxTid(*sub_gop_length);
+  return header;
+}
+
+void PictureDecoder::Init(const SegmentHeader &segment,
+                          const PicNalHeader &header,
+                          ReferencePictureLists &&ref_pic_list) {
+  assert(output_status_ == OutputStatus::kHasBeenOutput);
+  pic_qp_ = header.pic_qp;
+  output_status_ = OutputStatus::kProcessing;
+  ref_count = 0;
+  pic_data_->SetNalType(header.nal_unit_type);
+  pic_data_->SetSoc(header.soc);
+  pic_data_->SetPoc(header.poc);
+  pic_data_->SetDoc(header.doc);
+  pic_data_->SetTid(header.tid);
+  pic_data_->SetHighestLayer(header.highest_layer);
+  pic_data_->SetAdaptiveQp(segment.adaptive_qp > 0);
+  pic_data_->SetDeblock(segment.deblock > 0);
+  pic_data_->SetBetaOffset(segment.beta_offset);
+  pic_data_->SetTcOffset(segment.tc_offset);
+  *pic_data_->GetRefPicLists() = std::move(ref_pic_list);
 }
 
 bool PictureDecoder::Decode(const SegmentHeader &segment,
                             BitReader *bit_reader) {
+  assert(output_status_ == OutputStatus::kProcessing);
+  bool success = true;
   double lambda = 0;
   Qp qp(pic_qp_, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
         lambda);
+
   pic_data_->Init(segment, qp, true);
 
   EntropyDecoder entropy_decoder(bit_reader);
@@ -132,16 +150,16 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
   }
   if (!entropy_decoder.DecodeBinTrm()) {
     assert(0);
+    success = false;
   }
   entropy_decoder.Finish();
   int pic_tid = pic_data_->GetTid();
   rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
-    return ValidateChecksum(bit_reader, segment.checksum_mode);
-  } else {
-    return true;
+    success &= ValidateChecksum(bit_reader, segment.checksum_mode);
   }
+  return success;
 }
 
 std::shared_ptr<YuvPicture>

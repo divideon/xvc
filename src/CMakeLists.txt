@@ -78,7 +78,7 @@ file (GLOB SRC_DEC_LIB xvc_dec_lib/*.cc xvc_dec_lib/*.h)
 add_library (xvc_dec_lib ${SRC_DEC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
 target_compile_options(xvc_dec_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_dec_lib PUBLIC .)
-target_link_libraries(xvc_dec_lib INTERFACE ${linker_flags})
+target_link_libraries(xvc_dec_lib INTERFACE ${linker_flags} PUBLIC Threads::Threads)
 
 if(RESTRICTION_DEFINES)
   set_source_files_properties(xvc_common_lib/restrictions.cc PROPERTIES COMPILE_FLAGS ${RESTRICTION_DEFINES})

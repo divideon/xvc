@@ -38,6 +38,9 @@
     <ClInclude Include="segment_header_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="thread_decoder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="decoder.cc">
@@ -65,6 +68,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="segment_header_reader.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="thread_decoder.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

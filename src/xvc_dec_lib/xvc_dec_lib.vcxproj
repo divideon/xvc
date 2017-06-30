@@ -178,6 +178,7 @@
     <ClInclude Include="picture_decoder.h" />
     <ClInclude Include="segment_header_reader.h" />
     <ClInclude Include="syntax_reader.h" />
+    <ClInclude Include="thread_decoder.h" />
     <ClInclude Include="xvcdec.h" />
   </ItemGroup>
   <ItemGroup>
@@ -189,6 +190,7 @@
     <ClCompile Include="picture_decoder.cc" />
     <ClCompile Include="segment_header_reader.cc" />
     <ClCompile Include="syntax_reader.cc" />
+    <ClCompile Include="thread_decoder.cc" />
     <ClCompile Include="xvcdec.cc" />
   </ItemGroup>
   <ItemGroup>

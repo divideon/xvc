@@ -7,7 +7,6 @@
 #include "xvc_dec_lib/decoder.h"
 
 #include <cassert>
-#include <iostream>
 #include <limits>
 
 #include "xvc_common_lib/reference_list_sorter.h"
@@ -15,13 +14,24 @@
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/utils.h"
 #include "xvc_dec_lib/segment_header_reader.h"
+#include "xvc_dec_lib/thread_decoder.h"
 
 namespace xvc {
 
-Decoder::Decoder()
+Decoder::Decoder(int num_threads)
   : curr_segment_header_(std::make_shared<SegmentHeader>()),
   prev_segment_header_(std::make_shared<SegmentHeader>()),
   simd_(SimdCpu::GetRuntimeCapabilities()) {
+  if (num_threads != 0) {
+    thread_decoder_ =
+      std::unique_ptr<ThreadDecoder>(new ThreadDecoder(num_threads));
+  }
+}
+
+Decoder::~Decoder() {
+  if (thread_decoder_) {
+    thread_decoder_->StopAll();
+  }
 }
 
 bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
@@ -81,17 +91,30 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     }
     if (buffer_flag) {
       num_tail_pics_++;
-    } else {
-      while (nal_buffer_.size() > 0 && num_pics_in_buffer_ - nal_buffer_.size()
-             + 1 < pic_buffering_num_) {
-        auto &&nal = nal_buffer_.front();
-        DecodeOneBufferedNal(std::move(nal));
-        nal_buffer_.pop_front();
-      }
+      return true;
+    }
+    while (nal_buffer_.size() > 0 &&
+           num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
+      auto &&nal = nal_buffer_.front();
+      DecodeOneBufferedNal(std::move(nal));
+      nal_buffer_.pop_front();
     }
     return true;
   }
   return false;
+}
+
+void Decoder::DecodeAllBufferedNals() {
+  for (auto &&nal : nal_buffer_) {
+    DecodeOneBufferedNal(std::move(nal));
+  }
+  if (thread_decoder_) {
+    thread_decoder_->WaitAll([this](std::shared_ptr<PictureDecoder> pic_dec,
+                                    bool success, const PicDecList &deps) {
+      OnPictureDecoded(pic_dec, success, deps);
+    });
+  }
+  nal_buffer_.clear();
 }
 
 bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
@@ -151,50 +174,72 @@ Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
     num_tail_pics_--;
   }
 
-  std::shared_ptr<PictureDecoder> pic_dec =
-    GetNewPictureDecoder(segment_header->chroma_format,
-                         segment_header->pic_width,
-                         segment_header->pic_height,
-                         segment_header->internal_bitdepth);
+  // Parse picture header to determine poc
+  PictureDecoder::PicNalHeader pic_header =
+    PictureDecoder::DecodeHeader(&pic_bit_reader, &sub_gop_end_poc_,
+                                 &sub_gop_start_poc_, &sub_gop_length_,
+                                 segment_header->max_sub_gop_length,
+                                 prev_segment_header_->max_sub_gop_length,
+                                 doc_, soc_, num_tail_pics_);
+  doc_ = pic_header.doc + 1;
 
-  // Decode the picture header
-  pic_dec->DecodeHeader(&pic_bit_reader, &sub_gop_end_poc_,
-                        &sub_gop_start_poc_, &sub_gop_length_,
-                        segment_header->max_sub_gop_length,
-                        prev_segment_header_->max_sub_gop_length,
-                        doc_, soc_, num_tail_pics_);
-  auto pic_data = pic_dec->GetPicData();
-  pic_data->SetAdaptiveQp(segment_header->adaptive_qp > 0);
-  pic_data->SetDeblock(segment_header->deblock > 0);
-  pic_data->SetBetaOffset(segment_header->beta_offset);
-  pic_data->SetTcOffset(segment_header->tc_offset);
 
+  // Determine dependencies for reference picture based on poc and tid
+  const bool is_intra_nal =
+    pic_header.nal_unit_type == NalUnitType::kIntraPicture ||
+    pic_header.nal_unit_type == NalUnitType::kIntraAccessPicture;
   ReferenceListSorter<PictureDecoder>
     ref_list_sorter(*segment_header, prev_segment_header_->open_gop);
-  ref_list_sorter.Prepare(pic_dec->GetPicData()->GetPoc(),
-                          pic_dec->GetPicData()->GetTid(),
-                          pic_dec->GetPicData()->IsIntraPic(),
-                          pic_decoders_,
-                          pic_dec->GetPicData()->GetRefPicLists());
+  ReferencePictureLists ref_pic_list;
+  auto inter_dependencies =
+    ref_list_sorter.Prepare(pic_header.poc, pic_header.tid, is_intra_nal,
+                            pic_decoders_, &ref_pic_list);
 
-  // Decode the picture.
-  if (pic_dec->Decode(*segment_header, &pic_bit_reader)) {
-    if (state_ != State::kChecksumMismatch) {
-      state_ = State::kPicDecoded;
+  // Bump ref count before finding an available picture decoder
+  for (auto pic_dep : inter_dependencies) {
+    pic_dep->AddReferenceCount(1);
+  }
+
+  // Find an available decoder to use for this nal
+  std::shared_ptr<PictureDecoder> pic_dec;
+  if (thread_decoder_) {
+    while (!(pic_dec = GetFreePictureDecoder(*segment_header))) {
+      thread_decoder_->WaitOne([this](std::shared_ptr<PictureDecoder> pic,
+                                      bool success, const PicDecList &deps) {
+        OnPictureDecoded(pic, success, deps);
+      });
     }
   } else {
-    state_ = State::kChecksumMismatch;
-    num_corrupted_pics_++;
+    pic_dec = GetFreePictureDecoder(*segment_header);
+    assert(pic_dec);
   }
-  // Increase global decode order counter.
-  doc_ = pic_data->GetDoc() + 1;
-}
 
-void Decoder::DecodeAllBufferedNals() {
-  for (auto &&nal : nal_buffer_) {
-    DecodeOneBufferedNal(std::move(nal));
+  // Setup poc and output status on main thread
+  pic_dec->Init(*segment_header, pic_header, std::move(ref_pic_list));
+
+  // Special handling of inter dependency ref counting for lowest layer
+  if (pic_header.tid == 0) {
+    // Increase ref count for current picture, since must live a few sub-gops
+    pic_dec->AddReferenceCount(1 + segment_header->num_ref_pics);
+    // Also decrease ref-count of all previous lowest layer pictures by one
+    for (auto prev_pic : pic_decoders_) {
+      if (prev_pic->GetPicData()->GetTid() == 0 &&
+          prev_pic->GetPicData()->GetPoc() < pic_header.poc) {
+        // TODO(PH) Note that ref count can probably go negative here...
+        prev_pic->RemoveReferenceCount(1);
+      }
+    }
   }
-  nal_buffer_.clear();
+
+  if (thread_decoder_) {
+    thread_decoder_->DecodeAsync(std::move(segment_header), std::move(pic_dec),
+                                 std::move(inter_dependencies), std::move(nal),
+                                 pic_bit_reader.GetPosition());
+  } else {
+    // Synchronous decode
+    bool success = pic_dec->Decode(*segment_header, &pic_bit_reader);
+    OnPictureDecoded(pic_dec, success, inter_dependencies);
+  }
 }
 
 void Decoder::FlushBufferedTailPics() {
@@ -233,12 +278,13 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
     output_pic->bytes = nullptr;
     return false;
   }
-  // Find the picture with lowest Poc that has not been output.
+
+  // Find the picture with lowest poc that has not been output.
   std::shared_ptr<PictureDecoder> pic_dec;
   PicNum lowest_poc = std::numeric_limits<PicNum>::max();
   for (auto &pic : pic_decoders_) {
     auto pd = pic->GetPicData();
-    if (pic->GetOutputStatus() == OutputStatus::kHasNotBeenOutput &&
+    if (pic->GetOutputStatus() != OutputStatus::kHasBeenOutput &&
         pd->GetPoc() < lowest_poc) {
       pic_dec = pic;
       lowest_poc = pd->GetPoc();
@@ -249,6 +295,16 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
     output_pic->bytes = nullptr;
     return false;
   }
+
+  // Wait for picture to finish decoding
+  if (thread_decoder_) {
+    thread_decoder_->WaitForPicture(
+      pic_dec, [this](std::shared_ptr<PictureDecoder> pic, bool success,
+                      const PicDecList &deps) {
+      OnPictureDecoded(pic, success, deps);
+    });
+  }
+
   pic_dec->SetOutputStatus(OutputStatus::kHasBeenOutput);
   SetOutputStats(pic_dec, output_pic);
   auto decoded_pic = pic_dec->GetRecPic();
@@ -258,8 +314,10 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   output_pic->size = output_pic_bytes_.size();
   output_pic->bytes = output_pic_bytes_.empty() ? nullptr :
     reinterpret_cast<char *>(&output_pic_bytes_[0]);
+
   // Decrease counter for how many decoded pictures are buffered.
   num_pics_in_buffer_--;
+
   if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_) &&
       num_pics_in_buffer_ - nal_buffer_.size() < pic_buffering_num_) {
     auto &&nal = nal_buffer_.front();
@@ -269,50 +327,61 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   return true;
 }
 
-std::shared_ptr<PictureDecoder> Decoder::GetNewPictureDecoder(
-  ChromaFormat chroma_format, int width, int height, int bitdepth) {
-  // Allocate a new PictureDecoder if the number of buffered pictures
-  // is lower than the maximum that will be used.
+std::shared_ptr<PictureDecoder>
+Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
   if (pic_decoders_.size() < pic_buffering_num_) {
     auto pic =
-      std::make_shared<PictureDecoder>(simd_, chroma_format, width, height,
-                                       bitdepth);
+      std::make_shared<PictureDecoder>(simd_, segment.chroma_format,
+                                       segment.pic_width, segment.pic_height,
+                                       segment.internal_bitdepth);
     pic_decoders_.push_back(pic);
     return pic;
   }
 
-  // Reuse a PictureDecoder if the number of buffered pictures
-  // is equal to the maximum that will be used.
-  // Pick any that has been output and has tid higher than 0.
-  // If no pictures with tid higher than 0 is available, reuse the
-  // picture with the lowest poc.
-  PicNum lowest_poc = std::numeric_limits<PicNum>::max();
-  auto it = pic_decoders_.begin();
-  auto pic_it = it;
-  for (; it != pic_decoders_.end(); ++it) {
-    auto pic = *it;
-    auto pic_data = pic->GetPicData();
-    if (pic->GetOutputStatus() == OutputStatus::kHasBeenOutput &&
-        pic_data->GetTid() > 0) {
-      pic_it = it;
-      break;
-    } else if (pic_data->GetPoc() < lowest_poc) {
-      lowest_poc = pic_data->GetPoc();
-      pic_it = it;
+  std::shared_ptr<PictureDecoder> pic_dec;
+  for (auto pic : pic_decoders_) {
+    // A picture decoder has two independent variables that indicates usage
+    // 1. output status - if decoded samples has been sent to application
+    // 2. ref count - if picture is no longer referenced by any other pictures
+    if (pic->IsReferenced() ||
+        pic->GetOutputStatus() != OutputStatus::kHasBeenOutput) {
+      continue;
     }
+    pic_dec = pic;
+    break;
   }
+  if (!pic_dec) {
+    return pic_dec;
+  }
+
   // Replace the PictureDecoder if the picture format has changed.
-  auto pic_data = (*pic_it)->GetPicData();
-  if (width != pic_data->GetPictureWidth(YuvComponent::kY) ||
-      height != pic_data->GetPictureHeight(YuvComponent::kY) ||
-      chroma_format != pic_data->GetChromaFormat() ||
-      bitdepth != pic_data->GetBitdepth()) {
-    *pic_it =
-      std::make_shared<PictureDecoder>(simd_, chroma_format, width, height,
-                                       bitdepth);
+  auto pic_data = pic_dec->GetPicData();
+  if (segment.pic_width != pic_data->GetPictureWidth(YuvComponent::kY) ||
+      segment.pic_height != pic_data->GetPictureHeight(YuvComponent::kY) ||
+      segment.chroma_format != pic_data->GetChromaFormat() ||
+      segment.internal_bitdepth != pic_data->GetBitdepth()) {
+    pic_dec =
+      std::make_shared<PictureDecoder>(simd_, segment.chroma_format,
+                                       segment.pic_width, segment.pic_height,
+                                       segment.internal_bitdepth);
   }
-  assert(*pic_it);
-  return *pic_it;
+  return pic_dec;
+}
+
+void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
+                               bool success, const PicDecList &inter_deps) {
+  pic_dec->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  for (auto pic_dep : inter_deps) {
+    pic_dep->RemoveReferenceCount(1);
+  }
+  if (success) {
+    if (state_ != State::kChecksumMismatch) {
+      state_ = State::kPicDecoded;
+    }
+  } else {
+    state_ = State::kChecksumMismatch;
+    num_corrupted_pics_++;
+  }
 }
 
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,

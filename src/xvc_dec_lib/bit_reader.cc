@@ -13,6 +13,11 @@
 
 namespace xvc {
 
+size_t BitReader::GetPosition() const {
+  assert(bit_mask_ == 0x80);
+  return consumed_;
+}
+
 int BitReader::ReadBit() {
   int val = buffer_[consumed_] & bit_mask_;
   bit_mask_ >>= 1;

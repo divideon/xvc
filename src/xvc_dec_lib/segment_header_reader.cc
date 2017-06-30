@@ -48,8 +48,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     segment_header->tc_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
   }
 
-  auto &restr = Restrictions::GetRW();
-  restr = Restrictions();
+  auto restr = Restrictions();
 
   // Note! Override the value of the restriction flags only if the flag is
   // set to true in the bitstream.
@@ -267,6 +266,8 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_ext_deblock_subblock_size_4 = true;
     }
   }
+
+  Restrictions::GetRW() = std::move(restr);
 
   segment_header->soc = segment_counter;
   return Decoder::State::kSegmentHeaderDecoded;

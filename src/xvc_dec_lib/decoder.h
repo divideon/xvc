@@ -8,7 +8,6 @@
 #define XVC_DEC_LIB_DECODER_H_
 
 #include <deque>
-#include <limits>
 #include <memory>
 #include <set>
 #include <vector>
@@ -25,6 +24,9 @@ struct xvc_decoder {};
 
 namespace xvc {
 
+// To avoid including all thread related system headers
+class ThreadDecoder;
+
 class Decoder : public xvc_decoder {
 public:
   enum class State {
@@ -36,8 +38,8 @@ public:
     kChecksumMismatch,
   };
 
-  Decoder();
-
+  explicit Decoder(int num_threads);
+  ~Decoder();
   bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size);
   bool GetDecodedPicture(xvc_decoded_picture *dec_pic);
   void FlushBufferedTailPics();
@@ -65,11 +67,14 @@ public:
   }
 
 private:
+  using PicDecList = std::vector<std::shared_ptr<const PictureDecoder>>;
   void DecodeAllBufferedNals();
   bool DecodeSegmentHeaderNal(BitReader *bit_reader);
   void DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal);
-  std::shared_ptr<PictureDecoder> GetNewPictureDecoder(
-    ChromaFormat chroma_format, int width, int height, int bitdepth);
+  std::shared_ptr<PictureDecoder>
+    GetFreePictureDecoder(const SegmentHeader &segment_header);
+  void OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec, bool success,
+                        const PicDecList &inter_deps);
   void SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                       xvc_decoded_picture *output_pic);
 
@@ -98,6 +103,7 @@ private:
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;
   std::deque<std::unique_ptr<std::vector<uint8_t>>> nal_buffer_;
+  std::unique_ptr<ThreadDecoder> thread_decoder_;
 };
 
 }   // namespace xvc

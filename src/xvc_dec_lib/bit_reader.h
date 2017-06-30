@@ -17,10 +17,10 @@ namespace xvc {
 class BitReader {
 public:
   BitReader(const uint8_t *buffer, size_t length)
-    : bit_mask_(0x80), consumed_(0), buffer_(buffer),
-    length_(length) {
+    : buffer_(buffer), length_(length) {
   }
 
+  size_t GetPosition() const;
   int ReadBit();
   uint32_t ReadBits(int num_bits);
   void SkipBits();
@@ -31,10 +31,10 @@ public:
 private:
   void Refill();
 
-  int bit_mask_;
-  size_t consumed_;
-  const uint8_t *buffer_;
-  size_t length_;
+  int bit_mask_ = 0x80;
+  size_t consumed_ = 0;
+  const uint8_t *buffer_ = nullptr;
+  size_t length_ = 0;
 };
 
 }   // namespace xvc

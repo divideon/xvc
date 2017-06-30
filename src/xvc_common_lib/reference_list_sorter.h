@@ -27,29 +27,40 @@ public:
     prev_segment_open_gop_(prev_segment_open_gop) {
   }
 
-  void Prepare(PicNum curr_poc, int curr_tid, bool is_intra_pic,
-               const std::vector<std::shared_ptr<T>> &pic_buffer,
-               ReferencePictureLists* rpl) {
-    rpl->Reset(curr_poc);
+  std::vector<std::shared_ptr<const T>>
+    Prepare(PicNum curr_poc, int curr_tid, bool is_intra_pic,
+            const std::vector<std::shared_ptr<T>> &pic_buffer,
+            ReferencePictureLists* rpl) {
+    std::vector<std::shared_ptr<const T>> dependencies;
+    if (rpl) {
+      rpl->Reset(curr_poc);
+    }
+    if (is_intra_pic) {
+      return dependencies;
+    }
     if (Restrictions::Get().disable_inter_bipred) {
-      FillClosestPoc(RefPicList::kL0, 0, curr_poc, curr_tid, pic_buffer, rpl);
-      return;
+      FillClosestPoc(RefPicList::kL0, 0, curr_poc, curr_tid, pic_buffer,
+                     &dependencies, rpl);
+      return dependencies;
     }
     int num_l0 = FillLowerPoc(RefPicList::kL0, 0, curr_poc, curr_tid,
-                              pic_buffer, rpl);
+                              pic_buffer, &dependencies, rpl);
     if (Restrictions::Get().disable_ext_ref_list_l0_trim) {
       FillHigherPoc(RefPicList::kL0, num_l0, curr_poc, curr_tid, pic_buffer,
-                    rpl);
+                    &dependencies, rpl);
     }
     int num_l1 = FillHigherPoc(RefPicList::kL1, 0, curr_poc, curr_tid,
-                               pic_buffer, rpl);
-    FillLowerPoc(RefPicList::kL1, num_l1, curr_poc, curr_tid, pic_buffer, rpl);
+                               pic_buffer, &dependencies, rpl);
+    FillLowerPoc(RefPicList::kL1, num_l1, curr_poc, curr_tid, pic_buffer,
+                 &dependencies, rpl);
+    return dependencies;
   }
 
 private:
   int FillLowerPoc(RefPicList ref_pic_list, int start_idx,
                    PicNum curr_poc, int curr_tid,
                    const std::vector<std::shared_ptr<T>> &pic_buffer,
+                   std::vector<std::shared_ptr<const T>> *dependencies,
                    ReferencePictureLists* rpl) {
     PicNum last_added_poc = curr_poc;
     int last_added_tid = curr_tid;
@@ -73,9 +84,12 @@ private:
       }
       last_added_tid = pic_enc_dec->GetPicData()->GetTid();
       last_added_poc = highest_poc_plus1 - 1;
-      rpl->SetRefPic(ref_pic_list, ref_idx, pic_enc_dec->GetPicData()->GetPoc(),
-                     pic_enc_dec->GetPicData(),
-                     pic_enc_dec->GetRecPic());
+      if (rpl) {
+        rpl->SetRefPic(ref_pic_list, ref_idx,
+                       pic_enc_dec->GetPicData()->GetPoc(),
+                       pic_enc_dec->GetPicData(), pic_enc_dec->GetRecPic());
+      }
+      dependencies->push_back(pic_enc_dec);
       ref_idx++;
     }
     return ref_idx;
@@ -84,6 +98,7 @@ private:
   int FillHigherPoc(RefPicList ref_pic_list, int start_idx,
                     PicNum curr_poc, int curr_tid,
                     const std::vector<std::shared_ptr<T>> &pic_buffer,
+                    std::vector<std::shared_ptr<const T>> *dependencies,
                     ReferencePictureLists* rpl) {
     PicNum last_added_poc = curr_poc;
     int last_added_tid = curr_tid;
@@ -121,8 +136,11 @@ private:
           segment_header_.pic_height,
           segment_header_.internal_bitdepth);
       }
-      rpl->SetRefPic(ref_pic_list, ref_idx, ref_data->GetPoc(),
-                     ref_data, ref_pic);
+      if (rpl) {
+        rpl->SetRefPic(ref_pic_list, ref_idx, ref_data->GetPoc(),
+                       ref_data, ref_pic);
+      }
+      dependencies->push_back(pic_enc_dec);
       ref_idx++;
     }
     return ref_idx;
@@ -131,6 +149,7 @@ private:
   int FillClosestPoc(RefPicList ref_pic_list, int start_idx,
                      PicNum curr_poc, int curr_tid,
                      const std::vector<std::shared_ptr<T>> &pic_buffer,
+                     std::vector<std::shared_ptr<const T>> *dependencies,
                      ReferencePictureLists* rpl) {
     PicNum last_added_poc0 = curr_poc;
     int last_added_tid0 = curr_tid;
@@ -181,17 +200,22 @@ private:
             segment_header_.pic_height,
             segment_header_.internal_bitdepth);
         }
-        rpl->SetRefPic(ref_pic_list, ref_idx,
-                       pic_enc_dec1->GetPicData()->GetPoc(),
-                       pic_enc_dec1->GetPicData(),
-                       ref_pic);
+        if (rpl) {
+          rpl->SetRefPic(ref_pic_list, ref_idx,
+                         pic_enc_dec1->GetPicData()->GetPoc(),
+                         pic_enc_dec1->GetPicData(), ref_pic);
+        }
+        dependencies->push_back(pic_enc_dec1);
       } else {
         last_added_tid0 = pic_enc_dec0->GetPicData()->GetTid();
         last_added_poc0 = highest_poc_plus1 - 1;
-        rpl->SetRefPic(ref_pic_list, ref_idx,
-                       pic_enc_dec0->GetPicData()->GetPoc(),
-                       pic_enc_dec0->GetPicData(),
-                       pic_enc_dec0->GetRecPic());
+        if (rpl) {
+          rpl->SetRefPic(ref_pic_list, ref_idx,
+                         pic_enc_dec0->GetPicData()->GetPoc(),
+                         pic_enc_dec0->GetPicData(),
+                         pic_enc_dec0->GetRecPic());
+        }
+        dependencies->push_back(pic_enc_dec0);
       }
       ref_idx++;
     }

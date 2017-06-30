@@ -39,12 +39,12 @@ extern "C" {
     param->output_color_matrix = XVC_DEC_COLOR_MATRIX_UNDEFINED;
     param->output_bitdepth = 0;
     param->max_framerate = xvc::constants::kTimeScale;
+    param->threads = 0;
     param->simd_mask = static_cast<uint32_t>(-1);
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_parameters_check(xvc_decoder_parameters
-                                               *param) {
+  xvc_dec_return_code xvc_dec_parameters_check(xvc_decoder_parameters *param) {
     if (!param) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -88,7 +88,7 @@ extern "C" {
     if (xvc_dec_parameters_check(param) != XVC_DEC_OK) {
       return nullptr;
     }
-    xvc::Decoder *decoder = new xvc::Decoder;
+    xvc::Decoder *decoder = new xvc::Decoder(param->threads);
     decoder->SetCpuCapabilities(xvc::SimdCpu::GetMaskedCaps(param->simd_mask));
     decoder->SetOutputWidth(param->output_width);
     decoder->SetOutputHeight(param->output_height);
