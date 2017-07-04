@@ -338,34 +338,33 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
     return pic;
   }
 
-  std::shared_ptr<PictureDecoder> pic_dec;
-  for (auto pic : pic_decoders_) {
+  auto pic_dec_it = pic_decoders_.end();
+  for (auto it = pic_decoders_.begin(); it != pic_decoders_.end(); ++it) {
     // A picture decoder has two independent variables that indicates usage
     // 1. output status - if decoded samples has been sent to application
     // 2. ref count - if picture is no longer referenced by any other pictures
-    if (pic->IsReferenced() ||
-        pic->GetOutputStatus() != OutputStatus::kHasBeenOutput) {
+    if ((*it)->IsReferenced() ||
+      (*it)->GetOutputStatus() != OutputStatus::kHasBeenOutput) {
       continue;
     }
-    pic_dec = pic;
+    pic_dec_it = it;
     break;
   }
-  if (!pic_dec) {
-    return pic_dec;
+  if (pic_dec_it == pic_decoders_.end()) {
+    return std::shared_ptr<PictureDecoder>();
   }
 
   // Replace the PictureDecoder if the picture format has changed.
-  auto pic_data = pic_dec->GetPicData();
+  auto pic_data = (*pic_dec_it)->GetPicData();
   if (segment.pic_width != pic_data->GetPictureWidth(YuvComponent::kY) ||
       segment.pic_height != pic_data->GetPictureHeight(YuvComponent::kY) ||
       segment.chroma_format != pic_data->GetChromaFormat() ||
       segment.internal_bitdepth != pic_data->GetBitdepth()) {
-    pic_dec =
-      std::make_shared<PictureDecoder>(simd_, segment.chroma_format,
-                                       segment.pic_width, segment.pic_height,
-                                       segment.internal_bitdepth);
+    pic_dec_it->reset(new PictureDecoder(simd_, segment.chroma_format,
+                                         segment.pic_width, segment.pic_height,
+                                         segment.internal_bitdepth));
   }
-  return pic_dec;
+  return *pic_dec_it;
 }
 
 void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
