@@ -382,12 +382,12 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
   ContextModel &ctx = ctx_.intra_pred_luma[0];
   if (mpm_index >= 0) {
     entropyenc_->EncodeBin(1, &ctx);
-    static_assert(constants::kNumIntraMPM == 3, "non-branching invariant");
+    static_assert(constants::kNumIntraMpm == 3, "non-branching invariant");
     int num_bits = 1 + (mpm_index > 0);
     entropyenc_->EncodeBypassBins(mpm_index + (mpm_index > 0), num_bits);
   } else {
     entropyenc_->EncodeBin(0, &ctx);
-    std::array<IntraMode, constants::kNumIntraMPM> mpm2 = mpm;
+    std::array<IntraMode, constants::kNumIntraMpm> mpm2 = mpm;
     if (mpm2[0] > mpm2[1]) {
       std::swap(mpm2[0], mpm2[1]);
     }

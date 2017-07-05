@@ -96,7 +96,7 @@ const int kTransformExtendedPrecision = 2;
 const bool kZeroOutHighFreqLargeTransforms = true;
 
 // Prediction
-const int kNumIntraMPM = 3;
+const int kNumIntraMpm = 3;
 const int kNumIntraChromaModes = 5;
 const int kNumInterMvPredictors = 2;
 const int kNumInterMergeCandidates = 5;

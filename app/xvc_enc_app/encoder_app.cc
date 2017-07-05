@@ -319,8 +319,17 @@ void EncoderApp::MainEncoderLoop() {
 
   xvc_enc_nal_unit *nal_units;
   int num_nal_units;
-  input_stream_.seekg(start_skip_ + (picture_skip_ + picture_bytes.size()) *
-                      cli_.skip_pictures, std::ifstream::beg);
+  input_stream_.seekg(0, input_stream_.end);
+  size_t input_length = input_stream_.tellg();
+  size_t start_pos =
+    start_skip_ + (picture_skip_ + picture_bytes.size()) * cli_.skip_pictures;
+  if (start_pos < input_length) {
+    input_stream_.seekg(start_pos, std::ifstream::beg);
+  } else {
+    std::cerr << "Error: The value of skip-pictures is larger than the "
+      << "number of pictures in the input file.";
+    std::exit(1);
+  }
   char nal_size[4];
   start_ = std::chrono::steady_clock::now();
   bool loop_check = true;

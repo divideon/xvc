@@ -319,7 +319,7 @@ IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
     return mpm[mpm_index];
   }
   int mode_index = entropydec_->DecodeBypassBins(5);
-  std::array<IntraMode, constants::kNumIntraMPM> mpm2 = mpm;
+  std::array<IntraMode, constants::kNumIntraMpm> mpm2 = mpm;
   if (mpm2[0] > mpm2[1]) {
     std::swap(mpm2[0], mpm2[1]);
   }

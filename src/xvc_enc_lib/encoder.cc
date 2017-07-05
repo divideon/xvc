@@ -138,7 +138,9 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   nal_units_.clear();
   // Since poc is increased at the end of each call to Encode
   // it is reduced by one here to get the poc of the last picture.
-  poc_--;
+  if (poc_ > 0) {
+    poc_--;
+  }
   // Check if there are pictures left to encode.
   if (doc_ < poc_) {
     encode_with_buffer_flag_ = false;

@@ -15,7 +15,7 @@
 namespace xvc {
 
 class IntraPredictorLuma :
-  public std::array<IntraMode, constants::kNumIntraMPM> {
+  public std::array<IntraMode, constants::kNumIntraMpm> {
 public:
   int num_neighbor_modes = 0;
 };

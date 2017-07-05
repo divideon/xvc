@@ -294,13 +294,12 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const Qp &qp,
 
 
 int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
-  const double kStrength = encoder_settings_.aqp_strength *
-    (pic_data_.GetNalType() == NalUnitType::kIntraAccessPicture ? 0.5 : 0.4);
+  const double kStrength = encoder_settings_.aqp_strength;
   const double kOffset = 13;
   const int kVarBlocksize = 8;
   const int kMeanDiv = 4;
-  const int kMinQpOffset = -3;
-  const int kMaxQpOffset = 3;
+  const int kMinQpOffset = -4;
+  const int kMaxQpOffset = 5;
   const YuvComponent luma = YuvComponent::kY;
   const int x = cu->GetPosX(luma);
   const int y = cu->GetPosY(luma);
@@ -346,7 +345,7 @@ int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
   variance = 1 + v[blocks / kMeanDiv];
 
   int bd = orig_pic_.GetBitdepth();
-  double dqp = kStrength * (1.5 * std::log(variance) - kOffset + 2 * (bd - 8));
+  double dqp = kStrength * (1.5 * std::log(variance) - kOffset - 2 * (bd - 8));
 
   return util::Clip3(static_cast<int>(dqp), kMinQpOffset, kMaxQpOffset);
 }
