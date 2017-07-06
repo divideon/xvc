@@ -611,46 +611,19 @@ void FilterVerLumaSse2(int width, int height, int bitdepth,
 
   for (int y = 0; y < height; y += 4) {
     for (int x = 0; x < width; x += 4) {
-      __m128i row0 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 0 * src_stride));
-      __m128i row1 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 1 * src_stride));
-      __m128i row2 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 2 * src_stride));
-      __m128i row3 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 3 * src_stride));
-      __m128i row4 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 4 * src_stride));
-      __m128i row5 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 5 * src_stride));
-      __m128i row6 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 6 * src_stride));
-      __m128i row7 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 7 * src_stride));
-      __m128i row8 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 8 * src_stride));
-      __m128i row9 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 9 * src_stride));
-      __m128i row10 =
-        _mm_loadl_epi64(CAST_M128_CONST(src + x + 10 * src_stride));
-      __m128i row01, row12, row23, row34, row45, row56, row67, row78, row89,
-        row90;
-      if (std::is_same<SrcT, uint16_t>::value ||
-          std::is_same<SrcT, int16_t>::value) {
-        row01 = _mm_unpacklo_epi16(row0, row1);
-        row12 = _mm_unpacklo_epi16(row1, row2);
-        row23 = _mm_unpacklo_epi16(row2, row3);
-        row34 = _mm_unpacklo_epi16(row3, row4);
-        row45 = _mm_unpacklo_epi16(row4, row5);
-        row56 = _mm_unpacklo_epi16(row5, row6);
-        row67 = _mm_unpacklo_epi16(row6, row7);
-        row78 = _mm_unpacklo_epi16(row7, row8);
-        row89 = _mm_unpacklo_epi16(row8, row9);
-        row90 = _mm_unpacklo_epi16(row9, row10);
-      } else if (std::is_same<SrcT, uint8_t>::value) {
-        // TODO(PH) Loaded twice as much data as needed
-        __m128i zero = _mm_setzero_si128();
-        row01 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row0, row1), zero);
-        row12 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row1, row2), zero);
-        row23 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row2, row3), zero);
-        row34 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row3, row4), zero);
-        row45 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row4, row5), zero);
-        row56 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row5, row6), zero);
-        row67 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row6, row7), zero);
-        row78 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row7, row8), zero);
-        row89 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row8, row9), zero);
-        row90 = _mm_unpacklo_epi8(_mm_unpacklo_epi8(row9, row10), zero);
-      }
+      auto combine_rows_epi16 = [](__m128i r0, __m128i r1)
+        __attribute__((target("sse2"))) {
+        if (std::is_same<SrcT, uint16_t>::value ||
+            std::is_same<SrcT, int16_t>::value) {
+          return _mm_unpacklo_epi16(r0, r1);
+        } else if (std::is_same<SrcT, uint8_t>::value) {
+          return _mm_unpacklo_epi8(_mm_unpacklo_epi8(r0, r1),
+                                   _mm_setzero_si128());
+        } else {
+          assert(0);
+          return __m128i();
+        }
+      };  // NOLINT
       auto filter_8rows_lo = [&](const __m128i &data01, const __m128i &data23,
                                  const __m128i &data56, const __m128i &data67)
         __attribute__((target("sse2"))) {
@@ -664,7 +637,28 @@ void FilterVerLumaSse2(int width, int height, int bitdepth,
         __m128i sum_offset = _mm_add_epi32(prod_sum, voffset);
         return _mm_srai_epi32(sum_offset, shift);
       };  // NOLINT
-
+      __m128i row0 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 0 * src_stride));
+      __m128i row1 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 1 * src_stride));
+      __m128i row2 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 2 * src_stride));
+      __m128i row3 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 3 * src_stride));
+      __m128i row4 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 4 * src_stride));
+      __m128i row5 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 5 * src_stride));
+      __m128i row6 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 6 * src_stride));
+      __m128i row7 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 7 * src_stride));
+      __m128i row8 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 8 * src_stride));
+      __m128i row9 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 9 * src_stride));
+      __m128i row10 =
+        _mm_loadl_epi64(CAST_M128_CONST(src + x + 10 * src_stride));
+      __m128i row01 = combine_rows_epi16(row0, row1);
+      __m128i row12 = combine_rows_epi16(row1, row2);
+      __m128i row23 = combine_rows_epi16(row2, row3);
+      __m128i row34 = combine_rows_epi16(row3, row4);
+      __m128i row45 = combine_rows_epi16(row4, row5);
+      __m128i row56 = combine_rows_epi16(row5, row6);
+      __m128i row67 = combine_rows_epi16(row6, row7);
+      __m128i row78 = combine_rows_epi16(row7, row8);
+      __m128i row89 = combine_rows_epi16(row8, row9);
+      __m128i row90 = combine_rows_epi16(row9, row10);
       __m128i sum0 = filter_8rows_lo(row01, row23, row45, row67);
       __m128i sum1 = filter_8rows_lo(row12, row34, row56, row78);
       __m128i sum2 = filter_8rows_lo(row23, row45, row67, row89);
@@ -736,42 +730,19 @@ void FilterVerLumaNeon(int width, int height, int bitdepth,
 
   for (int y = 0; y < height; y += 4) {
     for (int x = 0; x < width; x += 4) {
-      int16x4_t row0, row1, row2, row3, row4, row5, row6, row7, row8, row9,
-        row10;
-      if (std::is_same<SrcT, uint16_t>::value ||
-          std::is_same<SrcT, int16_t>::value) {
-        auto load_row = [](const SrcT *src2) {
+      auto load_row_int16x4 = [](const SrcT *src2) {
+        if (std::is_same<SrcT, uint16_t>::value ||
+            std::is_same<SrcT, int16_t>::value) {
           return vld1_s16(reinterpret_cast<const int16_t*>(src2));
-        };
-        row0 = load_row(src + x + 0 * src_stride);
-        row1 = load_row(src + x + 1 * src_stride);
-        row2 = load_row(src + x + 2 * src_stride);
-        row3 = load_row(src + x + 3 * src_stride);
-        row4 = load_row(src + x + 4 * src_stride);
-        row5 = load_row(src + x + 5 * src_stride);
-        row6 = load_row(src + x + 6 * src_stride);
-        row7 = load_row(src + x + 7 * src_stride);
-        row8 = load_row(src + x + 8 * src_stride);
-        row9 = load_row(src + x + 9 * src_stride);
-        row10 = load_row(src + x + 10 * src_stride);
-      } else if (std::is_same<SrcT, uint8_t>::value) {
-        auto load_row = [](const SrcT *src2) {
+        } else if (std::is_same<SrcT, uint8_t>::value) {
           // TODO(PH) Loading twice as much data as needed
           auto *p = reinterpret_cast<const uint8_t*>(src2);
           return vreinterpret_s16_u16(vget_low_u16(vmovl_u8(vld1_u8(p))));
-        };
-        row0 = load_row(src + x + 0 * src_stride);
-        row1 = load_row(src + x + 1 * src_stride);
-        row2 = load_row(src + x + 2 * src_stride);
-        row3 = load_row(src + x + 3 * src_stride);
-        row4 = load_row(src + x + 4 * src_stride);
-        row5 = load_row(src + x + 5 * src_stride);
-        row6 = load_row(src + x + 6 * src_stride);
-        row7 = load_row(src + x + 7 * src_stride);
-        row8 = load_row(src + x + 8 * src_stride);
-        row9 = load_row(src + x + 9 * src_stride);
-        row10 = load_row(src + x + 10 * src_stride);
-      }
+        } else {
+          assert(0);
+          return int16x4_t();
+        }
+      };
       auto fir_8r = [&](int16x4_t r0, int16x4_t r1, int16x4_t r2,
                         int16x4_t r3, int16x4_t r4, int16x4_t r5,
                         int16x4_t r6, int16x4_t r7) {
@@ -787,6 +758,17 @@ void FilterVerLumaNeon(int width, int height, int bitdepth,
         int32x4_t sum0 = vshlq_s32(sum0_offset, vshift);
         return vqmovn_s32(sum0);
       };
+      int16x4_t row0 = load_row_int16x4(src + x + 0 * src_stride);
+      int16x4_t row1 = load_row_int16x4(src + x + 1 * src_stride);
+      int16x4_t row2 = load_row_int16x4(src + x + 2 * src_stride);
+      int16x4_t row3 = load_row_int16x4(src + x + 3 * src_stride);
+      int16x4_t row4 = load_row_int16x4(src + x + 4 * src_stride);
+      int16x4_t row5 = load_row_int16x4(src + x + 5 * src_stride);
+      int16x4_t row6 = load_row_int16x4(src + x + 6 * src_stride);
+      int16x4_t row7 = load_row_int16x4(src + x + 7 * src_stride);
+      int16x4_t row8 = load_row_int16x4(src + x + 8 * src_stride);
+      int16x4_t row9 = load_row_int16x4(src + x + 9 * src_stride);
+      int16x4_t row10 = load_row_int16x4(src + x + 10 * src_stride);
       int16x4_t sum0 = fir_8r(row0, row1, row2, row3, row4, row5, row6, row7);
       int16x4_t sum1 = fir_8r(row1, row2, row3, row4, row5, row6, row7, row8);
       int16x4_t sum2 = fir_8r(row2, row3, row4, row5, row6, row7, row8, row9);
@@ -832,23 +814,289 @@ void FilterVerLumaNeon(int width, int height, int bitdepth,
 }
 #endif  // XVC_HAVE_NEON
 
+#if XVC_ARCH_X86
+template<typename SrcT, typename DstT, bool Clip>
+__attribute__((target("sse2")))
+static
+void FilterVerChromaSse2(int width, int height, int bitdepth,
+                         const int16_t *filter,
+                         const SrcT *src, ptrdiff_t src_stride,
+                         DstT *dst, ptrdiff_t dst_stride) {
+  const int height4 = height & ~3;
+  const int shift = InterPrediction::GetFilterShift<SrcT, Clip>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<SrcT, Clip>(shift);
+  const __m128i voffset = _mm_set1_epi32(static_cast<int32_t>(offset));
+  const __m128i min = _mm_set1_epi16(0);
+  const __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
+  static_assert(InterPrediction::kNumTapsChroma == 4, "4 tap filter");
+  const __m128i vfilter01 = _mm_set1_epi32(
+    (filter[0] & 0xFFFF) | (static_cast<uint16_t>(filter[1]) << 16));
+  const __m128i vfilter23 = _mm_set1_epi32(
+    (filter[2] & 0xFFFF) | (static_cast<uint16_t>(filter[3]) << 16));
+  auto combine_rows_epi16 = [](__m128i r0, __m128i r1)
+    __attribute__((target("sse2"))) {
+    if (std::is_same<SrcT, uint16_t>::value ||
+        std::is_same<SrcT, int16_t>::value) {
+      return _mm_unpacklo_epi16(r0, r1);
+    } else if (std::is_same<SrcT, uint8_t>::value) {
+      return _mm_unpacklo_epi8(_mm_unpacklo_epi8(r0, r1),
+                               _mm_setzero_si128());
+    } else {
+      assert(0);
+      return __m128i();
+    }
+  };  // NOLINT
+  auto filter_4rows_epi32 = [&](const __m128i &data01, const __m128i &data23)
+    __attribute__((target("sse2"))) {
+    __m128i prod0_01 = _mm_madd_epi16(data01, vfilter01);
+    __m128i prod0_23 = _mm_madd_epi16(data23, vfilter23);
+    __m128i prod_sum = _mm_add_epi32(prod0_01, prod0_23);
+    __m128i sum_offset = _mm_add_epi32(prod_sum, voffset);
+    return _mm_srai_epi32(sum_offset, shift);
+  };  // NOLINT
+
+  src -= (InterPrediction::kNumTapsChroma / 2 - 1) * src_stride;
+
+  for (int y = 0; y < height4; y += 4) {
+    for (int x = 0; x < width; x += 4) {
+      __m128i row0 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 0 * src_stride));
+      __m128i row1 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 1 * src_stride));
+      __m128i row2 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 2 * src_stride));
+      __m128i row3 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 3 * src_stride));
+      __m128i row4 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 4 * src_stride));
+      __m128i row5 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 5 * src_stride));
+      __m128i row6 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 6 * src_stride));
+      __m128i row01 = combine_rows_epi16(row0, row1);
+      __m128i row12 = combine_rows_epi16(row1, row2);
+      __m128i row23 = combine_rows_epi16(row2, row3);
+      __m128i row34 = combine_rows_epi16(row3, row4);
+      __m128i row45 = combine_rows_epi16(row4, row5);
+      __m128i row56 = combine_rows_epi16(row5, row6);
+      __m128i sum0 = filter_4rows_epi32(row01, row23);
+      __m128i sum1 = filter_4rows_epi32(row12, row34);
+      __m128i sum2 = filter_4rows_epi32(row23, row45);
+      __m128i sum3 = filter_4rows_epi32(row34, row56);
+      __m128i sum01 = _mm_packs_epi32(sum0, sum1);
+      __m128i sum23 = _mm_packs_epi32(sum2, sum3);
+      if (std::is_same<DstT, uint16_t>::value ||
+          std::is_same<DstT, int16_t>::value) {
+        __m128i out01 =
+          Clip ? _mm_max_epi16(min, _mm_min_epi16(sum01, max)) : sum01;
+        __m128i out23 =
+          Clip ? _mm_max_epi16(min, _mm_min_epi16(sum23, max)) : sum23;
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 0 * dst_stride), out01);
+        __m128i out1 = _mm_shuffle_epi32(out01, kBin8_01_00_11_10);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 1 * dst_stride), out1);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 2 * dst_stride), out23);
+        __m128i out3 = _mm_shuffle_epi32(out23, kBin8_01_00_11_10);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 3 * dst_stride), out3);
+      } else if (std::is_same<DstT, uint8_t>::value) {
+        __m128i out01 = _mm_packus_epi16(sum01, sum01);
+        __m128i out23 = _mm_packus_epi16(sum23, sum23);
+        *reinterpret_cast<int32_t*>(dst + x + 0 * dst_stride) =
+          _mm_cvtsi128_si32(out01);
+        __m128i out1 = _mm_srli_si128(out01, 4);
+        *reinterpret_cast<int32_t*>(dst + x + 1 * dst_stride) =
+          _mm_cvtsi128_si32(out1);
+        *reinterpret_cast<int32_t*>(dst + x + 2 * dst_stride) =
+          _mm_cvtsi128_si32(out23);
+        __m128i out3 = _mm_srli_si128(out23, 4);
+        *reinterpret_cast<int32_t*>(dst + x + 3 * dst_stride) =
+          _mm_cvtsi128_si32(out3);
+      }
+    }
+    src += src_stride * 4;
+    dst += dst_stride * 4;
+  }
+  if (height & 2) {
+    for (int x = 0; x < width; x += 4) {
+      __m128i row0 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 0 * src_stride));
+      __m128i row1 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 1 * src_stride));
+      __m128i row2 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 2 * src_stride));
+      __m128i row3 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 3 * src_stride));
+      __m128i row4 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 4 * src_stride));
+      __m128i row01 = combine_rows_epi16(row0, row1);
+      __m128i row12 = combine_rows_epi16(row1, row2);
+      __m128i row23 = combine_rows_epi16(row2, row3);
+      __m128i row34 = combine_rows_epi16(row3, row4);
+      __m128i sum0 = filter_4rows_epi32(row01, row23);
+      __m128i sum1 = filter_4rows_epi32(row12, row34);
+      __m128i sum01 = _mm_packs_epi32(sum0, sum1);
+      if (std::is_same<DstT, uint16_t>::value ||
+          std::is_same<DstT, int16_t>::value) {
+        __m128i out01 =
+          Clip ? _mm_max_epi16(min, _mm_min_epi16(sum01, max)) : sum01;
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 0 * dst_stride), out01);
+        __m128i out1 = _mm_shuffle_epi32(out01, kBin8_01_00_11_10);
+        _mm_storel_epi64(
+          reinterpret_cast<__m128i*>(dst + x + 1 * dst_stride), out1);
+      } else if (std::is_same<DstT, uint8_t>::value) {
+        __m128i out01 = _mm_packus_epi16(sum01, sum01);
+        *reinterpret_cast<int32_t*>(dst + x + 0 * dst_stride) =
+          _mm_cvtsi128_si32(out01);
+        __m128i out1 = _mm_srli_si128(out01, 4);
+        *reinterpret_cast<int32_t*>(dst + x + 1 * dst_stride) =
+          _mm_cvtsi128_si32(out1);
+      }
+    }
+  }
+}
+#endif  // XVC_ARCH_X86
+
+#if XVC_HAVE_NEON
+template<typename SrcT, typename DstT, bool Clip>
+static
+void FilterVerChromaNeon(int width, int height, int bitdepth,
+                         const int16_t *filter,
+                         const SrcT *src, ptrdiff_t src_stride,
+                         DstT *dst, ptrdiff_t dst_stride) {
+  const int height4 = height & ~3;
+  const int shift = InterPrediction::GetFilterShift<SrcT, Clip>(bitdepth);
+  const int offset = InterPrediction::GetFilterOffset<SrcT, Clip>(shift);
+  const int32x4_t vshift = vdupq_n_s32(static_cast<int32_t>(shift) * -1);
+  const int32x4_t voffset = vdupq_n_s32(static_cast<int32_t>(offset));
+  const int16x8_t min = vdupq_n_s16(0);
+  const int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);
+  static_assert(InterPrediction::kNumTapsChroma == 4, "4 tap filter");
+  const int16x4_t vfilter0 = vdup_n_s16(filter[0]);
+  const int16x4_t vfilter1 = vdup_n_s16(filter[1]);
+  const int16x4_t vfilter2 = vdup_n_s16(filter[2]);
+  const int16x4_t vfilter3 = vdup_n_s16(filter[3]);
+  auto load_row_int16x4 = [](const SrcT *src2) {
+    if (std::is_same<SrcT, uint16_t>::value ||
+        std::is_same<SrcT, int16_t>::value) {
+      return vld1_s16(reinterpret_cast<const int16_t*>(src2));
+    } else if (std::is_same<SrcT, uint8_t>::value) {
+      // TODO(PH) Loading twice as much data as needed
+      auto *p = reinterpret_cast<const uint8_t*>(src2);
+      return vreinterpret_s16_u16(vget_low_u16(vmovl_u8(vld1_u8(p))));
+    } else {
+      assert(0);
+      return int16x4_t();
+    }
+  };
+  auto fir_4tap = [&](int16x4_t r0, int16x4_t r1, int16x4_t r2, int16x4_t r3) {
+    int32x4_t prod0 = vmull_s16(r0, vfilter0);
+    prod0 = vmlal_s16(prod0, r1, vfilter1);
+    prod0 = vmlal_s16(prod0, r2, vfilter2);
+    prod0 = vmlal_s16(prod0, r3, vfilter3);
+    int32x4_t sum0_offset = vaddq_s32(prod0, voffset);
+    int32x4_t sum0 = vshlq_s32(sum0_offset, vshift);
+    return vqmovn_s32(sum0);
+  };
+
+  src -= (InterPrediction::kNumTapsChroma / 2 - 1) * src_stride;
+
+  for (int y = 0; y < height4; y += 4) {
+    for (int x = 0; x < width; x += 4) {
+      int16x4_t row0 = load_row_int16x4(src + x + 0 * src_stride);
+      int16x4_t row1 = load_row_int16x4(src + x + 1 * src_stride);
+      int16x4_t row2 = load_row_int16x4(src + x + 2 * src_stride);
+      int16x4_t row3 = load_row_int16x4(src + x + 3 * src_stride);
+      int16x4_t row4 = load_row_int16x4(src + x + 4 * src_stride);
+      int16x4_t row5 = load_row_int16x4(src + x + 5 * src_stride);
+      int16x4_t row6 = load_row_int16x4(src + x + 6 * src_stride);
+      int16x4_t sum0 = fir_4tap(row0, row1, row2, row3);
+      int16x4_t sum1 = fir_4tap(row1, row2, row3, row4);
+      int16x4_t sum2 = fir_4tap(row2, row3, row4, row5);
+      int16x4_t sum3 = fir_4tap(row3, row4, row5, row6);
+      if (!Clip) {
+        // Replace DstT reinterpret_cast with C++17 if constexpr
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 0 * dst_stride), sum0);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 1 * dst_stride), sum1);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 2 * dst_stride), sum2);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 3 * dst_stride), sum3);
+      } else if (std::is_same<DstT, uint16_t>::value ||
+                 std::is_same<DstT, int16_t>::value) {
+        int16x8_t sum01 = vcombine_s16(sum0, sum1);
+        int16x8_t sum23 = vcombine_s16(sum2, sum3);
+        int16x8_t out01 = vmaxq_s16(min, vminq_s16(sum01, max));
+        int16x8_t out23 = vmaxq_s16(min, vminq_s16(sum23, max));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 0 * dst_stride),
+                 vreinterpret_u16_s16(vget_low_s16(out01)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 1 * dst_stride),
+                 vreinterpret_u16_s16(vget_high_s16(out01)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 2 * dst_stride),
+                 vreinterpret_u16_s16(vget_low_s16(out23)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 3 * dst_stride),
+                 vreinterpret_u16_s16(vget_high_s16(out23)));
+      } else if (std::is_same<DstT, uint8_t>::value) {
+        int16x8_t sum01 = vcombine_s16(sum0, sum1);
+        int16x8_t sum23 = vcombine_s16(sum2, sum3);
+        uint32x2_t out01 = vreinterpret_u32_u8(vqmovun_s16(sum01));
+        uint32x2_t out23 = vreinterpret_u32_u8(vqmovun_s16(sum23));
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 0 * dst_stride),
+                      out01, 0);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 1 * dst_stride),
+                      out01, 1);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 2 * dst_stride),
+                      out23, 0);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 3 * dst_stride),
+                      out23, 1);
+      }
+    }
+    src += src_stride * 4;
+    dst += dst_stride * 4;
+  }
+  if (height & 3) {
+    for (int x = 0; x < width; x += 4) {
+      int16x4_t row0 = load_row_int16x4(src + x + 0 * src_stride);
+      int16x4_t row1 = load_row_int16x4(src + x + 1 * src_stride);
+      int16x4_t row2 = load_row_int16x4(src + x + 2 * src_stride);
+      int16x4_t row3 = load_row_int16x4(src + x + 3 * src_stride);
+      int16x4_t row4 = load_row_int16x4(src + x + 4 * src_stride);
+      int16x4_t sum0 = fir_4tap(row0, row1, row2, row3);
+      int16x4_t sum1 = fir_4tap(row1, row2, row3, row4);
+      if (!Clip) {
+        // Replace DstT reinterpret_cast with C++17 if constexpr
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 0 * dst_stride), sum0);
+        vst1_s16(reinterpret_cast<int16_t*>(dst + x + 1 * dst_stride), sum1);
+      } else if (std::is_same<DstT, uint16_t>::value ||
+                 std::is_same<DstT, int16_t>::value) {
+        int16x8_t sum01 = vcombine_s16(sum0, sum1);
+        int16x8_t out01 = vmaxq_s16(min, vminq_s16(sum01, max));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 0 * dst_stride),
+                 vreinterpret_u16_s16(vget_low_s16(out01)));
+        vst1_u16(reinterpret_cast<uint16_t*>(dst + x + 1 * dst_stride),
+                 vreinterpret_u16_s16(vget_high_s16(out01)));
+      } else if (std::is_same<DstT, uint8_t>::value) {
+        int16x8_t sum01 = vcombine_s16(sum0, sum1);
+        uint32x2_t out01 = vreinterpret_u32_u8(vqmovun_s16(sum01));
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 0 * dst_stride),
+                      out01, 0);
+        vst1_lane_u32(reinterpret_cast<uint32_t*>(dst + x + 1 * dst_stride),
+                      out01, 1);
+      }
+    }
+  }
+}
+#endif  // XVC_HAVE_NEON
 
 #if XVC_ARCH_ARM
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd_functions) {
 #if XVC_HAVE_NEON
-  auto &simd = simd_functions->inter_prediction;
+  auto &ip = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kNeon) != caps.end()) {
-    simd.add_avg[1] = &AddAvgNeon;
-    simd.filter_copy_bipred[1] = &FilterCopyBipredNeon;
-    simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaNeon<Sample, true>;
-    simd.filter_h_sample_sample[1] = &FilterHorSampleTChromaNeon<Sample, true>;
-    simd.filter_h_sample_short[0] = &FilterHorSampleTLumaNeon<int16_t, false>;
-    simd.filter_h_sample_short[1] = &FilterHorSampleTChromaNeon<int16_t, false>;
-    simd.filter_v_sample_sample[0] = &FilterVerLumaNeon<Sample, Sample, true>;
-    simd.filter_v_sample_short[0] = &FilterVerLumaNeon<Sample, int16_t, false>;
-    simd.filter_v_short_sample[0] = &FilterVerLumaNeon<int16_t, Sample, true>;
-    simd.filter_v_short_short[0] = &FilterVerLumaNeon<int16_t, int16_t, false>;
+    ip.add_avg[1] = &AddAvgNeon;
+    ip.filter_copy_bipred[1] = &FilterCopyBipredNeon;
+    ip.filter_h_sample_sample[0] = &FilterHorSampleTLumaNeon<Sample, true>;
+    ip.filter_h_sample_sample[1] = &FilterHorSampleTChromaNeon<Sample, true>;
+    ip.filter_h_sample_short[0] = &FilterHorSampleTLumaNeon<int16_t, false>;
+    ip.filter_h_sample_short[1] = &FilterHorSampleTChromaNeon<int16_t, false>;
+    ip.filter_v_sample_sample[0] = &FilterVerLumaNeon<Sample, Sample, true>;
+    ip.filter_v_sample_sample[1] = &FilterVerChromaNeon<Sample, Sample, true>;
+    ip.filter_v_sample_short[0] = &FilterVerLumaNeon<Sample, int16_t, false>;
+    ip.filter_v_sample_short[1] = &FilterVerChromaNeon<Sample, int16_t, false>;
+    ip.filter_v_short_sample[0] = &FilterVerLumaNeon<int16_t, Sample, true>;
+    ip.filter_v_short_sample[1] = &FilterVerChromaNeon<int16_t, Sample, true>;
+    ip.filter_v_short_short[0] = &FilterVerLumaNeon<int16_t, int16_t, false>;
+    ip.filter_v_short_short[1] = &FilterVerChromaNeon<int16_t, int16_t, false>;
   }
 #endif  // XVC_HAVE_NEON
 }
@@ -857,18 +1105,22 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
 #if XVC_ARCH_X86
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd_functions) {
-  auto &simd = simd_functions->inter_prediction;
+  auto &ip = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kSse2) != caps.end()) {
-    simd.add_avg[1] = &AddAvgSse2;
-    simd.filter_copy_bipred[1] = &FilterCopyBipredSse2;
-    simd.filter_h_sample_sample[0] = &FilterHorSampleTLumaSse2<Sample, true>;
-    simd.filter_h_sample_sample[1] = &FilterHorSampleTChromaSse2<Sample, true>;
-    simd.filter_h_sample_short[0] = &FilterHorSampleTLumaSse2<int16_t, false>;
-    simd.filter_h_sample_short[1] = &FilterHorSampleTChromaSse2<int16_t, false>;
-    simd.filter_v_sample_sample[0] = &FilterVerLumaSse2<Sample, Sample, true>;
-    simd.filter_v_sample_short[0] = &FilterVerLumaSse2<Sample, int16_t, false>;
-    simd.filter_v_short_sample[0] = &FilterVerLumaSse2<int16_t, Sample, true>;
-    simd.filter_v_short_short[0] = &FilterVerLumaSse2<int16_t, int16_t, false>;
+    ip.add_avg[1] = &AddAvgSse2;
+    ip.filter_copy_bipred[1] = &FilterCopyBipredSse2;
+    ip.filter_h_sample_sample[0] = &FilterHorSampleTLumaSse2<Sample, true>;
+    ip.filter_h_sample_sample[1] = &FilterHorSampleTChromaSse2<Sample, true>;
+    ip.filter_h_sample_short[0] = &FilterHorSampleTLumaSse2<int16_t, false>;
+    ip.filter_h_sample_short[1] = &FilterHorSampleTChromaSse2<int16_t, false>;
+    ip.filter_v_sample_sample[0] = &FilterVerLumaSse2<Sample, Sample, true>;
+    ip.filter_v_sample_sample[1] = &FilterVerChromaSse2<Sample, Sample, true>;
+    ip.filter_v_sample_short[0] = &FilterVerLumaSse2<Sample, int16_t, false>;
+    ip.filter_v_sample_short[1] = &FilterVerChromaSse2<Sample, int16_t, false>;
+    ip.filter_v_short_sample[0] = &FilterVerLumaSse2<int16_t, Sample, true>;
+    ip.filter_v_short_sample[1] = &FilterVerChromaSse2<int16_t, Sample, true>;
+    ip.filter_v_short_short[0] = &FilterVerLumaSse2<int16_t, int16_t, false>;
+    ip.filter_v_short_short[1] = &FilterVerChromaSse2<int16_t, int16_t, false>;
   }
 }
 #endif  // XVC_ARCH_X86
