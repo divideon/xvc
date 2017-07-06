@@ -320,8 +320,8 @@ void EncoderApp::MainEncoderLoop() {
   xvc_enc_nal_unit *nal_units;
   int num_nal_units;
   input_stream_.seekg(0, input_stream_.end);
-  size_t input_length = input_stream_.tellg();
-  size_t start_pos =
+  auto input_length = input_stream_.tellg();
+  std::streamoff start_pos =
     start_skip_ + (picture_skip_ + picture_bytes.size()) * cli_.skip_pictures;
   if (start_pos < input_length) {
     input_stream_.seekg(start_pos, std::ifstream::beg);
