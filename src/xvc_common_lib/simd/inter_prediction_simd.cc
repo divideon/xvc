@@ -321,37 +321,47 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
   const int16x8_t min = vdupq_n_s16(0);
   const int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);
 #endif
+  auto load_row = [](const Sample *sample) {
+#if XVC_HIGH_BITDEPTH
+      return vreinterpretq_s16_u16(vld1q_u16(sample));
+#else
+      uint8x8_t vref_a8 = vld1_u8(sample);
+      return vreinterpretq_s16_u16(vmovl_u8(vref_a8));
+#endif
+  };
 
   src -= InterPrediction::kNumTapsLuma / 2 - 1;
 
   for (int y = 0; y < height; y++) {
-    auto fir_1sample_s32 = [&vfilter_lo, &vfilter_hi](const Sample *sample) {
-#if XVC_HIGH_BITDEPTH
-      int16x8_t vref_a = vreinterpretq_s16_u16(vld1q_u16(sample));
-#else
-      uint8x8_t vref_a8 = vld1_u8(sample);
-      int16x8_t vref_a = vreinterpretq_s16_u16(vmovl_u8(vref_a8));
-#endif
+    auto fir_1sample_s32 = [&vfilter_lo, &vfilter_hi](int16x8_t vref_a) {
       int32x4_t prod_a_lo = vmull_s16(vget_low_s16(vref_a), vfilter_lo);
       int32x4_t prod_a_hi = vmull_s16(vget_high_s16(vref_a), vfilter_hi);
       int32x4_t prod_a = vaddq_s32(prod_a_lo, prod_a_hi);
       return vadd_s32(vget_low_s32(prod_a), vget_high_s32(prod_a));
     };
-    auto fir_2samples_s32 = [&fir_1sample_s32](const Sample *sample) {
-      int32x2_t sum_a_lo = fir_1sample_s32(sample + 0);  // a0426 a1537
-      int32x2_t sum_b_lo = fir_1sample_s32(sample + 1);  // b0426 b1537
+    auto fir_2samples_s32 = [&fir_1sample_s32](int16x8_t vref_a,
+                                               int16x8_t vref_b) {
+      int32x2_t sum_a_lo = fir_1sample_s32(vref_a);  // a0426 a1537
+      int32x2_t sum_b_lo = fir_1sample_s32(vref_b);  // b0426 b1537
       return vpadd_s32(sum_a_lo, sum_b_lo);
     };
-    auto fir_4samples_s16 = [&](const Sample *sample) {
-      int32x2_t prod_ab = fir_2samples_s32(sample + 0);
-      int32x2_t prod_cd = fir_2samples_s32(sample + 2);
-      int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
-      int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
-      return vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
-    };
     for (int x = 0; x < width8; x += 8) {
-      int16x4_t sum_abcd = fir_4samples_s16(src + x + 0);
-      int16x4_t sum_efgh = fir_4samples_s16(src + x + 4);
+      int16x8_t vref_lo = load_row(src + x + 0);
+      int16x8_t vref_hi = load_row(src + x + 8);
+      int32x2_t prod_ab = fir_2samples_s32(vref_lo,
+                                           vextq_s16(vref_lo, vref_hi, 1));
+      int32x2_t prod_cd = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 2),
+                                           vextq_s16(vref_lo, vref_hi, 3));
+      int32x2_t prod_ef = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 4),
+                                           vextq_s16(vref_lo, vref_hi, 5));
+      int32x2_t prod_gh = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 6),
+                                           vextq_s16(vref_lo, vref_hi, 7));
+      int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
+      int32x4_t prod_efgh = vcombine_s32(prod_ef, prod_gh);
+      int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
+      int32x4_t sum_efgh_offset = vaddq_s32(prod_efgh, voffset);
+      int16x4_t sum_abcd = vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
+      int16x4_t sum_efgh = vqmovn_s32(vshlq_s32(sum_efgh_offset, vshift));
       int16x8_t sum = vcombine_s16(sum_abcd, sum_efgh);
       if (Clip) {
 #if XVC_HIGH_BITDEPTH
@@ -368,7 +378,24 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
       }
     }
     if (Width4(width)) {
-      int16x4_t sum = fir_4samples_s16(src + width8 + 0);
+#if XVC_HIGH_BITDEPTH
+      int16x8_t vref_lo = vreinterpretq_s16_u16(vld1q_u16(src + width8 + 0));
+      int16x4_t vref_hi_lo = vreinterpret_s16_u16(vld1_u16(src + width8 + 8));
+      int16x8_t vref_hi = vcombine_s16(vref_hi_lo, vref_hi_lo);
+#else
+      uint8x16_t vref_all = vld1q_u8(src + width8 + 0);
+      int16x8_t vref_lo =
+        vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(vref_all)));
+      int16x8_t vref_hi =
+        vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(vref_all)));
+#endif
+      int32x2_t prod_ab = fir_2samples_s32(vref_lo,
+                                           vextq_s16(vref_lo, vref_hi, 1));
+      int32x2_t prod_cd = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 2),
+                                           vextq_s16(vref_lo, vref_hi, 3));
+      int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
+      int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
+      int16x4_t sum = vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
       if (Clip) {
 #if XVC_HIGH_BITDEPTH
         int16x4_t out = vmax_s16(vget_low_s16(min),
@@ -521,32 +548,35 @@ void FilterHorSampleTChromaNeon(int width, int height, int bitdepth,
   src -= InterPrediction::kNumTapsChroma / 2 - 1;
 
   for (int y = 0; y < height; y++) {
-    auto fir_2samples_s32 = [&vfilter](const Sample *sample) {
-#if XVC_HIGH_BITDEPTH
-      int16x4_t vref_a = vreinterpret_s16_u16(vld1_u16(sample + 0));
-      int16x4_t vref_b = vreinterpret_s16_u16(vld1_u16(sample + 1));
-#else
-      int16x8_t vref_a8 = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(sample + 0)));
-      int16x8_t vref_b8 = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(sample + 1)));
-      int16x4_t vref_a = vget_low_s16(vref_a8);
-      int16x4_t vref_b = vget_low_s16(vref_b8);
-#endif
-      int32x4_t prod_a = vmull_s16(vref_a, vfilter);
-      int32x4_t prod_b = vmull_s16(vref_b, vfilter);
-      int32x2_t sum_a = vadd_s32(vget_low_s32(prod_a), vget_high_s32(prod_a));
-      int32x2_t sum_b = vadd_s32(vget_low_s32(prod_b), vget_high_s32(prod_b));
-      return vpadd_s32(sum_a, sum_b);
-    };
-    auto fir_4samples_s16 = [&](const Sample *sample) {
-      int32x2_t prod_ab = fir_2samples_s32(sample + 0);
-      int32x2_t prod_cd = fir_2samples_s32(sample + 2);
-      int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
-      int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
-      return vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
-    };
     for (int x = 0; x < width8; x += 8) {
-      int16x4_t sum_abcd = fir_4samples_s16(src + x + 0);
-      int16x4_t sum_efgh = fir_4samples_s16(src + x + 4);
+      auto fir_2samples_s32 = [&vfilter](int16x8_t vref_a, int16x8_t vref_b) {
+        int32x4_t prod_a = vmull_s16(vget_low_s16(vref_a), vfilter);
+        int32x4_t prod_b = vmull_s16(vget_low_s16(vref_b), vfilter);
+        int32x2_t sum_a = vadd_s32(vget_low_s32(prod_a), vget_high_s32(prod_a));
+        int32x2_t sum_b = vadd_s32(vget_low_s32(prod_b), vget_high_s32(prod_b));
+        return vpadd_s32(sum_a, sum_b);
+      };
+#if XVC_HIGH_BITDEPTH
+      int16x8_t vref_lo = vreinterpretq_s16_u16(vld1q_u16(src + x + 0));
+      int16x8_t vref_hi = vreinterpretq_s16_u16(vld1q_u16(src + x + 8));
+#else
+      int16x8_t vref_lo = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(src + x + 0)));
+      int16x8_t vref_hi = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(src + x + 8)));
+#endif
+      int32x2_t prod_ab = fir_2samples_s32(vref_lo,
+                                           vextq_s16(vref_lo, vref_hi, 1));
+      int32x2_t prod_cd = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 2),
+                                           vextq_s16(vref_lo, vref_hi, 3));
+      int32x2_t prod_ef = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 4),
+                                           vextq_s16(vref_lo, vref_hi, 5));
+      int32x2_t prod_gh = fir_2samples_s32(vextq_s16(vref_lo, vref_hi, 6),
+                                           vextq_s16(vref_lo, vref_hi, 7));
+      int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
+      int32x4_t prod_efgh = vcombine_s32(prod_ef, prod_gh);
+      int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
+      int32x4_t sum_efgh_offset = vaddq_s32(prod_efgh, voffset);
+      int16x4_t sum_abcd = vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
+      int16x4_t sum_efgh = vqmovn_s32(vshlq_s32(sum_efgh_offset, vshift));
       int16x8_t sum = vcombine_s16(sum_abcd, sum_efgh);
       if (Clip) {
 #if XVC_HIGH_BITDEPTH
@@ -562,7 +592,29 @@ void FilterHorSampleTChromaNeon(int width, int height, int bitdepth,
       }
     }
     if (Width4(width)) {
-      int16x4_t sum = fir_4samples_s16(src + width8 + 0);
+      auto fir_2samples_s32 = [&vfilter](int16x4_t vref_a, int16x4_t vref_b) {
+        int32x4_t prod_a = vmull_s16(vref_a, vfilter);
+        int32x4_t prod_b = vmull_s16(vref_b, vfilter);
+        int32x2_t sum_a = vadd_s32(vget_low_s32(prod_a), vget_high_s32(prod_a));
+        int32x2_t sum_b = vadd_s32(vget_low_s32(prod_b), vget_high_s32(prod_b));
+        return vpadd_s32(sum_a, sum_b);
+      };
+#if XVC_HIGH_BITDEPTH
+      int16x4_t vref_lo = vreinterpret_s16_u16(vld1_u16(src + width8 + 0));
+      int16x4_t vref_hi = vreinterpret_s16_u16(vld1_u16(src + width8 + 4));
+#else
+      int16x8_t vref_both =
+        vreinterpretq_s16_u16(vmovl_u8(vld1_u8(src + width8 + 0)));
+      int16x4_t vref_lo = vget_low_s16(vref_both);
+      int16x4_t vref_hi = vget_high_s16(vref_both);
+#endif
+      int32x2_t prod_ab = fir_2samples_s32(vref_lo,
+                                           vext_s16(vref_lo, vref_hi, 1));
+      int32x2_t prod_cd = fir_2samples_s32(vext_s16(vref_lo, vref_hi, 2),
+                                           vext_s16(vref_lo, vref_hi, 3));
+      int32x4_t prod_abcd = vcombine_s32(prod_ab, prod_cd);
+      int32x4_t sum_abcd_offset = vaddq_s32(prod_abcd, voffset);
+      int16x4_t sum = vqmovn_s32(vshlq_s32(sum_abcd_offset, vshift));
       if (Clip) {
 #if XVC_HIGH_BITDEPTH
         int16x4_t out = vmax_s16(vget_low_s16(min),
@@ -606,19 +658,19 @@ void FilterVerLumaSse2(int width, int height, int bitdepth,
     (filter[4] & 0xFFFF) | (static_cast<uint16_t>(filter[5]) << 16));
   const __m128i vfilter67 = _mm_set1_epi32(
     (filter[6] & 0xFFFF) | (static_cast<uint16_t>(filter[7]) << 16));
+  const __m128i zero = _mm_setzero_si128();
 
   src -= (InterPrediction::kNumTapsLuma / 2 - 1) * src_stride;
 
   for (int y = 0; y < height; y += 4) {
     for (int x = 0; x < width; x += 4) {
-      auto combine_rows_epi16 = [](__m128i r0, __m128i r1)
+      auto combine_rows_epi16 = [&](__m128i r0, __m128i r1)
         __attribute__((target("sse2"))) {
         if (std::is_same<SrcT, uint16_t>::value ||
             std::is_same<SrcT, int16_t>::value) {
           return _mm_unpacklo_epi16(r0, r1);
         } else if (std::is_same<SrcT, uint8_t>::value) {
-          return _mm_unpacklo_epi8(_mm_unpacklo_epi8(r0, r1),
-                                   _mm_setzero_si128());
+          return _mm_unpacklo_epi8(_mm_unpacklo_epi8(r0, r1), zero);
         } else {
           assert(0);
           return __m128i();
@@ -833,14 +885,14 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
     (filter[0] & 0xFFFF) | (static_cast<uint16_t>(filter[1]) << 16));
   const __m128i vfilter23 = _mm_set1_epi32(
     (filter[2] & 0xFFFF) | (static_cast<uint16_t>(filter[3]) << 16));
-  auto combine_rows_epi16 = [](__m128i r0, __m128i r1)
+  const __m128i zero = _mm_setzero_si128();
+  auto combine_rows_epi16 = [&](__m128i r0, __m128i r1)
     __attribute__((target("sse2"))) {
     if (std::is_same<SrcT, uint16_t>::value ||
         std::is_same<SrcT, int16_t>::value) {
       return _mm_unpacklo_epi16(r0, r1);
     } else if (std::is_same<SrcT, uint8_t>::value) {
-      return _mm_unpacklo_epi8(_mm_unpacklo_epi8(r0, r1),
-                               _mm_setzero_si128());
+      return _mm_unpacklo_epi8(_mm_unpacklo_epi8(r0, r1), zero);
     } else {
       assert(0);
       return __m128i();
