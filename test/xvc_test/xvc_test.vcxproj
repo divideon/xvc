@@ -165,6 +165,7 @@
   <ItemGroup>
     <ClCompile Include="..\googletest\src\gtest-all.cc" />
     <ClCompile Include="..\googletest\src\gtest_main.cc" />
+    <ClCompile Include="decoder_scalability_test.cc" />
     <ClCompile Include="hls_test.cc" />
     <ClCompile Include="checksum_enc_dec_test.cc" />
     <ClCompile Include="decoder_api_test.cc" />
@@ -173,6 +174,7 @@
     <ClCompile Include="encode_decode_test.cc" />
     <ClCompile Include="resolution_test.cc" />
     <ClCompile Include="residual_coding_test.cc" />
+    <ClCompile Include="restrictions_test.cc" />
     <ClCompile Include="simd_test.cc" />
     <ClCompile Include="yuv_helper.cc" />
   </ItemGroup>

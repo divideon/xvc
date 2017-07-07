@@ -50,8 +50,9 @@ struct EncoderSettings {
   }
 
   // Initialize based on restricted mode setting
-  void Initialize(RestrictedMode restricted_mode) {
-    switch (restricted_mode) {
+  void Initialize(RestrictedMode mode) {
+    restricted_mode = mode;
+    switch (mode) {
       case RestrictedMode::kModeA:
         eval_prev_mv_search_result = 1;
         fast_intra_mode_eval_level = 1;
@@ -130,6 +131,7 @@ struct EncoderSettings {
   int adaptive_qp = 1;
   double aqp_strength = 1.0;
   int structural_ssd = 1;
+  RestrictedMode restricted_mode = RestrictedMode::kUnrestricted;
 };
 
 }   // namespace xvc

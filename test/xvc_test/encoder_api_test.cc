@@ -209,7 +209,6 @@ TEST(EncoderAPI, EncoderEncode) {
   EXPECT_EQ(XVC_ENC_OK, api->encoder_destroy(encoder));
 }
 
-
 TEST(EncoderAPI, EncoderFlush) {
   const xvc_encoder_api *api = xvc_encoder_api_get();
 
@@ -218,22 +217,22 @@ TEST(EncoderAPI, EncoderFlush) {
   int num_nal_units;
   xvc_enc_pic_buffer pic_recon_buffer = { 0 };
   xvc_enc_pic_buffer *pic_recon_ptr = &pic_recon_buffer;
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->width = 1280;
+  params->height = 720;
+  xvc_encoder *encoder = api->encoder_create(params);
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT,
             api->encoder_flush(nullptr, &nal_units, &num_nal_units,
                                pic_recon_ptr));
-  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
-  params->width = 176;
-  params->height = 144;
-  xvc_encoder *encoder = api->encoder_create(params);
-  EXPECT_EQ(XVC_ENC_OK, api->parameters_destroy(params));
-  EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT, api->encoder_flush(encoder,
-                                                         nullptr,
-                                                         &num_nal_units,
-                                                         pic_recon_ptr));
-  EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT, api->encoder_flush(encoder,
-                                                         &nal_units,
-                                                         nullptr,
-                                                         pic_recon_ptr));
+  EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT,
+            api->encoder_flush(encoder, nullptr, &num_nal_units,
+                               pic_recon_ptr));
+  EXPECT_EQ(XVC_ENC_INVALID_ARGUMENT,
+            api->encoder_flush(encoder, &nal_units, nullptr, pic_recon_ptr));
+  EXPECT_EQ(XVC_ENC_OK,
+            api->encoder_flush(encoder, &nal_units, &num_nal_units,
+                               pic_recon_ptr));
   EXPECT_EQ(XVC_ENC_OK, api->encoder_destroy(encoder));
 }
 

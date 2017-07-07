@@ -47,6 +47,12 @@
     <ClCompile Include="simd_test.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="restrictions_test.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="decoder_scalability_test.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\googletest\include\gtest\gtest.h">

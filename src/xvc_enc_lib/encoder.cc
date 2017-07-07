@@ -178,17 +178,16 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
   return static_cast<int>(nal_units_.size());
 }
 
-void Encoder::SetRestrictedMode(int mode) {
-  assert(poc_ == 0);
-  Restrictions &restrictions = Restrictions::GetRW();
-  restrictions.EnableRestrictedMode(RestrictedMode(mode));
-}
-
 void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
+  assert(poc_ == 0);
   encoder_settings_ = settings;
   segment_header_->num_ref_pics = settings.default_num_ref_pics;
   segment_header_->max_binary_split_depth = settings.max_binary_split_depth;
   segment_header_->adaptive_qp = settings.adaptive_qp;
+  // Load restriction flags
+  Restrictions restrictions = Restrictions();
+  restrictions.EnableRestrictedMode(settings.restricted_mode);
+  Restrictions::GetRW() = std::move(restrictions);
 }
 
 void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,

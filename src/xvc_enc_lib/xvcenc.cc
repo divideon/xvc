@@ -243,7 +243,6 @@ extern "C" {
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);
-    encoder->SetRestrictedMode(param->restricted_mode);
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
     if (param->beta_offset != 0 || param->tc_offset != 0) {

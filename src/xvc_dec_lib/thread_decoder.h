@@ -10,6 +10,7 @@
 // Some C++11 headers are not allowed by cpplint
 #include <condition_variable>   // NOLINT
 #include <deque>
+#include <functional>
 #include <list>
 #include <memory>
 #include <mutex>                // NOLINT

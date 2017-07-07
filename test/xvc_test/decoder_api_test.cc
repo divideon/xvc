@@ -95,13 +95,13 @@ TEST(DecoderAPI, DecoderGetDecodedPic) {
 
 TEST(DecoderAPI, DecoderFlush) {
   const xvc_decoder_api *api = xvc_decoder_api_get();
-  xvc_decoded_picture decoded_pic;
-  EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_flush(nullptr,
-                                                         &decoded_pic));
   xvc_decoder_parameters *params = api->parameters_create();
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
   EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
+  xvc_decoded_picture decoded_pic;
+  EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT,
+            api->decoder_flush(nullptr, &decoded_pic));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_flush(decoder, nullptr));
   EXPECT_EQ(XVC_DEC_NO_DECODED_PIC, api->decoder_flush(decoder, &decoded_pic));
   EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));

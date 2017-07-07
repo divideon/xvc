@@ -21,21 +21,29 @@ using NalUnit = std::vector<uint8_t>;
 
 class EncoderHelper {
 protected:
+  static const int kDefaultQp = 27;
+
   void Init() {
-    encoder_ = CreateEncoder(0, 0, 8, 32);
+    encoder_ = CreateEncoder(0, 0, 8, kDefaultQp);
   }
 
   std::unique_ptr<xvc::Encoder>
-    CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
-    std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder());
+    CreateEncoder(int width, int height, int bitdepth, int qp) {
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder_settings.Tune(xvc::TuneMode::kPsnr);
-    encoder->SetEncoderSettings(std::move(encoder_settings));
+    return CreateEncoder(encoder_settings, width, height, bitdepth, qp);
+  }
+
+  std::unique_ptr<xvc::Encoder>
+    CreateEncoder(const xvc::EncoderSettings &encoder_settings,
+                  int width, int height, int bitdepth, int qp) {
+    std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder());
+    encoder->SetEncoderSettings(encoder_settings);
     encoder->SetResolution(width, height);
     encoder->SetChromaFormat(xvc::ChromaFormat::k420);
     encoder->SetInputBitdepth(8);
-    encoder->SetInternalBitdepth(internal_bitdepth);
+    encoder->SetInternalBitdepth(bitdepth);
     encoder->SetSegmentLength(64);
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);
@@ -109,6 +117,10 @@ protected:
     return encoded_nal_units_[decoded_nals_units++];
   }
 
+  bool HasMoreNals() {
+    return decoded_nals_units < static_cast<int>(encoded_nal_units_.size());
+  }
+
   std::unique_ptr<xvc::Encoder> encoder_;
   std::vector<NalUnit> encoded_nal_units_;
   int decoded_nals_units = 0;
@@ -117,7 +129,8 @@ protected:
 
 class DecoderHelper {
 public:
-  void Init(int num_threads = 0) {
+  void Init(bool use_threads = false) {
+    const int num_threads = use_threads ? -1 : 0;
     decoder_ = std::unique_ptr<xvc::Decoder>(new ::xvc::Decoder(num_threads));
   }
 

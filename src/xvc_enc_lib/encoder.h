@@ -78,7 +78,6 @@ public:
   void SetChecksumMode(Checksum::Mode mode) {
     segment_header_->checksum_mode = mode;
   }
-  void SetRestrictedMode(int mode);
 
   const EncoderSettings& GetEncoderSettings() { return encoder_settings_; }
   void SetEncoderSettings(const EncoderSettings &settings);

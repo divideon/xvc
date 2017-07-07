@@ -240,6 +240,9 @@ Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
     thread_decoder_->DecodeAsync(std::move(segment_header), std::move(pic_dec),
                                  std::move(inter_dependencies), std::move(nal),
                                  pic_bit_reader.GetPosition());
+    if (state_ == State::kSegmentHeaderDecoded) {
+      state_ = State::kPicDecoded;
+    }
   } else {
     // Synchronous decode
     bool success = pic_dec->Decode(*segment_header, &pic_bit_reader);
