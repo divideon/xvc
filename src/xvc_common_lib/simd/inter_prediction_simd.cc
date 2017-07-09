@@ -323,10 +323,10 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
 #endif
   auto load_row = [](const Sample *sample) {
 #if XVC_HIGH_BITDEPTH
-      return vreinterpretq_s16_u16(vld1q_u16(sample));
+    return vreinterpretq_s16_u16(vld1q_u16(sample));
 #else
-      uint8x8_t vref_a8 = vld1_u8(sample);
-      return vreinterpretq_s16_u16(vmovl_u8(vref_a8));
+    uint8x8_t vref_a8 = vld1_u8(sample);
+    return vreinterpretq_s16_u16(vmovl_u8(vref_a8));
 #endif
   };
 
@@ -906,11 +906,16 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
     __m128i sum_offset = _mm_add_epi32(prod_sum, voffset);
     return _mm_srai_epi32(sum_offset, shift);
   };  // NOLINT
+#if XVC_HIGH_BITDEPTH
+  const int width_reduced = width;
+#else
+  const int width_reduced = width & ~3;
+#endif
 
   src -= (InterPrediction::kNumTapsChroma / 2 - 1) * src_stride;
 
   for (int y = 0; y < height4; y += 4) {
-    for (int x = 0; x < width; x += 4) {
+    for (int x = 0; x < width_reduced; x += 4) {
       __m128i row0 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 0 * src_stride));
       __m128i row1 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 1 * src_stride));
       __m128i row2 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 2 * src_stride));
@@ -961,11 +966,34 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
           _mm_cvtsi128_si32(out3);
       }
     }
+#if !XVC_HIGH_BITDEPTH
+    if (width & 2) {
+      // Special handling of non 4-byte aligned stores
+      // This happens for non high bitdepth builds and when CU width is 2
+      for (int y2 = 0; y2 < 4; y2++) {
+        for (int x2 = 0; x2 < 2; x2++) {
+          int sum = 0;
+          sum += src[width_reduced + x2 + (y2 + 0) * src_stride] * filter[0];
+          sum += src[width_reduced + x2 + (y2 + 1) * src_stride] * filter[1];
+          sum += src[width_reduced + x2 + (y2 + 2) * src_stride] * filter[2];
+          sum += src[width_reduced + x2 + (y2 + 3) * src_stride] * filter[3];
+          int val = (sum + offset) >> shift;
+          if (Clip) {
+            dst[y2 * dst_stride + width_reduced + x2] =
+              util::ClipBD(val, (1 << bitdepth) - 1);
+          } else {
+            dst[y2 * dst_stride + width_reduced + x2] =
+              static_cast<DstT>(val);
+          }
+        }
+      }
+    }
+#endif
     src += src_stride * 4;
     dst += dst_stride * 4;
   }
   if (height & 2) {
-    for (int x = 0; x < width; x += 4) {
+    for (int x = 0; x < width_reduced; x += 4) {
       __m128i row0 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 0 * src_stride));
       __m128i row1 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 1 * src_stride));
       __m128i row2 = _mm_loadl_epi64(CAST_M128_CONST(src + x + 2 * src_stride));
@@ -996,6 +1024,29 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
           _mm_cvtsi128_si32(out1);
       }
     }
+#if !XVC_HIGH_BITDEPTH
+    if (width & 2) {
+      // Special handling of non 4-byte aligned stores
+      // This happens for non high bitdepth builds and when CU width is 2
+      for (int y2 = 0; y2 < 2; y2++) {
+        for (int x2 = 0; x2 < 2; x2++) {
+          int sum = 0;
+          sum += src[width_reduced + x2 + (y2 + 0) * src_stride] * filter[0];
+          sum += src[width_reduced + x2 + (y2 + 1) * src_stride] * filter[1];
+          sum += src[width_reduced + x2 + (y2 + 2) * src_stride] * filter[2];
+          sum += src[width_reduced + x2 + (y2 + 3) * src_stride] * filter[3];
+          int val = (sum + offset) >> shift;
+          if (Clip) {
+            dst[y2 * dst_stride + width_reduced + x2] =
+              util::ClipBD(val, (1 << bitdepth) - 1);
+          } else {
+            dst[y2 * dst_stride + width_reduced + x2] =
+              static_cast<DstT>(val);
+          }
+        }
+      }
+    }
+#endif
   }
 }
 #endif  // XVC_ARCH_X86
