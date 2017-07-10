@@ -401,7 +401,7 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   output_pic->stats.bitstream_bitdepth = pic_data->GetBitdepth();
   output_pic->stats.framerate =
     SegmentHeader::GetFramerate(max_tid_, curr_segment_header_->bitstream_ticks,
-                                sliding_window_length_ - 1);
+                                curr_segment_header_->max_sub_gop_length);
   output_pic->stats.bitstream_framerate =
     SegmentHeader::GetFramerate(0, curr_segment_header_->bitstream_ticks, 1);
   output_pic->stats.nal_unit_type =
