@@ -64,11 +64,11 @@ void EntropyEncoder::EncodeBin(uint32_t binval, ContextModel *ctx) {
 
 void EntropyEncoder::EncodeBypass(uint32_t binval) {
   if (!bit_writer_) {
-    frac_bits_ += 32768;
+    frac_bits_ += ContextModel::kEntropyBypassBits;
     return;
   }
   if (EncoderSettings::kEncoderCountActualWrittenBits) {
-    frac_bits_ += 32768;
+    frac_bits_ += ContextModel::kEntropyBypassBits;
   }
   low_ <<= 1;
   if (binval) {
@@ -80,11 +80,11 @@ void EntropyEncoder::EncodeBypass(uint32_t binval) {
 
 void EntropyEncoder::EncodeBypassBins(uint32_t binvals, int num_bins) {
   if (!bit_writer_) {
-    frac_bits_ += 32768 * num_bins;
+    frac_bits_ += ContextModel::kEntropyBypassBits * num_bins;
     return;
   }
   if (EncoderSettings::kEncoderCountActualWrittenBits) {
-    frac_bits_ += 32768 * num_bins;
+    frac_bits_ += ContextModel::kEntropyBypassBits * num_bins;
   }
   while (num_bins > 8) {
     num_bins -= 8;

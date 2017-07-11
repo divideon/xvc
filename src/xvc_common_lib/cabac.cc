@@ -494,6 +494,7 @@ ContextModel& CabacContexts::GetCoeffGreaterThan2Ctx(YuvComponent comp,
   if (Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
     return ctx_base[0];
   }
+  static_assert(1 == constants::kMaxNumC2Flags, "Assumes only 1 greater2 flag");
   return ctx_base[ctx_set];
 }
 

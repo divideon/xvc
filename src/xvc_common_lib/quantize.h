@@ -43,8 +43,11 @@ public:
   double GetDistortionWeight(YuvComponent comp) const {
     return distortion_weight_[comp];
   }
-  double GetLambda() const { return lambda_; }
+  double GetLambda() const { return lambda_[0]; }
   double GetLambdaSqrt() const { return lambda_sqrt_; }
+  double GetLambdaScaled(YuvComponent comp) const {
+    return lambda_[static_cast<int>(comp)];
+  }
 
   static double CalculateLambda(int qp, PicturePredictionType pic_type,
                                 int sub_gop_length, int temporal_id,
@@ -63,28 +66,22 @@ private:
   std::array<int, constants::kMaxYuvComponents> qp_raw_;
   std::array<int, constants::kMaxYuvComponents> qp_bitdepth_;
   std::array<double, constants::kMaxYuvComponents> distortion_weight_;
-  double lambda_;
+  std::array<double, constants::kMaxYuvComponents> lambda_;
   double lambda_sqrt_;
 };
 
 class Quantize {
 public:
-  int Forward(const CodingUnit &cu, YuvComponent comp, const Qp &qp, int width,
-              int height,
-              int bitdepth, PicturePredictionType pic_type,
-              const Coeff *in, ptrdiff_t in_stride,
-              Coeff *out, ptrdiff_t out_stride);
+  static const int kQuantShift = 14;
+  static const int kIQuantShift = 6;
+  static const int kScaleBits = 15;
+
   void Inverse(YuvComponent comp, const Qp &qp, int width, int height,
                int bitdepth, const Coeff *in, ptrdiff_t in_stride, Coeff *out,
                ptrdiff_t out_stride);
+  static int GetTransformShift(int width, int height, int bitdepth);
 
 private:
-  static int GetTransformShift(int width, int height, int bitdepth);
-  void AdjustCoeffsForSignHiding(const CodingUnit &cu, YuvComponent comp,
-                                 int width, int height,
-                                 const Coeff *in, ptrdiff_t in_stride,
-                                 const Coeff *delta, ptrdiff_t delta_stride,
-                                 Coeff *out, ptrdiff_t out_stride);
 };
 
 }   // namespace xvc

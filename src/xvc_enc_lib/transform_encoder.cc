@@ -19,7 +19,8 @@ TransformEncoder::TransformEncoder(int bitdepth, int num_components,
   num_components_(num_components),
   inv_transform_(bitdepth),
   fwd_transform_(bitdepth),
-  quantize_(),
+  inv_quant_(),
+  fwd_quant_(bitdepth),
   temp_pred_(kBufferStride_, constants::kMaxBlockSize),
   temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
   temp_resi_(kBufferStride_, constants::kMaxBlockSize),
@@ -50,10 +51,9 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
 
   // Quant
   int non_zero =
-    quantize_.Forward(*cu, comp, qp, width, height, rec_pic->GetBitdepth(),
-                      cu->GetPicType(),
-                      temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
-                      cu_coeff.GetDataPtr(), cu_coeff.GetStride());
+    fwd_quant_.QuantFast(*cu, comp, qp, width, height, cu->GetPicType(),
+                         temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
+                         cu_coeff.GetDataPtr(), cu_coeff.GetStride());
   bool cbf = non_zero != 0;
   if (Restrictions::Get().disable_transform_cbf) {
     cbf = true;
@@ -63,9 +63,9 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
   SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
   if (cbf) {
     // Dequant
-    quantize_.Inverse(comp, qp, width, height, rec_pic->GetBitdepth(),
-                      cu_coeff.GetDataPtr(), cu_coeff.GetStride(),
-                      temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
+    inv_quant_.Inverse(comp, qp, width, height, rec_pic->GetBitdepth(),
+                       cu_coeff.GetDataPtr(), cu_coeff.GetStride(),
+                       temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
 
     // Inv transform
     inv_transform_.Transform(width, height, is_luma_intra,

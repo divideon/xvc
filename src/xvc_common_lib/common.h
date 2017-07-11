@@ -105,8 +105,6 @@ const bool kTemporalMvPrediction = true;
 
 // Quant
 const int kMaxTrDynamicRange = 15;
-const int kQuantShift = 14;
-const int kIQuantShift = 6;
 const int kMinAllowedQp = -64;
 const int kMaxAllowedQp = 63;
 const int kMaxQpDiff = 16;
@@ -114,6 +112,7 @@ const int kQpSignalBase = 64;
 
 // Residual coding
 const int kMaxNumC1Flags = 8;
+const int kMaxNumC2Flags = 1;
 const int kSubblockShift = 2;
 const uint32_t kCoeffRemainBinReduction = 3;
 const int SignHidingThreshold = 3;

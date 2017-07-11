@@ -171,6 +171,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="cu_cache.h" />
+    <ClInclude Include="rdo_quant.h" />
     <ClInclude Include="transform_encoder.h" />
     <ClInclude Include="bit_writer.h" />
     <ClInclude Include="cu_encoder.h" />
@@ -189,6 +190,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu_cache.cc" />
+    <ClCompile Include="rdo_quant.cc" />
     <ClCompile Include="transform_encoder.cc" />
     <ClCompile Include="bit_writer.cc" />
     <ClCompile Include="cu_encoder.cc" />

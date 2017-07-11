@@ -12,6 +12,7 @@
 #include "xvc_common_lib/transform.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/rdo_quant.h"
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
@@ -45,7 +46,8 @@ private:
   const int num_components_;
   InverseTransform inv_transform_;
   ForwardTransform fwd_transform_;
-  Quantize quantize_;
+  Quantize inv_quant_;
+  RdoQuant fwd_quant_;
   SampleBufferStorage temp_pred_;
   ResidualBufferStorage temp_resi_orig_;
   ResidualBufferStorage temp_resi_;
