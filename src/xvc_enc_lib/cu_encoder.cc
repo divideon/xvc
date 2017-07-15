@@ -454,11 +454,13 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
   if (cu->IsIntra()) {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
       // TODO(PH) Add fast method without cbf evaluation
-      dist += intra_search_.CompressIntra(cu, comp, qp, this, &rec_pic_);
+      dist += intra_search_.CompressIntra(cu, comp, qp, writer, this,
+                                          &rec_pic_);
     }
   } else {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
-      dist += inter_search_.CompressInterFast(cu, comp, qp, this, &rec_pic_);
+      dist += inter_search_.CompressInterFast(cu, comp, qp, writer, this,
+                                              &rec_pic_);
     }
   }
   return dist;
@@ -480,7 +482,7 @@ CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
         intra_search_.SearchIntraChroma(cu, qp, writer, this, &rec_pic_);
       cu->SetIntraModeChroma(chroma_mode);
     }
-    dist += intra_search_.CompressIntra(cu, comp, qp, this, &rec_pic_);
+    dist += intra_search_.CompressIntra(cu, comp, qp, writer, this, &rec_pic_);
   }
   return GetCuCostWithoutSplit(*cu, qp, writer, dist);
 }

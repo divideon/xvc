@@ -56,6 +56,7 @@ InterSearch::CompressInter(CodingUnit *cu, const Qp &qp,
 
 Distortion
 InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
                                TransformEncoder *encoder, YuvPicture *rec_pic) {
   if (!cu->GetCbf(comp)) {
     // Write prediction directly to reconstruction
@@ -69,7 +70,8 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
   } else {
     SampleBuffer &pred = encoder->GetPredBuffer();
     MotionCompensation(*cu, comp, pred.GetDataPtr(), pred.GetStride());
-    return encoder->TransformAndReconstruct(cu, comp, qp, orig_pic_, rec_pic);
+    return encoder->TransformAndReconstruct(cu, comp, qp, bitstream_writer,
+                                            orig_pic_, rec_pic);
   }
 }
 
@@ -199,7 +201,8 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
     MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
                        pred_buffer.GetStride());
     Distortion dist_orig =
-      encoder->TransformAndReconstruct(cu, comp, qp, orig_pic_, rec_pic);
+      encoder->TransformAndReconstruct(cu, comp, qp, bitstream_writer,
+                                       orig_pic_, rec_pic);
     Distortion dist_zero =
       metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer());
     Distortion dist_fast = dist_orig;

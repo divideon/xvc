@@ -30,6 +30,7 @@ public:
                                     TransformEncoder *encoder,
                                     YuvPicture *rec_pic);
   Distortion CompressIntra(CodingUnit *cu, YuvComponent comp, const Qp &qp,
+                           const SyntaxWriter &writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic);
 
 private:

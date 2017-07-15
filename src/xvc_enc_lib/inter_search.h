@@ -37,6 +37,7 @@ public:
                            const SyntaxWriter &bitstream_writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
                                TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion CompressMergeCand(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,

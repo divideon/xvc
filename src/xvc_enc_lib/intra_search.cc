@@ -104,7 +104,8 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
     cu->SetIntraModeLuma(intra_mode);
 
     // Full reconstruction
-    Distortion ssd = CompressIntra(cu, comp, qp, encoder, rec_pic);
+    Distortion ssd =
+      CompressIntra(cu, comp, qp, bitstream_writer, encoder, rec_pic);
 
     // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
@@ -138,8 +139,10 @@ IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
 
     // Full reconstruction
     Distortion ssd = 0;
-    ssd += CompressIntra(cu, YuvComponent::kU, qp, enc, rec_pic);
-    ssd += CompressIntra(cu, YuvComponent::kV, qp, enc, rec_pic);
+    ssd +=
+      CompressIntra(cu, YuvComponent::kU, qp, bitstream_writer, enc, rec_pic);
+    ssd +=
+      CompressIntra(cu, YuvComponent::kV, qp, bitstream_writer, enc, rec_pic);
 
     // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
@@ -157,7 +160,8 @@ IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
 }
 
 Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
-                                      const Qp &qp, TransformEncoder *encoder,
+                                      const Qp &qp, const SyntaxWriter &writer,
+                                      TransformEncoder *encoder,
                                       YuvPicture *rec_pic) {
   int cu_x = cu->GetPosX(comp);
   int cu_y = cu->GetPosY(comp);
@@ -166,7 +170,8 @@ Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
   IntraMode intra_mode = cu->GetIntraMode(comp);
   Predict(intra_mode, *cu, comp, reco_buffer.GetDataPtr(),
           reco_buffer.GetStride(), pred_buf.GetDataPtr(), pred_buf.GetStride());
-  return encoder->TransformAndReconstruct(cu, comp, qp, orig_pic_, rec_pic);
+  return encoder->TransformAndReconstruct(cu, comp, qp, writer, orig_pic_,
+                                          rec_pic);
 }
 
 }   // namespace xvc

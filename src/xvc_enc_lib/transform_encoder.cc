@@ -30,6 +30,7 @@ TransformEncoder::TransformEncoder(int bitdepth, int num_components,
 Distortion
 TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                                           const Qp & qp,
+                                          const SyntaxWriter &syntax_writer,
                                           const YuvPicture &orig_pic,
                                           YuvPicture *rec_pic) {
   int cu_x = cu->GetPosX(comp);
