@@ -89,7 +89,9 @@ TEST_F(DecoderScalabilityTest, ReferencePicDownscaling) {
   // Corrupted state is set for one segment until next segment header
   int expected_invalid_dec_state = kSegmentLength;
   EXPECT_EQ(result.first, expected_decoded_pics);
-  EXPECT_EQ(expected_corrupted_pics, decoder_->GetNumCorruptedPics());
+  // Number of corrupted pictures varies depending on qp and rdoq
+  EXPECT_LE(decoder_->GetNumCorruptedPics(), expected_corrupted_pics);
+  EXPECT_GT(decoder_->GetNumCorruptedPics(), 0);
   EXPECT_EQ(result.second, expected_invalid_dec_state);
 }
 

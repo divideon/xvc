@@ -14,7 +14,8 @@ namespace xvc {
 class ContextModel {
 public:
   static const int CONTEXT_STATE_BITS = 6;
-  static const uint32_t kEntropyBypassBits = 32768;
+  static const int kFracBitsPrecision = 15;
+  static const uint32_t kEntropyBypassBits = 1 << kFracBitsPrecision;
   static uint32_t GetEntropyBitsTrm(uint32_t bin) {
     return kEntropyBits_[126 ^ bin];
   }

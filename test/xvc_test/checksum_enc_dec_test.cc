@@ -127,7 +127,7 @@ TEST_P(ChecksumEncDecTest, DifferentPictureGivesDifferentChecksum) {
 
   std::vector<xvc::Sample> orig2(input_pic_.begin(), input_pic_.end());
   for (int i = 0; i < segment_.pic_width; i++) {
-    orig2[i] += 10;   // random modification
+    orig2[i] += 10 << (GetParam() - 8);   // random modification
   }
   std::vector<uint8_t> bitstream2(*EncodePicture(&orig2[0]));
   std::vector<uint8_t> enc_checksum2 = pic_encoder_->GetLastChecksum();

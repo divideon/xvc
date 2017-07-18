@@ -51,12 +51,21 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                            temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
 
   // Quant
-  int non_zero =
-    fwd_quant_.QuantFast(*cu, comp, qp, width, height, cu->GetPicType(),
-                         temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
-                         cu_coeff.GetDataPtr(), cu_coeff.GetStride());
+  int non_zero;
+  if (encoder_settings_.rdo_quant) {
+    non_zero =
+      fwd_quant_.QuantRdo(*cu, comp, qp, cu->GetPicType(), syntax_writer,
+                          temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
+                          cu_coeff.GetDataPtr(), cu_coeff.GetStride());
+  } else {
+    non_zero =
+      fwd_quant_.QuantFast(*cu, comp, qp, cu->GetPicType(),
+                           temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
+                           cu_coeff.GetDataPtr(), cu_coeff.GetStride());
+  }
   bool cbf = non_zero != 0;
-  if (Restrictions::Get().disable_transform_cbf) {
+  if (!cbf && Restrictions::Get().disable_transform_cbf) {
+    cu_coeff.ZeroOut(width, height);
     cbf = true;
   }
   cu->SetCbf(comp, cbf);

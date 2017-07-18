@@ -74,14 +74,11 @@ class Quantize {
 public:
   static const int kQuantShift = 14;
   static const int kIQuantShift = 6;
-  static const int kScaleBits = 15;
 
   void Inverse(YuvComponent comp, const Qp &qp, int width, int height,
                int bitdepth, const Coeff *in, ptrdiff_t in_stride, Coeff *out,
                ptrdiff_t out_stride);
   static int GetTransformShift(int width, int height, int bitdepth);
-
-private:
 };
 
 }   // namespace xvc

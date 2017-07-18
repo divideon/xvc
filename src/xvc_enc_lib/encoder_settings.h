@@ -109,6 +109,8 @@ struct EncoderSettings {
                 "Fast bit counting should use strict rdo bit signaling");
 
   // Fast encoder decisions (always used)
+  static const bool rdo_quant = true;
+  static const bool rdo_quant_size_2 = false;
   static const bool fast_cu_split_based_on_full_cu = true;
   static const bool fast_mode_selection_for_cached_cu = true;
   static const bool skip_mode_decision_for_identical_cu = false;
