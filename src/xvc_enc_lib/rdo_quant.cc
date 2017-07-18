@@ -242,22 +242,13 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   const auto inv_quant = GetInvQuantFunc(comp, qp, width, height);
 
   constexpr int kMaxSubblockSize = constants::kMaxBlockSize >> SubBlockShift;
-  constexpr int kMaxBlockSize2 =
-    constants::kMaxBlockSize * constants::kMaxBlockSize;
-  uint8_t subblock_csbf[kMaxBlockSize2];
-  int64_t coeff_cost_to_zero[kMaxBlockSize2];
-  Bits coeff_sig_bits[kMaxBlockSize2];
+  uint8_t subblock_csbf[kMaxSubblockSize * kMaxSubblockSize];
   Bits csbf_bits_to_zero[kMaxSubblockSize * kMaxSubblockSize];
-  Coeff delta[kMaxBlockSize2];
-  int sig_rate[constants::kMaxBlockSize][constants::kMaxBlockSize];
-  int rate_up[constants::kMaxBlockSize][constants::kMaxBlockSize];
-  int rate_down[constants::kMaxBlockSize][constants::kMaxBlockSize];
-  const ptrdiff_t delta_stride = constants::kMaxBlockSize;
   ::memset(&subblock_csbf[0], 0, sizeof(subblock_csbf));
-  ::memset(&delta[0], 0, sizeof(delta));
-  ::memset(&sig_rate[0][0], 0, sizeof(sig_rate));
-  ::memset(&rate_up[0][0], 0, sizeof(rate_up));
-  ::memset(&rate_down[0][0], 0, sizeof(rate_down));
+  ::memset(&err_dist_[0], 0, sizeof(err_dist_[0]) * width * height);
+  ::memset(&sig_rate_[0], 0, sizeof(sig_rate_[0]) * width * height);
+  ::memset(&rate_up_[0], 0, sizeof(rate_up_[0]) * width * height);
+  ::memset(&rate_down_[0], 0, sizeof(rate_down_[0]) * width * height);
 
   CoeffCodingState code_state;
   int last_pos_index = -1;
@@ -331,30 +322,29 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
         }
       }
       out[coeff.scan_y * out_stride + coeff.scan_x] = best_level;
-      coeff_cost_to_zero[coeff.index] = coeff_zero_cost - best_cost;
-      coeff_sig_bits[coeff.index] = best_cost_sig;
+      coeff_cost_to_zero_[coeff.index] = coeff_zero_cost - best_cost;
+      coeff_sig_bits_[coeff.index] = best_cost_sig;
       subblock_code_cost += best_cost;
       int64_t orig_scaled = ((static_cast<int64_t>(abs_coeff) * scale +
                               size_bias_offset) >> size_bias_shift);
-      int64_t delta_quant =
+      int64_t quant_err =
         orig_scaled - (static_cast<int64_t>(best_level) << shift);
-      delta[coeff.scan_y * delta_stride + coeff.scan_x] =
-        static_cast<Coeff>(delta_quant >> (shift - 8));
-      sig_rate[coeff.scan_y][coeff.scan_x] =
+      err_dist_[coeff.index] = static_cast<Coeff>(quant_err >> (shift - 8));
+      sig_rate_[coeff.index] =
         last_pos_index != coeff.index ? sig1_bits - sig0_bits : 0;
       if (best_level) {
         subblock_csbf[subblock.scan] = 1;
         num_non_zero++;
         int lvl_rate = GetAbsLevelBits(comp, best_level, contexts, code_state);
-        rate_up[coeff.scan_y][coeff.scan_x] = -lvl_rate +
+        rate_up_[coeff.index] = -lvl_rate +
           GetAbsLevelBits(comp, best_level + 1, contexts, code_state);
-        rate_down[coeff.scan_y][coeff.scan_x] = -lvl_rate +
+        rate_down_[coeff.index] = -lvl_rate +
           GetAbsLevelBits(comp, best_level - 1, contexts, code_state);
       } else {
         const ContextModel &c1_ctx =
           contexts->GetCoeffGreaterThan1Ctx(comp, code_state.ctx_set,
                                             code_state.c1);
-        rate_up[coeff.scan_y][coeff.scan_x] = c1_ctx.GetEntropyBits(0);
+        rate_up_[coeff.index] = c1_ctx.GetEntropyBits(0);
       }
       UpdateCodeState(comp, best_level, &code_state);
     }
@@ -368,7 +358,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
       subblock_csbf[subblock.scan] = 0;
       for (auto &coeff : subblock) {
         out[coeff.scan_y * out_stride + coeff.scan_x] = 0;
-        coeff_cost_to_zero[coeff.index] = 0;
+        coeff_cost_to_zero_[coeff.index] = 0;
       }
     }
 
@@ -383,8 +373,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   // Last position evaluation
   last_pos_index = EvalLastPos<SubBlockShift>(
     cu, comp, scan_order, contexts, last_pos_index, lambda, comp_code_cost,
-    comp_zero_dist, out, out_stride, subblock_csbf, csbf_bits_to_zero,
-    coeff_cost_to_zero, coeff_sig_bits);
+    comp_zero_dist, out, out_stride, subblock_csbf, csbf_bits_to_zero);
   if (last_pos_index < 0) {
     // Zero out whole component
     return 0;
@@ -420,20 +409,17 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   // Sign hiding
   if (!Restrictions::Get().disable_transform_sign_hiding &&
       num_non_zero > 1 && SubBlockShift > 1) {
-    CoeffSignHideRdo(cu, comp, qp, src, src_stride, delta, &sig_rate[0][0],
-                     &rate_up[0][0], &rate_down[0][0], out, out_stride);
+    CoeffSignHideRdo(cu, comp, qp, src, src_stride, out, out_stride);
   }
 
   return num_non_zero;
 }
 
-void RdoQuant::CoeffSignHideFast(const CodingUnit &cu,
-                                 YuvComponent comp, int width,
-                                 int height, const Coeff *in,
-                                 ptrdiff_t in_stride,
-                                 const Coeff *delta,
-                                 ptrdiff_t delta_stride,
-                                 Coeff *out, ptrdiff_t out_stride) {
+void RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
+                                 int width, int height,
+                                 const Coeff *in, ptrdiff_t in_stride,
+                                 const Coeff *delta, ptrdiff_t delta_stride,
+                                 Coeff *out, ptrdiff_t out_stride) const {
   constexpr int subblock_shift = constants::kSubblockShift;
   const int subblock_size = 1 << (subblock_shift * 2);
   const ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
@@ -551,11 +537,8 @@ void
 RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
                            const Qp &qp,
                            const Coeff *src, ptrdiff_t src_stride,
-                           const Coeff *delta, const int *sig_rate,
-                           const int *rate_up, const int *rate_down,
-                           Coeff *out, ptrdiff_t out_stride) {
+                           Coeff *out, ptrdiff_t out_stride) const {
   constexpr int SubBlockShift = constants::kSubblockShift;
-  constexpr int kStride = constants::kMaxBlockSize;
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int subblock_shift = SubBlockShift;
@@ -569,7 +552,7 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
   const double inv_scale = qp.GetInvScale(comp);
   const int64_t rd_factor = static_cast<int64_t>(
     inv_scale * inv_scale / lambda / subblock_size /
-    (1 << (2 * (bitdepth_ - 8))) + 0.5);
+    (1ull << (2 * (bitdepth_ - 8))) + 0.5);
 
   int is_last_subblock = -1;
   SubblockScan<SubBlockShift> subblock_scan_(scan_order, width, height);
@@ -615,13 +598,14 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
     for (auto coeff = subblock.at(start_coeff_index);
          coeff != subblock.end(); ++coeff) {
       const Coeff coeff_lvl = out[coeff.scan_y * out_stride + coeff.scan_x];
-      const int scan_pos = coeff.scan_y * kStride + coeff.scan_x;
       int64_t cost;
       Coeff level_delta = 0;
       if (coeff_lvl != 0) {
-        int64_t cost_inc = rd_factor * (-delta[scan_pos]) + rate_up[scan_pos];
-        int64_t cost_dec = rd_factor * (delta[scan_pos]) + rate_down[scan_pos]
-          - (std::abs(coeff_lvl) == 1 ? sig_rate[scan_pos] : 0);
+        int64_t cost_inc =
+          rd_factor * (-err_dist_[coeff.index]) + rate_up_[coeff.index];
+        int64_t cost_dec =
+          rd_factor * (err_dist_[coeff.index]) + rate_down_[coeff.index]
+          - (std::abs(coeff_lvl) == 1 ? sig_rate_[coeff.index] : 0);
         if (is_last_subblock == 1 && coeff.offset == last_in_subblock &&
             std::abs(coeff_lvl) == 1) {
           cost_dec -= 4 * ContextModel::kEntropyBypassBits;
@@ -638,8 +622,9 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
           }
         }
       } else {
-        cost = rd_factor * (-(std::abs(delta[scan_pos]))) + rate_up[scan_pos] +
-          sig_rate[scan_pos] + ContextModel::kEntropyBypassBits;
+        cost = rd_factor * -(std::abs(err_dist_[coeff.index])) +
+          rate_up_[coeff.index] + sig_rate_[coeff.index] +
+          ContextModel::kEntropyBypassBits;
         level_delta = 1;
         if (coeff.offset < first_in_subblock) {
           int sign =
@@ -676,7 +661,7 @@ RdoQuant::QuantCoeffRdo(YuvComponent comp, Coeff orig_coeff, Coeff max_level,
                         const CoeffCodingState &code_state, Bits sig1_bits,
                         int64_t lambda, int cost_scale, CabacContexts *contexts,
                         const std::function<Coeff(Coeff)> &inv_quant,
-                        int64_t *out_cost) {
+                        int64_t *out_cost) const {
   int64_t best_cost = std::numeric_limits<int64_t>::max();
   Coeff best_level = max_level;
   auto get_cost = [&](Coeff level) {
@@ -705,7 +690,7 @@ RdoQuant::EvalZeroSubblock(int subblock_index, int size, bool subblock_csbf,
                            const ContextModel &csbf_ctx, int last_pos_index,
                            int64_t subblock_zero_dist, int64_t lambda,
                            Bits *csbf_bits_to_zero,
-                           int64_t *subblock_code_cost) {
+                           int64_t *subblock_code_cost) const {
   if (last_pos_index < 0) {
     // No last coeff found yet
     *csbf_bits_to_zero = 0;
@@ -745,9 +730,7 @@ RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
                       int64_t comp_code_cost, int64_t comp_zero_dist,
                       const Coeff *out, ptrdiff_t out_stride,
                       const uint8_t *subblock_csbf,
-                      const Bits *csbf_bits_to_zero,
-                      const int64_t *coeff_cost_to_zero,
-                      const Bits *coeff_sig_bits) {
+                      const Bits *csbf_bits_to_zero) const {
   constexpr int subblock_size = 1 << (SubBlockShift * 2);
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
@@ -776,12 +759,12 @@ RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
          coeff != subblock.end(); ++coeff) {
       Coeff coeff_val = out[coeff.scan_y * out_stride + coeff.scan_x];
       if (!coeff_val) {
-        comp_code_cost += coeff_cost_to_zero[coeff.index];
+        comp_code_cost += coeff_cost_to_zero_[coeff.index];
         continue;
       }
       Bits last_pos_bits = GetLastPosBits(width, height, comp, scan_order,
                                           contexts, coeff.scan_x, coeff.scan_y);
-      Bits implicit_sig = coeff_sig_bits[coeff.index];
+      Bits implicit_sig = coeff_sig_bits_[coeff.index];
       int64_t cost = comp_code_cost + BitCost(last_pos_bits, lambda) -
         BitCost(implicit_sig, lambda);
       if (cost < best_cost) {
@@ -792,7 +775,7 @@ RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
         stop_search = true;
         break;
       }
-      comp_code_cost += coeff_cost_to_zero[coeff.index];
+      comp_code_cost += coeff_cost_to_zero_[coeff.index];
     }
     if (stop_search) {
       break;
@@ -810,7 +793,7 @@ RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
 
 Bits RdoQuant::GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
                                CabacContexts *contexts,
-                               const CoeffCodingState &state) {
+                               const CoeffCodingState &state) const {
   const Coeff base_level = (state.c1_idx < constants::kMaxNumC1Flags) ?
     (2 + (state.c2_idx < constants::kMaxNumC2Flags)) : 1;
   const ContextModel &c1_ctx =
@@ -856,7 +839,7 @@ Bits RdoQuant::GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
 }
 
 void RdoQuant::UpdateCodeState(YuvComponent comp, Coeff quant_level,
-                               CoeffCodingState *state) {
+                               CoeffCodingState *state) const {
   const Coeff base_level = (state->c1_idx < constants::kMaxNumC1Flags) ?
     (2 + (state->c2_idx < constants::kMaxNumC2Flags)) : 1;
   if (quant_level >= 1) {
@@ -877,7 +860,7 @@ void RdoQuant::UpdateCodeState(YuvComponent comp, Coeff quant_level,
 
 Bits RdoQuant::GetLastPosBits(int width, int height, YuvComponent comp,
                               ScanOrder scan_order, CabacContexts *contexts,
-                              int last_pos_x, int last_pos_y) {
+                              int last_pos_x, int last_pos_y) const {
   // TODO(PH) Replace with call to SyntaxWriter::WriteCoeffLastPos?
   Bits bits = 0;
   if (scan_order == ScanOrder::kVertical) {

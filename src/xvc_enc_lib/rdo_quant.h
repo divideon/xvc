@@ -28,6 +28,8 @@ public:
                Coeff *out, ptrdiff_t out_stride);
 
 private:
+  static const int kStorageSize =
+    constants::kMaxBlockSize * constants::kMaxBlockSize;
   static const int kLambdaPrecision = 16;
   struct CoeffCodingState;
   template<int SubBlockShift>
@@ -39,46 +41,54 @@ private:
                          int width, int height,
                          const Coeff *in, ptrdiff_t in_stride,
                          const Coeff *delta, ptrdiff_t delta_stride,
-                         Coeff *out, ptrdiff_t out_stride);
+                         Coeff *out, ptrdiff_t out_stride) const;
   void CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
                         const Qp &qp,
                         const Coeff *src, ptrdiff_t src_stride,
-                        const Coeff *delta, const int *sig_rate,
-                        const int *rate_up, const int *rate_down,
-                        Coeff *out, ptrdiff_t out_stride);
+                        Coeff *out, ptrdiff_t out_stride) const;
   Coeff QuantCoeffRdo(YuvComponent comp, Coeff orig_coeff, Coeff level,
                       const CoeffCodingState &code_state, Bits sig1_bits,
                       int64_t lambda, int cost_scale, CabacContexts *contexts,
                       const std::function<Coeff(Coeff)> &inv_quant,
-                      int64_t *out_cost);
+                      int64_t *out_cost) const;
   bool EvalZeroSubblock(int subblock_index, int size, bool subblock_csbf,
                         const ContextModel &csbf_ctx, int last_pos_index,
                         int64_t subblock_zero_dist, int64_t lambda,
-                        Bits *csbf_bits_to_zero, int64_t *subblock_code_cost);
+                        Bits *csbf_bits_to_zero,
+                        int64_t *subblock_code_cost) const;
   template<int SubBlockShift>
   int EvalLastPos(const CodingUnit &cu, YuvComponent comp,
                   ScanOrder scan_order, CabacContexts *contexts,
                   int last_pos_index, int64_t lambda,
                   int64_t comp_code_cost, int64_t comp_zero_dist,
                   const Coeff *out, ptrdiff_t out_stride,
-                  const uint8_t *subblock_csbf, const Bits *csbf_bits_to_zero,
-                  const int64_t *coeff_cost_zero, const Bits *coeff_sig_bits);
+                  const uint8_t *subblock_csbf,
+                  const Bits *csbf_bits_to_zero) const;
   Bits GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
-                       CabacContexts *contexts, const CoeffCodingState &state);
+                       CabacContexts *contexts,
+                       const CoeffCodingState &state) const;
   void UpdateCodeState(YuvComponent comp, Coeff quant_level,
-                       CoeffCodingState *state);
+                       CoeffCodingState *state) const;
   Bits GetLastPosBits(int width, int height, YuvComponent comp,
                       ScanOrder scan_order, CabacContexts *contexts,
-                      int last_pos_x, int last_pos_y);
+                      int last_pos_x, int last_pos_y) const;
   std::function<Coeff(Coeff)> GetFwdQuantFunc(YuvComponent comp, const Qp &qp,
                                               int width, int height);
   std::function<Coeff(Coeff)> GetInvQuantFunc(YuvComponent comp, const Qp &qp,
                                               int width, int height);
-  int64_t BitCost(Bits bits, int64_t lambda) {
+  int64_t BitCost(Bits bits, int64_t lambda) const {
     return (bits * lambda) >> kLambdaPrecision;
   }
 
   int bitdepth_;
+  // Last position eval state
+  std::array<int64_t, kStorageSize> coeff_cost_to_zero_;
+  std::array<Bits, kStorageSize> coeff_sig_bits_;
+  // Sign hide eval state
+  std::array<Coeff, kStorageSize> err_dist_;
+  std::array<int, kStorageSize> sig_rate_;
+  std::array<int, kStorageSize> rate_up_;
+  std::array<int, kStorageSize> rate_down_;
 };
 
 }   // namespace xvc
