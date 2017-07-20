@@ -42,7 +42,7 @@ CuEncoder::CuEncoder(const SimdFunctions &simd,
                 orig_pic, *pic_data->GetRefPicLists(), encoder_settings),
   intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
   cu_writer_(pic_data_, &intra_search_),
-  cu_cache_(*pic_data) {
+  cu_cache_(pic_data) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     const CuTree cu_tree = static_cast<CuTree>(tree_idx);
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
@@ -57,6 +57,8 @@ CuEncoder::~CuEncoder() {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     const int max_depth = static_cast<int>(rdo_temp_cu_[tree_idx].size());
     for (int depth = 0; depth < max_depth; depth++) {
+      // Invariant: These must be released after coding each picture since
+      // cu objects are recycled without any reference counting
       pic_data_.ReleaseCu(rdo_temp_cu_[tree_idx][depth]);
     }
   }

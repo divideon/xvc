@@ -94,8 +94,8 @@ public:
   }
   const CodingUnit* GetLumaCu(const CodingUnit *cu) const;
   CodingUnit* CreateCu(CuTree cu_tree, int depth, int posx, int posy,
-                       int width, int height) const;
-  void ReleaseCu(CodingUnit *cu) const;
+                       int width, int height);
+  void ReleaseCu(CodingUnit *cu);
   void MarkUsedInPic(CodingUnit *cu);
   void ClearMarkCuInPic(CodingUnit *cu);
 
@@ -133,7 +133,6 @@ public:
 private:
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void AllocateAllCtu(CuTree cu_tree);
-  void ReleaseSubCuRecursively(CodingUnit *cu) const;
 
   std::array<std::vector<CodingUnit*>,
     constants::kMaxNumCuTrees> ctu_rs_list_;
@@ -141,8 +140,12 @@ private:
     constants::kMaxNumCuTrees> cu_pic_table_;
   std::array<std::vector<YuvComponent>,
     constants::kMaxNumCuTrees> cu_tree_components_;
+  // Non owning pointers to CU objects that were preivously used in rdo
+  std::vector<CodingUnit*> cu_alloc_free_list_;
+  // Chunks of allocated memory, the inner arrays are static and never resized
+  std::vector<std::vector<CodingUnit>> cu_alloc_buffers_;
   // Holds coefficients for a single ctu, then reused for next one
-  mutable std::unique_ptr<CoeffCtuBuffer> ctu_coeff_;
+  std::unique_ptr<CoeffCtuBuffer> ctu_coeff_;
   ptrdiff_t cu_pic_stride_;
   int pic_width_;
   int pic_height_;
@@ -154,6 +157,9 @@ private:
   int num_cu_trees_;
   int ctu_num_x_;
   int ctu_num_y_;
+  int cu_alloc_batch_size_;
+  size_t cu_alloc_list_index_ = 0;
+  size_t cu_alloc_item_index_ = 0;
   PicNum poc_ = static_cast<PicNum>(-1);
   PicNum doc_ = static_cast<PicNum>(-1);
   SegmentNum soc_ = static_cast<SegmentNum>(-1);

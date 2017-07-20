@@ -32,12 +32,15 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
   ctu_num_x_((pic_width_ + constants::kCtuSize - 1) /
              constants::kCtuSize),
   ctu_num_y_((pic_height_ + constants::kCtuSize - 1) /
-             constants::kCtuSize) {
+             constants::kCtuSize),
+  cu_alloc_batch_size_(std::max(1, ctu_num_x_ * ctu_num_y_) * 4) {
   int num_cu_pic_x = (pic_width_ + constants::kMaxBlockSize - 1) /
     constants::kMinBlockSize;
   int num_cu_pic_y = (pic_height_ + constants::kMaxBlockSize - 1) /
     constants::kMinBlockSize;
   cu_pic_stride_ = num_cu_pic_x + 1;
+  // Initial CU buffer allocation, includes majority of allocated CUs
+  cu_alloc_buffers_.emplace_back(cu_alloc_batch_size_ * 4);
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     cu_pic_table_[tree_idx].resize(cu_pic_stride_ * (num_cu_pic_y + 1));
     std::fill(cu_pic_table_[tree_idx].begin(),
@@ -46,11 +49,6 @@ PictureData::PictureData(ChromaFormat chroma_format, int width, int height,
 }
 
 PictureData::~PictureData() {
-  for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
-    for (CodingUnit *ctu : ctu_rs_list_[tree_idx]) {
-      ReleaseCu(ctu);
-    }
-  }
 }
 
 void PictureData::Init(const SegmentHeader &segment, const Qp &pic_qp,
@@ -90,19 +88,22 @@ void PictureData::Init(const SegmentHeader &segment, const Qp &pic_qp,
     qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
   }
 
+  // Initialize CU allocator / object pool
+  // Buffer pointers are reset to first entry without any deconstruction
+  // this requires that no object are reused across pictures
+  cu_alloc_free_list_.clear();
+  cu_alloc_list_index_ = 0;
+  cu_alloc_item_index_ = 0;
+
   // CTU initialization
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     std::fill(cu_pic_table_[tree_idx].begin(),
               cu_pic_table_[tree_idx].end(), nullptr);
-    for (CodingUnit *ctu : ctu_rs_list_[tree_idx]) {
-      ReleaseSubCuRecursively(ctu);
-    }
+    // Clear all CTU objects and re-assign again below for every picture
+    ctu_rs_list_[tree_idx].clear();
   }
-  if (ctu_rs_list_[static_cast<int>(CuTree::Primary)].empty()) {
-    AllocateAllCtu(CuTree::Primary);
-  }
-  if (num_cu_trees_ > 1 &&
-      ctu_rs_list_[static_cast<int>(CuTree::Secondary)].empty()) {
+  AllocateAllCtu(CuTree::Primary);
+  if (num_cu_trees_ > 1) {
     AllocateAllCtu(CuTree::Secondary);
   }
 
@@ -132,17 +133,39 @@ const CodingUnit* PictureData::GetLumaCu(const CodingUnit *cu) const {
 }
 
 CodingUnit *PictureData::CreateCu(CuTree cu_tree, int depth, int posx,
-                                  int posy, int width, int height) const {
+                                  int posy, int width, int height) {
   if (posx >= pic_width_ || posy >= pic_height_) {
     return nullptr;
   }
-  return new CodingUnit(*this, ctu_coeff_.get(), cu_tree, depth, posx, posy,
-                        width, height);
+  CodingUnit *cu;
+  if (!cu_alloc_free_list_.empty()) {
+    cu = cu_alloc_free_list_.back();
+    cu_alloc_free_list_.pop_back();
+  } else {
+    assert(!cu_alloc_buffers_.empty());
+    if (cu_alloc_item_index_ == cu_alloc_buffers_[cu_alloc_list_index_].size()) {
+      cu_alloc_list_index_++;
+      cu_alloc_item_index_ = 0;
+    }
+    if (cu_alloc_list_index_ == cu_alloc_buffers_.size()) {
+      // Allocate an extra buffer (typically needed for intra pictures)
+      cu_alloc_buffers_.emplace_back(cu_alloc_batch_size_);
+    }
+    cu = &cu_alloc_buffers_[cu_alloc_list_index_][cu_alloc_item_index_];
+    cu_alloc_item_index_++;
+  }
+  // Reinitialize memory to a known state
+  return new (cu) CodingUnit(this, ctu_coeff_.get(), cu_tree, depth,
+                             posx, posy, width, height);
 }
 
-void PictureData::ReleaseCu(CodingUnit *cu) const {
-  ReleaseSubCuRecursively(cu);
-  delete cu;
+void PictureData::ReleaseCu(CodingUnit *cu) {
+  for (CodingUnit *sub_cu : cu->GetSubCu()) {
+    if (sub_cu) {
+      ReleaseCu(sub_cu);
+    }
+  }
+  cu_alloc_free_list_.push_back(cu);
 }
 
 void PictureData::MarkUsedInPic(CodingUnit *cu) {
@@ -227,25 +250,12 @@ void PictureData::AllocateAllCtu(CuTree cu_tree) {
   assert(ctu_rs_list_[tree_idx].empty());
   for (int y = 0; y < ctu_num_y_; y++) {
     for (int x = 0; x < ctu_num_x_; x++) {
-      ctu_rs_list_[tree_idx].push_back(
-        new CodingUnit(*this, ctu_coeff_.get(), cu_tree, depth,
-                       x * constants::kCtuSize,
-                       y * constants::kCtuSize,
-                       constants::kCtuSize,
-                       constants::kCtuSize));
+      auto *cu = CreateCu(cu_tree, depth,
+                          x * constants::kCtuSize, y * constants::kCtuSize,
+                          constants::kCtuSize, constants::kCtuSize);
+      ctu_rs_list_[tree_idx].push_back(cu);
     }
   }
-}
-
-void PictureData::ReleaseSubCuRecursively(CodingUnit *cu) const {
-  for (CodingUnit *sub_cu : cu->GetSubCu()) {
-    if (sub_cu) {
-      ReleaseSubCuRecursively(sub_cu);
-      delete sub_cu;
-    }
-  }
-  cu->GetSubCu().fill(nullptr);
-  cu->SetSplit(SplitType::kNone);
 }
 
 }   // namespace xvc

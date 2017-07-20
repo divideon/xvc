@@ -17,13 +17,11 @@
 
 namespace xvc {
 
-CodingUnit::CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
+CodingUnit::CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
                        CuTree cu_tree, int depth, int pic_x, int pic_y,
                        int width, int height)
   : pic_data_(pic_data),
   ctu_coeff_(ctu_coeff),
-  chroma_shift_x_(pic_data.GetChromaShiftX()),
-  chroma_shift_y_(pic_data.GetChromaShiftY()),
   cu_tree_(cu_tree),
   pos_x_(pic_x),
   pos_y_(pic_y),
@@ -34,7 +32,7 @@ CodingUnit::CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
   pred_mode_(PredictionMode::kIntra),
   cbf_({ { false, false, false } }),
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
-  qp_(pic_data.GetPicQp()),
+  qp_(pic_data->GetPicQp()),
   root_cbf_(false),
   intra_mode_luma_(IntraMode::kInvalid),
   intra_mode_chroma_(IntraChromaMode::kInvalid),
@@ -87,8 +85,8 @@ int CodingUnit::GetBinaryDepth() const {
 }
 
 bool CodingUnit::IsBinarySplitValid() const {
-  int max_split_depth = pic_data_.GetMaxBinarySplitDepth(cu_tree_);
-  int max_split_size = pic_data_.GetMaxBinarySplitSize(cu_tree_);
+  int max_split_depth = pic_data_->GetMaxBinarySplitDepth(cu_tree_);
+  int max_split_size = pic_data_->GetMaxBinarySplitSize(cu_tree_);
   return GetBinaryDepth() < max_split_depth &&
     width_ <= max_split_size &&
     height_ <= max_split_size &&
@@ -105,7 +103,7 @@ void CodingUnit::SetQp(const Qp &qp) {
 }
 
 void CodingUnit::SetQp(int qp_value) {
-  qp_ = pic_data_.GetQp(qp_value);
+  qp_ = pic_data_->GetQp(qp_value);
 }
 
 int CodingUnit::GetQp(YuvComponent comp) const {
@@ -114,7 +112,7 @@ int CodingUnit::GetQp(YuvComponent comp) const {
 
 SplitRestriction
 CodingUnit::DeriveSiblingSplitRestriction(SplitType parent_split) const {
-  if (pic_data_.GetPredictionType() == PicturePredictionType::kIntra) {
+  if (pic_data_->GetPredictionType() == PicturePredictionType::kIntra) {
     return SplitRestriction::kNone;
   }
   if (parent_split == SplitType::kVertical &&
@@ -130,33 +128,17 @@ CodingUnit::DeriveSiblingSplitRestriction(SplitType parent_split) const {
   return SplitRestriction::kNone;
 }
 
-const PictureData* CodingUnit::GetPicData() const {
-  return &pic_data_;
-}
-
-PicturePredictionType CodingUnit::GetPicType() const {
-  return pic_data_.GetPredictionType();
-}
-
-PicNum CodingUnit::GetPoc() const {
-  return pic_data_.GetPoc();
-}
-
-const ReferencePictureLists *CodingUnit::GetRefPicLists() const {
-  return pic_data_.GetRefPicLists();
-}
-
 PicNum CodingUnit::GetRefPoc(RefPicList ref_list) const {
   if (!HasMv(ref_list)) {
     return static_cast<PicNum>(-1);
   }
   int ref_idx = GetRefIdx(ref_list);
-  return pic_data_.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
+  return pic_data_->GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
 }
 
 bool CodingUnit::IsFullyWithinPicture() const {
-  return pos_x_ + width_ <= pic_data_.GetPictureWidth(YuvComponent::kY) &&
-    pos_y_ + height_ <= pic_data_.GetPictureHeight(YuvComponent::kY);
+  return pos_x_ + width_ <= pic_data_->GetPictureWidth(YuvComponent::kY) &&
+    pos_y_ + height_ <= pic_data_->GetPictureHeight(YuvComponent::kY);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAbove() const {
@@ -165,7 +147,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAbove() const {
   if (posy == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(cu_tree_, posx, posy - constants::kMinBlockSize);
+  return pic_data_->GetCuAt(cu_tree_, posx, posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAboveIfSameCtu() const {
@@ -174,7 +156,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveIfSameCtu() const {
   if ((posy % constants::kCtuSize) == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(cu_tree_, posx, posy - constants::kMinBlockSize);
+  return pic_data_->GetCuAt(cu_tree_, posx, posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAboveLeft() const {
@@ -183,8 +165,8 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveLeft() const {
   if (posx == 0 || posy == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize,
-                           posy - constants::kMinBlockSize);
+  return pic_data_->GetCuAt(cu_tree_, posx - constants::kMinBlockSize,
+                            posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAboveCorner() const {
@@ -193,8 +175,8 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveCorner() const {
   if (posy == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(cu_tree_, right - constants::kMinBlockSize,
-                           posy - constants::kMinBlockSize);
+  return pic_data_->GetCuAt(cu_tree_, right - constants::kMinBlockSize,
+                            posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitAboveRight() const {
@@ -204,7 +186,7 @@ const CodingUnit* CodingUnit::GetCodingUnitAboveRight() const {
     return nullptr;
   }
   // Padding in table will guard for y going out-of-bounds
-  return pic_data_.GetCuAt(cu_tree_, right, posy - constants::kMinBlockSize);
+  return pic_data_->GetCuAt(cu_tree_, right, posy - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitLeft() const {
@@ -213,7 +195,7 @@ const CodingUnit* CodingUnit::GetCodingUnitLeft() const {
   if (posx == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize, posy);
+  return pic_data_->GetCuAt(cu_tree_, posx - constants::kMinBlockSize, posy);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitLeftCorner() const {
@@ -222,8 +204,8 @@ const CodingUnit* CodingUnit::GetCodingUnitLeftCorner() const {
   if (posx == 0) {
     return nullptr;
   }
-  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize,
-                           bottom - constants::kMinBlockSize);
+  return pic_data_->GetCuAt(cu_tree_, posx - constants::kMinBlockSize,
+                            bottom - constants::kMinBlockSize);
 }
 
 const CodingUnit* CodingUnit::GetCodingUnitLeftBelow() const {
@@ -233,7 +215,7 @@ const CodingUnit* CodingUnit::GetCodingUnitLeftBelow() const {
     return nullptr;
   }
   // Padding in table will guard for y going out-of-bounds
-  return pic_data_.GetCuAt(cu_tree_, posx - constants::kMinBlockSize, bottom);
+  return pic_data_->GetCuAt(cu_tree_, posx - constants::kMinBlockSize, bottom);
 }
 
 int CodingUnit::GetCuSizeAboveRight(YuvComponent comp) const {
@@ -244,8 +226,8 @@ int CodingUnit::GetCuSizeAboveRight(YuvComponent comp) const {
   }
   posx -= constants::kMinBlockSize;
   for (int i = height_; i >= 0; i -= constants::kMinBlockSize) {
-    if (pic_data_.GetCuAt(cu_tree_, posx + i, posy)) {
-      return util::IsLuma(comp) ? i : (i >> chroma_shift_y_);
+    if (pic_data_->GetCuAt(cu_tree_, posx + i, posy)) {
+      return util::IsLuma(comp) ? i : (i >> pic_data_->GetChromaShiftY());
     }
   }
   return 0;
@@ -259,8 +241,8 @@ int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
   }
   posy -= constants::kMinBlockSize;
   for (int i = width_; i >= 0; i -= constants::kMinBlockSize) {
-    if (pic_data_.GetCuAt(cu_tree_, posx, posy + i)) {
-      return util::IsLuma(comp) ? i : (i >> chroma_shift_x_);
+    if (pic_data_->GetCuAt(cu_tree_, posx, posy + i)) {
+      return util::IsLuma(comp) ? i : (i >> pic_data_->GetChromaShiftX());
     }
   }
   return 0;
@@ -275,7 +257,7 @@ IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
     if (cu_tree_ == CuTree::Primary) {
       return intra_mode_luma_;
     }
-    const CodingUnit *luma_cu = pic_data_.GetLumaCu(this);
+    const CodingUnit *luma_cu = pic_data_->GetLumaCu(this);
     return luma_cu->intra_mode_luma_;
   }
   assert(static_cast<int>(intra_mode_chroma_) < IntraMode::kTotalNumber);
@@ -293,37 +275,37 @@ void CodingUnit::Split(SplitType split_type) {
   switch (split_type) {
     case SplitType::kQuad:
       sub_cu_list_[0] =
-        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 0,
-                           pos_y_ + sub_height * 0, sub_width, sub_height);
+        pic_data_->CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 0,
+                            pos_y_ + sub_height * 0, sub_width, sub_height);
       sub_cu_list_[1] =
-        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 1,
-                           pos_y_ + sub_height * 0, sub_width, sub_height);
+        pic_data_->CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 1,
+                            pos_y_ + sub_height * 0, sub_width, sub_height);
       sub_cu_list_[2] =
-        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 0,
-                           pos_y_ + sub_height * 1, sub_width, sub_height);
+        pic_data_->CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 0,
+                            pos_y_ + sub_height * 1, sub_width, sub_height);
       sub_cu_list_[3] =
-        pic_data_.CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 1,
-                           pos_y_ + sub_height * 1, sub_width, sub_height);
+        pic_data_->CreateCu(cu_tree_, quad_subdepth, pos_x_ + sub_width * 1,
+                            pos_y_ + sub_height * 1, sub_width, sub_height);
       break;
 
     case SplitType::kHorizontal:
       sub_cu_list_[0] =
-        pic_data_.CreateCu(cu_tree_, depth_, pos_x_,
-                           pos_y_ + sub_height * 0, width_, sub_height);
+        pic_data_->CreateCu(cu_tree_, depth_, pos_x_,
+                            pos_y_ + sub_height * 0, width_, sub_height);
       sub_cu_list_[1] =
-        pic_data_.CreateCu(cu_tree_, depth_, pos_x_,
-                           pos_y_ + sub_height * 1, width_, sub_height);
+        pic_data_->CreateCu(cu_tree_, depth_, pos_x_,
+                            pos_y_ + sub_height * 1, width_, sub_height);
       sub_cu_list_[2] = nullptr;
       sub_cu_list_[3] = nullptr;
       break;
 
     case SplitType::kVertical:
       sub_cu_list_[0] =
-        pic_data_.CreateCu(cu_tree_, depth_, pos_x_ + sub_width * 0,
-                           pos_y_, sub_width, height_);
+        pic_data_->CreateCu(cu_tree_, depth_, pos_x_ + sub_width * 0,
+                            pos_y_, sub_width, height_);
       sub_cu_list_[1] =
-        pic_data_.CreateCu(cu_tree_, depth_, pos_x_ + sub_width * 1,
-                           pos_y_, sub_width, height_);
+        pic_data_->CreateCu(cu_tree_, depth_, pos_x_ + sub_width * 1,
+                            pos_y_, sub_width, height_);
       sub_cu_list_[2] = nullptr;
       sub_cu_list_[3] = nullptr;
       break;
@@ -340,7 +322,7 @@ void CodingUnit::UnSplit() {
   assert(sub_cu_list_[0]);
   for (int i = 0; i < static_cast<int>(sub_cu_list_.size()); i++) {
     if (sub_cu_list_[i]) {
-      pic_data_.ReleaseCu(sub_cu_list_[i]);
+      pic_data_->ReleaseCu(sub_cu_list_[i]);
     }
   }
   sub_cu_list_.fill(nullptr);
@@ -349,7 +331,7 @@ void CodingUnit::UnSplit() {
 
 void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
                              const YuvPicture &rec_pic) const {
-  for (YuvComponent comp : pic_data_.GetComponents(cu_tree_)) {
+  for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
     const int c = static_cast<int>(comp);
     int posx = GetPosX(comp);
     int posy = GetPosY(comp);
@@ -377,7 +359,7 @@ void CodingUnit::SaveStateTo(InterState *state) const {
 
 void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
                                YuvPicture *rec_pic) {
-  for (YuvComponent comp : pic_data_.GetComponents(cu_tree_)) {
+  for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
     const int c = static_cast<int>(comp);
     int posx = GetPosX(comp);
     int posy = GetPosY(comp);

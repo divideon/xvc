@@ -44,8 +44,8 @@ public:
     std::array<int8_t, 2> ref_idx;
     std::array<int8_t, 2> mvp_idx;
   };
-
-  CodingUnit(const PictureData &pic_data, CoeffCtuBuffer *ctu_coeff,
+  CodingUnit() {}
+  CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
              CuTree cu_tree, int depth, int pic_x, int pic_y,
              int width, int height);
   CodingUnit(const CodingUnit &) = delete;
@@ -56,19 +56,23 @@ public:
   // General
   CuTree GetCuTree() const { return cu_tree_; }
   int GetPosX(YuvComponent comp) const {
-    return comp == YuvComponent::kY ? pos_x_ : pos_x_ >> chroma_shift_x_;
+    return comp == YuvComponent::kY ?
+      pos_x_ : pos_x_ >> pic_data_->GetChromaShiftX();
   }
   int GetPosY(YuvComponent comp) const {
-    return comp == YuvComponent::kY ? pos_y_ : pos_y_ >> chroma_shift_y_;
+    return comp == YuvComponent::kY ?
+      pos_y_ : pos_y_ >> pic_data_->GetChromaShiftY();
   }
   int GetDepth() const { return depth_; }
   int GetBinaryDepth() const;
   bool IsBinarySplitValid() const;
   int GetWidth(YuvComponent comp) const {
-    return comp == YuvComponent::kY ? width_ : width_ >> chroma_shift_x_;
+    return comp == YuvComponent::kY ?
+      width_ : width_ >> pic_data_->GetChromaShiftX();
   }
   int GetHeight(YuvComponent comp) const {
-    return comp == YuvComponent::kY ? height_ : height_ >> chroma_shift_y_;
+    return comp == YuvComponent::kY ?
+      height_ : height_ >> pic_data_->GetChromaShiftY();
   }
   PartitionType GetPartitionType() const { return PartitionType::kSize2Nx2N; }
   void SetPartitionType(PartitionType part_type) {
@@ -95,10 +99,18 @@ public:
   SplitRestriction DeriveSiblingSplitRestriction(SplitType parent_split) const;
 
   // Picture related data
-  const PictureData* GetPicData() const;
-  PicturePredictionType GetPicType() const;
-  PicNum GetPoc() const;
-  const ReferencePictureLists *GetRefPicLists() const;
+  const PictureData* GetPicData() const {
+    return pic_data_;
+  }
+  PicturePredictionType GetPicType() const {
+    return pic_data_->GetPredictionType();
+  }
+  PicNum GetPoc() const {
+    return pic_data_->GetPoc();
+  }
+  const ReferencePictureLists *GetRefPicLists() const {
+    return pic_data_->GetRefPicLists();
+  }
   PicNum GetRefPoc(RefPicList list) const;
 
   // Neighborhood
@@ -194,11 +206,9 @@ public:
   void LoadStateFrom(const InterState &state);
 
 private:
-  const PictureData &pic_data_;
-  CoeffCtuBuffer* const ctu_coeff_;   // Coefficient storage for this CU
-  const int chroma_shift_x_;
-  const int chroma_shift_y_;
-  const CuTree cu_tree_;
+  PictureData *pic_data_ = nullptr;
+  CoeffCtuBuffer *ctu_coeff_ = nullptr;   // Coefficient storage for this CU
+  CuTree cu_tree_;
   int pos_x_;
   int pos_y_;
   int width_;

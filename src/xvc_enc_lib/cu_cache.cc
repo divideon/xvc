@@ -17,7 +17,7 @@
 
 namespace xvc {
 
-CuCache::CuCache(const PictureData &pic_data)
+CuCache::CuCache(PictureData *pic_data)
   : pic_data_(pic_data) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
     const CuTree cu_tree = static_cast<CuTree>(tree_idx);
@@ -29,7 +29,7 @@ CuCache::CuCache(const PictureData &pic_data)
           for (int cache_idx = 0; cache_idx < kNumCuPerEntry; cache_idx++) {
             cache_entry.valid[cache_idx] = false;
             cache_entry.cu[cache_idx] =
-              pic_data_.CreateCu(cu_tree, depth, -1, -1, 0, 0);
+              pic_data_->CreateCu(cu_tree, depth, -1, -1, 0, 0);
           }
         }
       }
@@ -45,7 +45,7 @@ CuCache::~CuCache() {
         for (int part = 0; part < kNumCachePartitions; part++) {
           CacheEntry &cache_entry = cu_cache_[tree_idx][depth][quad][part];
           for (int cu_idx = 0; cu_idx < kNumCuPerEntry; cu_idx++) {
-            pic_data_.ReleaseCu(cache_entry.cu[cu_idx]);
+            pic_data_->ReleaseCu(cache_entry.cu[cu_idx]);
           }
         }
       }

@@ -35,7 +35,7 @@ public:
     bool any_inter;
     bool any_skip;
   };
-  explicit CuCache(const PictureData &pic_data);
+  explicit CuCache(PictureData *pic_data);
   ~CuCache();
 
   void Invalidate(CuTree cu_tree, int depth);
@@ -69,7 +69,7 @@ private:
   CacheEntry* Find(const CodingUnit &cu);
   CachePartition DetermineCuPartition(const CodingUnit &cu);
 
-  const PictureData &pic_data_;
+  PictureData* const pic_data_;
   std::array<std::array<std::array<std::array<CacheEntry,
     kNumCachePartitions>,
     constants::kQuadSplit>,
