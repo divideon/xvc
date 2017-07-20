@@ -143,7 +143,8 @@ CodingUnit *PictureData::CreateCu(CuTree cu_tree, int depth, int posx,
     cu_alloc_free_list_.pop_back();
   } else {
     assert(!cu_alloc_buffers_.empty());
-    if (cu_alloc_item_index_ == cu_alloc_buffers_[cu_alloc_list_index_].size()) {
+    if (cu_alloc_item_index_ ==
+        cu_alloc_buffers_[cu_alloc_list_index_].size()) {
       cu_alloc_list_index_++;
       cu_alloc_item_index_ = 0;
     }
