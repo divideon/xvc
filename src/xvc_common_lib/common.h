@@ -128,6 +128,8 @@ const int kTimeScale = 90000;
 const int kMaxTid = 8;
 const int kFrameRateBitDepth = 24;
 const PicNum kMaxSubGopLength = 64;
+const int kEncapsulationCode1 = 182;
+const int kEncapsulationCode2 = 214;
 
 // Min and Max
 const int16_t kInt16Max = INT16_MAX;

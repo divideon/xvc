@@ -133,6 +133,7 @@ struct EncoderSettings {
   int adaptive_qp = 1;
   double aqp_strength = 1.0;
   int structural_ssd = 1;
+  int encapsulation_mode = 0;
   RestrictedMode restricted_mode = RestrictedMode::kUnrestricted;
 };
 

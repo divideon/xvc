@@ -38,10 +38,17 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
   // Nal header parsing
   BitReader bit_reader(nal_unit, nal_unit_size);
   uint8_t header = bit_reader.ReadByte();
-  // check the nal_rfe to see if the Nal Unit shall be ignored.
+  // Check the nal_rfe to see if the Nal Unit shall be ignored.
   int nal_rfe = ((header >> 6) & 3);
   if (nal_rfe > 0) {
-    return false;
+    // Accept the nal unit only if it uses one of the encapsulation codes.
+    if (header == constants::kEncapsulationCode1 ||
+        header == constants::kEncapsulationCode2) {
+      bit_reader.ReadByte();
+      header = bit_reader.ReadByte();
+    } else {
+      return false;
+    }
   }
   NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
 
@@ -165,8 +172,14 @@ Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
   BitReader pic_bit_reader(&(*nal)[0], nal->size());
   std::shared_ptr<SegmentHeader> segment_header = curr_segment_header_;
 
+  int header = pic_bit_reader.ReadByte();
+  int nal_rfe = ((header >> 6) & 3);
+  if (nal_rfe > 0) {
+    // Read two more bytes if encapsulation is used.
+    pic_bit_reader.ReadBits(16);
+  }
+
   // Special handling for tail pictures
-  pic_bit_reader.ReadBits(8);
   int buffer_flag = pic_bit_reader.ReadBits(1);
   pic_bit_reader.Rewind(9);
   if (buffer_flag) {

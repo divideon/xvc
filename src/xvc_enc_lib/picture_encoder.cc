@@ -53,6 +53,10 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   pic_data_->Init(segment, base_qp, encoder_settings.adaptive_qp > 0);
 
   bit_writer_.Clear();
+  if (encoder_settings.encapsulation_mode != 0) {
+    bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
+    bit_writer_.WriteBits(1, 8);
+  }
   WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
 
   EntropyEncoder entropy_encoder(&bit_writer_);

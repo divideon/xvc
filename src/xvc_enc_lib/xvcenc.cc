@@ -199,6 +199,8 @@ extern "C" {
           stream >> encoder_settings.aqp_strength;
         } else if (setting == "structural_ssd") {
           stream >> encoder_settings.structural_ssd;
+        } else if (setting == "encapsulation_mode") {
+          stream >> encoder_settings.encapsulation_mode;
         }
       }
     }

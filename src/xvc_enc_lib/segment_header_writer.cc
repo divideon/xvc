@@ -16,7 +16,6 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
                                 BitWriter *bit_writer,
                                 double framerate,
                                 int open_gop) {
-  bit_writer->Clear();
   bit_writer->WriteBits(33, 8);  // Nal Unit header with nal_unit_type == 16
   bit_writer->WriteBits(segment_header->codec_identifier, 24);
   bit_writer->WriteBits(segment_header->major_version, 16);

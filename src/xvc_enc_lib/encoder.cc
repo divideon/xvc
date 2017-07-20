@@ -70,6 +70,11 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     }
     prev_segment_header_ = std::move(segment_header_);
     segment_header_.reset(new SegmentHeader(*prev_segment_header_));
+    bit_writer_.Clear();
+    if (encoder_settings_.encapsulation_mode != 0) {
+      bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
+      bit_writer_.WriteBits(1, 8);
+    }
     SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_, framerate_,
                                curr_segment_open_gop_);
     soc_++;
