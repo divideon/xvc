@@ -42,6 +42,9 @@ struct SegmentHeader {
   int max_binary_split_depth = -1;
   Checksum::Mode checksum_mode = Checksum::Mode::kInvalid;
   int adaptive_qp = -1;
+  int chroma_qp_offset_table = -1;
+  int chroma_qp_offset_u = 0;
+  int chroma_qp_offset_v = 0;
   int deblock = -1;
   int beta_offset = 0;
   int tc_offset = 0;

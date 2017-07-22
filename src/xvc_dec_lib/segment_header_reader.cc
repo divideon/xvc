@@ -41,6 +41,15 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   segment_header->max_binary_split_depth = bit_reader->ReadBits(2);
   segment_header->checksum_mode = Checksum::Mode(bit_reader->ReadBits(1));
   segment_header->adaptive_qp = bit_reader->ReadBits(2);
+  segment_header->chroma_qp_offset_table = bit_reader->ReadBits(2);
+  int chroma_qp_offsets = bit_reader->ReadBit();
+  if (chroma_qp_offsets) {
+    int d = constants::kChromaOffsetBits;
+    segment_header->chroma_qp_offset_u =
+      bit_reader->ReadBits(d) - (1 << (d - 1));
+    segment_header->chroma_qp_offset_v =
+      bit_reader->ReadBits(d) - (1 << (d - 1));
+  }
   segment_header->deblock = bit_reader->ReadBits(2);
   if (segment_header->deblock == 3) {
     int d = constants::kDeblockOffsetBits;

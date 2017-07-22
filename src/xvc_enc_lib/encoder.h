@@ -67,6 +67,15 @@ public:
   void SetClosedGopInterval(PicNum interval) {
     closed_gop_interval_ = interval;
   }
+  void SetChromaQpOffsetTable(int table) {
+    segment_header_->chroma_qp_offset_table = table;
+  }
+  void SetChromaQpOffsetU(int offset) {
+    segment_header_->chroma_qp_offset_u = offset;
+  }
+  void SetChromaQpOffsetV(int offset) {
+    segment_header_->chroma_qp_offset_v = offset;
+  }
   void SetDeblock(int deblock) { segment_header_->deblock = deblock; }
   void SetBetaOffset(int offset) { segment_header_->beta_offset = offset; }
   void SetTcOffset(int offset) { segment_header_->tc_offset = offset; }

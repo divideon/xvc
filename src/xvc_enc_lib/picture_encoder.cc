@@ -48,7 +48,9 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                         encoder_settings.smooth_lambda_scaling);
   int scaled_qp = Qp::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
   Qp base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
-             lambda);
+             lambda, encoder_settings.chroma_qp_offset_table,
+             encoder_settings.chroma_qp_offset_u,
+             encoder_settings.chroma_qp_offset_v);
 
   pic_data_->Init(segment, base_qp, encoder_settings.adaptive_qp > 0);
 

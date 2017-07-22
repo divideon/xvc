@@ -66,6 +66,9 @@ private:
     int num_ref_pics = -1;
     int restricted_mode = -1;
     int checksum_mode = -1;
+    int chroma_qp_offset_table = -1;
+    int chroma_qp_offset_u = std::numeric_limits<int>::min();
+    int chroma_qp_offset_v = std::numeric_limits<int>::min();
     int deblock = -1;
     int beta_offset = std::numeric_limits<int>::min();
     int tc_offset = std::numeric_limits<int>::min();

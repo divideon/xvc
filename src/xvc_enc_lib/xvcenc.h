@@ -84,6 +84,9 @@ extern "C" {
     int closed_gop;
     int num_ref_pics;
     int restricted_mode;
+    int chroma_qp_offset_table;
+    int chroma_qp_offset_u;
+    int chroma_qp_offset_v;
     int deblock;
     int beta_offset;
     int tc_offset;

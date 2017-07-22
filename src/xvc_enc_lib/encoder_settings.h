@@ -65,6 +65,9 @@ struct EncoderSettings {
         max_binary_split_depth = 0;
         adaptive_qp = 0;
         structural_ssd = 0;
+        chroma_qp_offset_table = 1;
+        chroma_qp_offset_u = 0;
+        chroma_qp_offset_v = 0;
         break;
       case RestrictedMode::kModeB:
         fast_quad_split_based_on_binary_split = 2;
@@ -79,6 +82,9 @@ struct EncoderSettings {
         max_binary_split_depth = 2;
         adaptive_qp = 0;
         structural_ssd = 0;
+        chroma_qp_offset_table = 1;
+        chroma_qp_offset_u = 1;
+        chroma_qp_offset_v = 1;
         break;
       default:
         assert(0);
@@ -94,6 +100,9 @@ struct EncoderSettings {
       case TuneMode::kPsnr:
         adaptive_qp = 0;
         structural_ssd = 0;
+        chroma_qp_offset_table = 0;
+        chroma_qp_offset_u = 1;
+        chroma_qp_offset_v = 1;
         break;
       default:
         assert(0);
@@ -134,6 +143,9 @@ struct EncoderSettings {
   double aqp_strength = 1.0;
   int structural_ssd = 1;
   int encapsulation_mode = 0;
+  int chroma_qp_offset_table = 1;
+  int chroma_qp_offset_u = 0;
+  int chroma_qp_offset_v = 0;
   RestrictedMode restricted_mode = RestrictedMode::kUnrestricted;
 };
 

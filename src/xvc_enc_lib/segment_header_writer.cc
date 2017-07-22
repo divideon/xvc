@@ -40,6 +40,18 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
                         1);
   assert(segment_header->adaptive_qp >= 0 && segment_header->adaptive_qp <= 3);
   bit_writer->WriteBits(segment_header->adaptive_qp, 2);
+  bit_writer->WriteBits(segment_header->chroma_qp_offset_table, 2);
+  int chroma_qp_offsets = (segment_header->chroma_qp_offset_u != 0 ||
+                           segment_header->chroma_qp_offset_v != 0) ? 1 : 0;
+  bit_writer->WriteBits(chroma_qp_offsets, 1);
+  if (chroma_qp_offsets) {
+    int d = constants::kChromaOffsetBits;
+    bit_writer->WriteBits(segment_header->chroma_qp_offset_u + (1 << (d - 1)),
+                          d);
+    bit_writer->WriteBits(segment_header->chroma_qp_offset_v + (1 << (d - 1)),
+                          d);
+  }
+
   assert(segment_header->deblock >= 0 && segment_header->deblock <= 3);
   bit_writer->WriteBits(segment_header->deblock, 2);
   if (segment_header->deblock == 3) {

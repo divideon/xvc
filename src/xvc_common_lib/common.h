@@ -109,6 +109,7 @@ const int kMinAllowedQp = -64;
 const int kMaxAllowedQp = 63;
 const int kMaxQpDiff = 16;
 const int kQpSignalBase = 64;
+const int kChromaOffsetBits = 6;
 
 // Residual coding
 const int kMaxNumC1Flags = 8;

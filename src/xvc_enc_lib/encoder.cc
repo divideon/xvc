@@ -188,6 +188,9 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   encoder_settings_ = settings;
   segment_header_->num_ref_pics = settings.default_num_ref_pics;
   segment_header_->max_binary_split_depth = settings.max_binary_split_depth;
+  segment_header_->chroma_qp_offset_table = settings.chroma_qp_offset_table;
+  segment_header_->chroma_qp_offset_u = settings.chroma_qp_offset_u;
+  segment_header_->chroma_qp_offset_v = settings.chroma_qp_offset_v;
   segment_header_->adaptive_qp = settings.adaptive_qp;
   // Load restriction flags
   Restrictions restrictions = Restrictions();

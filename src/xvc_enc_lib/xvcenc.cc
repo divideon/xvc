@@ -49,6 +49,10 @@ extern "C" {
     param->num_ref_pics = -1;  // determined in xvc_enc_set_encoder_settings
     param->restricted_mode = 0;
     param->checksum_mode = 1;
+    // Following three parameters determined in xvc_enc_set_encoder_settings
+    param->chroma_qp_offset_table = -1;
+    param->chroma_qp_offset_u = std::numeric_limits<int>::min();
+    param->chroma_qp_offset_v = std::numeric_limits<int>::min();
     param->deblock = 1;
     param->beta_offset = 0;
     param->tc_offset = 0;
@@ -245,6 +249,15 @@ extern "C" {
     encoder->SetInputBitdepth(param->input_bitdepth);
     encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);
+    if (param->chroma_qp_offset_table >= 0) {
+      encoder->SetChromaQpOffsetTable(param->chroma_qp_offset_table);
+    }
+    if (param->chroma_qp_offset_u > std::numeric_limits<int>::min()) {
+      encoder->SetChromaQpOffsetU(param->chroma_qp_offset_u);
+    }
+    if (param->chroma_qp_offset_v > std::numeric_limits<int>::min()) {
+      encoder->SetChromaQpOffsetV(param->chroma_qp_offset_v);
+    }
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
     if (param->beta_offset != 0 || param->tc_offset != 0) {

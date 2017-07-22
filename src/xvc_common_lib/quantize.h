@@ -20,7 +20,8 @@ class CodingUnit;
 class Qp {
 public:
   Qp(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
-     int chroma_offset = 0);
+     int chroma_offset_table = 0, int chroma_offset_u = 0,
+     int chroma_offset_v = 0);
   bool operator<(const Qp &qp) const {
     return qp_raw_[0] < qp.qp_raw_[0];
   }
@@ -60,8 +61,10 @@ private:
   static const int kNumScalingListRem_ = 6;
   static const int kFwdQuantScales_[kNumScalingListRem_];
   static const int kInvQuantScales_[kNumScalingListRem_];
-  static int ScaleChromaQp(int qp, ChromaFormat chroma_format, int bitdepth);
-  static double GetChromaDistWeight(int qp, ChromaFormat chroma_format);
+  static int ScaleChromaQp(int qp, ChromaFormat chroma_format, int bitdepth,
+                           int chroma_scaling_table, int offset);
+  static double GetChromaDistWeight(int qp, ChromaFormat chroma_format,
+                                    int chroma_scaling_table, int offset);
 
   std::array<int, constants::kMaxYuvComponents> qp_raw_;
   std::array<int, constants::kMaxYuvComponents> qp_bitdepth_;

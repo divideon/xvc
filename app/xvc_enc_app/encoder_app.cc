@@ -84,6 +84,12 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.restricted_mode;
     } else if (arg == "-checksum-mode") {
       std::stringstream(argv[++i]) >> cli_.checksum_mode;
+    } else if (arg == "-chroma-qp-offset-table") {
+      std::stringstream(argv[++i]) >> cli_.chroma_qp_offset_table;
+    } else if (arg == "-chroma-qp-offset-u") {
+      std::stringstream(argv[++i]) >> cli_.chroma_qp_offset_u;
+    } else if (arg == "-chroma-qp-offset-v") {
+      std::stringstream(argv[++i]) >> cli_.chroma_qp_offset_v;
     } else if (arg == "-deblock") {
       std::stringstream(argv[++i]) >> cli_.deblock;
     } else if (arg == "-beta-offset") {
@@ -235,6 +241,15 @@ void EncoderApp::CreateAndConfigureApi() {
   }
   if (cli_.restricted_mode != -1) {
     params_->restricted_mode = cli_.restricted_mode;
+  }
+  if (cli_.chroma_qp_offset_table != -1) {
+    params_->chroma_qp_offset_table = cli_.chroma_qp_offset_table;
+  }
+  if (cli_.chroma_qp_offset_u != std::numeric_limits<int>::min()) {
+    params_->chroma_qp_offset_u = cli_.chroma_qp_offset_u;
+  }
+  if (cli_.chroma_qp_offset_v != std::numeric_limits<int>::min()) {
+    params_->chroma_qp_offset_v = cli_.chroma_qp_offset_v;
   }
   if (cli_.deblock != -1) {
     params_->deblock = cli_.deblock;

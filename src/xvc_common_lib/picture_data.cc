@@ -85,7 +85,9 @@ void PictureData::Init(const SegmentHeader &segment, const Qp &pic_qp,
       lambda_tmp = pic_qp.GetLambda() *
         pow(2.0, (i - pic_qp.GetQpRaw(YuvComponent::kY)) / 3.0);
     }
-    qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp);
+    qps_.emplace_back(qp_tmp, GetChromaFormat(), GetBitdepth(), lambda_tmp,
+                      segment.chroma_qp_offset_table,
+                      segment.chroma_qp_offset_u, segment.chroma_qp_offset_v);
   }
 
   // Initialize CU allocator / object pool

@@ -31,12 +31,14 @@ const int Qp::kInvQuantScales_[kNumScalingListRem_] = {
 };
 
 Qp::Qp(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
-       int chroma_offset)
+       int chroma_offset_table, int chroma_offset_u, int chroma_offset_v)
   : lambda_({ lambda, lambda, lambda }),
   lambda_sqrt_(std::sqrt(lambda)) {
   qp_raw_[0] = qp;
-  qp_raw_[1] = ScaleChromaQp(qp + chroma_offset, chroma_format, bitdepth);
-  qp_raw_[2] = ScaleChromaQp(qp + chroma_offset, chroma_format, bitdepth);
+  qp_raw_[1] = ScaleChromaQp(qp, chroma_format, bitdepth,
+                             chroma_offset_table, chroma_offset_u);
+  qp_raw_[2] = ScaleChromaQp(qp, chroma_format, bitdepth,
+                             chroma_offset_table, chroma_offset_v);
   qp_bitdepth_[0] =
     std::max(0, qp_raw_[0] + kNumScalingListRem_ * (bitdepth - 8));
   qp_bitdepth_[1] =
@@ -45,9 +47,11 @@ Qp::Qp(int qp, ChromaFormat chroma_format, int bitdepth, double lambda,
     std::max(0, qp_raw_[2] + kNumScalingListRem_ * (bitdepth - 8));
   distortion_weight_[0] = 1.0;
   distortion_weight_[1] =
-    GetChromaDistWeight(qp + chroma_offset, chroma_format);
+    GetChromaDistWeight(qp, chroma_format,
+                        chroma_offset_table, chroma_offset_u);
   distortion_weight_[2] =
-    GetChromaDistWeight(qp + chroma_offset, chroma_format);
+    GetChromaDistWeight(qp, chroma_format,
+                        chroma_offset_table, chroma_offset_v);
   lambda_[1] = lambda / distortion_weight_[1];
   lambda_[2] = lambda / distortion_weight_[2];
 }
@@ -59,19 +63,22 @@ int Qp::GetQpFromLambda(int bitdepth, double lambda) {
                      constants::kMaxAllowedQp);
 }
 
-int Qp::ScaleChromaQp(int qp, ChromaFormat chroma_format, int bitdepth) {
-  int chroma_qp = util::Clip3(qp, 0, kChromaQpMax_);
-  if (chroma_format == ChromaFormat::k420) {
+int Qp::ScaleChromaQp(int qp, ChromaFormat chroma_format, int bitdepth,
+                      int chroma_scaling_table, int offset) {
+  int chroma_qp = util::Clip3(qp + offset, 0, kChromaQpMax_);
+  if (chroma_format == ChromaFormat::k420 && chroma_scaling_table == 1) {
     chroma_qp = kChromaScale_[chroma_qp];
   }
   return chroma_qp;
 }
 
-double Qp::GetChromaDistWeight(int qp, ChromaFormat chroma_format) {
+double Qp::GetChromaDistWeight(int qp, ChromaFormat chroma_format,
+                               int chroma_scaling_table, int offset) {
   int chroma_qp = util::Clip3(qp, 0, kChromaQpMax_);
+  int chroma_qp_with_offset = util::Clip3(qp + offset, 0, kChromaQpMax_);
   int comp_qp_offset = 0;
-  if (chroma_format == ChromaFormat::k420) {
-    comp_qp_offset = kChromaScale_[chroma_qp] - chroma_qp;
+  if (chroma_format == ChromaFormat::k420 && chroma_scaling_table == 1) {
+    comp_qp_offset = kChromaScale_[chroma_qp_with_offset] - chroma_qp;
   }
   return pow(2.0, -comp_qp_offset / 3.0);
 }
