@@ -58,7 +58,7 @@ protected:
     const xvc::SegmentHeader *segment = encoder_->GetCurrentSegment();
     size_t sample_size = bitdepth == 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     size_t plane_samples =
-      segment->pic_width * segment->pic_height * sample_size;
+      segment->GetInternalWidth() * segment->GetInternalHeight() * sample_size;
     std::vector<uint8_t> pic_bytes(plane_samples *
                                    ::xvc::constants::kMaxYuvComponents);
     if (bitdepth == 8) {

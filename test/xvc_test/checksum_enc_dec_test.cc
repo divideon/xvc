@@ -27,8 +27,8 @@ protected:
     sh.major_version = xvc::constants::kXvcMajorVersion;
     sh.minor_version = xvc::constants::kXvcMinorVersion;
     sh.soc = 0;
-    sh.pic_width = width;
-    sh.pic_height = height;
+    sh.SetWidth(width);
+    sh.SetHeight(height);
     sh.chroma_format = chroma_fmt;
     sh.internal_bitdepth = bitdepth;
     sh.max_sub_gop_length = sub_gop_length;
@@ -53,13 +53,13 @@ protected:
     xvc::SimdFunctions simd(xvc::SimdCpu::GetRuntimeCapabilities());
     pic_encoder_ =
       std::make_shared<xvc::PictureEncoder>(simd, segment_.chroma_format,
-                                            segment_.pic_width,
-                                            segment_.pic_height,
+                                            segment_.GetInternalWidth(),
+                                            segment_.GetInternalHeight(),
                                             segment_.internal_bitdepth);
     pic_decoder_ =
       std::make_shared<xvc::PictureDecoder>(simd, segment_.chroma_format,
-                                            segment_.pic_width,
-                                            segment_.pic_height,
+                                            segment_.GetInternalWidth(),
+                                            segment_.GetInternalHeight(),
                                             segment_.internal_bitdepth);
   }
 
@@ -126,7 +126,7 @@ TEST_P(ChecksumEncDecTest, DifferentPictureGivesDifferentChecksum) {
   std::vector<uint8_t> enc_checksum1 = pic_encoder_->GetLastChecksum();
 
   std::vector<xvc::Sample> orig2(input_pic_.begin(), input_pic_.end());
-  for (int i = 0; i < segment_.pic_width; i++) {
+  for (int i = 0; i < segment_.GetInternalWidth(); i++) {
     orig2[i] += 10 << (GetParam() - 8);   // random modification
   }
   std::vector<uint8_t> bitstream2(*EncodePicture(&orig2[0]));

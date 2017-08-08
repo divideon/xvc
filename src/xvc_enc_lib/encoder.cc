@@ -58,7 +58,15 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   pic_data->SetBetaOffset(segment_header_->beta_offset);
   pic_data->SetTcOffset(segment_header_->tc_offset);
 
-  pic_enc->GetOrigPic()->CopyFrom(pic_bytes, input_bitdepth_);
+  if (segment_header_->GetOutputWidth() != segment_header_->GetInternalWidth()
+      || segment_header_->GetOutputHeight() !=
+      segment_header_->GetInternalHeight()) {
+    pic_enc->GetOrigPic()->CopyFromWithResampling(
+      pic_bytes, input_bitdepth_, segment_header_->GetOutputWidth(),
+      segment_header_->GetOutputHeight());
+  } else {
+    pic_enc->GetOrigPic()->CopyFrom(pic_bytes, input_bitdepth_);
+  }
 
   // Check if it is time to encode a new segment header.
   if ((poc_ % segment_length_) == 0) {
@@ -268,8 +276,8 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
     auto pic =
       std::make_shared<PictureEncoder>(simd_,
                                        segment_header_->chroma_format,
-                                       segment_header_->pic_width,
-                                       segment_header_->pic_height,
+                                       segment_header_->GetInternalWidth(),
+                                       segment_header_->GetInternalHeight(),
                                        segment_header_->internal_bitdepth);
     pic_encoders_.push_back(pic);
     return pic;

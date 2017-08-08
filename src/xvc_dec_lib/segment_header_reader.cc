@@ -22,8 +22,8 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     return Decoder::State::kDecoderVersionTooLow;
   }
   segment_header->minor_version = bit_reader->ReadBits(16);
-  segment_header->pic_width = bit_reader->ReadBits(16);
-  segment_header->pic_height = bit_reader->ReadBits(16);
+  segment_header->SetWidth(bit_reader->ReadBits(16));
+  segment_header->SetHeight(bit_reader->ReadBits(16));
   segment_header->chroma_format = ChromaFormat(bit_reader->ReadBits(4));
   segment_header->internal_bitdepth = bit_reader->ReadBits(4) + 8;
   if (segment_header->internal_bitdepth >

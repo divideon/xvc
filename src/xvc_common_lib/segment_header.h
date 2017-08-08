@@ -25,13 +25,21 @@ struct SegmentHeader {
                                 PicNum sub_gop_length);
   static double GetFramerate(int max_tid, int bitstream_ticks,
                              PicNum sub_gop_length);
+  void SetWidth(int width) { pic_width = width; }
+  int GetOutputWidth() const { return pic_width; }
+  int GetInternalWidth() const {
+    return pic_width - (pic_width % constants::kMinCuSize);
+  }
+  void SetHeight(int height) { pic_height = height; }
+  int GetOutputHeight() const { return pic_height; }
+  int GetInternalHeight() const {
+    return pic_height - (pic_height % constants::kMinCuSize);
+  }
 
   uint32_t codec_identifier = static_cast<uint32_t>(-1);
   uint32_t major_version = static_cast<uint32_t>(-1);
   uint32_t minor_version = static_cast<uint32_t>(-1);
   SegmentNum soc = static_cast<SegmentNum>(-1);
-  int pic_width = 0;
-  int pic_height = 0;
   ChromaFormat chroma_format = ChromaFormat::kUndefinedChromaFormat;
   ColorMatrix color_matrix = ColorMatrix::kUndefinedColorMatrix;
   int internal_bitdepth = -1;
@@ -51,6 +59,8 @@ struct SegmentHeader {
   Restrictions restrictions;
 
 private:
+  int pic_width = 0;
+  int pic_height = 0;
   static PicNum DocToPoc(PicNum sub_gop_length, PicNum doc);
   static PicNum PocToDoc(PicNum sub_gop_length, PicNum poc);
   static int DocToTid(PicNum sub_gop_length, PicNum doc);

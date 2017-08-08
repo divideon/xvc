@@ -41,8 +41,8 @@ public:
     simd_ = SimdFunctions(capabilities);
   }
   void SetResolution(int width, int height) {
-    segment_header_->pic_width = width;
-    segment_header_->pic_height = height;
+    segment_header_->SetWidth(width);
+    segment_header_->SetHeight(height);
   }
   void SetChromaFormat(ChromaFormat chroma_fmt) {
     segment_header_->chroma_format = chroma_fmt;

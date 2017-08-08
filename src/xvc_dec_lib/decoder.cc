@@ -148,10 +148,10 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
     sliding_window_length_ + curr_segment_header_->num_ref_pics;
 
   if (output_width_ == 0) {
-    output_width_ = curr_segment_header_->pic_width;
+    output_width_ = curr_segment_header_->GetOutputWidth();
   }
   if (output_height_ == 0) {
-    output_height_ = curr_segment_header_->pic_height;
+    output_height_ = curr_segment_header_->GetOutputHeight();
   }
   if (output_chroma_format_ == ChromaFormat::kUndefinedChromaFormat) {
     output_chroma_format_ = curr_segment_header_->chroma_format;
@@ -353,7 +353,8 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
   if (pic_decoders_.size() < pic_buffering_num_) {
     auto pic =
       std::make_shared<PictureDecoder>(simd_, segment.chroma_format,
-                                       segment.pic_width, segment.pic_height,
+                                       segment.GetInternalWidth(),
+                                       segment.GetInternalHeight(),
                                        segment.internal_bitdepth);
     pic_decoders_.push_back(pic);
     return pic;
@@ -377,12 +378,15 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
 
   // Replace the PictureDecoder if the picture format has changed.
   auto pic_data = (*pic_dec_it)->GetPicData();
-  if (segment.pic_width != pic_data->GetPictureWidth(YuvComponent::kY) ||
-      segment.pic_height != pic_data->GetPictureHeight(YuvComponent::kY) ||
+  if (segment.GetInternalWidth() !=
+      pic_data->GetPictureWidth(YuvComponent::kY) ||
+      segment.GetInternalHeight() !=
+      pic_data->GetPictureHeight(YuvComponent::kY) ||
       segment.chroma_format != pic_data->GetChromaFormat() ||
       segment.internal_bitdepth != pic_data->GetBitdepth()) {
     pic_dec_it->reset(new PictureDecoder(simd_, segment.chroma_format,
-                                         segment.pic_width, segment.pic_height,
+                                         segment.GetInternalWidth(),
+                                         segment.GetInternalHeight(),
                                          segment.internal_bitdepth));
   }
   return *pic_dec_it;

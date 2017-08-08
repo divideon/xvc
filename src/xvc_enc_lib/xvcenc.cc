@@ -70,13 +70,9 @@ extern "C" {
     if (!param) {
       return XVC_ENC_INVALID_ARGUMENT;
     }
-    if (param->width <= 0 ||
-        param->height <= 0) {
-      return XVC_ENC_SIZE_NOT_POSITIVE;
-    }
-    if (param->width % xvc::constants::kMinCuSize ||
-        param->height % xvc::constants::kMinCuSize) {
-      return XVC_ENC_SIZE_NOT_MULTIPLE_OF_BLOCKSIZE;
+    if (param->width <= xvc::constants::kMinCuSize ||
+        param->height <= xvc::constants::kMinCuSize) {
+      return XVC_ENC_SIZE_TOO_SMALL;
     }
     if (param->chroma_format < XVC_ENC_CHROMA_FORMAT_MONOCHROME ||
         param->chroma_format == XVC_ENC_CHROMA_FORMAT_422 ||
@@ -333,10 +329,8 @@ extern "C" {
       case XVC_ENC_INVALID_ARGUMENT:
         return "Error. One or more invalid arguments provided to an xvc api"
           " function.";
-      case XVC_ENC_SIZE_NOT_POSITIVE:
-        return "Error. The input width and height must be positive.";
-      case XVC_ENC_SIZE_NOT_MULTIPLE_OF_BLOCKSIZE:
-        return "Error. The input resolution is not a multiple of 8.";
+      case XVC_ENC_SIZE_TOO_SMALL:
+        return "Error. The input width and height must be larger than 8.";
       case XVC_ENC_UNSUPPORTED_CHROMA_FORMAT:
         return "Error. Unsupported chroma format.";
       case XVC_ENC_BITDEPTH_OUT_OF_RANGE:

@@ -132,8 +132,8 @@ private:
           !IsSameDimension(segment_header_, *ref_data)) {
         ref_pic = pic_enc_dec->GetAlternativeRecPic(
           segment_header_.chroma_format,
-          segment_header_.pic_width,
-          segment_header_.pic_height,
+          segment_header_.GetInternalWidth(),
+          segment_header_.GetInternalHeight(),
           segment_header_.internal_bitdepth);
       }
       if (rpl) {
@@ -196,8 +196,8 @@ private:
             !IsSameDimension(segment_header_, *ref_data)) {
           ref_pic = pic_enc_dec1->GetAlternativeRecPic(
             segment_header_.chroma_format,
-            segment_header_.pic_width,
-            segment_header_.pic_height,
+            segment_header_.GetInternalWidth(),
+            segment_header_.GetInternalHeight(),
             segment_header_.internal_bitdepth);
         }
         if (rpl) {
@@ -225,8 +225,8 @@ private:
   static bool IsSameDimension(const SegmentHeader &segment_header,
                               const PictureData &pic) {
     const YuvComponent luma = YuvComponent::kY;
-    return segment_header.pic_width == pic.GetPictureWidth(luma) &&
-      segment_header.pic_height == pic.GetPictureHeight(luma) &&
+    return segment_header.GetInternalWidth() == pic.GetPictureWidth(luma) &&
+      segment_header.GetInternalHeight() == pic.GetPictureHeight(luma) &&
       segment_header.chroma_format == pic.GetChromaFormat() &&
       segment_header.internal_bitdepth == pic.GetBitdepth();
   }

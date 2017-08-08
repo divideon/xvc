@@ -27,10 +27,10 @@ public:
   int GetBitdepth() const { return bitdepth_; }
   ChromaFormat GetChromaFormat() const { return chroma_format_; }
 
-  Sample *GetSamplePtr(YuvComponent comp, int x, int y) {
+  Sample* GetSamplePtr(YuvComponent comp, int x, int y) {
     return comp_pel_[comp] + y * GetStride(comp) + x;
   }
-  const Sample *GetSamplePtr(YuvComponent comp, int x, int y) const {
+  const Sample* GetSamplePtr(YuvComponent comp, int x, int y) const {
     return comp_pel_[comp] + y * GetStride(comp) + x;
   }
   SampleBuffer GetSampleBuffer(YuvComponent comp, int x, int y) {
@@ -41,6 +41,9 @@ public:
     return DataBuffer<const Sample>(GetSamplePtr(comp, x, y), GetStride(comp));
   }
   void CopyFrom(const uint8_t *picture_bytes, int input_bitdepth);
+  void CopyFromWithPadding(const uint8_t *picture_bytes, int input_bitdepth);
+  void CopyFromWithResampling(const uint8_t *picture_bytes, int input_bitdepth,
+                              int orig_width, int orig_height);
   void CopyToSameBitdepth(std::vector<uint8_t> *pic_bytes) const;
   void CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
               int out_height, ChromaFormat out_chroma_format,
