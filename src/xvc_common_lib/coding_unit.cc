@@ -219,6 +219,8 @@ const CodingUnit* CodingUnit::GetCodingUnitLeftBelow() const {
 }
 
 int CodingUnit::GetCuSizeAboveRight(YuvComponent comp) const {
+  const int chroma_shift =
+    std::max(pic_data_->GetChromaShiftX(), pic_data_->GetChromaShiftY());
   int posx = pos_x_ + width_;
   int posy = pos_y_ - constants::kMinBlockSize;
   if (posy < 0) {
@@ -227,13 +229,15 @@ int CodingUnit::GetCuSizeAboveRight(YuvComponent comp) const {
   posx -= constants::kMinBlockSize;
   for (int i = height_; i >= 0; i -= constants::kMinBlockSize) {
     if (pic_data_->GetCuAt(cu_tree_, posx + i, posy)) {
-      return util::IsLuma(comp) ? i : (i >> pic_data_->GetChromaShiftY());
+      return util::IsLuma(comp) ? i : (i >> chroma_shift);
     }
   }
   return 0;
 }
 
 int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
+  const int chroma_shift =
+    std::max(pic_data_->GetChromaShiftX(), pic_data_->GetChromaShiftY());
   int posx = pos_x_ - constants::kMinBlockSize;
   int posy = pos_y_ + height_;
   if (posx < 0) {
@@ -242,7 +246,7 @@ int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
   posy -= constants::kMinBlockSize;
   for (int i = width_; i >= 0; i -= constants::kMinBlockSize) {
     if (pic_data_->GetCuAt(cu_tree_, posx, posy + i)) {
-      return util::IsLuma(comp) ? i : (i >> pic_data_->GetChromaShiftX());
+      return util::IsLuma(comp) ? i : (i >> chroma_shift);
     }
   }
   return 0;

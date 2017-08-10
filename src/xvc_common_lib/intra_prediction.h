@@ -48,9 +48,9 @@ private:
       return has_above_left || has_above || has_left ||
         has_above_right > 0 || has_below_left > 0;
     }
-    bool has_all(int width, int height) const {
+    bool has_all(int below_left, int above_right) const {
       return has_above_left && has_above && has_left &&
-        has_below_left == width && has_above_right == height;
+        has_below_left == below_left && has_above_right == above_right;
     }
     bool has_above_left = false;
     bool has_above = false;

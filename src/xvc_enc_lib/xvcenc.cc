@@ -75,7 +75,6 @@ extern "C" {
       return XVC_ENC_SIZE_TOO_SMALL;
     }
     if (param->chroma_format < XVC_ENC_CHROMA_FORMAT_MONOCHROME ||
-        param->chroma_format == XVC_ENC_CHROMA_FORMAT_422 ||
         param->chroma_format > XVC_ENC_CHROMA_FORMAT_444) {
       return XVC_ENC_UNSUPPORTED_CHROMA_FORMAT;
     }
