@@ -161,9 +161,21 @@ TEST_P(DecoderResampleTest, Chroma420To444) {
   DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_420);
 }
 
+TEST_P(DecoderResampleTest, Chroma422To444) {
+  EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth, xvc::ChromaFormat::k422);
+  EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth, xvc::ChromaFormat::k444);
+  DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_422);
+}
+
 TEST_P(DecoderResampleTest, Chroma444To420) {
   EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth, xvc::ChromaFormat::k444);
   EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth, xvc::ChromaFormat::k420);
+  DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_444);
+}
+
+TEST_P(DecoderResampleTest, Chroma444To422) {
+  EncodeSegment(kSample1, kQp1, kPicSize, kBitdepth, xvc::ChromaFormat::k444);
+  EncodeSegment(kSample2, kQp2, kPicSize, kBitdepth, xvc::ChromaFormat::k422);
   DecodeChromaFormat(XVC_DEC_CHROMA_FORMAT_444);
 }
 

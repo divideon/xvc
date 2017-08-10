@@ -80,10 +80,6 @@ TEST(EncoderAPI, ParamCheck) {
   EXPECT_EQ(XVC_ENC_UNSUPPORTED_CHROMA_FORMAT, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
-  params->chroma_format = XVC_ENC_CHROMA_FORMAT_422;
-  EXPECT_EQ(XVC_ENC_UNSUPPORTED_CHROMA_FORMAT, api->parameters_check(params));
-
-  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
   params->chroma_format = XVC_ENC_CHROMA_FORMAT_MONOCHROME;
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
 
@@ -93,6 +89,10 @@ TEST(EncoderAPI, ParamCheck) {
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
   params->chroma_format = XVC_ENC_CHROMA_FORMAT_444;
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
+
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->chroma_format = XVC_ENC_CHROMA_FORMAT_422;
   EXPECT_EQ(XVC_ENC_OK, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
