@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-  enum xvc_dec_return_code {
+  typedef enum {
     XVC_DEC_OK = 0,
     XVC_DEC_NO_DECODED_PIC,
     XVC_DEC_NOT_CONFORMING,
@@ -25,23 +25,23 @@ extern "C" {
     XVC_DEC_NO_SEGMENT_HEADER_DECODED,
     XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH,
     XVC_DEC_INVALID_PARAMETER,
-  };
+  } xvc_dec_return_code;
 
-  enum xvc_dec_chroma_format {
+  typedef enum {
     XVC_DEC_CHROMA_FORMAT_MONOCHROME = 0,
     XVC_DEC_CHROMA_FORMAT_420 = 1,
     XVC_DEC_CHROMA_FORMAT_422 = 2,
     XVC_DEC_CHROMA_FORMAT_444 = 3,
     XVC_DEC_CHROMA_FORMAT_ARGB = 4,
     XVC_DEC_CHROMA_FORMAT_UNDEFINED = 255,
-  };
+  } xvc_dec_chroma_format;
 
-  enum xvc_dec_color_matrix {
+  typedef enum {
     XVC_DEC_COLOR_MATRIX_UNDEFINED = 0,
     XVC_DEC_COLOR_MATRIX_601 = 1,
     XVC_DEC_COLOR_MATRIX_709 = 2,
     XVC_DEC_COLOR_MATRIX_2020 = 3,
-  };
+  } xvc_dec_color_matrix;
 
   typedef struct xvc_dec_pic_stats {
     uint32_t nal_unit_type;
@@ -97,9 +97,9 @@ extern "C" {
                                              const uint8_t *nal_unit,
                                              size_t nal_unit_size);
     xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder,
-                                              xvc_decoded_picture *pic_bytes);
+                                              xvc_decoded_picture *out_pic);
     xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder,
-                                        xvc_decoded_picture *pic_bytes);
+                                        xvc_decoded_picture *out_pic);
     xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder,
                                                     int *num);
     const char*(*xvc_dec_get_error_text)(xvc_dec_return_code error_code);

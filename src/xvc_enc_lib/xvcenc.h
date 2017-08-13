@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-  enum xvc_enc_return_code {
+  typedef enum {
     XVC_ENC_OK = 0,
     XVC_ENC_INVALID_ARGUMENT,
     XVC_ENC_SIZE_TOO_SMALL,
@@ -27,22 +27,22 @@ extern "C" {
     XVC_ENC_DEBLOCKING_SETTINGS_INVALID,
     XVC_ENC_TOO_MANY_REF_PICS,
     XVC_ENC_INVALID_PARAMETER,
-  };
+  } xvc_enc_return_code;
 
-  enum xvc_enc_chroma_format {
+  typedef enum {
     XVC_ENC_CHROMA_FORMAT_MONOCHROME = 0,
     XVC_ENC_CHROMA_FORMAT_420 = 1,
     XVC_ENC_CHROMA_FORMAT_422 = 2,
     XVC_ENC_CHROMA_FORMAT_444 = 3,
     XVC_ENC_CHROMA_FORMAT_UNDEFINED = 255,
-  };
+  } xvc_enc_chroma_format;
 
-  enum xvc_enc_color_matrix {
+  typedef enum {
     XVC_ENC_COLOR_MATRIX_UNDEFINED = 0,
     XVC_ENC_COLOR_MATRIX_601 = 1,
     XVC_ENC_COLOR_MATRIX_709 = 2,
     XVC_ENC_COLOR_MATRIX_2020 = 3,
-  };
+  } xvc_enc_color_matrix;
 
   typedef struct xvc_enc_nal_stats {
     uint32_t nal_unit_type;
