@@ -82,7 +82,7 @@ extern "C" {
   } xvc_decoder_parameters;
 
   typedef struct xvc_decoder_api {
-    xvc_decoder_parameters* (*parameters_create)();
+    xvc_decoder_parameters* (*parameters_create)(void);
     xvc_dec_return_code(*parameters_destroy)(
       xvc_decoder_parameters *param);
     xvc_dec_return_code(*parameters_set_default)(
@@ -105,7 +105,7 @@ extern "C" {
     const char*(*xvc_dec_get_error_text)(xvc_dec_return_code error_code);
   } xvc_decoder_api;
 
-  const xvc_decoder_api* xvc_decoder_api_get();
+  const xvc_decoder_api* xvc_decoder_api_get(void);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -67,7 +67,6 @@ extern "C" {
     size_t size;
   } xvc_enc_pic_buffer;
 
-
   typedef struct xvc_encoder xvc_encoder;
 
   typedef struct xvc_encoder_parameters {
@@ -99,7 +98,7 @@ extern "C" {
   } xvc_encoder_parameters;
 
   typedef struct xvc_encoder_api {
-    xvc_encoder_parameters* (*parameters_create)();
+    xvc_encoder_parameters* (*parameters_create)(void);
     xvc_enc_return_code(*parameters_destroy)(xvc_encoder_parameters
                                              *param);
     xvc_enc_return_code(*parameters_set_default)(
@@ -120,7 +119,7 @@ extern "C" {
     const char*(*xvc_enc_get_error_text)(xvc_enc_return_code error_code);
   } xvc_encoder_api;
 
-  const xvc_encoder_api* xvc_encoder_api_get();
+  const xvc_encoder_api* xvc_encoder_api_get(void);
 
 #ifdef __cplusplus
 }  // extern "C"
