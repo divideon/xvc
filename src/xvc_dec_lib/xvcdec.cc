@@ -10,26 +10,26 @@
 
 #include "xvc_dec_lib/decoder.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-  xvc_decoder_parameters* xvc_dec_parameters_create() {
+
+  static xvc_decoder_parameters* xvc_dec_parameters_create() {
     xvc_decoder_parameters *parameters = new xvc_decoder_parameters;
     std::memset(parameters, 0, sizeof(xvc_decoder_parameters));
     return parameters;
   }
 
-  xvc_dec_return_code xvc_dec_parameters_destroy(
-    xvc_decoder_parameters *param) {
+  static xvc_dec_return_code
+    xvc_dec_parameters_destroy(xvc_decoder_parameters *param) {
     if (param) {
       delete param;
     }
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_parameters_set_default(
-    xvc_decoder_parameters *param) {
+  static xvc_dec_return_code
+    xvc_dec_parameters_set_default(xvc_decoder_parameters *param) {
     if (!param) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -44,7 +44,8 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_parameters_check(xvc_decoder_parameters *param) {
+  static xvc_dec_return_code
+    xvc_dec_parameters_check(xvc_decoder_parameters *param) {
     if (!param) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -84,7 +85,17 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
-  xvc_decoder* xvc_dec_decoder_create(xvc_decoder_parameters *param) {
+  static xvc_decoded_picture* xvc_dec_picture_create(xvc_decoder *decoder) {
+    return new xvc_decoded_picture();
+  }
+
+  static
+    xvc_dec_return_code xvc_dec_picture_destroy(xvc_decoded_picture *picture) {
+    delete picture;
+    return XVC_DEC_OK;
+  }
+
+  static xvc_decoder* xvc_dec_decoder_create(xvc_decoder_parameters *param) {
     if (xvc_dec_parameters_check(param) != XVC_DEC_OK) {
       return nullptr;
     }
@@ -100,7 +111,7 @@ extern "C" {
     return decoder;
   }
 
-  xvc_dec_return_code xvc_dec_decoder_destroy(xvc_decoder *decoder) {
+  static xvc_dec_return_code xvc_dec_decoder_destroy(xvc_decoder *decoder) {
     if (decoder) {
       xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
       delete lib_decoder;
@@ -108,8 +119,9 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_decoder_update_parameters(
-    xvc_decoder *decoder, xvc_decoder_parameters *param) {
+  static xvc_dec_return_code
+    xvc_dec_decoder_update_parameters(xvc_decoder *decoder,
+                                      xvc_decoder_parameters *param) {
     if (xvc_dec_parameters_check(param) != XVC_DEC_OK) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -122,10 +134,9 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_decoder_decode_nal(xvc_decoder *decoder,
-                                                 const uint8_t *nal_unit,
-                                                 size_t nal_unit_size,
-                                                 int64_t user_data) {
+  static xvc_dec_return_code
+    xvc_dec_decoder_decode_nal(xvc_decoder *decoder, const uint8_t *nal_unit,
+                               size_t nal_unit_size, int64_t user_data) {
     if (!decoder || !nal_unit || nal_unit_size < 1) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -145,8 +156,9 @@ extern "C" {
     return XVC_DEC_OK;
   }
 
-  xvc_dec_return_code xvc_dec_decoder_get_picture(
-    xvc_decoder *decoder, xvc_decoded_picture *pic_bytes) {
+  static xvc_dec_return_code
+    xvc_dec_decoder_get_picture(xvc_decoder *decoder,
+                                xvc_decoded_picture *pic_bytes) {
     if (!decoder || !pic_bytes) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -163,8 +175,9 @@ extern "C" {
     }
   }
 
-  xvc_dec_return_code xvc_dec_decoder_flush(xvc_decoder *decoder,
-                                            xvc_decoded_picture *pic_bytes) {
+  static
+    xvc_dec_return_code xvc_dec_decoder_flush(xvc_decoder *decoder,
+                                              xvc_decoded_picture *pic_bytes) {
     if (!decoder || !pic_bytes) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
@@ -178,20 +191,25 @@ extern "C" {
     }
   }
 
-  xvc_dec_return_code xvc_dec_decoder_check_conformance(xvc_decoder *decoder,
-                                                        int *num) {
-    if (!decoder || !num) {
+  static xvc_dec_return_code
+    xvc_dec_decoder_check_conformance(xvc_decoder *decoder,
+                                      int *out_num) {
+    if (!decoder) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
-    *num = static_cast<uint32_t>(lib_decoder->GetNumCorruptedPics());
-    if (*num > 0) {
+    int num_corrupted =
+      static_cast<uint32_t>(lib_decoder->GetNumCorruptedPics());
+    if (out_num) {
+      *out_num = num_corrupted;
+    }
+    if (num_corrupted > 0) {
       return XVC_DEC_NOT_CONFORMING;
     }
     return XVC_DEC_OK;
   }
 
-  const char* xvc_dec_get_error_text(xvc_dec_return_code error_code) {
+  static const char* xvc_dec_get_error_text(xvc_dec_return_code error_code) {
     switch (error_code) {
       case  XVC_DEC_OK:
         return "";
@@ -228,6 +246,8 @@ extern "C" {
     &xvc_dec_parameters_destroy,
     &xvc_dec_parameters_set_default,
     &xvc_dec_parameters_check,
+    &xvc_dec_picture_create,
+    &xvc_dec_picture_destroy,
     &xvc_dec_decoder_create,
     &xvc_dec_decoder_destroy,
     &xvc_dec_decoder_update_parameters,

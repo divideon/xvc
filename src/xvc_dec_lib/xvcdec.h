@@ -14,17 +14,19 @@
 extern "C" {
 #endif
 
+#define XVC_DEC_API_VERSION   1
+
   typedef enum {
     XVC_DEC_OK = 0,
-    XVC_DEC_NO_DECODED_PIC,
-    XVC_DEC_NOT_CONFORMING,
-    XVC_DEC_INVALID_ARGUMENT,
+    XVC_DEC_NO_DECODED_PIC = 1,
+    XVC_DEC_NOT_CONFORMING = 10,
+    XVC_DEC_INVALID_ARGUMENT = 20,
+    XVC_DEC_INVALID_PARAMETER = 30,
     XVC_DEC_FRAMERATE_OUT_OF_RANGE,
     XVC_DEC_BITDEPTH_OUT_OF_RANGE,
     XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER,
     XVC_DEC_NO_SEGMENT_HEADER_DECODED,
     XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH,
-    XVC_DEC_INVALID_PARAMETER,
   } xvc_dec_return_code;
 
   typedef enum {
@@ -43,6 +45,8 @@ extern "C" {
     XVC_DEC_COLOR_MATRIX_2020 = 3,
   } xvc_dec_color_matrix;
 
+  // Decoded picture statistics
+  // Lifecycle managed by xvc_decoded_picture
   typedef struct xvc_dec_pic_stats {
     uint32_t nal_unit_type;
     uint32_t poc;
@@ -62,15 +66,23 @@ extern "C" {
     double bitstream_framerate;
   } xvc_dec_pic_stats;
 
+  // Represents a decoded picture
+  // Lifecycle managed by api->picture_create & api->picture_destory
   typedef struct xvc_decoded_picture {
-    char* bytes;
-    size_t size;
+    char* bytes;      // Adress of first picture sample
+    size_t size;      // Number of picture bytes for all planes (incl. padding)
+    char *planes[3];  // Adress of first sample for each plane
+    int stride[3];    // Width in bytes for each plane (including padding)
     xvc_dec_pic_stats stats;
     int64_t user_data;  //
   } xvc_decoded_picture;
 
+  // xvc decoder instance
+  // Lifecycle managed by api->decoder_create & api->decoder_destroy
   typedef struct xvc_decoder xvc_decoder;
 
+  // xvc decoder configuration
+  // Lifecycle managed by api->parameters_create & api->parameters_destroy
   typedef struct xvc_decoder_parameters {
     int output_width;
     int output_height;
@@ -82,13 +94,20 @@ extern "C" {
     uint32_t simd_mask;
   } xvc_decoder_parameters;
 
+  // xvc decoder api
+  // Lifecycle managed by xvc_decoder_api_get
   typedef struct xvc_decoder_api {
+    // Parameters
     xvc_decoder_parameters* (*parameters_create)(void);
     xvc_dec_return_code(*parameters_destroy)(
       xvc_decoder_parameters *param);
     xvc_dec_return_code(*parameters_set_default)(
       xvc_decoder_parameters *param);
     xvc_dec_return_code(*parameters_check)(xvc_decoder_parameters *param);
+    // Decoded picture
+    xvc_decoded_picture* (*picture_create)(xvc_decoder *decoder);
+    xvc_dec_return_code(*picture_destroy)(xvc_decoded_picture* pic);
+    // Decoder
     xvc_decoder* (*decoder_create)(xvc_decoder_parameters *decoder);
     xvc_dec_return_code(*decoder_destroy)(xvc_decoder *decoder);
     xvc_dec_return_code(*decoder_update_parameters)(xvc_decoder *decoder,
@@ -107,9 +126,11 @@ extern "C" {
                                         xvc_decoded_picture *out_pic);
     xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder,
                                                     int *num);
+    // Misc
     const char*(*xvc_dec_get_error_text)(xvc_dec_return_code error_code);
   } xvc_decoder_api;
 
+  // Starting point for using the xvc decoder api
   const xvc_decoder_api* xvc_decoder_api_get(void);
 
 #ifdef __cplusplus

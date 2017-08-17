@@ -70,9 +70,18 @@ protected:
   void VerifyPicture(int width, int height,
                      const xvc_decoded_picture &decoded_picture) {
     int poc = decoded_picture.stats.poc;
+    int byte_width = width * (decoded_picture.stats.bitdepth == 8 ? 1 : 2);
     EXPECT_EQ(kPocOffset + poc, decoded_picture.user_data);
     EXPECT_EQ(width, decoded_picture.stats.width);
     EXPECT_EQ(height, decoded_picture.stats.height);
+    EXPECT_EQ(decoded_picture.planes[0], decoded_picture.bytes);
+    EXPECT_EQ(decoded_picture.planes[1], decoded_picture.planes[0] +
+              decoded_picture.stride[0] * height);
+    EXPECT_EQ(decoded_picture.planes[2], decoded_picture.planes[1] +
+              decoded_picture.stride[1] * height / 2);
+    EXPECT_EQ(byte_width, decoded_picture.stride[0]);
+    EXPECT_EQ(byte_width / 2, decoded_picture.stride[1]);
+    EXPECT_EQ(byte_width / 2, decoded_picture.stride[2]);
     EXPECT_FALSE(verified_[poc]);
     double psnr = orig_pics_[poc].CalcPsnr(decoded_picture.bytes);
     EXPECT_GE(psnr, kPsnrThreshold) << "Picture poc " << poc;

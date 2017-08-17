@@ -119,9 +119,8 @@ TEST(DecoderAPI, DecoderCheckConformance) {
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
   EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
-  EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_check_conformance(decoder,
-                                                                     nullptr));
   EXPECT_EQ(XVC_DEC_OK, api->decoder_check_conformance(decoder, &num));
+  EXPECT_EQ(XVC_DEC_OK, api->decoder_check_conformance(decoder, nullptr));
   EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
 

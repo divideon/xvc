@@ -91,8 +91,9 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
     nal.bytes = &(*nal_bytes)[0];
     nal.size = nal_bytes->size();
-    nal.stats.nal_unit_type = 16;
     nal.buffer_flag = 0;
+    SetNalStats(*pic_data, &nal);
+    nal.stats.nal_unit_type = static_cast<int>(NalUnitType::kSegmentHeader);
     nal_units_.push_back(nal);
     pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
     encode_with_buffer_flag_ = true;
@@ -235,7 +236,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
   nal.bytes = &(*pic_bytes)[0];
   nal.size = pic_bytes->size();
   nal.buffer_flag = buffer_flag;
-  SetNalStats(&nal, pic);
+  SetNalStats(*pic->GetPicData(), &nal);
   nal_units_.push_back(nal);
 
   // Decoding order counter is increased each time a picture has been encoded.
@@ -304,21 +305,23 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   return pic_enc;
 }
 
-void Encoder::SetNalStats(xvc_enc_nal_unit *nal,
-                          std::shared_ptr<PictureEncoder> pic) {
-  auto pic_data = pic->GetPicData();
+void Encoder::SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal) {
   nal->stats.nal_unit_type =
-    static_cast<uint32_t>(pic_data->GetNalType());
+    static_cast<uint32_t>(pic_data.GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
-  nal->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());
-  nal->stats.doc = static_cast<uint32_t>(pic_data->GetDoc());
-  nal->stats.soc = static_cast<uint32_t>(pic_data->GetSoc());
-  nal->stats.tid = pic_data->GetTid();
-  nal->stats.qp = pic_data->GetPicQp()->GetQpRaw(YuvComponent::kY);
+  nal->stats.poc = static_cast<uint32_t>(pic_data.GetPoc());
+  nal->stats.doc = static_cast<uint32_t>(pic_data.GetDoc());
+  nal->stats.soc = static_cast<uint32_t>(pic_data.GetSoc());
+  nal->stats.tid = pic_data.GetTid();
+  if (pic_data.GetPicQp()) {
+    nal->stats.qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
+  } else {
+    nal->stats.qp = constants::kMaxAllowedQp + 1;
+  }
 
   // Expose the first reference pictures in L0 and L1.
-  ReferencePictureLists* rpl = pic_data->GetRefPicLists();
+  const ReferencePictureLists* rpl = pic_data.GetRefPicLists();
   int length = sizeof(nal->stats.l0) / sizeof(nal->stats.l0[0]);
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {

@@ -19,22 +19,23 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  xvc_encoder_parameters* xvc_enc_parameters_create() {
+
+  static xvc_encoder_parameters* xvc_enc_parameters_create() {
     xvc_encoder_parameters *parameters = new xvc_encoder_parameters;
     std::memset(parameters, 0, sizeof(xvc_encoder_parameters));
     return parameters;
   }
 
-  xvc_enc_return_code xvc_enc_parameters_destroy(
-    xvc_encoder_parameters *param) {
+  static xvc_enc_return_code
+    xvc_enc_parameters_destroy(xvc_encoder_parameters *param) {
     if (param) {
       delete param;
     }
     return XVC_ENC_OK;
   }
 
-  xvc_enc_return_code xvc_enc_parameters_set_default(
-    xvc_encoder_parameters *param) {
+  static xvc_enc_return_code
+    xvc_enc_parameters_set_default(xvc_encoder_parameters *param) {
     if (!param) {
       return XVC_ENC_INVALID_ARGUMENT;
     }
@@ -65,8 +66,8 @@ extern "C" {
     return XVC_ENC_OK;
   }
 
-  xvc_enc_return_code xvc_enc_parameters_check(const xvc_encoder_parameters
-                                               *param) {
+  static xvc_enc_return_code
+    xvc_enc_parameters_check(const xvc_encoder_parameters *param) {
     if (!param) {
       return XVC_ENC_INVALID_ARGUMENT;
     }
@@ -148,8 +149,20 @@ extern "C" {
     return XVC_ENC_OK;
   }
 
-  void xvc_enc_set_encoder_settings(xvc::Encoder *encoder,
-                                    const xvc_encoder_parameters *param) {
+  static xvc_enc_pic_buffer*
+    xvc_enc_picture_create(xvc_encoder *encoder) {
+    return new xvc_enc_pic_buffer();
+  }
+
+  static xvc_enc_return_code
+    xvc_enc_picture_destroy(xvc_enc_pic_buffer *picture) {
+    delete picture;
+    return XVC_ENC_OK;
+  }
+
+  static void
+    xvc_enc_set_encoder_settings(xvc::Encoder *encoder,
+                                 const xvc_encoder_parameters *param) {
     xvc::EncoderSettings encoder_settings;
 
     if (param->speed_mode >= 0) {
@@ -207,9 +220,9 @@ extern "C" {
     encoder->SetEncoderSettings(std::move(encoder_settings));
   }
 
-  void xvc_enc_set_segment_length(xvc::Encoder *encoder,
-                                  const xvc_encoder_parameters *param,
-                                  int sub_gop_length) {
+  static void xvc_enc_set_segment_length(xvc::Encoder *encoder,
+                                         const xvc_encoder_parameters *param,
+                                         int sub_gop_length) {
     xvc::PicNum segment_length = 1;
     if (param->max_keypic_distance == 0) {
       segment_length = ((std::numeric_limits<xvc::PicNum>::max() /
@@ -230,7 +243,8 @@ extern "C" {
     }
   }
 
-  xvc_encoder* xvc_enc_encoder_create(const xvc_encoder_parameters *param) {
+  static xvc_encoder*
+    xvc_enc_encoder_create(const xvc_encoder_parameters *param) {
     if (xvc_enc_parameters_check(param) != XVC_ENC_OK) {
       return nullptr;
     }
@@ -278,7 +292,7 @@ extern "C" {
     return encoder;
   }
 
-  xvc_enc_return_code xvc_enc_encoder_destroy(xvc_encoder *encoder) {
+  static xvc_enc_return_code xvc_enc_encoder_destroy(xvc_encoder *encoder) {
     if (encoder) {
       xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
       delete lib_encoder;
@@ -286,17 +300,16 @@ extern "C" {
     return XVC_ENC_OK;
   }
 
-  xvc_enc_return_code xvc_enc_encoder_encode(xvc_encoder *encoder,
-                                             const uint8_t *picture_to_encode,
-                                             xvc_enc_nal_unit **nal_units,
-                                             int *num_nal_units,
-                                             xvc_enc_pic_buffer *rec_pic) {
-    if (!encoder || !picture_to_encode || !nal_units || !num_nal_units) {
+  static xvc_enc_return_code
+    xvc_enc_encoder_encode(xvc_encoder *encoder, const uint8_t *input_picture,
+                           xvc_enc_nal_unit **nal_units, int *num_nal_units,
+                           xvc_enc_pic_buffer *rec_pic) {
+    if (!encoder || !input_picture || !nal_units || !num_nal_units) {
       return XVC_ENC_INVALID_ARGUMENT;
     }
     xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
     xvc_enc_pic_buffer rec_pic_buffer;
-    *num_nal_units = lib_encoder->Encode(picture_to_encode, nal_units,
+    *num_nal_units = lib_encoder->Encode(input_picture, nal_units,
       (rec_pic != nullptr), &rec_pic_buffer);
     if (rec_pic) {
       *rec_pic = rec_pic_buffer;
@@ -304,10 +317,9 @@ extern "C" {
     return XVC_ENC_OK;
   }
 
-  xvc_enc_return_code xvc_enc_encoder_flush(xvc_encoder *encoder,
-                                            xvc_enc_nal_unit **nal_units,
-                                            int *num_nal_units,
-                                            xvc_enc_pic_buffer *rec_pic) {
+  static xvc_enc_return_code
+    xvc_enc_encoder_flush(xvc_encoder *encoder, xvc_enc_nal_unit **nal_units,
+                          int *num_nal_units, xvc_enc_pic_buffer *rec_pic) {
     if (!encoder || !nal_units || !num_nal_units) {
       return XVC_ENC_INVALID_ARGUMENT;
     }
@@ -321,7 +333,7 @@ extern "C" {
     return XVC_ENC_OK;
   }
 
-  const char* xvc_enc_get_error_text(xvc_enc_return_code error_code) {
+  static const char* xvc_enc_get_error_text(xvc_enc_return_code error_code) {
     switch (error_code) {
       case XVC_ENC_OK:
         return "No Error";
@@ -364,6 +376,8 @@ extern "C" {
     &xvc_enc_parameters_destroy,
     &xvc_enc_parameters_set_default,
     &xvc_enc_parameters_check,
+    &xvc_enc_picture_create,
+    &xvc_enc_picture_destroy,
     &xvc_enc_encoder_create,
     &xvc_enc_encoder_destroy,
     &xvc_enc_encoder_encode,

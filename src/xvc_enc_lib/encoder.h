@@ -98,7 +98,7 @@ private:
                              xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
 
-  void SetNalStats(xvc_enc_nal_unit *nal, std::shared_ptr<PictureEncoder> pic);
+  void SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal);
 
   int input_bitdepth_ = 8;
   bool encode_with_buffer_flag_ = false;

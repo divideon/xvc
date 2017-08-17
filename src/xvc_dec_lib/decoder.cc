@@ -299,6 +299,10 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   if (enforce_sliding_window_ && !HasPictureReadyForOutput()) {
     output_pic->size = 0;
     output_pic->bytes = nullptr;
+    for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+      output_pic->planes[c] = nullptr;
+      output_pic->stride[c] = 0;
+    }
     return false;
   }
 
@@ -316,6 +320,10 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   if (!pic_dec) {
     output_pic->size = 0;
     output_pic->bytes = nullptr;
+    for (int c = 0; c < constants::kMaxYuvComponents; c++) {
+      output_pic->planes[c] = nullptr;
+      output_pic->stride[c] = 0;
+    }
     return false;
   }
 
@@ -334,9 +342,19 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   decoded_pic->CopyTo(&output_pic_bytes_, output_width_, output_height_,
                       output_chroma_format_, output_bitdepth_,
                       output_color_matrix_);
+  const int sample_size = output_bitdepth_ == 8 ? 1 : 2;
   output_pic->size = output_pic_bytes_.size();
   output_pic->bytes = output_pic_bytes_.empty() ? nullptr :
     reinterpret_cast<char *>(&output_pic_bytes_[0]);
+  output_pic->planes[0] = output_pic->bytes;
+  output_pic->stride[0] = output_width_ * sample_size;
+  output_pic->planes[1] =
+    output_pic->planes[0] + output_pic->stride[0] * output_height_;
+  output_pic->stride[1] =
+    util::ScaleChromaX(output_width_, output_chroma_format_) * sample_size;
+  output_pic->planes[2] = output_pic->planes[1] + output_pic->stride[1] *
+    util::ScaleChromaY(output_height_, output_chroma_format_);
+  output_pic->stride[2] = output_pic->stride[1];
 
   // Decrease counter for how many decoded pictures are buffered.
   num_pics_in_buffer_--;
