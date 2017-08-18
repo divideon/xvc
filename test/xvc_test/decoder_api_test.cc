@@ -63,16 +63,19 @@ TEST(DecoderAPI, DecoderDecodeNal) {
   size_t nal_size = 1;
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_decode_nal(nullptr,
                                                               &nal_bytes_[0],
-                                                              nal_size));
+                                                              nal_size,
+                                                              0));
   xvc_decoder_parameters *params = api->parameters_create();
   EXPECT_EQ(XVC_DEC_OK, api->parameters_set_default(params));
   xvc_decoder *decoder = api->decoder_create(params);
   EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_decode_nal(decoder,
                                                               nullptr,
-                                                              nal_size));
+                                                              nal_size,
+                                                              0));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_decode_nal(decoder,
                                                               &nal_bytes_[0],
+                                                              0,
                                                               0));
   EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }

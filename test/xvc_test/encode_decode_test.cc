@@ -4,6 +4,7 @@
 * without the written permission of the copyright holder.
 ******************************************************************************/
 
+#include <list>
 #include <vector>
 
 #include "googletest/include/gtest/gtest.h"
@@ -17,6 +18,7 @@ static constexpr int kQp = 27;
 static constexpr double kPsnrThreshold = 28.0;
 static constexpr int kFramesEncoded = 8;
 static constexpr int kSegmentLength = kFramesEncoded * 3;
+static constexpr int kPocOffset = 999;
 
 class EncodeDecodeTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
@@ -40,17 +42,23 @@ protected:
     encoder_->SetResolution(width, height);
     for (int i = 0; i < frames; i++) {
       auto orig_pic = xvc_test::TestYuvPic(width, height, GetParam(), i, i);
-      EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
+      auto nals = EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
       orig_pics_.push_back(orig_pic);
       verified_.push_back(false);
+      for (auto nal : nals) {
+        encoded_pocs_.push_back(nal.stats.poc);
+      }
     }
     EncoderFlush();
   }
 
   void Decode(int width, int height, int frames, bool do_flush = true) {
     DecodeSegmentHeaderSuccess(GetNextNalToDecode());
+    encoded_pocs_.pop_front();
     for (int i = 0; i < frames; i++) {
-      if (DecodePictureSuccess(GetNextNalToDecode())) {
+      int64_t user_data = kPocOffset + encoded_pocs_.front();
+      encoded_pocs_.pop_front();
+      if (DecodePictureSuccess(GetNextNalToDecode(), user_data)) {
         VerifyPicture(width, height, last_decoded_picture_);
       }
     }
@@ -62,6 +70,7 @@ protected:
   void VerifyPicture(int width, int height,
                      const xvc_decoded_picture &decoded_picture) {
     int poc = decoded_picture.stats.poc;
+    EXPECT_EQ(kPocOffset + poc, decoded_picture.user_data);
     EXPECT_EQ(width, decoded_picture.stats.width);
     EXPECT_EQ(height, decoded_picture.stats.height);
     EXPECT_FALSE(verified_[poc]);
@@ -72,6 +81,7 @@ protected:
 
   std::vector<xvc_test::TestYuvPic> orig_pics_;
   std::vector<bool> verified_;
+  std::list<int> encoded_pocs_;
 };
 
 TEST_P(EncodeDecodeTest, TwoSubGopZeroResolution) {

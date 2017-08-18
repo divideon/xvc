@@ -34,7 +34,8 @@ Decoder::~Decoder() {
   }
 }
 
-bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
+bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                        int64_t user_data) {
   // Nal header parsing
   BitReader bit_reader(nal_unit, nal_unit_size);
   uint8_t header = bit_reader.ReadByte();
@@ -89,12 +90,12 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     num_pics_in_buffer_++;
     bit_reader.Rewind(4);
 
-    std::unique_ptr<std::vector<uint8_t>> nal_element(
-      new std::vector<uint8_t>(&nal_unit[0], &nal_unit[0] + nal_unit_size));
+    NalUnitPtr nal_element(new std::vector<uint8_t>(&nal_unit[0], &nal_unit[0]
+                                                    + nal_unit_size));
     if (buffer_flag == 0 && num_tail_pics_ > 0) {
-      nal_buffer_.push_front(std::move(nal_element));
+      nal_buffer_.push_front({ std::move(nal_element), user_data });
     } else {
-      nal_buffer_.push_back(std::move(nal_element));
+      nal_buffer_.push_back({ std::move(nal_element), user_data });
     }
     if (buffer_flag) {
       num_tail_pics_++;
@@ -103,7 +104,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
     while (nal_buffer_.size() > 0 &&
            num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
       auto &&nal = nal_buffer_.front();
-      DecodeOneBufferedNal(std::move(nal));
+      DecodeOneBufferedNal(std::move(nal.first), nal.second);
       nal_buffer_.pop_front();
     }
     return true;
@@ -113,7 +114,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size) {
 
 void Decoder::DecodeAllBufferedNals() {
   for (auto &&nal : nal_buffer_) {
-    DecodeOneBufferedNal(std::move(nal));
+    DecodeOneBufferedNal(std::move(nal.first), nal.second);
   }
   if (thread_decoder_) {
     thread_decoder_->WaitAll([this](std::shared_ptr<PictureDecoder> pic_dec,
@@ -168,7 +169,7 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
 }
 
 void
-Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
+Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   BitReader pic_bit_reader(&(*nal)[0], nal->size());
   std::shared_ptr<SegmentHeader> segment_header = curr_segment_header_;
 
@@ -233,7 +234,8 @@ Decoder::DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal) {
   }
 
   // Setup poc and output status on main thread
-  pic_dec->Init(*segment_header, pic_header, std::move(ref_pic_list));
+  pic_dec->Init(*segment_header, pic_header, std::move(ref_pic_list),
+                user_data);
 
   // Special handling of inter dependency ref counting for lowest layer
   if (pic_header.tid == 0) {
@@ -342,7 +344,7 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_) &&
       num_pics_in_buffer_ - nal_buffer_.size() < pic_buffering_num_) {
     auto &&nal = nal_buffer_.front();
-    DecodeOneBufferedNal(std::move(nal));
+    DecodeOneBufferedNal(std::move(nal.first), nal.second);
     nal_buffer_.pop_front();
   }
   return true;
@@ -411,6 +413,7 @@ void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                              xvc_decoded_picture *output_pic) {
   auto pic_data = pic_dec->GetPicData();
+  output_pic->user_data = pic_dec->GetNalUserData();
   output_pic->stats.width = output_width_;
   output_pic->stats.height = output_height_;
   output_pic->stats.bitdepth = output_bitdepth_;

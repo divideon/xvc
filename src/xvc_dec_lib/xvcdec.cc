@@ -124,12 +124,13 @@ extern "C" {
 
   xvc_dec_return_code xvc_dec_decoder_decode_nal(xvc_decoder *decoder,
                                                  const uint8_t *nal_unit,
-                                                 size_t nal_unit_size) {
+                                                 size_t nal_unit_size,
+                                                 int64_t user_data) {
     if (!decoder || !nal_unit || nal_unit_size < 1) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
-    lib_decoder->DecodeNal(nal_unit, nal_unit_size);
+    lib_decoder->DecodeNal(nal_unit, nal_unit_size, user_data);
 
     xvc::Decoder::State dec_state = lib_decoder->GetState();
     if (dec_state == xvc::Decoder::State::kDecoderVersionTooLow) {

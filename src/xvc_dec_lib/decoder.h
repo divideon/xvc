@@ -10,6 +10,7 @@
 #include <deque>
 #include <memory>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "xvc_common_lib/common.h"
@@ -40,7 +41,8 @@ public:
 
   explicit Decoder(int num_threads);
   ~Decoder();
-  bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size);
+  bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                 int64_t user_data = 0);
   bool GetDecodedPicture(xvc_decoded_picture *dec_pic);
   void FlushBufferedTailPics();
   PicNum GetNumDecodedPics() { return num_pics_in_buffer_; }
@@ -67,10 +69,11 @@ public:
   }
 
 private:
+  using NalUnitPtr = std::unique_ptr<std::vector<uint8_t>>;
   using PicDecList = std::vector<std::shared_ptr<const PictureDecoder>>;
   void DecodeAllBufferedNals();
   bool DecodeSegmentHeaderNal(BitReader *bit_reader);
-  void DecodeOneBufferedNal(std::unique_ptr<std::vector<uint8_t>> &&nal);
+  void DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data);
   std::shared_ptr<PictureDecoder>
     GetFreePictureDecoder(const SegmentHeader &segment_header);
   void OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec, bool success,
@@ -102,7 +105,7 @@ private:
   SimdFunctions simd_;
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;
-  std::deque<std::unique_ptr<std::vector<uint8_t>>> nal_buffer_;
+  std::deque<std::pair<NalUnitPtr, int64_t>> nal_buffer_;
   std::unique_ptr<ThreadDecoder> thread_decoder_;
 };
 

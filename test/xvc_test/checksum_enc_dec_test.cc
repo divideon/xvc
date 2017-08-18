@@ -94,7 +94,7 @@ protected:
                                  segment_.soc, num_buffered_nals);
     // TODO(PH) Also verify inter pictures?
     xvc::ReferencePictureLists ref_pic_list;
-    pic_decoder_->Init(segment_, pic_header, std::move(ref_pic_list));
+    pic_decoder_->Init(segment_, pic_header, std::move(ref_pic_list), 0);
     return pic_decoder_->Decode(segment_, &bit_reader);
   }
 

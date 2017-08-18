@@ -66,6 +66,7 @@ extern "C" {
     char* bytes;
     size_t size;
     xvc_dec_pic_stats stats;
+    int64_t user_data;  //
   } xvc_decoded_picture;
 
   typedef struct xvc_decoder xvc_decoder;
@@ -91,11 +92,15 @@ extern "C" {
     xvc_decoder* (*decoder_create)(xvc_decoder_parameters *decoder);
     xvc_dec_return_code(*decoder_destroy)(xvc_decoder *decoder);
     xvc_dec_return_code(*decoder_update_parameters)(xvc_decoder *decoder,
-                                                   xvc_decoder_parameters
-                                                   *param);
+                                                    xvc_decoder_parameters
+                                                    *param);
+    // Decode the specified nal unit
+    // user_data = optional application data to be set together with the
+    // decoded picture. Note that user data is only returned for picture nals.
     xvc_dec_return_code(*decoder_decode_nal)(xvc_decoder *decoder,
                                              const uint8_t *nal_unit,
-                                             size_t nal_unit_size);
+                                             size_t nal_unit_size,
+                                             int64_t user_data);
     xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder,
                                               xvc_decoded_picture *out_pic);
     xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder,

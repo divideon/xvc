@@ -212,7 +212,7 @@ void DecoderApp::MainDecoderLoop() {
     }
 
     // Decode next Nal Unit.
-    ret = xvc_api_->decoder_decode_nal(decoder_, &nal_bytes_[0], nal_size);
+    ret = xvc_api_->decoder_decode_nal(decoder_, &nal_bytes_[0], nal_size, 0);
     if (ret == XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER) {
       std::cerr << xvc_api_->xvc_dec_get_error_text(ret) << std::endl;
       std::exit(XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER);

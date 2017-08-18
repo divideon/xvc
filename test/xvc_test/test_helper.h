@@ -89,7 +89,8 @@ protected:
     }
   }
 
-  void EncodeOneFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
+  std::vector<xvc_enc_nal_unit>
+    EncodeOneFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
     const uint8_t *in_pic = pic_bytes.empty() ? nullptr : &pic_bytes[0];
     xvc_enc_nal_unit *nal_units = nullptr;
     encoder_->SetInputBitdepth(bitdepth);
@@ -98,6 +99,7 @@ protected:
       encoded_nal_units_.push_back(
         NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
     }
+    return std::vector<xvc_enc_nal_unit>(nal_units, nal_units + num_nals);
   }
 
   void EncoderFlush() {
@@ -155,9 +157,9 @@ public:
     EXPECT_EQ(0, last_decoded_picture_.size);
   }
 
-  bool DecodePictureSuccess(const NalUnit &nal) {
+  bool DecodePictureSuccess(const NalUnit &nal, int64_t user_data = 0) {
     xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
+    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size(), user_data));
     EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
     EXPECT_EQ(before_num_decoded_pics + 1, decoder_->GetNumDecodedPics());
     EXPECT_EQ(0, decoder_->GetNumCorruptedPics());

@@ -38,12 +38,13 @@ public:
   PictureDecoder(const SimdFunctions &simd, ChromaFormat chroma_format,
                  int width, int height, int bitdepth);
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
-            ReferencePictureLists &&ref_pic_list);
+            ReferencePictureLists &&ref_pic_list, int64_t user_data);
   bool Decode(const SegmentHeader &segment, BitReader *bit_reader);
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
+  int64_t GetNalUserData() const { return user_data_; }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() const { return output_status_; }
   bool IsReferenced() const { return ref_count > 0; }
@@ -67,6 +68,7 @@ private:
   std::shared_ptr<YuvPicture> alt_rec_pic_;
   Checksum checksum_;
   int pic_qp_ = -1;
+  int64_t user_data_ = 0;
   // TODO(PH) Consider using memory barrier and relax global mutex requirement
   OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
   // TODO(PH) Mutable isn't really needed if const handling is relaxed...

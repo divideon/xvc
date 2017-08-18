@@ -104,9 +104,11 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
 
 void PictureDecoder::Init(const SegmentHeader &segment,
                           const PicNalHeader &header,
-                          ReferencePictureLists &&ref_pic_list) {
+                          ReferencePictureLists &&ref_pic_list,
+                          int64_t user_data) {
   assert(output_status_ == OutputStatus::kHasBeenOutput);
   pic_qp_ = header.pic_qp;
+  user_data_ = user_data;
   output_status_ = OutputStatus::kProcessing;
   ref_count = 0;
   pic_data_->SetNalType(header.nal_unit_type);
