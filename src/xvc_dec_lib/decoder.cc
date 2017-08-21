@@ -415,6 +415,7 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
 void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
                                bool success, const PicDecList &inter_deps) {
   pic_dec->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  pic_dec->SetIsConforming(success);
   for (auto pic_dep : inter_deps) {
     pic_dep->RemoveReferenceCount(1);
   }
@@ -454,6 +455,7 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   output_pic->stats.soc = static_cast<uint32_t>(pic_data->GetSoc());
   output_pic->stats.tid = pic_data->GetTid();
   output_pic->stats.qp = pic_data->GetPicQp()->GetQpRaw(YuvComponent::kY);
+  output_pic->stats.conforming = pic_dec->GetIsConforming() ? 1 : 0;
 
   // Expose the first five reference pictures in L0 and L1.
   ReferencePictureLists* rpl = pic_data->GetRefPicLists();

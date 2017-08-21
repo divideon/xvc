@@ -390,6 +390,9 @@ void DecoderApp::PrintPictureInfo(xvc_dec_pic_stats pic_stats) {
       }
       GetLog() << " }";
     }
+    if (pic_stats.conforming == 0) {
+      GetLog() << " <- Checksum mismatch!";
+    }
     GetLog() << std::endl;
   }
 }

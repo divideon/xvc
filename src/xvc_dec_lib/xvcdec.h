@@ -64,6 +64,7 @@ extern "C" {
     xvc_dec_color_matrix color_matrix;
     double framerate;
     double bitstream_framerate;
+    int32_t conforming;
   } xvc_dec_pic_stats;
 
   // Represents a decoded picture

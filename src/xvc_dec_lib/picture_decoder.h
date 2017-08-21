@@ -47,6 +47,8 @@ public:
   int64_t GetNalUserData() const { return user_data_; }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() const { return output_status_; }
+  void SetIsConforming(bool conforming) { conforming_ = conforming; }
+  bool GetIsConforming() const { return conforming_; }
   bool IsReferenced() const { return ref_count > 0; }
   void AddReferenceCount(int val) const { ref_count += val; }
   void RemoveReferenceCount(int val) const { ref_count -= val; }
@@ -67,6 +69,7 @@ private:
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;
   Checksum checksum_;
+  bool conforming_ = false;
   int pic_qp_ = -1;
   int64_t user_data_ = 0;
   // TODO(PH) Consider using memory barrier and relax global mutex requirement
