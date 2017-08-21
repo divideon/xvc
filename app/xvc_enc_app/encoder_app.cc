@@ -465,6 +465,8 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -tc-offset <int>" << std::endl;
   std::cout << "  -qp <int>" << std::endl;
   std::cout << "  -speed-mode <int>" << std::endl;
+  std::cout << "      0: Placebo" << std::endl;
+  std::cout << "      1: Slow (default)" << std::endl;
   std::cout << "  -tune <int>" << std::endl;
   std::cout << "      0: Visual quality (default)" << std::endl;
   std::cout << "      1: PSNR" << std::endl;
