@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(gtest_force_shared_crt ON CACHE BOOL "Use shared (DLL) run-time lib")
-add_subdirectory(googletest)
+add_subdirectory(googletest EXCLUDE_FROM_ALL)
 
 if(MSVC)
   set(cxx_flags /GS /W3 /WX /Za /EHsc)

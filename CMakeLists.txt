@@ -73,3 +73,7 @@ if(BUILD_TESTS)
   add_subdirectory (test)
 endif()
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/xvc.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/xvc.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xvc.pc"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+

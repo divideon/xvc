@@ -69,14 +69,16 @@ endif()
 
 # xvc_enc_lib
 file (GLOB SRC_ENC_LIB xvc_enc_lib/*.cc xvc_enc_lib/*.h)
-add_library (xvc_enc_lib ${SRC_ENC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_enc_lib ${SRC_ENC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+set_target_properties(xvc_enc_lib PROPERTIES OUTPUT_NAME "xvcenc")
 target_compile_options(xvc_enc_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_enc_lib PUBLIC .)
 target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags})
 
 # xvc_dec_lib
 file (GLOB SRC_DEC_LIB xvc_dec_lib/*.cc xvc_dec_lib/*.h)
-add_library (xvc_dec_lib ${SRC_DEC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_dec_lib ${SRC_DEC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+set_target_properties(xvc_dec_lib PROPERTIES OUTPUT_NAME "xvcdec")
 target_compile_options(xvc_dec_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_dec_lib PUBLIC .)
 target_link_libraries(xvc_dec_lib INTERFACE ${linker_flags} PUBLIC Threads::Threads)
@@ -84,4 +86,10 @@ target_link_libraries(xvc_dec_lib INTERFACE ${linker_flags} PUBLIC Threads::Thre
 if(RESTRICTION_DEFINES)
   set_source_files_properties(xvc_common_lib/restrictions.cc PROPERTIES COMPILE_FLAGS ${RESTRICTION_DEFINES})
 endif()
+
+install(FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/xvc_enc_lib/xvcenc.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/xvc_dec_lib/xvcdec.h"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/include")
+install(TARGETS xvc_enc_lib xvc_dec_lib DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
 
