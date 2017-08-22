@@ -103,7 +103,7 @@ void ThreadDecoder::WorkerMain() {
       auto it = pending_work_.begin();
       for (; it != pending_work_.end(); ++it) {
         bool valid = true;
-        for (auto dependency : it->inter_dependencies) {
+        for (auto &dependency : it->inter_dependencies) {
           if (dependency->GetOutputStatus() == OutputStatus::kProcessing) {
             valid = false;
             break;

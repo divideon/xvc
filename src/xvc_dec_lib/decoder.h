@@ -8,6 +8,7 @@
 #define XVC_DEC_LIB_DECODER_H_
 
 #include <deque>
+#include <list>
 #include <memory>
 #include <set>
 #include <utility>
@@ -105,6 +106,7 @@ private:
   SimdFunctions simd_;
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;
+  std::list<std::shared_ptr<PictureDecoder>> zero_tid_pic_dec_;
   std::deque<std::pair<NalUnitPtr, int64_t>> nal_buffer_;
   std::unique_ptr<ThreadDecoder> thread_decoder_;
 };

@@ -215,7 +215,7 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
                             pic_decoders_, &ref_pic_list);
 
   // Bump ref count before finding an available picture decoder
-  for (auto pic_dep : inter_dependencies) {
+  for (auto &pic_dep : inter_dependencies) {
     pic_dep->AddReferenceCount(1);
   }
 
@@ -239,16 +239,24 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
 
   // Special handling of inter dependency ref counting for lowest layer
   if (pic_header.tid == 0) {
-    // Increase ref count for current picture, since must live a few sub-gops
-    pic_dec->AddReferenceCount(1 + segment_header->num_ref_pics);
-    // Also decrease ref-count of all previous lowest layer pictures by one
-    for (auto prev_pic : pic_decoders_) {
-      if (prev_pic->GetPicData()->GetTid() == 0 &&
-          prev_pic->GetPicData()->GetPoc() < pic_header.poc) {
-        // TODO(PH) Note that ref count can probably go negative here...
-        prev_pic->RemoveReferenceCount(1);
+    // Determine if any of previous buffered pictures are still used
+    auto it = zero_tid_pic_dec_.begin();
+    for (; it != zero_tid_pic_dec_.end(); ++it) {
+      bool still_referenced = false;
+      for (auto &pic_dep : inter_dependencies) {
+        if ((*it)->GetPicData()->GetPoc() == pic_dep->GetPicData()->GetPoc()) {
+          still_referenced = true;
+        }
+      }
+      if (!still_referenced) {
+        (*it)->RemoveReferenceCount(1);
+        it = zero_tid_pic_dec_.erase(it);
       }
     }
+    // This picture might be used by later lowest temporal layer pictures.
+    // Force an extra ref until we are sure it is no longer referenced
+    pic_dec->AddReferenceCount(1);
+    zero_tid_pic_dec_.push_back(pic_dec);
   }
 
   if (thread_decoder_) {
@@ -380,6 +388,7 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
     return pic;
   }
 
+  PicNum best_poc = std::numeric_limits<PicNum>::max();
   auto pic_dec_it = pic_decoders_.end();
   for (auto it = pic_decoders_.begin(); it != pic_decoders_.end(); ++it) {
     // A picture decoder has two independent variables that indicates usage
@@ -389,8 +398,10 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
       (*it)->GetOutputStatus() != OutputStatus::kHasBeenOutput) {
       continue;
     }
-    pic_dec_it = it;
-    break;
+    if ((*it)->GetPicData()->GetPoc() < best_poc) {
+      best_poc = (*it)->GetPicData()->GetPoc();
+      pic_dec_it = it;
+    }
   }
   if (pic_dec_it == pic_decoders_.end()) {
     return std::shared_ptr<PictureDecoder>();
@@ -416,7 +427,7 @@ void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
                                bool success, const PicDecList &inter_deps) {
   pic_dec->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   pic_dec->SetIsConforming(success);
-  for (auto pic_dep : inter_deps) {
+  for (auto &pic_dep : inter_deps) {
     pic_dep->RemoveReferenceCount(1);
   }
   if (success) {
