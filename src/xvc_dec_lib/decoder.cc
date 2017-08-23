@@ -239,24 +239,17 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
 
   // Special handling of inter dependency ref counting for lowest layer
   if (pic_header.tid == 0) {
-    // Determine if any of previous buffered pictures are still used
-    auto it = zero_tid_pic_dec_.begin();
-    for (; it != zero_tid_pic_dec_.end(); ++it) {
-      bool still_referenced = false;
-      for (auto &pic_dep : inter_dependencies) {
-        if ((*it)->GetPicData()->GetPoc() == pic_dep->GetPicData()->GetPoc()) {
-          still_referenced = true;
-        }
-      }
-      if (!still_referenced) {
-        (*it)->RemoveReferenceCount(1);
-        it = zero_tid_pic_dec_.erase(it);
-      }
-    }
     // This picture might be used by later lowest temporal layer pictures.
     // Force an extra ref until we are sure it is no longer referenced
     pic_dec->AddReferenceCount(1);
     zero_tid_pic_dec_.push_back(pic_dec);
+    // Restrict number of lowest layer pictures that must be in picture buffer
+    while (static_cast<int>(zero_tid_pic_dec_.size()) >
+           segment_header->num_ref_pics + 1) {
+      auto &pic = zero_tid_pic_dec_.front();
+      pic->RemoveReferenceCount(1);
+      zero_tid_pic_dec_.pop_front();
+    }
   }
 
   if (thread_decoder_) {
