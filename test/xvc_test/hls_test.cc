@@ -31,16 +31,13 @@ public:
   }
 
   void EncodeWithVersion(int major_version, int minor_version) {
+    const xvc::SegmentHeader *segment = encoder_->GetCurrentSegment();
+    // Forcing const cast since this behavior is typically not needed/exposed
+    const_cast<xvc::SegmentHeader*>(segment)->major_version = major_version;
+    const_cast<xvc::SegmentHeader*>(segment)->minor_version = minor_version;
     encoder_->SetResolution(0, 0);
     std::vector<uint8_t> pic_bytes;
     EncodeFirstFrame(pic_bytes, 8);
-    // Rewrite version directly in bitstream
-    uint8_t *segment_header = &encoded_nal_units_[0][0];
-    segment_header++;   // nal_header (1 byte)
-    segment_header[3] = (major_version >> 8) & 0xFF;
-    segment_header[4] = (major_version >> 0) & 0xFF;
-    segment_header[5] = (minor_version >> 8) & 0xFF;
-    segment_header[6] = (minor_version >> 0) & 0xFF;
   }
 
   void EncodeWithRfeValue(int nal_rfe_value) {
@@ -72,6 +69,8 @@ TEST_F(HlsTest, RecvLargerMajorVersion) {
 }
 
 TEST_F(HlsTest, RecvLowerMajorVersion) {
+  // Note that sample data in bitstream will still use current major version,
+  // hence this test only works if resolution is (0, 0)
   EncodeWithVersion(xvc::constants::kXvcMajorVersion - 1,
                     xvc::constants::kXvcMinorVersion);
   DecodeSegmentHeaderSuccess(GetNextNalToDecode());

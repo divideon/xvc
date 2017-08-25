@@ -43,18 +43,16 @@ public:
   static const Method kDefaultMethod = Method::kMd5;
   static const Method kFallbackMethod = Method::kCrc;
 
-  Checksum() = default;
-  explicit Checksum(const std::vector<uint8_t> &hash)
-    : hash_(hash) {}
-
-  void Clear() { hash_.clear(); }
-  void HashPicture(const YuvPicture &pic, Method method, Mode mode);
+  Checksum(Method method, Mode mode) : method_(method), mode_(mode) {}
+  void HashPicture(const YuvPicture &pic);
   std::vector<uint8_t> GetHash() const { return hash_; }
 
 private:
   void CalculateCrc(const YuvPicture &pic, Mode mode);
   void CalculateMd5(const YuvPicture &pic, Mode mode);
 
+  const Method method_;
+  const Mode mode_;
   std::vector<uint8_t> hash_;
 };
 

@@ -99,7 +99,9 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
-    WriteChecksum(&bit_writer_, segment.checksum_mode);
+    WriteChecksum(segment, &bit_writer_, segment.checksum_mode);
+  } else {
+    pic_hash_.clear();
   }
   return bit_writer_.GetBytes();
 }
@@ -126,17 +128,21 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
   bit_writer->PadZeroBits();
 }
 
-void PictureEncoder::WriteChecksum(BitWriter *bit_writer,
+void PictureEncoder::WriteChecksum(const SegmentHeader &segment,
+                                   BitWriter *bit_writer,
                                    Checksum::Mode checksum_mode) {
-  checksum_.Clear();
   Checksum::Method checksum_method =
     Restrictions::Get().disable_high_level_default_checksum_method ?
     Checksum::kFallbackMethod : Checksum::kDefaultMethod;
-  checksum_.HashPicture(*rec_pic_, checksum_method, checksum_mode);
-  std::vector<uint8_t> hash = checksum_.GetHash();
-  assert(hash.size() < UINT8_MAX);
-  bit_writer->WriteByte(static_cast<uint8_t>(hash.size()));
-  bit_writer->WriteBytes(&hash[0], hash.size());
+  Checksum checksum(checksum_method, checksum_mode);
+  checksum.HashPicture(*rec_pic_);
+  pic_hash_ = checksum.GetHash();
+  assert(pic_hash_.size() < UINT8_MAX);
+  if (segment.major_version <= 1) {
+    // TODO(PH) This is only needed to generate bitstream for hls unit tests
+    bit_writer->WriteByte(static_cast<uint8_t>(pic_hash_.size()));
+  }
+  bit_writer->WriteBytes(&pic_hash_[0], pic_hash_.size());
 }
 
 int PictureEncoder::DerivePictureQp(const PictureData &pic_data,

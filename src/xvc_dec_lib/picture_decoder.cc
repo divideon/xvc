@@ -53,7 +53,7 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
   uint32_t header_byte = bit_reader->ReadBits(8);
   NalUnitType nal_unit_type = NalUnitType((header_byte >> 1) & 31);
   int buffer_flag = bit_reader->ReadBits(1);
-  SegmentNum soc =  (buffer_flag) ? soc_counter - 1 : soc_counter;
+  SegmentNum soc = (buffer_flag) ? soc_counter - 1 : soc_counter;
   int tid = bit_reader->ReadBits(3);
   if (tid == 0) {
     PicNum length = max_sub_gop_length;
@@ -171,7 +171,9 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
   rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
-    success &= ValidateChecksum(bit_reader, segment.checksum_mode);
+    success &= ValidateChecksum(segment, bit_reader, segment.checksum_mode);
+  } else {
+    pic_hash_.clear();
   }
   return success;
 }
@@ -210,20 +212,23 @@ PictureDecoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
   return alt_rec_pic;
 }
 
-bool PictureDecoder::ValidateChecksum(BitReader *bit_reader,
+bool PictureDecoder::ValidateChecksum(const SegmentHeader &segment,
+                                      BitReader *bit_reader,
                                       Checksum::Mode checksum_mode) {
-  size_t checksum_len = bit_reader->ReadByte();
-  std::vector<uint8_t> checksum_bytes;
-  checksum_bytes.resize(checksum_len);
-  bit_reader->ReadBytes(&checksum_bytes[0], checksum_len);
-
   Checksum::Method checksum_method =
     Restrictions::Get().disable_high_level_default_checksum_method ?
     Checksum::kFallbackMethod : Checksum::kDefaultMethod;
-
-  checksum_.Clear();
-  checksum_.HashPicture(*rec_pic_, checksum_method, checksum_mode);
-  return checksum_.GetHash() == checksum_bytes;
+  Checksum checksum(checksum_method, checksum_mode);
+  checksum.HashPicture(*rec_pic_);
+  pic_hash_ = checksum.GetHash();
+  if (segment.major_version <= 1) {
+    size_t checksum_len = bit_reader->ReadByte();
+    assert(checksum_len == pic_hash_.size());
+  }
+  std::vector<uint8_t> expected_hash;
+  expected_hash.resize(pic_hash_.size());
+  bit_reader->ReadBytes(&expected_hash[0], pic_hash_.size());
+  return pic_hash_ == expected_hash;
 }
 
 }   // namespace xvc

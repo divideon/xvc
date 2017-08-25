@@ -24,14 +24,14 @@
 
 namespace xvc {
 
-void Checksum::HashPicture(const YuvPicture &pic, Method method, Mode mode) {
-  switch (method) {
+void Checksum::HashPicture(const YuvPicture &pic) {
+  switch (method_) {
     case Method::kCrc:
-      CalculateCrc(pic, mode);
+      CalculateCrc(pic, mode_);
       break;
 
     case Method::kMd5:
-      CalculateMd5(pic, mode);
+      CalculateMd5(pic, mode_);
       break;
 
     default:

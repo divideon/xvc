@@ -64,7 +64,7 @@ public:
   bool IsReferenced() const { return ref_count > 0; }
   void AddReferenceCount(int val) const { ref_count += val; }
   void RemoveReferenceCount(int val) const { ref_count -= val; }
-  std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
+  const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
     ChromaFormat chroma_format, int width, int height, int bitdepth) const;
   static PicNalHeader
@@ -74,13 +74,14 @@ public:
                  PicNum doc, SegmentNum soc, int num_buffered_nals);
 
 private:
-  bool ValidateChecksum(BitReader *bit_reader, Checksum::Mode checksum_mode);
+  bool ValidateChecksum(const SegmentHeader &segment,
+                        BitReader *bit_reader, Checksum::Mode checksum_mode);
 
   const SimdFunctions &simd_;
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;
-  Checksum checksum_;
+  std::vector<uint8_t> pic_hash_;
   bool conforming_ = false;
   int pic_qp_ = -1;
   int64_t user_data_ = 0;

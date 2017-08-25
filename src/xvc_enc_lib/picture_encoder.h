@@ -52,22 +52,23 @@ public:
                                PicNum sub_gop_length, int buffer_flag,
                                bool flat_lambda,
                                const EncoderSettings &encoder_settings);
-  std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
+  const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
     ChromaFormat chroma_format, int width, int height, int bitdepth) const;
 
 private:
   void WriteHeader(const PictureData &pic_data, PicNum sub_gop_length,
                    int buffer_flag, BitWriter *bit_writer);
-  void WriteChecksum(BitWriter *bit_writer, Checksum::Mode checksum_mode);
+  void WriteChecksum(const SegmentHeader &segment, BitWriter *bit_writer,
+                     Checksum::Mode checksum_mode);
   int DerivePictureQp(const PictureData &pic_data, int segment_qp) const;
 
   const SimdFunctions &simd_;
   BitWriter bit_writer_;
-  Checksum checksum_;
   std::shared_ptr<YuvPicture> orig_pic_;
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
+  std::vector<uint8_t> pic_hash_;
   OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
 };
 
