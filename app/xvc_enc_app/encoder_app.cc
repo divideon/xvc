@@ -456,10 +456,8 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -closed-gop <int>" << std::endl;
   std::cout << "  -num-ref-pics <int>" << std::endl;
   std::cout << "  -checksum-mode <int>" << std::endl;
-  std::cout << "      0: Only temporal layer 0, all components combined"
-    << std::endl;
-  std::cout << "      1: All pictures, all components separately (default)"
-    << std::endl;
+  std::cout << "      0: Reduced checksum verification (default)" << std::endl;
+  std::cout << "      1: Maximum checksum robustness" << std::endl;
   std::cout << "  -deblock <0/1>" << std::endl;
   std::cout << "  -beta-offset <int>" << std::endl;
   std::cout << "  -tc-offset <int>" << std::endl;

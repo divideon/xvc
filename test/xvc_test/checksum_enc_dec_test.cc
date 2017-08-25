@@ -17,9 +17,15 @@
 
 namespace {
 
-class ChecksumEncDecTest : public ::testing::TestWithParam<int> {
+struct TestParam {
+  int bitdepth;
+  bool robust_checksum;
+};
+
+class ChecksumEncDecTest : public ::testing::TestWithParam<TestParam> {
 protected:
   xvc::SegmentHeader SegmentHeaderHelper(int width, int height, int bitdepth,
+                                         xvc::Checksum::Mode checksum_mode,
                                          xvc::ChromaFormat chroma_fmt,
                                          xvc::PicNum sub_gop_length) {
     xvc::SegmentHeader sh;
@@ -35,16 +41,19 @@ protected:
     sh.open_gop = true;
     sh.num_ref_pics = 1;
     sh.max_binary_split_depth = xvc::constants::kMaxBinarySplitDepth;
-    sh.checksum_mode = xvc::Checksum::Mode::kMaxRobust;
+    sh.checksum_mode = checksum_mode;
     sh.deblock = true;
     return sh;
   }
 
   void SetUp() override {
     const xvc::PicNum sub_gop_length = 1;
-    int internal_bitdepth = GetParam();
+    int internal_bitdepth = GetParam().bitdepth;
+    xvc::Checksum::Mode checksum_mode = GetParam().robust_checksum ?
+      xvc::Checksum::Mode::kMaxRobust : xvc::Checksum::Mode::kMinOverhead;
     segment_ = SegmentHeaderHelper(kPicWidth, kPicHeight, internal_bitdepth,
-                                   xvc::ChromaFormat::k420, sub_gop_length);
+                                   checksum_mode, xvc::ChromaFormat::k420,
+                                   sub_gop_length);
     input_bitdepth_ = segment_.internal_bitdepth;
     int mask = (1 << input_bitdepth_) - 1;
     for (int i = 0; i < static_cast<int>(input_pic_.size()); i++) {
@@ -127,7 +136,7 @@ TEST_P(ChecksumEncDecTest, DifferentPictureGivesDifferentChecksum) {
 
   std::vector<xvc::Sample> orig2(input_pic_.begin(), input_pic_.end());
   for (int i = 0; i < segment_.GetInternalWidth(); i++) {
-    orig2[i] += 10 << (GetParam() - 8);   // random modification
+    orig2[i] += 10 << (GetParam().bitdepth - 8);   // random modification
   }
   std::vector<uint8_t> bitstream2(*EncodePicture(&orig2[0]));
   std::vector<uint8_t> enc_checksum2 = pic_encoder_->GetLastChecksum();
@@ -157,10 +166,12 @@ TEST_P(ChecksumEncDecTest, MismatchingChecksumFailsDecode) {
 }
 
 INSTANTIATE_TEST_CASE_P(NormalBitdepth, ChecksumEncDecTest,
-                        ::testing::Values(8));
+                        ::testing::Values(TestParam({ 8, false }),
+                                          TestParam({ 8, true })));
 #if XVC_HIGH_BITDEPTH
 INSTANTIATE_TEST_CASE_P(HighBitdepth, ChecksumEncDecTest,
-                        ::testing::Values(10));
+                        ::testing::Values(TestParam({ 10, false }),
+                                          TestParam({ 10, true })));
 #endif
 
 }   // namespace

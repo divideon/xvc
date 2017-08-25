@@ -49,7 +49,7 @@ extern "C" {
     param->closed_gop = 0;
     param->num_ref_pics = -1;  // determined in xvc_enc_set_encoder_settings
     param->restricted_mode = 0;
-    param->checksum_mode = 1;
+    param->checksum_mode = 0;
     // Following three parameters determined in xvc_enc_set_encoder_settings
     param->chroma_qp_offset_table = -1;
     param->chroma_qp_offset_u = std::numeric_limits<int>::min();
