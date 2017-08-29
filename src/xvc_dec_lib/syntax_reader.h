@@ -1,9 +1,20 @@
 /******************************************************************************
-* Copyright (C) 2017, Divideon. All rights reserved.
-* No part of this code may be reproduced in any form
-* without the written permission of the copyright holder.
+* Copyright (C) 2017, Divideon.
+*
+* Redistribution and use in source and binary form, with or without
+* modifications is permitted only under the terms and conditions set forward
+* in the xvc License Agreement. For commercial redistribution and use, you are
+* required to send a signed copy of the xvc License Agreement to Divideon.
+*
+* Redistribution and use in source and binary form is permitted free of charge
+* for non-commercial purposes. See definition of non-commercial in the xvc
+* License Agreement.
+*
+* All redistribution of source code must retain this copyright notice
+* unmodified.
+*
+* The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
-
 #ifndef XVC_DEC_LIB_SYNTAX_READER_H_
 #define XVC_DEC_LIB_SYNTAX_READER_H_
 
