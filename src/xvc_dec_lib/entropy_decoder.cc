@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #include "xvc_dec_lib/entropy_decoder.h"
 
 #include "xvc_common_lib/cabac.h"

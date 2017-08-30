@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_ENC_APP_Y4M_READER_H_
 #define XVC_ENC_APP_Y4M_READER_H_
 

@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #include "xvc_enc_lib/bit_writer.h"
 
 #include <cassert>

@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #include "xvc_enc_app/encoder_app.h"
 
 int main(int argc, const char* argv[]) {

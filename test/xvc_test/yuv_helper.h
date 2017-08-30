@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_TEST_YUV_HELPER_H_
 #define XVC_TEST_YUV_HELPER_H_
 

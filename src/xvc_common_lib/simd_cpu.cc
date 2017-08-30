@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #include <stdint.h>
 
 #include "xvc_common_lib/simd_cpu.h"

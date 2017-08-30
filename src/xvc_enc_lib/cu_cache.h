@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_ENC_LIB_CU_CACHE_H_
 #define XVC_ENC_LIB_CU_CACHE_H_
 

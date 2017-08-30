@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #include <vector>
 
 #include "googletest/include/gtest/gtest.h"

@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_COMMON_LIB_UTILS_MD5_H_
 #define XVC_COMMON_LIB_UTILS_MD5_H_
 

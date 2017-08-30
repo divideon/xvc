@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_COMMON_LIB_SIMD_FUNCTIONS_H_
 #define XVC_COMMON_LIB_SIMD_FUNCTIONS_H_
 

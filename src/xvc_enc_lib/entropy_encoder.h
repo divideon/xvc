@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_ENC_LIB_ENTROPY_ENCODER_H_
 #define XVC_ENC_LIB_ENTROPY_ENCODER_H_
 

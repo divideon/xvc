@@ -15,6 +15,7 @@
 *
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
+
 #ifndef XVC_COMMON_LIB_INTRA_PREDICTION_H_
 #define XVC_COMMON_LIB_INTRA_PREDICTION_H_
 
