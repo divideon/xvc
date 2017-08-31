@@ -5,6 +5,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(gtest_force_shared_crt ON CACHE BOOL "Use shared (DLL) run-time lib")
 add_subdirectory(googletest EXCLUDE_FROM_ALL)
 
+set(XVC_TEST_SOURCES
+    "xvc_test/checksum_enc_dec_test.cc"
+    "xvc_test/decoder_api_test.cc"
+    "xvc_test/decoder_resample_test.cc"
+    "xvc_test/decoder_scalability_test.cc"
+    "xvc_test/encode_decode_test.cc"
+    "xvc_test/encoder_api_test.cc"
+    "xvc_test/hls_test.cc"
+    "xvc_test/residual_coding_test.cc"
+    "xvc_test/resolution_test.cc"
+    "xvc_test/restrictions_test.cc"
+    "xvc_test/simd_test.cc"
+    "xvc_test/test_helper.h"
+    "xvc_test/yuv_helper.cc"
+    "xvc_test/yuv_helper.h")
+
 if(MSVC)
   set(cxx_flags /GS /W3 /WX /Za /EHsc)
 elseif(CMAKE_COMPILER_IS_GNUCXX)
@@ -16,18 +32,16 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(cxx_flags -Wshadow -Werror -fexceptions)
 endif()
 
-file(GLOB SRC_TEST xvc_test/*.cc xvc_test/*.h)
-
 if(BUILD_TESTS_LIBS)
   # xvc_test_lib
-  add_library(xvc_test_lib STATIC ${SRC_TEST})
+  add_library(xvc_test_lib STATIC ${XVC_TEST_SOURCES})
   target_compile_options(xvc_test_lib PRIVATE ${cxx_flags})
   target_include_directories(xvc_test_lib PUBLIC . ../src)
   target_link_libraries(xvc_test_lib PRIVATE xvc_enc_lib xvc_dec_lib PUBLIC gtest)
 endif()
 
 # xvc_test
-add_executable(xvc_test ${SRC_TEST})
+add_executable(xvc_test ${XVC_TEST_SOURCES})
 target_compile_options(xvc_test PRIVATE ${cxx_flags})
 target_include_directories(xvc_test PUBLIC . ../src)
 target_link_libraries(xvc_test LINK_PUBLIC xvc_enc_lib xvc_dec_lib gtest_main)

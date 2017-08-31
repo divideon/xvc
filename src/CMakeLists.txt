@@ -2,6 +2,113 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(XVC_COMMON_LIB_SOURCES
+    "xvc_common_lib/cabac.cc"
+    "xvc_common_lib/cabac.h"
+    "xvc_common_lib/checksum.cc"
+    "xvc_common_lib/checksum.h"
+    "xvc_common_lib/coding_unit.cc"
+    "xvc_common_lib/coding_unit.h"
+    "xvc_common_lib/common.cc"
+    "xvc_common_lib/common.h"
+    "xvc_common_lib/context_model.cc"
+    "xvc_common_lib/context_model.h"
+    "xvc_common_lib/cu_types.h"
+    "xvc_common_lib/deblocking_filter.cc"
+    "xvc_common_lib/deblocking_filter.h"
+    "xvc_common_lib/inter_prediction.cc"
+    "xvc_common_lib/inter_prediction.h"
+    "xvc_common_lib/intra_prediction.cc"
+    "xvc_common_lib/intra_prediction.h"
+    "xvc_common_lib/picture_data.cc"
+    "xvc_common_lib/picture_data.h"
+    "xvc_common_lib/picture_types.h"
+    "xvc_common_lib/quantize.cc"
+    "xvc_common_lib/quantize.h"
+    "xvc_common_lib/reference_list_sorter.h"
+    "xvc_common_lib/reference_picture_lists.cc"
+    "xvc_common_lib/reference_picture_lists.h"
+    "xvc_common_lib/resample.cc"
+    "xvc_common_lib/resample.h"
+    "xvc_common_lib/restrictions.cc"
+    "xvc_common_lib/restrictions.h"
+    "xvc_common_lib/sample_buffer.h"
+    "xvc_common_lib/segment_header.cc"
+    "xvc_common_lib/segment_header.h"
+    "xvc_common_lib/simd_cpu.cc"
+    "xvc_common_lib/simd_cpu.h"
+    "xvc_common_lib/simd_functions.cc"
+    "xvc_common_lib/simd_functions.h"
+    "xvc_common_lib/transform.cc"
+    "xvc_common_lib/transform.h"
+    "xvc_common_lib/utils.cc"
+    "xvc_common_lib/utils.h"
+    "xvc_common_lib/utils_md5.cc"
+    "xvc_common_lib/utils_md5.h"
+    "xvc_common_lib/yuv_pic.cc"
+    "xvc_common_lib/yuv_pic.h")
+
+set(XVC_COMMON_LIB_SIMD_SOURCES
+    "xvc_common_lib/simd/inter_prediction_simd.cc"
+    "xvc_common_lib/simd/inter_prediction_simd.h")
+
+set(XVC_DEC_LIB_SOURCES
+    "xvc_dec_lib/bit_reader.cc"
+    "xvc_dec_lib/bit_reader.h"
+    "xvc_dec_lib/cu_decoder.cc"
+    "xvc_dec_lib/cu_decoder.h"
+    "xvc_dec_lib/cu_reader.cc"
+    "xvc_dec_lib/cu_reader.h"
+    "xvc_dec_lib/decoder.cc"
+    "xvc_dec_lib/decoder.h"
+    "xvc_dec_lib/entropy_decoder.cc"
+    "xvc_dec_lib/entropy_decoder.h"
+    "xvc_dec_lib/picture_decoder.cc"
+    "xvc_dec_lib/picture_decoder.h"
+    "xvc_dec_lib/segment_header_reader.cc"
+    "xvc_dec_lib/segment_header_reader.h"
+    "xvc_dec_lib/syntax_reader.cc"
+    "xvc_dec_lib/syntax_reader.h"
+    "xvc_dec_lib/thread_decoder.cc"
+    "xvc_dec_lib/thread_decoder.h"
+    "xvc_dec_lib/xvcdec.cc"
+    "xvc_dec_lib/xvcdec.h")
+
+set(XVC_ENC_LIB_SOURCES
+    "xvc_enc_lib/bit_writer.cc"
+    "xvc_enc_lib/bit_writer.h"
+    "xvc_enc_lib/cu_cache.cc"
+    "xvc_enc_lib/cu_cache.h"
+    "xvc_enc_lib/cu_encoder.cc"
+    "xvc_enc_lib/cu_encoder.h"
+    "xvc_enc_lib/cu_writer.cc"
+    "xvc_enc_lib/cu_writer.h"
+    "xvc_enc_lib/encoder.cc"
+    "xvc_enc_lib/encoder.h"
+    "xvc_enc_lib/encoder_settings.h"
+    "xvc_enc_lib/entropy_encoder.cc"
+    "xvc_enc_lib/entropy_encoder.h"
+    "xvc_enc_lib/inter_search.cc"
+    "xvc_enc_lib/inter_search.h"
+    "xvc_enc_lib/inter_tz_search.cc"
+    "xvc_enc_lib/inter_tz_search.h"
+    "xvc_enc_lib/intra_search.cc"
+    "xvc_enc_lib/intra_search.h"
+    "xvc_enc_lib/picture_encoder.cc"
+    "xvc_enc_lib/picture_encoder.h"
+    "xvc_enc_lib/rdo_quant.cc"
+    "xvc_enc_lib/rdo_quant.h"
+    "xvc_enc_lib/sample_metric.cc"
+    "xvc_enc_lib/sample_metric.h"
+    "xvc_enc_lib/segment_header_writer.cc"
+    "xvc_enc_lib/segment_header_writer.h"
+    "xvc_enc_lib/syntax_writer.cc"
+    "xvc_enc_lib/syntax_writer.h"
+    "xvc_enc_lib/transform_encoder.cc"
+    "xvc_enc_lib/transform_encoder.h"
+    "xvc_enc_lib/xvcenc.cc"
+    "xvc_enc_lib/xvcenc.h")
+
 # Restrictions control (internal)
 set(RESTRICTION_DEFINES "" CACHE INTERNAL "Restriction flag control (internal use only)")
 
@@ -52,32 +159,28 @@ if(SANITIZE_BUILD)
 endif()
 
 # xvc_common_lib
-file (GLOB SRC_COMMON_LIB xvc_common_lib/*.cc xvc_common_lib/*.h)
-add_library (xvc_common_lib OBJECT ${SRC_COMMON_LIB})
+add_library (xvc_common_lib OBJECT ${XVC_COMMON_LIB_SOURCES})
 target_compile_options(xvc_common_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories(xvc_common_lib PUBLIC .)
 set(xvc_common_lib_extra "")
 
 if(ENABLE_ASSEMBLY)
   # xvc_common_lib_simd
-  file (GLOB SRC_COMMON_LIB_SIMD xvc_common_lib/simd/*.cc xvc_common_lib/simd/*.h)
-  add_library (xvc_common_lib_simd OBJECT ${SRC_COMMON_LIB_SIMD})
+  add_library (xvc_common_lib_simd OBJECT ${XVC_COMMON_LIB_SIMD_SOURCES})
   target_compile_options(xvc_common_lib_simd PRIVATE ${cxx_default} ${cxx_strict})
   target_include_directories (xvc_common_lib_simd PUBLIC .)
   set(xvc_common_lib_extra ${xvc_common_lib_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
 endif()
 
 # xvc_enc_lib
-file (GLOB SRC_ENC_LIB xvc_enc_lib/*.cc xvc_enc_lib/*.h)
-add_library(xvc_enc_lib ${SRC_ENC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_enc_lib ${XVC_ENC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
 set_target_properties(xvc_enc_lib PROPERTIES OUTPUT_NAME "xvcenc")
 target_compile_options(xvc_enc_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_enc_lib PUBLIC .)
 target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags})
 
 # xvc_dec_lib
-file (GLOB SRC_DEC_LIB xvc_dec_lib/*.cc xvc_dec_lib/*.h)
-add_library(xvc_dec_lib ${SRC_DEC_LIB} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_dec_lib ${XVC_DEC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
 set_target_properties(xvc_dec_lib PROPERTIES OUTPUT_NAME "xvcdec")
 target_compile_options(xvc_dec_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_dec_lib PUBLIC .)
