@@ -19,6 +19,7 @@
 #include "xvc_enc_app/encoder_app.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
