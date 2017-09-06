@@ -359,6 +359,8 @@ void EncoderApp::MainEncoderLoop() {
     std::exit(1);
   }
   char nal_size[4];
+  size_t current_segment_bytes = 0;
+  int current_segment_pics = 0;
   start_ = std::chrono::steady_clock::now();
   bool loop_check = true;
   // loop_check will become false when the entire file has been encoded
@@ -391,6 +393,16 @@ void EncoderApp::MainEncoderLoop() {
       nal_size[1] = (nal_units[i].size >> 8) & 0xFF;
       nal_size[2] = (nal_units[i].size >> 16) & 0xFF;
       nal_size[3] = (nal_units[i].size >> 24) & 0xFF;
+      if (nal_units[i].stats.nal_unit_type == 16) {
+        if (current_segment_bytes > max_segment_bytes_) {
+          max_segment_bytes_ = current_segment_bytes;
+          max_segment_pics_ = current_segment_pics;
+        }
+        current_segment_bytes = 0;
+        current_segment_pics = -1;
+      }
+      current_segment_bytes += nal_units[i].size;
+      current_segment_pics++;
       file_output_stream_.write(nal_size, 4);
       file_output_stream_.write(reinterpret_cast<char *>(nal_units[i].bytes),
                                 nal_units[i].size);
@@ -419,6 +431,11 @@ void EncoderApp::MainEncoderLoop() {
     }
   }
 
+  if (current_segment_bytes > max_segment_bytes_) {
+    max_segment_bytes_ = current_segment_bytes;
+    max_segment_pics_ = current_segment_pics;
+  }
+
   end_ = std::chrono::steady_clock::now();
 }
 
@@ -443,6 +460,9 @@ void EncoderApp::PrintStatistics() {
   std::cout << "Total written: " << total_bytes_ << " bytes" << std::endl;
   std::cout << "Total bitrate: " <<
     (total_bytes_ * 8 / 1000 / seq_seconds) << " kbit/s" << std::endl;
+  std::cout << "Peak bitrate:  " <<
+    (max_segment_bytes_ * 8 / 1000 / (max_segment_pics_ / params_->framerate))
+    << " kbit/s" << std::endl;
 }
 
 void EncoderApp::PrintUsage() {
@@ -494,7 +514,7 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
     std::cout << "  TID:" << std::setw(6) << nal_unit.stats.tid;
     std::cout << "   QP:" << std::setw(6) << nal_unit.stats.qp;
   } else {
-    std::cout << "     - not a picture -              ";
+    std::cout << "     - not a picture -                          ";
   }
   std::cout << "  Bytes: " << std::setw(10) << nal_unit.size;
   if (nal_unit.stats.nal_unit_type < 16) {

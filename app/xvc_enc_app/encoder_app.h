@@ -56,6 +56,8 @@ private:
 
   int picture_index_ = 0;
   size_t total_bytes_ = 0;
+  size_t max_segment_bytes_ = 0;
+  int max_segment_pics_ = 0;
 
   // command line arguments
   struct {
