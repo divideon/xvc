@@ -135,8 +135,7 @@ extern "C" {
                                              int64_t user_data);
     xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder,
                                               xvc_decoded_picture *out_pic);
-    xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder,
-                                        xvc_decoded_picture *out_pic);
+    xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder);
     xvc_dec_return_code(*decoder_check_conformance)(xvc_decoder *decoder,
                                                     int *num);
     // Misc

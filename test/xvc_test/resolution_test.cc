@@ -62,11 +62,11 @@ protected:
       }
     }
     for (auto &orig_pic : orig_pics) {
-      ASSERT_TRUE(DecoderFlush());
+      ASSERT_TRUE(DecoderFlushAndGet());
       double psnr = orig_pic.CalcPsnr(last_decoded_picture_.bytes);
       ASSERT_GE(psnr, kPsnrThreshold);
     }
-    ASSERT_FALSE(DecoderFlush());
+    ASSERT_FALSE(DecoderFlushAndGet());
   }
 };
 

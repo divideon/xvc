@@ -186,8 +186,8 @@ public:
     EXPECT_EQ(0, last_decoded_picture_.size);
   }
 
-  bool DecoderFlush() {
-    decoder_->FlushBufferedTailPics();
+  bool DecoderFlushAndGet() {
+    decoder_->FlushBufferedNalUnits();
     return decoder_->GetDecodedPicture(&last_decoded_picture_);
   }
 
@@ -195,7 +195,7 @@ public:
     if (DecodePictureSuccess(nal)) {
       return &last_decoded_picture_;
     }
-    if (DecoderFlush()) {
+    if (DecoderFlushAndGet()) {
       return &last_decoded_picture_;
     }
     return nullptr;

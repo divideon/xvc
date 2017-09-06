@@ -250,7 +250,12 @@ void DecoderApp::MainDecoderLoop() {
   }
 
   // Flush out all remaining decoded pictures.
-  while (xvc_api_->decoder_flush(decoder_, &decoded_pic) == XVC_DEC_OK) {
+  ret = xvc_api_->decoder_flush(decoder_);
+  if (ret != XVC_DEC_OK) {
+    std::cerr << "Unexpected return code after flush " << ret << std::endl;
+    std::exit(ret);
+  }
+  while (xvc_api_->decoder_get_picture(decoder_, &decoded_pic) == XVC_DEC_OK) {
     if (output_stream.good()) {
       if (output_y4m_format_) {
         y4m_writer.WriteHeader(decoded_pic.stats, &output_stream);

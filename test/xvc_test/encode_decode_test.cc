@@ -74,7 +74,7 @@ protected:
         VerifyPicture(width, height, last_decoded_picture_);
       }
     }
-    while (do_flush && DecoderFlush()) {
+    while (do_flush && DecoderFlushAndGet()) {
       VerifyPicture(width, height, last_decoded_picture_);
     }
   }

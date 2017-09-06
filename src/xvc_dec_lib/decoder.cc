@@ -99,6 +99,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
       // should not be decoded.
       return true;
     }
+    enforce_sliding_window_ = true;
     num_pics_in_buffer_++;
     bit_reader.Rewind(4);
 
@@ -278,13 +279,9 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   }
 }
 
-void Decoder::FlushBufferedTailPics() {
-  // Return if there are still Nal Units waiting
-  // to be decoded.
-  if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
-    return;
-  }
+void Decoder::FlushBufferedNalUnits() {
   // Remove restriction of minimum picture buffer size
+  // so that we can output any remaining pictures
   enforce_sliding_window_ = false;
   // Preparing to start a new segment
   soc_++;
@@ -304,12 +301,15 @@ void Decoder::FlushBufferedTailPics() {
       DecodeAllBufferedNals();
     }
   }
+  // After flush a new segment must be parsed
+  // to avoid decoding new nals with old or invalid reference pictures
+  state_ = State::kNoSegmentHeader;
 }
 
 bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   // Prevent outputing pictures if non are available
   // otherwise reference pictures might be corrupted
-  if (enforce_sliding_window_ && !HasPictureReadyForOutput()) {
+  if (!HasPictureReadyForOutput()) {
     output_pic->size = 0;
     output_pic->bytes = nullptr;
     for (int c = 0; c < constants::kMaxYuvComponents; c++) {

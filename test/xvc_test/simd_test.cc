@@ -70,7 +70,7 @@ protected:
         VerifyPicture(width, height, last_decoded_picture_, &dec_pic_bytes);
       }
     }
-    while (DecoderFlush()) {
+    while (DecoderFlushAndGet()) {
       VerifyPicture(width, height, last_decoded_picture_, &dec_pic_bytes);
     }
     for (int poc = 0; poc < static_cast<int>(verified_.size()); poc++) {

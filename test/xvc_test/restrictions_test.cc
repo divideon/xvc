@@ -65,7 +65,7 @@ protected:
         VerifyPicture(width, height, last_decoded_picture_);
       }
     }
-    while (DecoderFlush()) {
+    while (DecoderFlushAndGet()) {
       VerifyPicture(width, height, last_decoded_picture_);
     }
     for (int i = 0; i < frames1 + frames2; i++) {
@@ -120,7 +120,7 @@ TEST_P(RestrictionsTest, SupportParallelDecodeWhenRestrictionChanges) {
       }
     }
   }
-  while (DecoderFlush()) {
+  while (DecoderFlushAndGet()) {
     decoded_pictures++;
   }
   ASSERT_EQ(decoded_pictures, num_iterations * 2 * (kSubGopLength + 1));

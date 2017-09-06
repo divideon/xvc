@@ -57,10 +57,11 @@ public:
   bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
                  int64_t user_data = 0);
   bool GetDecodedPicture(xvc_decoded_picture *dec_pic);
-  void FlushBufferedTailPics();
+  void FlushBufferedNalUnits();
   PicNum GetNumDecodedPics() { return num_pics_in_buffer_; }
   PicNum HasPictureReadyForOutput() {
-    return num_pics_in_buffer_ >= sliding_window_length_;
+    return !enforce_sliding_window_ ||
+      num_pics_in_buffer_ >= sliding_window_length_;
   }
   PicNum GetNumCorruptedPics() { return num_corrupted_pics_; }
   void SetCpuCapabilities(std::set<CpuCapability> capabilities) {

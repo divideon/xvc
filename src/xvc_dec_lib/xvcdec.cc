@@ -175,32 +175,24 @@ extern "C" {
       return XVC_DEC_INVALID_ARGUMENT;
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
+    if (lib_decoder->GetDecodedPicture(pic_bytes)) {
+      return XVC_DEC_OK;
+    }
     xvc::Decoder::State dec_state = lib_decoder->GetState();
     if (dec_state == xvc::Decoder::State::kNoSegmentHeader) {
       return XVC_DEC_NO_SEGMENT_HEADER_DECODED;
     }
-    if (lib_decoder->HasPictureReadyForOutput() &&
-        lib_decoder->GetDecodedPicture(pic_bytes)) {
-      return XVC_DEC_OK;
-    } else {
-      return XVC_DEC_NO_DECODED_PIC;
-    }
+    return XVC_DEC_NO_DECODED_PIC;
   }
 
   static
-    xvc_dec_return_code xvc_dec_decoder_flush(xvc_decoder *decoder,
-                                              xvc_decoded_picture *pic_bytes) {
-    if (!decoder || !pic_bytes) {
+    xvc_dec_return_code xvc_dec_decoder_flush(xvc_decoder *decoder) {
+    if (!decoder) {
       return XVC_DEC_INVALID_ARGUMENT;
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
-    if (lib_decoder->GetNumDecodedPics() > 0) {
-      lib_decoder->FlushBufferedTailPics();
-      return lib_decoder->GetDecodedPicture(pic_bytes) ?
-        XVC_DEC_OK : XVC_DEC_NO_DECODED_PIC;
-    } else {
-      return XVC_DEC_NO_DECODED_PIC;
-    }
+    lib_decoder->FlushBufferedNalUnits();
+    return XVC_DEC_OK;
   }
 
   static xvc_dec_return_code

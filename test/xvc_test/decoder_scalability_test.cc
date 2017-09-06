@@ -55,28 +55,21 @@ protected:
     return encoded_nal_units_;
   }
 
-  std::pair<int, int> DecodeBitstream(int width, int height) {
+  int DecodeBitstream(int width, int height) {
     ResetBitstreamPosition();
     DecodeSegmentHeaderSuccess(GetNextNalToDecode());
     int decoded_pictures = 0;
-    int nbr_invalid_state = 0;
     while (HasMoreNals()) {
       auto &nal = GetNextNalToDecode();
       EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
       if (decoder_->GetDecodedPicture(&last_decoded_picture_)) {
         decoded_pictures++;
-        if (decoder_->GetState() != xvc::Decoder::State::kPicDecoded) {
-          nbr_invalid_state++;;
-        }
       }
     }
-    while (DecoderFlush()) {
+    while (DecoderFlushAndGet()) {
       decoded_pictures++;
-      if (decoder_->GetState() != xvc::Decoder::State::kPicDecoded) {
-        nbr_invalid_state++;
-      }
     }
-    return std::make_pair(decoded_pictures, nbr_invalid_state);
+    return decoded_pictures;
   }
 };
 
@@ -93,18 +86,15 @@ TEST_F(DecoderScalabilityTest, ReferencePicDownscaling) {
   std::copy(bitstream2.begin() + nals_to_copy, bitstream2.end(),
             std::back_inserter(merged_bitstream));
   encoded_nal_units_ = merged_bitstream;
-  auto result = DecodeBitstream(16, 16);
+  int decoded_pics = DecodeBitstream(16, 16);
   int expected_decoded_pics = 1 + 2 * kSegmentLength;
   // Half of pictures from 1st bitstream will be corrupted
   /// due to different reference picture
   int expected_corrupted_pics = kSubGopLength / 2;
-  // Corrupted state is set for one segment until next segment header
-  int expected_invalid_dec_state = kSegmentLength;
-  EXPECT_EQ(result.first, expected_decoded_pics);
+  EXPECT_EQ(decoded_pics, expected_decoded_pics);
   // Number of corrupted pictures varies depending on qp and rdoq
   EXPECT_LE(decoder_->GetNumCorruptedPics(), expected_corrupted_pics);
   EXPECT_GT(decoder_->GetNumCorruptedPics(), 0);
-  EXPECT_EQ(result.second, expected_invalid_dec_state);
 }
 
 }   // namespace
