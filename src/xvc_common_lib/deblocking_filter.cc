@@ -18,6 +18,7 @@
 
 #include "xvc_common_lib/deblocking_filter.h"
 
+#include <cstdlib>
 #include <cmath>
 
 #include "xvc_common_lib/common.h"

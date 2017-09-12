@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <utility>

@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 
 #include "xvc_common_lib/intra_prediction.h"
