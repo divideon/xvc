@@ -528,6 +528,18 @@ SplitType SyntaxReader::ReadSplitQuad(const CodingUnit &cu, int max_depth) {
   return bin != 0 ? SplitType::kQuad : SplitType::kNone;
 }
 
+bool SyntaxReader::ReadTransformSkip(const CodingUnit &cu, YuvComponent comp) {
+  if (Restrictions::Get().disable_transform_skip) {
+    return false;
+  }
+  if (cu.GetWidth(comp) * cu.GetHeight(comp) >
+      constants::kTransformSkipMaxArea) {
+    return false;
+  }
+  ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
+  return entropydec_->DecodeBin(&ctx) != 0;
+}
+
 void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
                                     ScanOrder scan_order,
                                     uint32_t *out_pos_last_x,

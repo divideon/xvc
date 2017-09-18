@@ -143,6 +143,12 @@ public:
   void SetRootCbf(bool root_cbf) { root_cbf_ = root_cbf; }
   bool GetCbf(YuvComponent comp) const { return cbf_[comp]; }
   void SetCbf(YuvComponent comp, bool cbf) { cbf_[comp] = cbf; }
+  bool GetTransformSkip(YuvComponent comp) const {
+    return transform_skip_[comp];
+  }
+  void SetTransformSkip(YuvComponent comp, bool tx_skip) {
+    transform_skip_[comp] = tx_skip;
+  }
   CoeffBuffer GetCoeff(YuvComponent comp) {
     return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   }
@@ -229,6 +235,7 @@ private:
   SplitType split_state_;
   PredictionMode pred_mode_;
   std::array<bool, constants::kMaxYuvComponents> cbf_;
+  std::array<bool, constants::kMaxYuvComponents> transform_skip_;
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
   const Qp *qp_;
   bool root_cbf_;

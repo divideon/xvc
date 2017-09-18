@@ -64,6 +64,8 @@ public:
   void WriteSplitBinary(const CodingUnit &cu,
                         SplitRestriction split_restriction, SplitType split);
   void WriteSplitQuad(const CodingUnit &cu, int max_depth, SplitType split);
+  void WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
+                          bool tx_skip);
 
 protected:
   template<int SubBlockShift>

@@ -81,6 +81,7 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     cbf = true;
   }
   cu->SetCbf(comp, cbf);
+  cu->SetTransformSkip(comp, false);
 
   SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
   if (cbf) {
@@ -118,6 +119,7 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
   CoeffBuffer cu_coeff = cu->GetCoeff(comp);
   RdoSyntaxWriter non_zero_writer(rdo_writer, 0);
   non_zero_writer.WriteCbf(*cu, comp, true);
+  non_zero_writer.WriteTransformSkip(*cu, comp, cu->GetTransformSkip(comp));
   non_zero_writer.WriteCoefficients(*cu, comp, cu_coeff.GetDataPtr(),
                                     cu_coeff.GetStride());
   Bits non_zero_bits = non_zero_writer.GetNumWrittenBits();
@@ -149,6 +151,8 @@ bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const Qp &qp,
     CoeffBuffer cu_coeff = cu->GetCoeff(comp);
     rdo_writer_nonzero.WriteCbf(*cu, comp, cbf);
     if (cbf) {
+      rdo_writer_nonzero.WriteTransformSkip(*cu, comp,
+                                            cu->GetTransformSkip(comp));
       rdo_writer_nonzero.WriteCoefficients(*cu, comp, cu_coeff.GetDataPtr(),
                                            cu_coeff.GetStride());
     }

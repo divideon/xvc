@@ -74,6 +74,7 @@ public:
       disable_transform_root_cbf ||
       disable_transform_cbf ||
       disable_transform_subblock_csbf ||
+      disable_transform_skip ||
       disable_transform_sign_hiding ||
       disable_transform_adaptive_exp_golomb;
   }
@@ -150,6 +151,7 @@ public:
   bool disable_transform_root_cbf = false;
   bool disable_transform_cbf = false;
   bool disable_transform_subblock_csbf = false;
+  bool disable_transform_skip = false;
   bool disable_transform_sign_hiding = false;
   bool disable_transform_adaptive_exp_golomb = false;
   bool disable_cabac_ctx_update = false;

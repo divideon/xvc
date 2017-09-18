@@ -83,7 +83,7 @@ public:
   static const int kNumMvpIdxCtx = 1;
   static const int kNumSaoMergeFlagCtx = 1;
   static const int kNumSaoTypeIdxCtx = 1;
-  static const int kNumTransformSkipFlagCtx = 1;
+  static const int kNumTransformSkipFlagCtx = 2;
   static const int kNumTquantBypassFlagCtx = 1;
 
   void ResetStates(const Qp &qp, PicturePredictionType pic_type);
@@ -133,6 +133,7 @@ public:
   std::array<ContextModel, kNumCoeffLastPosCtxChroma> coeff_last_pos_x_chroma;
   std::array<ContextModel, kNumCoeffLastPosCtxLuma> coeff_last_pos_y_luma;
   std::array<ContextModel, kNumCoeffLastPosCtxChroma> coeff_last_pos_y_chroma;
+  std::array<ContextModel, kNumTransformSkipFlagCtx> transform_skip_flag;
 };
 
 }   // namespace xvc

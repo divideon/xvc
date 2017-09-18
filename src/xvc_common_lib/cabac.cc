@@ -288,7 +288,7 @@ kInitTransSubdivFlag[3][CabacContexts::kNumTransSubdivFlagCtx] = {
 };
 
 static const uint8_t
-kInitTransformskipFlag[3][2 * CabacContexts::kNumTransformSkipFlagCtx] = {
+kInitTransformSkipFlag[3][CabacContexts::kNumTransformSkipFlagCtx] = {
   { 139,  139 },
   { 139,  139 },
   { 139,  139 },
@@ -345,6 +345,7 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &coeff_greater2_luma, &coeff_greater2_chroma, kInitCoeffGreater2);
   Init(q, s, &coeff_last_pos_x_luma, &coeff_last_pos_x_chroma, kInitLastPos);
   Init(q, s, &coeff_last_pos_y_luma, &coeff_last_pos_y_chroma, kInitLastPos);
+  Init(q, s, &transform_skip_flag, kInitTransformSkipFlag);
 }
 
 ContextModel& CabacContexts::GetSkipFlagCtx(const CodingUnit &cu) {

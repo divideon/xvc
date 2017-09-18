@@ -144,6 +144,7 @@ void CuWriter::WriteResidualData(const CodingUnit &cu, YuvComponent comp,
   if (cbf) {
     ctu_has_coeffs_ = true;
     DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+    writer->WriteTransformSkip(cu, comp, cu.GetTransformSkip(comp));
     writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
                               cu_coeff.GetStride());
   }

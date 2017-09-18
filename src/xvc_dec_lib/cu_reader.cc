@@ -162,6 +162,9 @@ void CuReader::ReadResidualData(CodingUnit *cu, YuvComponent comp,
   cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
   if (cbf) {
     ctu_has_coeffs_ = true;
+    bool transform_skip = reader->ReadTransformSkip(*cu, comp);
+    cu->SetTransformSkip(comp, transform_skip);
+    assert(!transform_skip);
     reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
                              cu_coeff_buf.GetStride());
   }

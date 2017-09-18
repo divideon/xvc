@@ -104,6 +104,7 @@ const int kMaxBlockSamples = kMaxBlockSize * kMaxBlockSize;
 const int kQuadSplit = 4;
 
 // Transform
+const int kTransformSkipMaxArea = 4 * 4;
 const int kTransformExtendedPrecision = 2;
 const bool kZeroOutHighFreqLargeTransforms = true;
 

@@ -53,6 +53,7 @@ public:
   SplitType ReadSplitBinary(const CodingUnit &cu,
                             SplitRestriction split_restriction);
   SplitType ReadSplitQuad(const CodingUnit &cu, int max_depth);
+  bool ReadTransformSkip(const CodingUnit &cu, YuvComponent comp);
 
 private:
   template<int SubBlockShift>

@@ -532,6 +532,21 @@ void SyntaxWriter::WriteSplitQuad(const CodingUnit &cu, int max_depth,
   entropyenc_->EncodeBin(split == SplitType::kQuad ? 1 : 0, &ctx);
 }
 
+void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
+                                      bool transform_skip) {
+  if (Restrictions::Get().disable_transform_skip) {
+    assert(!transform_skip);
+    return;
+  }
+  if (cu.GetWidth(comp) * cu.GetHeight(comp) >
+      constants::kTransformSkipMaxArea) {
+    assert(!transform_skip);
+    return;
+  }
+  ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
+  entropyenc_->EncodeBin(transform_skip ? 1 : 0, &ctx);
+}
+
 void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
                                      ScanOrder scan_order, int last_pos_x,
                                      int last_pos_y) {

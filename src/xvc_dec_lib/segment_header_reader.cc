@@ -112,6 +112,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_transform_root_cbf |= !!bit_reader->ReadBit();
     restr.disable_transform_cbf |= !!bit_reader->ReadBit();
     restr.disable_transform_subblock_csbf |= !!bit_reader->ReadBit();
+    restr.disable_transform_skip |= !!bit_reader->ReadBit();
     restr.disable_transform_sign_hiding |= !!bit_reader->ReadBit();
     restr.disable_transform_adaptive_exp_golomb |= !!bit_reader->ReadBit();
   }

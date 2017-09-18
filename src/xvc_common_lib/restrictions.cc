@@ -129,6 +129,10 @@ Restrictions::Restrictions() {
   disable_transform_subblock_csbf = true;
 #endif
 
+#if RESTRICTION_DISABLE_TRANSFORM_SKIP
+  disable_transform_skip = true;
+#endif
+
 #if RESTRICTION_DISABLE_TRANSFORM_SIGN_HIDING
   disable_transform_sign_hiding = true;
 #endif
@@ -275,6 +279,7 @@ Restrictions::Restrictions() {
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
+  disable_transform_skip = true;
   if (mode == RestrictedMode::kUnrestricted) {
     return;
   }
