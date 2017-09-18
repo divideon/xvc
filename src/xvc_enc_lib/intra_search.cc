@@ -73,7 +73,7 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
     // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
     rdo_writer.WriteIntraMode(intra_mode, mpm);
-    size_t bits = rdo_writer.GetNumWrittenBits();
+    Bits bits = rdo_writer.GetNumWrittenBits();
 
     uint64_t sad = metric.CompareSample(*cu, comp, orig_pic_,
                                         pred_buf.GetDataPtr(),
@@ -116,14 +116,11 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
     cu->SetIntraModeLuma(intra_mode);
 
     // Full reconstruction
-    Distortion ssd =
-      CompressIntra(cu, comp, qp, bitstream_writer, encoder, rec_pic);
-
-    // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+    Distortion ssd = CompressIntra(cu, comp, qp, rdo_writer, encoder, rec_pic);
     cu_writer_.WriteComponent(*cu, comp, &rdo_writer);
-    size_t bits = rdo_writer.GetNumWrittenBits();
 
+    Bits bits = rdo_writer.GetNumWrittenBits();
     Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
     if (cost < best_cost) {
       best_cost = cost;
@@ -150,18 +147,14 @@ IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
     cu->SetIntraModeChroma(chroma_mode);
 
     // Full reconstruction
-    Distortion ssd = 0;
-    ssd +=
-      CompressIntra(cu, YuvComponent::kU, qp, bitstream_writer, enc, rec_pic);
-    ssd +=
-      CompressIntra(cu, YuvComponent::kV, qp, bitstream_writer, enc, rec_pic);
-
-    // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+    Distortion ssd = 0;
+    ssd += CompressIntra(cu, YuvComponent::kU, qp, rdo_writer, enc, rec_pic);
     cu_writer_.WriteComponent(*cu, YuvComponent::kU, &rdo_writer);
+    ssd += CompressIntra(cu, YuvComponent::kV, qp, rdo_writer, enc, rec_pic);
     cu_writer_.WriteComponent(*cu, YuvComponent::kV, &rdo_writer);
-    size_t bits = rdo_writer.GetNumWrittenBits();
 
+    Bits bits = rdo_writer.GetNumWrittenBits();
     Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
     if (cost < best_cost) {
       best_cost = cost;

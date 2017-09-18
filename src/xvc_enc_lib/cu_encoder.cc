@@ -482,23 +482,31 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
 
 CuEncoder::RdoCost
 CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
-                         const SyntaxWriter &writer) {
+                         const SyntaxWriter &bitstream_writer) {
   cu->SetPredMode(PredictionMode::kIntra);
   cu->SetSkipFlag(false);
+  RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
   Distortion dist = 0;
   for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
     if (util::IsLuma(comp)) {
       IntraMode best_mode =
-        intra_search_.SearchIntraLuma(cu, comp, qp, writer, this, &rec_pic_);
+        intra_search_.SearchIntraLuma(cu, comp, qp, bitstream_writer, this,
+                                      &rec_pic_);
       cu->SetIntraModeLuma(best_mode);
     } else if (util::IsFirstChroma(comp)) {
+      // TODO(PH) Most correct thing to do is to use rdo_writer instead
       IntraChromaMode chroma_mode =
-        intra_search_.SearchIntraChroma(cu, qp, writer, this, &rec_pic_);
+        intra_search_.SearchIntraChroma(cu, qp, bitstream_writer, this,
+                                        &rec_pic_);
       cu->SetIntraModeChroma(chroma_mode);
     }
-    dist += intra_search_.CompressIntra(cu, comp, qp, writer, this, &rec_pic_);
+    dist +=
+      intra_search_.CompressIntra(cu, comp, qp, rdo_writer, this, &rec_pic_);
+    cu_writer_.WriteComponent(*cu, comp, &rdo_writer);
   }
-  return GetCuCostWithoutSplit(*cu, qp, writer, dist);
+  Bits bits = rdo_writer.GetNumWrittenBits();
+  Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+  return RdoCost(cost, dist);
 }
 
 CuEncoder::RdoCost
