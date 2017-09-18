@@ -34,13 +34,13 @@ public:
               const YuvPicture &orig_pic,
               const EncoderSettings &encoder_settings);
 
-  IntraMode SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
+  IntraMode SearchIntraLuma(CodingUnit *cu, const Qp &qp,
                             const SyntaxWriter &bitstream_writer,
                             TransformEncoder *encoder, YuvPicture *rec_pic);
-  IntraChromaMode SearchIntraChroma(CodingUnit *cu, const Qp &qp,
-                                    const SyntaxWriter &bitstream_writer,
-                                    TransformEncoder *encoder,
-                                    YuvPicture *rec_pic);
+  Distortion CompressIntraChroma(CodingUnit *cu, const Qp &qp,
+                                 const SyntaxWriter &bitstream_writer,
+                                 TransformEncoder *encoder,
+                                 YuvPicture *rec_pic);
   Distortion CompressIntra(CodingUnit *cu, YuvComponent comp, const Qp &qp,
                            const SyntaxWriter &writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic);

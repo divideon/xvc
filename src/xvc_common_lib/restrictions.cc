@@ -279,7 +279,6 @@ Restrictions::Restrictions() {
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
-  disable_transform_skip = true;
   if (mode == RestrictedMode::kUnrestricted) {
     return;
   }

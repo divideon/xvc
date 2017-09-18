@@ -50,8 +50,8 @@ CuEncoder::CuEncoder(const SimdFunctions &simd,
   encoder_settings_(encoder_settings),
   rec_pic_(*rec_pic),
   pic_data_(*pic_data),
-  inter_search_(simd, rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
-                orig_pic, *pic_data->GetRefPicLists(), encoder_settings),
+  inter_search_(simd, *pic_data, orig_pic, *pic_data->GetRefPicLists(),
+                encoder_settings),
   intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
   cu_writer_(pic_data_, &intra_search_),
   cu_cache_(pic_data) {
@@ -468,8 +468,8 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
   if (cu->IsIntra()) {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
       // TODO(PH) Add fast method without cbf evaluation
-      dist += intra_search_.CompressIntra(cu, comp, qp, writer, this,
-                                          &rec_pic_);
+      dist +=
+        intra_search_.CompressIntra(cu, comp, qp, writer, this, &rec_pic_);
     }
   } else {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
@@ -487,22 +487,20 @@ CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
   cu->SetSkipFlag(false);
   RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
   Distortion dist = 0;
-  for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
-    if (util::IsLuma(comp)) {
-      IntraMode best_mode =
-        intra_search_.SearchIntraLuma(cu, comp, qp, bitstream_writer, this,
-                                      &rec_pic_);
-      cu->SetIntraModeLuma(best_mode);
-    } else if (util::IsFirstChroma(comp)) {
-      // TODO(PH) Most correct thing to do is to use rdo_writer instead
-      IntraChromaMode chroma_mode =
-        intra_search_.SearchIntraChroma(cu, qp, bitstream_writer, this,
-                                        &rec_pic_);
-      cu->SetIntraModeChroma(chroma_mode);
-    }
-    dist +=
-      intra_search_.CompressIntra(cu, comp, qp, rdo_writer, this, &rec_pic_);
-    cu_writer_.WriteComponent(*cu, comp, &rdo_writer);
+  if (YuvComponent::kY == pic_data_.GetComponents(cu->GetCuTree())[0]) {
+    IntraMode best_mode =
+      intra_search_.SearchIntraLuma(cu, qp, bitstream_writer, this, &rec_pic_);
+    cu->SetIntraModeLuma(best_mode);
+    dist += intra_search_.CompressIntra(cu, YuvComponent::kY, qp, rdo_writer,
+                                        this, &rec_pic_);
+    cu_writer_.WriteComponent(*cu, YuvComponent::kY, &rdo_writer);
+  }
+  if (pic_data_.GetComponents(cu->GetCuTree()).size() > 1) {
+    // TODO(PH) This should optimally use rdo_writer as starting state
+    dist += intra_search_.CompressIntraChroma(cu, qp, bitstream_writer, this,
+                                              &rec_pic_);
+    cu_writer_.WriteComponent(*cu, YuvComponent::kU, &rdo_writer);
+    cu_writer_.WriteComponent(*cu, YuvComponent::kV, &rdo_writer);
   }
   Bits bits = rdo_writer.GetNumWrittenBits();
   Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);

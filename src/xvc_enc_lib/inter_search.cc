@@ -38,15 +38,16 @@ static const std::array<std::array<int8_t, 2>, 9> kSquareXYQpel = { {
   {0, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {1, 1}
 } };
 
-InterSearch::InterSearch(const SimdFunctions &simd, int bitdepth,
-                         int max_components, const YuvPicture &orig_pic,
+InterSearch::InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
+                         const YuvPicture &orig_pic,
                          const ReferencePictureLists &ref_pic_list,
                          const EncoderSettings &encoder_settings)
-  : InterPrediction(simd.inter_prediction, bitdepth),
-  bitdepth_(bitdepth),
-  max_components_(max_components),
+  : InterPrediction(simd.inter_prediction, pic_data.GetBitdepth()),
+  bitdepth_(pic_data.GetBitdepth()),
+  max_components_(pic_data.GetMaxNumComponents()),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
+  cu_writer_(pic_data, nullptr),
   bipred_orig_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize),
   bipred_pred_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize) {
   std::vector<int> l1_mapping;
@@ -82,8 +83,8 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
   } else {
     SampleBuffer &pred = encoder->GetPredBuffer();
     MotionCompensation(*cu, comp, pred.GetDataPtr(), pred.GetStride());
-    return encoder->TransformAndReconstruct(cu, comp, qp, bitstream_writer,
-                                            orig_pic_, rec_pic);
+    return encoder->CompressAndEvalTransform(cu, comp, qp, bitstream_writer,
+                                             orig_pic_, &cu_writer_, rec_pic);
   }
 }
 
@@ -212,21 +213,23 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
     SampleBuffer &pred_buffer = encoder->GetPredBuffer();
     MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
                        pred_buffer.GetStride());
+    // TODO(PH) Should update contexts after each component for rdo quant
     Distortion dist_orig =
-      encoder->TransformAndReconstruct(cu, comp, qp, bitstream_writer,
-                                       orig_pic_, rec_pic);
+      encoder->CompressAndEvalTransform(cu, comp, qp, bitstream_writer,
+                                        orig_pic_, &cu_writer_, rec_pic);
     Distortion dist_zero =
       metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer());
     Distortion dist_fast = dist_orig;
-    if (encoder_settings_.fast_inter_cbf_dist && cu->GetCbf(comp) &&
+    if (encoder_settings_.fast_inter_transform_dist && cu->GetCbf(comp) &&
         !encoder_settings_.structural_ssd) {
-      // Not really faster since we are calculating the true distortion anyway
+      // TODO(PH) Consider remove this, it's not really faster since we are
+      // calculating the actual distortion above anyway
       dist_fast = encoder->GetResidualDist(*cu, comp, &metric);
     }
     bool force_comp_zero = false;
     if (!Restrictions::Get().disable_transform_cbf) {
       force_comp_zero = encoder->EvalCbfZero(cu, qp, comp, bitstream_writer,
-                                             dist_fast, dist_zero);
+                                             &cu_writer_, dist_fast, dist_zero);
     }
     final_dist += force_comp_zero ? dist_zero : dist_orig;
     sum_dist_zero += dist_zero;
@@ -239,8 +242,8 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
   if (cu->GetRootCbf() && !(Restrictions::Get().disable_transform_cbf &&
                             Restrictions::Get().disable_transform_root_cbf)) {
     bool zero_root_cbf =
-      encoder->EvalRootCbfZero(cu, qp, bitstream_writer, sum_dist_fast,
-                               sum_dist_zero);
+      encoder->EvalRootCbfZero(cu, qp, bitstream_writer, &cu_writer_,
+                               sum_dist_fast, sum_dist_zero);
     if (zero_root_cbf) {
       for (int c = 0; c < constants::kMaxYuvComponents; c++) {
         cbf_modified[c] |= cu->GetCbf(YuvComponent(c));
@@ -621,6 +624,7 @@ MetricType InterSearch::GetFullpelMetric(const CodingUnit & cu) {
 Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
                                    const SyntaxWriter &bitstream_writer) {
   if (encoder_settings_.fast_inter_pred_bits) {
+    // TODO(PH) Consider removing this "faster" version
     PicturePredictionType pic_pred_type = cu.GetPicType();
     const ReferencePictureLists *ref_pic_list = cu.GetRefPicLists();
     if (cu.GetInterDir() != InterDir::kBi) {
@@ -650,10 +654,8 @@ Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
       return bits;
     }
   } else {
-    const PictureData *pic_data = cu.GetPicData();
-    CuWriter cu_writer(*pic_data, nullptr);
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-    cu_writer.WriteInterPrediction(cu, YuvComponent::kY, &rdo_writer);
+    cu_writer_.WriteInterPrediction(cu, YuvComponent::kY, &rdo_writer);
     return rdo_writer.GetNumWrittenBits();
   }
 }

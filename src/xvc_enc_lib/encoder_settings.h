@@ -132,7 +132,7 @@ struct EncoderSettings {
   static const bool fast_cu_split_based_on_full_cu = true;
   static const bool fast_mode_selection_for_cached_cu = true;
   static const bool skip_mode_decision_for_identical_cu = false;
-  static const bool fast_inter_cbf_dist = true;  // not really any impact
+  static const bool fast_inter_transform_dist = true;  // not really any impact
   static const bool fast_inter_root_cbf_zero_bits = true;  // very small loss
 
   // Speed mode dependent settings

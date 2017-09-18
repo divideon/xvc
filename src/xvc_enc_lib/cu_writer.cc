@@ -150,6 +150,21 @@ void CuWriter::WriteResidualData(const CodingUnit &cu, YuvComponent comp,
   }
 }
 
+void CuWriter::WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
+                                       SyntaxWriter *writer) const {
+  bool cbf = cu.GetCbf(comp);
+  // Encoder rdo only, because normally cbf flags are written for all
+  // components during invocation of the luma component
+  writer->WriteCbf(cu, comp, cbf);
+  if (cbf) {
+    // TODO(PH) Remove code duplication with method above
+    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+    writer->WriteTransformSkip(cu, comp, cu.GetTransformSkip(comp));
+    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
+                              cu_coeff.GetStride());
+  }
+}
+
 bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
                                  SyntaxWriter *writer) {
   bool signal_root_cbf = cu.IsInter() &&
@@ -171,12 +186,13 @@ bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
   } else if (cu.IsIntra()) {
     writer->WriteCbf(cu, comp, cbf);
   } else if (util::IsLuma(comp)) {
-    // For inter the luma comp will write all cbf flags
+    // Inter luma comp will write all cbf flags since chroma is written first
+    // TODO(PH) Check for monochrome chroma format
     writer->WriteCbf(cu, YuvComponent::kU, cu.GetCbf(YuvComponent::kU));
     writer->WriteCbf(cu, YuvComponent::kV, cu.GetCbf(YuvComponent::kV));
     if (cu.GetCbf(YuvComponent::kU) || cu.GetCbf(YuvComponent::kV) ||
         Restrictions::Get().disable_transform_root_cbf) {
-      writer->WriteCbf(cu, comp, cbf);
+      writer->WriteCbf(cu, YuvComponent::kY, cbf);
     } else {
       assert(cbf);  // implicit signaling through root cbf
     }

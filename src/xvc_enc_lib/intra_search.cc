@@ -37,7 +37,7 @@ IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
 }
 
 IntraMode
-IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
+IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
                              const SyntaxWriter &bitstream_writer,
                              TransformEncoder *encoder, YuvPicture *rec_pic) {
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
@@ -55,6 +55,7 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
     /*1x1: */ 0, /*2x2: */ 3, /*4x4: */ 8, /*8x8: */ 8, /*16x16: */ 3,
     /*32x32: */ 3, /*64x64: */ 3
   };
+  const YuvComponent comp = YuvComponent::kY;
   Sample *reco =
     rec_pic->GetSamplePtr(comp, cu->GetPosX(comp), cu->GetPosY(comp));
   const ptrdiff_t reco_stride = rec_pic->GetStride(comp);
@@ -130,42 +131,66 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
   return best_mode;
 }
 
-IntraChromaMode
-IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
-                               const SyntaxWriter &bitstream_writer,
-                               TransformEncoder *enc, YuvPicture *rec_pic) {
+Distortion
+IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
+                                 const SyntaxWriter &bitstream_writer,
+                                 TransformEncoder *enc, YuvPicture *rec_pic) {
   const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
   IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
   IntraPredictorChroma chroma_modes = GetPredictorsChroma(luma_mode);
-  IntraChromaMode best_mode = IntraChromaMode::kDmChroma;
-  Cost best_cost = std::numeric_limits<Cost>::max();
+  Distortion best_dist = 0;
   if (Restrictions::Get().disable_intra_chroma_predictor) {
-    return best_mode;
+    cu->SetIntraModeChroma(IntraChromaMode::kDmChroma);
+    best_dist +=
+      CompressIntra(cu, YuvComponent::kU, qp, bitstream_writer, enc, rec_pic);
+    best_dist +=
+      CompressIntra(cu, YuvComponent::kV, qp, bitstream_writer, enc, rec_pic);
+    return best_dist;
   }
+
+  Cost best_cost = std::numeric_limits<Cost>::max();
+  IntraChromaMode best_mode = IntraChromaMode::kDmChroma;
+  CodingUnit::TransformState best_state;
+  bool best_loaded = false;
+
   for (int i = 0; i < static_cast<int>(chroma_modes.size()); i++) {
     IntraChromaMode chroma_mode = chroma_modes[i];
     cu->SetIntraModeChroma(chroma_mode);
+    best_loaded = false;
 
     // Full reconstruction
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-    Distortion ssd = 0;
-    ssd += CompressIntra(cu, YuvComponent::kU, qp, rdo_writer, enc, rec_pic);
-    cu_writer_.WriteComponent(*cu, YuvComponent::kU, &rdo_writer);
-    ssd += CompressIntra(cu, YuvComponent::kV, qp, rdo_writer, enc, rec_pic);
-    cu_writer_.WriteComponent(*cu, YuvComponent::kV, &rdo_writer);
+    Distortion dist = 0;
+    dist += CompressIntra(cu, YuvComponent::kU, qp, rdo_writer, enc, rec_pic);
+    cu_writer_.WriteResidualData(*cu, YuvComponent::kU, &rdo_writer);
+    dist += CompressIntra(cu, YuvComponent::kV, qp, rdo_writer, enc, rec_pic);
+    cu_writer_.WriteResidualData(*cu, YuvComponent::kV, &rdo_writer);
 
+    // TODO(PH) Should optimally be done before rdo quant
+    cu_writer_.WriteIntraPrediction(*cu, YuvComponent::kU, &rdo_writer);
+    cu_writer_.WriteIntraPrediction(*cu, YuvComponent::kV, &rdo_writer);
     Bits bits = rdo_writer.GetNumWrittenBits();
-    Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+
+    Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
     if (cost < best_cost) {
       best_cost = cost;
+      best_dist = dist;
       best_mode = chroma_modes[i];
+      best_loaded = true;
+      cu->SaveStateTo(&best_state, *rec_pic, YuvComponent::kU);
+      cu->SaveStateTo(&best_state, *rec_pic, YuvComponent::kV);
     }
   }
-  return best_mode;
+  cu->SetIntraModeChroma(best_mode);
+  if (!best_loaded) {
+    cu->LoadStateFrom(best_state, rec_pic, YuvComponent::kU);
+    cu->LoadStateFrom(best_state, rec_pic, YuvComponent::kV);
+  }
+  return best_dist;
 }
 
 Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
-                                      const Qp &qp, const SyntaxWriter &writer,
+                                      const Qp & qp, const SyntaxWriter &writer,
                                       TransformEncoder *encoder,
                                       YuvPicture *rec_pic) {
   int cu_x = cu->GetPosX(comp);
@@ -175,8 +200,8 @@ Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
   IntraMode intra_mode = cu->GetIntraMode(comp);
   Predict(intra_mode, *cu, comp, reco_buffer.GetDataPtr(),
           reco_buffer.GetStride(), pred_buf.GetDataPtr(), pred_buf.GetStride());
-  return encoder->TransformAndReconstruct(cu, comp, qp, writer, orig_pic_,
-                                          rec_pic);
+  return encoder->CompressAndEvalTransform(cu, comp, qp, writer, orig_pic_,
+                                           &cu_writer_, rec_pic);
 }
 
 }   // namespace xvc

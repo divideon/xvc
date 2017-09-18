@@ -495,6 +495,34 @@ void InverseTransform::Transform(int width, int height, bool is_luma_intra,
   }
 }
 
+void InverseTransform::TransformSkip(int width, int height,
+                                     const Coeff *coeff, ptrdiff_t coeff_stride,
+                                     Residual *resi, ptrdiff_t resi_stride) {
+  // TODO(PH) Duplicate code that should be extracted to common function
+  const bool size_rounding_bias =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) % 2 != 0;
+  const int transform_shift =
+    Quantize::GetTransformShift(width, height, bitdepth_);
+  const int shift = transform_shift + (size_rounding_bias ? 7 : 0);
+  const int scale = size_rounding_bias ? 181 : 1;
+  if (shift > 0) {
+    const int offset = (1 << (shift - 1));
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        resi[y * resi_stride + x] =
+          (coeff[y * coeff_stride + x] * scale + offset) >> shift;
+      }
+    }
+  } else {
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        resi[y * resi_stride + x] =
+          (coeff[y * coeff_stride + x] * scale) << -shift;
+      }
+    }
+  }
+}
+
 void InverseTransform::InvPartialDST4(int shift,
                                       const Coeff *in, ptrdiff_t in_stride,
                                       Coeff *out, ptrdiff_t out_stride) {
@@ -972,6 +1000,35 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
     default:
       assert(0);
       break;
+  }
+}
+
+void
+ForwardTransform::TransformSkip(int width, int height,
+                                const Residual *resi, ptrdiff_t resi_stride,
+                                Coeff *coeff, ptrdiff_t coeff_stride) {
+  // TODO(PH) Duplicate code that should be extracted to common function
+  const bool size_rounding_bias =
+    (util::SizeToLog2(width) + util::SizeToLog2(height)) % 2 != 0;
+  const int transform_shift =
+    Quantize::GetTransformShift(width, height, bitdepth_);
+  const int shift = transform_shift + (size_rounding_bias ? -8 : 0);
+  const int scale = size_rounding_bias ? 181 : 1;
+  if (shift > 0) {
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        coeff[y * coeff_stride + x] =
+          (resi[y * resi_stride + x] * scale) << shift;
+      }
+    }
+  } else {
+    const int offset = 1 << (-shift - 1);
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        coeff[y * coeff_stride + x] =
+          (resi[y * resi_stride + x] * scale + offset) >> -shift;
+      }
+    }
   }
 }
 

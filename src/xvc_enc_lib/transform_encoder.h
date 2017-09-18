@@ -27,6 +27,7 @@
 #include "xvc_enc_lib/rdo_quant.h"
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
+#include "xvc_enc_lib/cu_writer.h"
 
 namespace xvc {
 
@@ -37,21 +38,30 @@ public:
                    const EncoderSettings &encoder_settings);
 
   SampleBuffer& GetPredBuffer() { return temp_pred_; }
-  Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
-                                     const Qp &qp, const SyntaxWriter &writer,
-                                     const YuvPicture &orig_pic,
-                                     YuvPicture *rec_pic);
+  Distortion CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
+                                      const Qp &qp, const SyntaxWriter &writer,
+                                      const YuvPicture &orig_pic,
+                                      CuWriter *cu_writer, YuvPicture *rec_pic);
   bool EvalCbfZero(CodingUnit *cu, const Qp &qp, YuvComponent comp,
-                   const SyntaxWriter &bitstream_writer,
+                   const SyntaxWriter &bitstream_writer, CuWriter *cu_writer,
                    Distortion dist_non_zero, Distortion dist_zero);
   bool EvalRootCbfZero(CodingUnit *cu, const Qp &qp,
                        const SyntaxWriter &bitstream_writer,
-                       Distortion sum_dist_non_zero,
+                       CuWriter *cu_writer, Distortion sum_dist_non_zero,
                        Distortion sum_dist_zero);
   Distortion GetResidualDist(const CodingUnit &cu, YuvComponent comp,
                              SampleMetric *metric);
 
 private:
+  Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
+                                     const Qp &qp, const SyntaxWriter &writer,
+                                     const YuvPicture &orig_pic,
+                                     bool skip_transform, YuvPicture *rec_pic);
+  MetricType GetTransformMetric(YuvComponent comp) const {
+    return encoder_settings_.structural_ssd > 0 && comp == YuvComponent::kY ?
+      MetricType::kStructuralSsd : MetricType::kSsd;
+  }
+
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   const EncoderSettings &encoder_settings_;
   const Sample min_pel_;

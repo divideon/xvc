@@ -39,12 +39,10 @@ class InterSearch : public InterPrediction {
 public:
   using MergeCandLookup = std::array<int, constants::kNumInterMergeCandidates>;
 
-  InterSearch(const SimdFunctions &simd, int bitdepth, int max_components,
+  InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
               const YuvPicture &orig_pic,
               const ReferencePictureLists &ref_pic_list,
               const EncoderSettings &encoder_settings);
-
-
   Distortion CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic);
@@ -137,6 +135,7 @@ private:
   const int max_components_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
+  CuWriter cu_writer_;
   ResidualBufferStorage bipred_orig_buffer_;
   SampleBufferStorage bipred_pred_buffer_;
   // Mapping of ref_idx from L1 to L0 when POC is same

@@ -40,10 +40,67 @@ TransformEncoder::TransformEncoder(int bitdepth, int num_components,
 }
 
 Distortion
+TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
+                                           const Qp &qp,
+                                           const SyntaxWriter &writer,
+                                           const YuvPicture &orig_pic,
+                                           CuWriter *cu_writer,
+                                           YuvPicture *rec_pic) {
+  const auto get_transform_cost = [&](Distortion dist) {
+    if (encoder_settings_.fast_inter_transform_dist &&
+        cu->IsInter() && cu->GetCbf(comp)) {
+      // Set new distortion based on residual instead of reconstructed samples
+      // TODO(PH) Consider removing this case (it only adds extra complexity)
+      SampleMetric metric(GetTransformMetric(comp), qp, rec_pic->GetBitdepth());
+      dist = GetResidualDist(*cu, comp, &metric);
+    }
+    RdoSyntaxWriter rdo_writer(writer, 0);
+    if (cu->IsIntra() && util::IsLuma(comp)) {
+      // TODO(PH) Consider remove this case (intra mode signaling is same)
+      cu_writer->WriteComponent(*cu, comp, &rdo_writer);
+    } else {
+      cu_writer->WriteResidualDataRdoCbf(*cu, comp, &rdo_writer);
+    }
+    Bits bits = rdo_writer.GetNumWrittenBits();
+    return dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+  };
+
+  if (Restrictions::Get().disable_transform_skip ||
+      !cu->CanTransformSkip(comp)) {
+    // Most common case: no transform skip evaluated
+    return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false,
+                                   rec_pic);
+  }
+
+  // Evaluate transform skip
+  Distortion dist_txskip =
+    TransformAndReconstruct(cu, comp, qp, writer, orig_pic, true, rec_pic);
+  if (!cu->GetCbf(comp)) {
+    // Transform skip requires cbf
+    return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false,
+                                   rec_pic);
+  }
+  Cost cost_txskip = get_transform_cost(dist_txskip);
+
+  // Evaluate normal transform
+  Distortion dist_normal =
+    TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false, rec_pic);
+  Cost cost_normal = get_transform_cost(dist_normal);
+
+  if (cost_txskip < cost_normal) {
+    // TODO(PH) Evaluate saving coefficients instead of re-calculating tx skip
+    return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, true,
+                                   rec_pic);
+  }
+  return dist_normal;
+}
+
+Distortion
 TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                                           const Qp & qp,
                                           const SyntaxWriter &syntax_writer,
                                           const YuvPicture &orig_pic,
+                                          bool skip_transform,
                                           YuvPicture *rec_pic) {
   int cu_x = cu->GetPosX(comp);
   int cu_y = cu->GetPosY(comp);
@@ -57,10 +114,17 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
 
   // Transform
   const bool is_luma_intra = util::IsLuma(comp) && cu->IsIntra();
-  fwd_transform_.Transform(width, height, is_luma_intra,
-                           temp_resi_orig_.GetDataPtr(),
-                           temp_resi_orig_.GetStride(),
-                           temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
+  if (!skip_transform) {
+    fwd_transform_.Transform(width, height, is_luma_intra,
+                             temp_resi_orig_.GetDataPtr(),
+                             temp_resi_orig_.GetStride(),
+                             temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
+  } else {
+    fwd_transform_.TransformSkip(width, height, temp_resi_orig_.GetDataPtr(),
+                                 temp_resi_orig_.GetStride(),
+                                 temp_coeff_.GetDataPtr(),
+                                 temp_coeff_.GetStride());
+  }
 
   // Quant
   int non_zero;
@@ -81,7 +145,7 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     cbf = true;
   }
   cu->SetCbf(comp, cbf);
-  cu->SetTransformSkip(comp, false);
+  cu->SetTransformSkip(comp, skip_transform);
 
   SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
   if (cbf) {
@@ -91,9 +155,18 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                        temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
 
     // Inv transform
-    inv_transform_.Transform(width, height, is_luma_intra,
-                             temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
-                             temp_resi_.GetDataPtr(), temp_resi_.GetStride());
+    if (!skip_transform) {
+      inv_transform_.Transform(width, height, is_luma_intra,
+                               temp_coeff_.GetDataPtr(),
+                               temp_coeff_.GetStride(),
+                               temp_resi_.GetDataPtr(),
+                               temp_resi_.GetStride());
+    } else {
+      inv_transform_.TransformSkip(width, height, temp_coeff_.GetDataPtr(),
+                                   temp_coeff_.GetStride(),
+                                   temp_resi_.GetDataPtr(),
+                                   temp_resi_.GetStride());
+    }
 
     // Reconstruct
     reco_buffer.AddClip(width, height, temp_pred_, temp_resi_,
@@ -102,26 +175,21 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     reco_buffer.CopyFrom(width, height, temp_pred_);
   }
 
-  MetricType m = encoder_settings_.structural_ssd > 0 &&
-    comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSsd;
-  SampleMetric metric(m, qp, rec_pic->GetBitdepth());
+  SampleMetric metric(GetTransformMetric(comp), qp, rec_pic->GetBitdepth());
   return metric.CompareSample(*cu, comp, orig_pic, reco_buffer);
 }
 
 bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
                                    YuvComponent comp,
                                    const SyntaxWriter &rdo_writer,
+                                   CuWriter *cu_writer,
                                    Distortion dist_non_zero,
                                    Distortion dist_zero) {
   if (!cu->GetCbf(comp)) {
     return false;
   }
-  CoeffBuffer cu_coeff = cu->GetCoeff(comp);
   RdoSyntaxWriter non_zero_writer(rdo_writer, 0);
-  non_zero_writer.WriteCbf(*cu, comp, true);
-  non_zero_writer.WriteTransformSkip(*cu, comp, cu->GetTransformSkip(comp));
-  non_zero_writer.WriteCoefficients(*cu, comp, cu_coeff.GetDataPtr(),
-                                    cu_coeff.GetStride());
+  cu_writer->WriteResidualDataRdoCbf(*cu, comp, &non_zero_writer);
   Bits non_zero_bits = non_zero_writer.GetNumWrittenBits();
 
   RdoSyntaxWriter zero_writer(rdo_writer, 0);
@@ -132,7 +200,8 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
     static_cast<Cost>(non_zero_bits * qp.GetLambda() + 0.5);
   Cost cost_zero = dist_zero +
     static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);
-  if (cost_zero < cost_non_zero) {
+  if (cost_zero < cost_non_zero ||
+    (cost_zero == cost_non_zero && cu->GetTransformSkip(comp))) {
     cu->SetCbf(comp, false);
     return true;
   }
@@ -141,21 +210,14 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
 
 bool TransformEncoder::EvalRootCbfZero(CodingUnit *cu, const Qp &qp,
                                        const SyntaxWriter &bitstream_writer,
+                                       CuWriter *cu_writer,
                                        Distortion sum_dist_non_zero,
                                        Distortion sum_dist_zero) {
   RdoSyntaxWriter rdo_writer_nonzero(bitstream_writer, 0);
-  // TODO(Dev) Investigate gains of correct root cbf signaling
   for (int c = 0; c < num_components_; c++) {
     const YuvComponent comp = YuvComponent(c);
-    bool cbf = cu->GetCbf(comp);
-    CoeffBuffer cu_coeff = cu->GetCoeff(comp);
-    rdo_writer_nonzero.WriteCbf(*cu, comp, cbf);
-    if (cbf) {
-      rdo_writer_nonzero.WriteTransformSkip(*cu, comp,
-                                            cu->GetTransformSkip(comp));
-      rdo_writer_nonzero.WriteCoefficients(*cu, comp, cu_coeff.GetDataPtr(),
-                                           cu_coeff.GetStride());
-    }
+    // TODO(Dev) Investigate gains of correct root cbf signaling
+    cu_writer->WriteResidualDataRdoCbf(*cu, comp, &rdo_writer_nonzero);
   }
   Bits bits_non_zero = rdo_writer_nonzero.GetNumWrittenBits();
 

@@ -534,12 +534,8 @@ void SyntaxWriter::WriteSplitQuad(const CodingUnit &cu, int max_depth,
 
 void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
                                       bool transform_skip) {
-  if (Restrictions::Get().disable_transform_skip) {
-    assert(!transform_skip);
-    return;
-  }
-  if (cu.GetWidth(comp) * cu.GetHeight(comp) >
-      constants::kTransformSkipMaxArea) {
+  if (Restrictions::Get().disable_transform_skip ||
+      !cu.CanTransformSkip(comp)) {
     assert(!transform_skip);
     return;
   }

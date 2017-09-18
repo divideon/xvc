@@ -49,6 +49,9 @@ public:
                             SyntaxWriter *writer);
   void WriteResidualData(const CodingUnit &cu, YuvComponent comp,
                          SyntaxWriter *writer);
+  // Encoder only method with simplified cbf rdo signaling
+  void WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
+                                  SyntaxWriter *writer) const;
 
 private:
   bool WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,

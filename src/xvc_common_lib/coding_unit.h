@@ -45,6 +45,7 @@ public:
   struct TransformState {
     ReconstructionState reco;
     std::array<bool, constants::kMaxYuvComponents> cbf;
+    std::array<bool, constants::kMaxYuvComponents> transform_skip;
   };
   struct InterState {
     InterDir inter_dir = InterDir::kL0;
@@ -159,6 +160,9 @@ public:
     return cbf_[YuvComponent::kY] || cbf_[YuvComponent::kU] ||
       cbf_[YuvComponent::kV];
   }
+  bool CanTransformSkip(YuvComponent comp) const {
+    return GetWidth(comp) * GetHeight(comp) <= constants::kTransformSkipMaxArea;
+  }
 
   // Prediction
   PredictionMode GetPredMode() const { return pred_mode_; }
@@ -216,10 +220,18 @@ public:
   // State handling
   void Split(SplitType split_type);
   void UnSplit();
+  void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic,
+                   YuvComponent comp) const;
   void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic) const;
+  void SaveStateTo(TransformState *state, const YuvPicture &rec_pic,
+                   YuvComponent comp) const;
   void SaveStateTo(TransformState *state, const YuvPicture &rec_pic) const;
   void SaveStateTo(InterState *state) const;
+  void LoadStateFrom(const ReconstructionState &state, YuvPicture *rec_pic,
+                     YuvComponent comp);
   void LoadStateFrom(const ReconstructionState &state, YuvPicture *rec_pic);
+  void LoadStateFrom(const TransformState &state, YuvPicture *rec_pic,
+                     YuvComponent comp);
   void LoadStateFrom(const TransformState &state, YuvPicture *rec_pic);
   void LoadStateFrom(const InterState &state);
 

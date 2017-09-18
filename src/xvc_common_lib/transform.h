@@ -39,6 +39,9 @@ public:
   explicit InverseTransform(int bitdepth) : bitdepth_(bitdepth) {}
   void Transform(int width, int height, bool is_luma_intra, const Coeff *coeff,
                  ptrdiff_t coeff_stride, Residual *resi, ptrdiff_t resi_stride);
+  void TransformSkip(int width, int height,
+                     const Coeff *coeff, ptrdiff_t coeff_stride,
+                     Residual *resi, ptrdiff_t resi_stride);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
@@ -73,6 +76,9 @@ public:
   void Transform(int width, int height, bool is_luma_intra,
                  const Residual *resi, ptrdiff_t resi_stride,
                  Coeff *coeff, ptrdiff_t coeff_stride);
+  void TransformSkip(int width, int height,
+                     const Residual *resi, ptrdiff_t resi_stride,
+                     Coeff *coeff, ptrdiff_t coeff_stride);
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;

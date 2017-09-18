@@ -529,11 +529,8 @@ SplitType SyntaxReader::ReadSplitQuad(const CodingUnit &cu, int max_depth) {
 }
 
 bool SyntaxReader::ReadTransformSkip(const CodingUnit &cu, YuvComponent comp) {
-  if (Restrictions::Get().disable_transform_skip) {
-    return false;
-  }
-  if (cu.GetWidth(comp) * cu.GetHeight(comp) >
-      constants::kTransformSkipMaxArea) {
+  if (Restrictions::Get().disable_transform_skip ||
+      !cu.CanTransformSkip(comp)) {
     return false;
   }
   ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];

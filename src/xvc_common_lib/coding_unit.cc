@@ -346,27 +346,44 @@ void CodingUnit::UnSplit() {
 }
 
 void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
+                             const YuvPicture &rec_pic,
+                             YuvComponent comp) const {
+  const int c = static_cast<int>(comp);
+  int posx = GetPosX(comp);
+  int posy = GetPosY(comp);
+  // Reco
+  auto reco_src = rec_pic.GetSampleBuffer(comp, posx, posy);
+  SampleBuffer reco_dst(&dst_state->reco[c][0], GetWidth(comp));
+  reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
+  // Coeff
+  DataBuffer<const Coeff> coeff_src =
+    ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+  CoeffBuffer coeff_dst(&dst_state->coeff[c][0], GetWidth(comp));
+  coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
+}
+
+void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
                              const YuvPicture &rec_pic) const {
   for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
-    const int c = static_cast<int>(comp);
-    int posx = GetPosX(comp);
-    int posy = GetPosY(comp);
-    // Reco
-    auto reco_src = rec_pic.GetSampleBuffer(comp, posx, posy);
-    SampleBuffer reco_dst(&dst_state->reco[c][0], GetWidth(comp));
-    reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
-    // Coeff
-    DataBuffer<const Coeff> coeff_src =
-      ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
-    CoeffBuffer coeff_dst(&dst_state->coeff[c][0], GetWidth(comp));
-    coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
+    SaveStateTo(dst_state, rec_pic, comp);
   }
 }
 
 void CodingUnit::SaveStateTo(TransformState *dst_state,
+                             const YuvPicture &rec_pic,
+                             YuvComponent comp) const {
+  SaveStateTo(&dst_state->reco, rec_pic, comp);
+  dst_state->cbf[comp] = cbf_[comp];
+  dst_state->transform_skip[comp] = transform_skip_[comp];
+}
+
+void CodingUnit::SaveStateTo(TransformState *dst_state,
                              const YuvPicture &rec_pic) const {
-  SaveStateTo(&dst_state->reco, rec_pic);
+  for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
+    SaveStateTo(&dst_state->reco, rec_pic, comp);
+  }
   dst_state->cbf = cbf_;
+  dst_state->transform_skip = transform_skip_;
 }
 
 void CodingUnit::SaveStateTo(InterState *state) const {
@@ -374,27 +391,42 @@ void CodingUnit::SaveStateTo(InterState *state) const {
 }
 
 void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
+                               YuvPicture *rec_pic, YuvComponent comp) {
+  const int c = static_cast<int>(comp);
+  int posx = GetPosX(comp);
+  int posy = GetPosY(comp);
+  // Reco
+  DataBuffer<const Sample> reco_src(&src_state.reco[c][0], GetWidth(comp));
+  SampleBuffer reco_dst = rec_pic->GetSampleBuffer(comp, posx, posy);
+  reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
+  // Coeff
+  DataBuffer<const Coeff> coeff_src(&src_state.coeff[c][0], GetWidth(comp));
+  CoeffBuffer coeff_dst =
+    ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
+  coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
+}
+
+void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
                                YuvPicture *rec_pic) {
   for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
-    const int c = static_cast<int>(comp);
-    int posx = GetPosX(comp);
-    int posy = GetPosY(comp);
-    // Reco
-    DataBuffer<const Sample> reco_src(&src_state.reco[c][0], GetWidth(comp));
-    SampleBuffer reco_dst = rec_pic->GetSampleBuffer(comp, posx, posy);
-    reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
-    // Coeff
-    DataBuffer<const Coeff> coeff_src(&src_state.coeff[c][0], GetWidth(comp));
-    CoeffBuffer coeff_dst =
-      ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
-    coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
+    LoadStateFrom(src_state, rec_pic, comp);
   }
 }
 
 void CodingUnit::LoadStateFrom(const TransformState &src_state,
+                               YuvPicture *rec_pic, YuvComponent comp) {
+  LoadStateFrom(src_state.reco, rec_pic, comp);
+  cbf_[comp] = src_state.cbf[comp];
+  transform_skip_[comp] = src_state.transform_skip[comp];
+}
+
+void CodingUnit::LoadStateFrom(const TransformState &src_state,
                                YuvPicture *rec_pic) {
-  LoadStateFrom(src_state.reco, rec_pic);
+  for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
+    LoadStateFrom(src_state.reco, rec_pic, comp);
+  }
   cbf_ = src_state.cbf;
+  transform_skip_ = src_state.transform_skip;
   SetRootCbf(GetHasAnyCbf());
 }
 
