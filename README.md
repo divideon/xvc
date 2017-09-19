@@ -23,7 +23,7 @@ The following C++11 compilers have been known to work:
  * GCC 4.8 or later
  * Clang 3.3 or later
 
-### Normal build steps
+### Linux build steps
 
 The following commands will checkout the project source code and create a
 directory called 'build' where the compiler output will be placed.
@@ -32,8 +32,30 @@ CMake is then used for generating build files and compiling the xvc binaries.
     $ git clone https://github.com/divideon/xvc.git
     $ cd xvc
     $ mkdir build
+    $ cd build
     $ cmake ..
-    $ cmake --build .
+    $ make
+
+This will create xvc encoder and decoder binaries in the xvc/build/app/ folder.
+
+### Windows build steps
+
+The following commands will checkout the project source code and create a
+directory called 'build' where the compiler output will be placed.
+CMake is then used for generating build files and creating the Visual Studio
+solution.
+
+    $ git clone https://github.com/divideon/xvc.git
+    $ cd xvc
+    $ mkdir build
+    $ cd build
+    $ cmake -G "Visual Studio 14 2015 Win64" ..
+
+The -G argument should be adjusted to match your version of Visual Studio and
+the target architecture.
+This will generate a Visual Studio solution called xvc.sln in the build folder.
+After building the solution, the xvc encoder and decoder binaries will be found
+in the xvc/build/app/Release/ folder.
 
 ## Testing the xvc codec
 
