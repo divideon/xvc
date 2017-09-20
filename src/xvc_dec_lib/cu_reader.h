@@ -47,7 +47,9 @@ private:
                            SyntaxReader *reader);
   void ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
                            SyntaxReader *reader);
-  void ReadCoefficients(CodingUnit *cu, YuvComponent comp,
+  void ReadResidualData(CodingUnit *cu, YuvComponent comp,
+                        SyntaxReader *reader);
+  bool ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
                         SyntaxReader *reader);
 
   PictureData *pic_data_;

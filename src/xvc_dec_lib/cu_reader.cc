@@ -100,7 +100,7 @@ void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,
   } else {
     ReadInterPrediction(cu, comp, reader);
   }
-  ReadCoefficients(cu, comp, reader);
+  ReadResidualData(cu, comp, reader);
 }
 
 void CuReader::ReadIntraPrediction(CodingUnit *cu, YuvComponent comp,
@@ -154,7 +154,20 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
   }
 }
 
-void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
+void CuReader::ReadResidualData(CodingUnit *cu, YuvComponent comp,
+                                SyntaxReader *reader) {
+  bool cbf = ReadCbfInvariant(cu, comp, reader);
+  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
+  // coefficient parsing is sparse so zero out in any case
+  cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
+  if (cbf) {
+    ctu_has_coeffs_ = true;
+    reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
+                             cu_coeff_buf.GetStride());
+  }
+}
+
+bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
                                 SyntaxReader *reader) {
   bool signal_root_cbf = cu->IsInter() &&
     !Restrictions::Get().disable_transform_root_cbf &&
@@ -170,10 +183,10 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
         cu->SetCbf(YuvComponent::kY, false);
         cu->SetCbf(YuvComponent::kU, false);
         cu->SetCbf(YuvComponent::kV, false);
+        return false;
       }
-    }
-    if (!cu->GetRootCbf()) {
-      return;
+    } else if (!cu->GetRootCbf()) {
+      return false;
     }
   }
 
@@ -183,6 +196,7 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
   } else if (cu->IsIntra()) {
     cbf = reader->ReadCbf(*cu, comp);
   } else if (util::IsLuma(comp)) {
+    // luma will read cbf for all components
     bool cbf_u = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
     bool cbf_v = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
     cu->SetCbf(YuvComponent::kU, cbf_u);
@@ -190,7 +204,8 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
     if (cbf_u || cbf_v || Restrictions::Get().disable_transform_root_cbf) {
       cbf = reader->ReadCbf(*cu, comp);
     } else {
-      cbf = true;   // implicitly signaled through root cbf
+      // implicitly signaled through root cbf
+      cbf = true;
     }
     if (Restrictions::Get().disable_inter_skip_mode &&
         cu->GetMergeFlag() && !cbf && !cbf_u && !cbf_v) {
@@ -200,15 +215,7 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
     cbf = cu->GetCbf(comp);   // signaled from luma
   }
   cu->SetCbf(comp, cbf);
-
-  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
-  // coefficient parsing is sparse so zero out in any case
-  cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
-  if (cbf) {
-    ctu_has_coeffs_ = true;
-    reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
-                             cu_coeff_buf.GetStride());
-  }
+  return cbf;
 }
 
 }   // namespace xvc

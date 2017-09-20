@@ -89,7 +89,7 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
   } else {
     WriteInterPrediction(cu, comp, writer);
   }
-  WriteCoefficients(cu, comp, writer);
+  WriteResidualData(cu, comp, writer);
 }
 
 void CuWriter::WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
@@ -138,7 +138,18 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
   }
 }
 
-void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+void CuWriter::WriteResidualData(const CodingUnit &cu, YuvComponent comp,
+                                 SyntaxWriter *writer) {
+  bool cbf = WriteCbfInvariant(cu, comp, writer);
+  if (cbf) {
+    ctu_has_coeffs_ = true;
+    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
+                              cu_coeff.GetStride());
+  }
+}
+
+bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
                                  SyntaxWriter *writer) {
   bool signal_root_cbf = cu.IsInter() &&
     !Restrictions::Get().disable_transform_root_cbf &&
@@ -149,7 +160,7 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
       writer->WriteRootCbf(root_cbf);
     }
     if (!root_cbf) {
-      return;
+      return false;
     }
   }
 
@@ -171,12 +182,7 @@ void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
   } else {
     // signaled by luma
   }
-  if (cbf) {
-    ctu_has_coeffs_ = true;
-    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
-    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
-                              cu_coeff.GetStride());
-  }
+  return cbf;
 }
 
 }   // namespace xvc

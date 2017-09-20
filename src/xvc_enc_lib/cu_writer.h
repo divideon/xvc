@@ -47,10 +47,13 @@ public:
                             SyntaxWriter *writer);
   void WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
                             SyntaxWriter *writer);
-  void WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+  void WriteResidualData(const CodingUnit &cu, YuvComponent comp,
                          SyntaxWriter *writer);
 
 private:
+  bool WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
+                         SyntaxWriter *writer);
+
   const PictureData &pic_data_;
   const IntraPrediction *intra_pred_;
   bool ctu_has_coeffs_ = false;
