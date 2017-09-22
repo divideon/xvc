@@ -114,6 +114,7 @@ set(RESTRICTION_DEFINES "" CACHE INTERNAL "Restriction flag control (internal us
 
 if(ENABLE_ASSERTIONS)
   add_definitions(-UNDEBUG)
+  string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " " CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
 if(ENABLE_ASSEMBLY)
@@ -133,14 +134,23 @@ set(cxx_simd_flags "")
 if(MSVC)
   set(cxx_base_flags /GS /W4 /WX /Za)
   set(cxx_exception_flags "-EHsc")
-  set(cxx_strict_flags /we4388 /we4389 /wd4100 /wd4127)
+  set(cxx_strict_flags
+    /we4254 # error: conversion, possible loss of data
+    /we4296 # error: expression is always true/false
+    /we4388 # error: signed/unsigned mismatch
+    /we4389 # error: signed/unsigned mismatch
+    /we4706 # error: assignment within conditional expression
+    /wd4100 # disabled: unreferenced formal parameter
+    /wd4127 # disabled: conditional expression is constant
+  )
   if(CODE_ANALYZE)
     set(cxx_base_flags ${cxx_base_flags} /analyze /wd6240 /wd6326)
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCXX)
   set(cxx_base_flags -Wall -Wshadow)
   set(cxx_exception_flags "-fexceptions")
-  set(cxx_strict_flags -Werror -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
+  set(cxx_strict_flags -Werror -Wextra -Wunused -Wold-style-cast -Wlogical-op -Wpointer-arith
+        -Wno-unused-parameter -Wno-missing-field-initializers)
   if(XVC_HAVE_NEON)
     set(cxx_simd_flags -mfpu=neon)
   endif()
@@ -151,7 +161,7 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(cxx_base_flags -Wshadow)
   set(cxx_exception_flags "-fexceptions")
-  set(cxx_strict_flags -Werror)
+  set(cxx_strict_flags -Werror -Wall -Wno-missing-braces -Wno-unused-const-variable)
   if(XVC_HAVE_NEON)
     set(cxx_simd_flags -mfpu=neon -Wno-error=unused-command-line-argument)
   endif()

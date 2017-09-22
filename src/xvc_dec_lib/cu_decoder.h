@@ -36,8 +36,8 @@ namespace xvc {
 
 class CuDecoder {
 public:
-  CuDecoder(const SimdFunctions &simd, const Qp &pic_qp,
-            YuvPicture *decoded_pic, PictureData *picture_data);
+  CuDecoder(const SimdFunctions &simd, YuvPicture *decoded_pic,
+            PictureData *picture_data);
   void DecodeCtu(int rsaddr, SyntaxReader *reader);
 
 private:
@@ -48,7 +48,6 @@ private:
 
   const Sample min_pel_;
   const Sample max_pel_;
-  const Qp &pic_qp_;
   YuvPicture &decoded_pic_;
   PictureData &pic_data_;
   InterPrediction inter_pred_;

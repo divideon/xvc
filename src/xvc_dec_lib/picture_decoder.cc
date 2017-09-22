@@ -151,7 +151,7 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
   SyntaxReader syntax_reader(qp, pic_data_->GetPredictionType(),
                              &entropy_decoder);
   std::unique_ptr<CuDecoder> cu_decoder(
-    new CuDecoder(simd_, qp, rec_pic_.get(), pic_data_.get()));
+    new CuDecoder(simd_, rec_pic_.get(), pic_data_.get()));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
     cu_decoder->DecodeCtu(rsaddr, &syntax_reader);

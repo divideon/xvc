@@ -59,7 +59,7 @@ static void AddAvgSse2(int width, int height,
                        const int16_t *src2, intptr_t stride2,
                        Sample *dst, intptr_t dst_stride) {
   const int width8 = Width8(width);
-  const __m128i voffset = _mm_set1_epi16((int16_t)offset);
+  const __m128i voffset = _mm_set1_epi16(static_cast<int16_t>(offset));
 #if XVC_HIGH_BITDEPTH
   const __m128i min = _mm_set1_epi16(0);
   const __m128i max = _mm_set1_epi16((1 << bitdepth) - 1);
@@ -105,8 +105,8 @@ static void AddAvgNeon(int width, int height,
                        const int16_t *src2, intptr_t stride2,
                        Sample *dst, intptr_t dst_stride) {
   const int width8 = Width8(width);
-  const int16x8_t vshift = vdupq_n_s16((int16_t)shift * -1);
-  const int16x8_t voffset = vdupq_n_s16((int16_t)offset);
+  const int16x8_t vshift = vdupq_n_s16(static_cast<int16_t>(shift * -1));
+  const int16x8_t voffset = vdupq_n_s16(static_cast<int16_t>(offset));
 #if XVC_HIGH_BITDEPTH
   const int16x8_t min = vdupq_n_s16(0);
   const int16x8_t max = vdupq_n_s16((1 << bitdepth) - 1);
@@ -189,7 +189,7 @@ static void FilterCopyBipredNeon(int width, int height,
                                  const Sample *ref, ptrdiff_t ref_stride,
                                  int16_t *dst, ptrdiff_t dst_stride) {
   const int width8 = Width8(width);
-  const int16x8_t vshift = vdupq_n_s16((int16_t)shift);
+  const int16x8_t vshift = vdupq_n_s16(static_cast<int16_t>(shift));
   const int16x8_t voffset = vdupq_n_s16(offset);
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width8; x += 8) {

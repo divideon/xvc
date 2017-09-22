@@ -117,7 +117,6 @@ private:
   double framerate_ = 0;
   std::unique_ptr<SegmentHeader> segment_header_;
   std::unique_ptr<SegmentHeader> prev_segment_header_;
-  PicNum sub_gop_end_poc_ = 0;
   PicNum sub_gop_start_poc_ = 0;
   bool prev_segment_open_gop_ = false;
   bool curr_segment_open_gop_ = false;

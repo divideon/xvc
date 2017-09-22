@@ -487,10 +487,9 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   RefPicList tmvp_mv_ref_list = ref_pic_list->HasOnlyBackReferences() ?
     ref_list : ReferencePictureLists::Inverse(tmvp_cu_ref_list);
 
-  auto get_temporal_mv =
-    [this, &cu_poc, &cu_ref_poc](const CodingUnit *col_cu,
-                                 RefPicList col_ref_list,
-                                 MotionVector *col_mv) {
+  auto get_temporal_mv = [&cu_poc, &cu_ref_poc](const CodingUnit *col_cu,
+                                                RefPicList col_ref_list,
+                                                MotionVector *col_mv) {
     if (!col_cu->IsInter()) {
       return false;
     }

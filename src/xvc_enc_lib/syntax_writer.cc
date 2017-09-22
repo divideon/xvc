@@ -289,7 +289,7 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                                     golomb_rice_k);
           if (subblock_coeff[i] > 3 * (1 << golomb_rice_k) &&
               !Restrictions::Get().disable_transform_adaptive_exp_golomb) {
-            golomb_rice_k = std::min(golomb_rice_k + 1, (uint32_t)4);
+            golomb_rice_k = std::min(golomb_rice_k + 1, 4u);
           }
         }
         if (subblock_coeff[i] >= 2) {

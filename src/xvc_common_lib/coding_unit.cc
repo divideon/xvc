@@ -43,6 +43,7 @@ CodingUnit::CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
   split_state_(SplitType::kNone),
   pred_mode_(PredictionMode::kIntra),
   cbf_({ { false, false, false } }),
+  transform_skip_({ { false, false, false } }),
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
   qp_(pic_data->GetPicQp()),
   root_cbf_(false),
@@ -62,6 +63,7 @@ CodingUnit& CodingUnit::operator=(const CodingUnit &cu) {
          cu.split_state_ == SplitType::kNone);
   pred_mode_ = cu.pred_mode_;
   cbf_ = cu.cbf_;
+  transform_skip_ = cu.transform_skip_;
   qp_ = cu.qp_;
   root_cbf_ = cu.root_cbf_;
   intra_mode_luma_ = cu.intra_mode_luma_;
@@ -83,6 +85,7 @@ void CodingUnit::CopyPositionAndSizeFrom(const CodingUnit &cu) {
 void CodingUnit::CopyPredictionDataFrom(const CodingUnit &cu) {
   pred_mode_ = cu.pred_mode_;
   cbf_ = cu.cbf_;
+  transform_skip_ = cu.transform_skip_;
   qp_ = cu.qp_;
   root_cbf_ = cu.root_cbf_;
   intra_mode_luma_ = cu.intra_mode_luma_;
