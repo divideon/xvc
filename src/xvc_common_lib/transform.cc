@@ -1018,7 +1018,7 @@ ForwardTransform::TransformSkip(int width, int height,
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
         coeff[y * coeff_stride + x] =
-          (resi[y * resi_stride + x] * scale) << shift;
+          (resi[y * resi_stride + x] * scale) * (1 << shift);
       }
     }
   } else {

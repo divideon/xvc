@@ -150,7 +150,6 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
 
   Cost best_cost = std::numeric_limits<Cost>::max();
   IntraChromaMode best_mode = IntraChromaMode::kDmChroma;
-  CodingUnit::TransformState best_state;
   bool best_loaded = false;
 
   for (int i = 0; i < static_cast<int>(chroma_modes.size()); i++) {
@@ -177,14 +176,14 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
       best_dist = dist;
       best_mode = chroma_modes[i];
       best_loaded = true;
-      cu->SaveStateTo(&best_state, *rec_pic, YuvComponent::kU);
-      cu->SaveStateTo(&best_state, *rec_pic, YuvComponent::kV);
+      cu->SaveStateTo(&best_cu_best_, *rec_pic, YuvComponent::kU);
+      cu->SaveStateTo(&best_cu_best_, *rec_pic, YuvComponent::kV);
     }
   }
   cu->SetIntraModeChroma(best_mode);
   if (!best_loaded) {
-    cu->LoadStateFrom(best_state, rec_pic, YuvComponent::kU);
-    cu->LoadStateFrom(best_state, rec_pic, YuvComponent::kV);
+    cu->LoadStateFrom(best_cu_best_, rec_pic, YuvComponent::kU);
+    cu->LoadStateFrom(best_cu_best_, rec_pic, YuvComponent::kV);
   }
   return best_dist;
 }

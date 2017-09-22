@@ -49,6 +49,7 @@ private:
   const PictureData &pic_data_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
+  CodingUnit::TransformState best_cu_best_;
   CuWriter cu_writer_;
 };
 
