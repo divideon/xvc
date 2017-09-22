@@ -72,7 +72,7 @@ namespace constants {
 
 // xvc version
 const uint32_t kXvcCodecIdentifier = 7894627;
-const uint32_t kXvcMajorVersion = 1;
+const uint32_t kXvcMajorVersion = 2;
 const uint32_t kXvcMinorVersion = 0;
 
 // Picture
