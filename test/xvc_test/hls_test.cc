@@ -80,6 +80,17 @@ TEST_F(HlsTest, RecvLowerMajorVersion) {
   EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
 }
 
+TEST_F(HlsTest, RecvMajorVersionZero) {
+  EncodeWithVersion(0,
+                    xvc::constants::kXvcMinorVersion);
+  DecodeSegmentHeaderFailed(GetNextNalToDecode());
+  ASSERT_EQ(::xvc::Decoder::State::kBitstreamVersionTooLow,
+            decoder_->GetState());
+  DecodePictureFailed(GetNextNalToDecode());
+  EXPECT_EQ(::xvc::Decoder::State::kBitstreamVersionTooLow,
+            decoder_->GetState());
+}
+
 TEST_F(HlsTest, RecvLargerMinorVersion) {
   EncodeWithVersion(xvc::constants::kXvcMajorVersion,
                     xvc::constants::kXvcMinorVersion + 1);

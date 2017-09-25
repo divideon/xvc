@@ -50,6 +50,7 @@ public:
     kDecoderVersionTooLow,
     kBitstreamBitdepthTooHigh,
     kChecksumMismatch,
+    kBitstreamVersionTooLow,
   };
 
   explicit Decoder(int num_threads);

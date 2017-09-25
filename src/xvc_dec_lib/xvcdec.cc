@@ -158,6 +158,8 @@ extern "C" {
     xvc::Decoder::State dec_state = lib_decoder->GetState();
     if (dec_state == xvc::Decoder::State::kDecoderVersionTooLow) {
       return XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER;
+    } else if (dec_state == xvc::Decoder::State::kBitstreamVersionTooLow) {
+      return XVC_DEC_BITSTREAM_VERSION_LOWER_THAN_SUPPORTED_BY_DECODER;
     } else if (dec_state == xvc::Decoder::State::kBitstreamBitdepthTooHigh) {
       return XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH;
     } else if (dec_state == xvc::Decoder::State::kNoSegmentHeader) {
@@ -229,7 +231,7 @@ extern "C" {
         return "Invalid bitdepth";
       case XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER:
         return "The xvc version indicated in the segment header is "
-          "higher than the xvc version of the decoder."
+          "higher than the xvc version of the decoder. "
           "Please update the xvc decoder to the latest version.";
       case XVC_DEC_NO_SEGMENT_HEADER_DECODED:
         return "No segment header decoded";
@@ -240,6 +242,11 @@ extern "C" {
           "(by setting XVC_HIGH_BITDEPTH equal to 1).";
       case XVC_DEC_INVALID_PARAMETER:
         return "Invalid parameter";
+      case XVC_DEC_BITSTREAM_VERSION_LOWER_THAN_SUPPORTED_BY_DECODER:
+        return "Non-conforming bitstream detected. "
+          "The xvc version indicated in the segment header is "
+          "lower than what is supported by this version of the decoder. "
+          "Please convert the bitstream to a supported version.";
       default:
         return "Unkown error";
     }

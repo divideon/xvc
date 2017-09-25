@@ -71,7 +71,8 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
   }
   if (state_ == State::kNoSegmentHeader ||
       state_ == State::kDecoderVersionTooLow ||
-      state_ == State::kBitstreamBitdepthTooHigh) {
+      state_ == State::kBitstreamBitdepthTooHigh ||
+      state_ == State::kBitstreamVersionTooLow) {
     // Do not decode anything else than a segment header if
     // no segment header has been decoded or if the xvc version
     // of the decoder is identified to be too low or if the

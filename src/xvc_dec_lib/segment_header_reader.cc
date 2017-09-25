@@ -34,6 +34,10 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     return Decoder::State::kDecoderVersionTooLow;
   }
   segment_header->minor_version = bit_reader->ReadBits(16);
+  if (!SupportedBitstreamVersion(segment_header->major_version,
+                                 segment_header->minor_version)) {
+    return Decoder::State::kBitstreamVersionTooLow;
+  }
   segment_header->SetWidth(bit_reader->ReadBits(16));
   segment_header->SetHeight(bit_reader->ReadBits(16));
   segment_header->chroma_format = ChromaFormat(bit_reader->ReadBits(4));
@@ -112,7 +116,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_transform_root_cbf |= !!bit_reader->ReadBit();
     restr.disable_transform_cbf |= !!bit_reader->ReadBit();
     restr.disable_transform_subblock_csbf |= !!bit_reader->ReadBit();
-    restr.disable_transform_skip |= !!bit_reader->ReadBit();
+    if (segment_header->major_version > 1) {
+      restr.disable_transform_skip |= !!bit_reader->ReadBit();
+    }
     restr.disable_transform_sign_hiding |= !!bit_reader->ReadBit();
     restr.disable_transform_adaptive_exp_golomb |= !!bit_reader->ReadBit();
   }
@@ -169,10 +175,30 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext_deblock_subblock_size_4 |= !!bit_reader->ReadBit();
   }
 
+  if (segment_header->major_version <= 1) {
+    restr.disable_transform_skip = true;
+  }
+
   Restrictions::GetRW() = restr;
 
   segment_header->soc = segment_counter;
   return Decoder::State::kSegmentHeaderDecoded;
+}
+
+bool SegmentHeaderReader::SupportedBitstreamVersion(uint32_t major_version,
+                                                    uint32_t minor_version) {
+  if (major_version == constants::kXvcMajorVersion &&
+      minor_version >= constants::kXvcMinorVersion) {
+    return true;
+  }
+  int length = sizeof(constants::kSupportedOldBitstreamVersions) /
+    sizeof(constants::kSupportedOldBitstreamVersions[0]);
+  for (int i = 0; i < length; i++) {
+    if (constants::kSupportedOldBitstreamVersions[i][0] == major_version &&
+        constants::kSupportedOldBitstreamVersions[i][1] <= minor_version)
+      return true;
+  }
+  return false;
 }
 
 }   // namespace xvc
