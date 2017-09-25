@@ -32,8 +32,8 @@ public:
                              BitReader *bit_reader,
                              SegmentNum segment_counter);
 
-  static bool SupportedBitstreamVersion(int major_version,
-                                        int minor_version);
+  static bool SupportedBitstreamVersion(uint32_t major_version,
+                                        uint32_t minor_version);
 };
 
 }   // namespace xvc

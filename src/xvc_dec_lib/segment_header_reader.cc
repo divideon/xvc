@@ -185,10 +185,11 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   return Decoder::State::kSegmentHeaderDecoded;
 }
 
-bool SegmentHeaderReader::SupportedBitstreamVersion(int major_version,
-                                                    int minor_version) {
+bool SegmentHeaderReader::SupportedBitstreamVersion(uint32_t major_version,
+                                                    uint32_t minor_version) {
   if (major_version == constants::kXvcMajorVersion &&
-      minor_version >= constants::kXvcMinorVersion) {
+      static_cast<int>(minor_version) >=
+      static_cast<int>(constants::kXvcMinorVersion)) {
     return true;
   }
   int length = sizeof(constants::kSupportedOldBitstreamVersions) /
