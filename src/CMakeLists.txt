@@ -41,6 +41,8 @@ set(XVC_COMMON_LIB_SOURCES
     "xvc_common_lib/simd_functions.h"
     "xvc_common_lib/transform.cc"
     "xvc_common_lib/transform.h"
+    "xvc_common_lib/transform_data.cc"
+    "xvc_common_lib/transform_data.h"
     "xvc_common_lib/utils.cc"
     "xvc_common_lib/utils.h"
     "xvc_common_lib/utils_md5.cc"

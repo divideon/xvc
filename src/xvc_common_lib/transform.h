@@ -24,6 +24,7 @@
 
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/common.h"
+#include "xvc_common_lib/transform_data.h"
 
 namespace xvc {
 
@@ -34,7 +35,7 @@ enum class ScanOrder : int {
   kTotalNumber = 3,
 };
 
-class InverseTransform {
+class InverseTransform : public TransformData {
 public:
   explicit InverseTransform(int bitdepth) : bitdepth_(bitdepth) {}
   void Transform(int width, int height, bool is_luma_intra, const Coeff *coeff,
@@ -44,25 +45,32 @@ public:
                      Residual *resi, ptrdiff_t resi_stride);
 
 private:
+  static const int kTransformExtendedPrecision = 2;
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
-  void InvPartialDST4(int shift, const Coeff *in,
+  void InvPartialDST4(int shift, bool high_prec, const Coeff *in,
                       ptrdiff_t in_stride, Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform2(int shift, int lines, bool zero_out,
+  void InvPartialTransform2(int shift, int lines,
+                            bool high_prec, bool zero_out,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform4(int shift, int lines, bool zero_out,
+  void InvPartialTransform4(int shift, int lines,
+                            bool high_prec, bool zero_out,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform8(int shift, int lines, bool zero_out,
+  void InvPartialTransform8(int shift, int lines,
+                            bool high_prec, bool zero_out,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform16(int shift, int lines, bool zero_out,
+  void InvPartialTransform16(int shift, int lines,
+                             bool high_prec, bool zero_out,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform32(int shift, int lines, bool zero_out,
+  void InvPartialTransform32(int shift, int lines,
+                             bool high_prec, bool zero_out,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
-  void InvPartialTransform64(int shift, int lines, bool zero_out,
+  void InvPartialTransform64(int shift, int lines,
+                             bool high_prec, bool zero_out,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
 
@@ -70,7 +78,7 @@ private:
   std::array<Coeff, kBufferStride_ * kBufferStride_> coeff_temp_;
 };
 
-class ForwardTransform {
+class ForwardTransform : public TransformData {
 public:
   explicit ForwardTransform(int bitdepth) : bitdepth_(bitdepth) {}
   void Transform(int width, int height, bool is_luma_intra,
@@ -82,24 +90,31 @@ public:
 
 private:
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
-  void FwdPartialDST4(int shift, const Coeff *in, ptrdiff_t in_stride,
+  void FwdPartialDST4(int shift, bool high_prec,
+                      const Coeff *in, ptrdiff_t in_stride,
                       Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialTransform2(int shift, int lines, bool zero_out,
+  void FwdPartialTransform2(int shift, int lines,
+                            bool high_prec, bool zero_out,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialTransform4(int shift, int lines, bool zero_out,
+  void FwdPartialTransform4(int shift, int lines,
+                            bool high_prec, bool zero_out,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialTransform8(int shift, int lines, bool zero_out,
+  void FwdPartialTransform8(int shift, int lines,
+                            bool high_prec, bool zero_out,
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialTransform16(int shift, int lines, bool zero_out,
+  void FwdPartialTransform16(int shift, int lines,
+                             bool high_prec, bool zero_out,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialTransform32(int shift, int lines, bool zero_out,
+  void FwdPartialTransform32(int shift, int lines,
+                             bool high_prec, bool zero_out,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialTransform64(int shift, int lines, bool zero_out,
+  void FwdPartialTransform64(int shift, int lines,
+                             bool high_prec, bool zero_out,
                              const Coeff *in, ptrdiff_t in_stride,
                              Coeff *out, ptrdiff_t out_stride);
 

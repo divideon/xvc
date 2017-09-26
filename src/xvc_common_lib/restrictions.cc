@@ -276,6 +276,10 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_EXT_DEBLOCK_SUBBLOCK_SIZE_4
   disable_ext_deblock_subblock_size_4 = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT_TRANSFORM_HIGH_PRECISION
+  disable_ext_transform_high_precision = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
@@ -288,6 +292,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_tmvp_exclude_intra_from_ref_list = true;
     disable_ext_ref_list_l0_trim = true;
     disable_ext_intra_unrestricted_predictor = true;
+    disable_ext_transform_high_precision = true;
   }
   if (mode == RestrictedMode::kModeA) {
     disable_ext_sink = true;

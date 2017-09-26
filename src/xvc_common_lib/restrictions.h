@@ -122,7 +122,8 @@ public:
       disable_ext_two_cu_trees ||
       disable_ext_transform_size_64 ||
       disable_ext_intra_unrestricted_predictor ||
-      disable_ext_deblock_subblock_size_4;
+      disable_ext_deblock_subblock_size_4 ||
+      disable_ext_transform_high_precision;
   }
 
   bool disable_intra_ref_padding = false;
@@ -188,6 +189,7 @@ public:
   bool disable_ext_transform_size_64 = false;
   bool disable_ext_intra_unrestricted_predictor = false;
   bool disable_ext_deblock_subblock_size_4 = false;
+  bool disable_ext_transform_high_precision = false;
 
 private:
   // The GetRW function shall be used only when there is a need to
