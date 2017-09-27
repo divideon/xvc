@@ -150,6 +150,9 @@ public:
   void SetTransformSkip(YuvComponent comp, bool tx_skip) {
     transform_skip_[comp] = tx_skip;
   }
+  TransformType GetTransformType(YuvComponent comp, int idx) const {
+    return transform_type_[comp != YuvComponent::kY][idx];
+  }
   CoeffBuffer GetCoeff(YuvComponent comp) {
     return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   }
@@ -246,11 +249,13 @@ private:
   int depth_;
   SplitType split_state_;
   PredictionMode pred_mode_;
-  std::array<bool, constants::kMaxYuvComponents> cbf_;
-  std::array<bool, constants::kMaxYuvComponents> transform_skip_;
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
   const Qp *qp_;
   bool root_cbf_;
+  std::array<bool, constants::kMaxYuvComponents> cbf_;
+  std::array<bool, constants::kMaxYuvComponents> transform_skip_;
+  std::array<std::array<TransformType, 2>,
+    constants::kMaxNumPlanes> transform_type_;
   // Intra
   IntraMode intra_mode_luma_;
   IntraChromaMode intra_mode_chroma_;

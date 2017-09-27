@@ -37,6 +37,30 @@ public:
   static const int16_t kDct2Transform16High[16][16];
   static const int16_t kDct2Transform32High[32][32];
   static const int16_t kDct2Transform64High[64][64];
+  // DCT-5 (8 bits precision)
+  static const int16_t kDct5Transform4High[4 * 4];
+  static const int16_t kDct5Transform8High[8 * 8];
+  static const int16_t kDct5Transform16High[16 * 16];
+  static const int16_t kDct5Transform32High[32 * 32];
+  static const int16_t kDct5Transform64High[64 * 64];
+  // DCT-8 (8 bits precision)
+  static const int16_t kDct8Transform4High[4 * 4];
+  static const int16_t kDct8Transform8High[8 * 8];
+  static const int16_t kDct8Transform16High[16 * 16];
+  static const int16_t kDct8Transform32High[32 * 32];
+  static const int16_t kDct8Transform64High[64 * 64];
+  // DST-1 (8 bits precision)
+  static const int16_t kDst1Transform4High[4 * 4];
+  static const int16_t kDst1Transform8High[8 * 8];
+  static const int16_t kDst1Transform16High[16 * 16];
+  static const int16_t kDst1Transform32High[32 * 32];
+  static const int16_t kDst1Transform64High[64 * 64];
+  // DST-7 (8 bits precision)
+  static const int16_t kDst7Transform4High[4 * 4];
+  static const int16_t kDst7Transform8High[8 * 8];
+  static const int16_t kDst7Transform16High[16 * 16];
+  static const int16_t kDst7Transform32High[32 * 32];
+  static const int16_t kDst7Transform64High[64 * 64];
 };
 
 }   // namespace xvc

@@ -65,84 +65,92 @@ std::array<std::array<uint8_t, 16>, 3> TransformHelper::kScanCoeff4x4 = { {
   { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 },
 } };
 
-void InverseTransform::Transform(int width, int height, bool is_luma_intra,
-                                 const Coeff *coeff, ptrdiff_t coeff_stride,
-                                 Residual *resi, ptrdiff_t resi_stride) {
+void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
+                                 const CoeffBuffer &in_buffer,
+                                 ResidualBuffer *out_buffer) {
+  const int width = cu.GetWidth(comp);
+  const int height = cu.GetHeight(comp);
+  const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra();
   const bool default_high_precision =
     !Restrictions::Get().disable_ext_transform_high_precision;
+  // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool high_prec1 = default_high_precision || height >= 64 || height == 2;
   const bool high_prec2 = default_high_precision || width >= 64 || width == 2;
   const int shift1 = 7 +
     (high_prec1 ? kTransformHighPrecisionShift : 0);
   const int shift2 = 20 - bitdepth_ +
     (high_prec2 ? kTransformHighPrecisionShift : 0);
+  const Coeff *coeff = in_buffer.GetDataPtr();
+  const ptrdiff_t coeff_stride = in_buffer.GetStride();
+  Residual *resi = out_buffer->GetDataPtr();
+  const ptrdiff_t resi_stride = out_buffer->GetStride();
   Coeff *temp_ptr = &coeff_temp_[0];
   const ptrdiff_t temp_stride = kBufferStride_;
 
-  switch (height) {
-    case 2:
-      InvPartialTransform2(shift1, width, high_prec1, true,
-                           coeff, coeff_stride, temp_ptr, temp_stride);
-      break;
-    case 4:
-      if (width == 4 && is_luma_intra) {
+  switch (cu.GetTransformType(comp, 0)) {
+    case TransformType::kDefault:
+      if (can_dst_4x4 && width == 4 && height == 4) {
         InvPartialDST4(shift1, high_prec1, coeff, coeff_stride,
                        temp_ptr, temp_stride);
       } else {
-        InvPartialTransform4(shift1, width, high_prec1, true,
-                             coeff, coeff_stride, temp_ptr, temp_stride);
+        InvDct2(height, shift1, width, high_prec1, true,
+                coeff, coeff_stride, temp_ptr, temp_stride);
       }
       break;
-    case 8:
-      InvPartialTransform8(shift1, width, high_prec1, true,
-                           coeff, coeff_stride, temp_ptr, temp_stride);
+    case TransformType::kDCT2:
+      InvDct2(height, shift1, width, high_prec1, true,
+              coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case 16:
-      InvPartialTransform16(shift1, width, high_prec1, true,
-                            coeff, coeff_stride, temp_ptr, temp_stride);
+    case TransformType::kDCT5:
+      InvDct5(height, shift1, width, high_prec1, true,
+              coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case 32:
-      InvPartialTransform32(shift1, width, high_prec1, true,
-                            coeff, coeff_stride, temp_ptr, temp_stride);
+    case TransformType::kDCT8:
+      InvDct8(height, shift1, width, high_prec1, true,
+              coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case 64:
-      InvPartialTransform64(shift1, width, high_prec1, true,
-                            coeff, coeff_stride, temp_ptr, temp_stride);
+    case TransformType::kDST1:
+      InvDst1(height, shift1, width, high_prec1, true,
+              coeff, coeff_stride, temp_ptr, temp_stride);
+      break;
+    case TransformType::kDST7:
+      InvDst7(height, shift1, width, high_prec1, true,
+              coeff, coeff_stride, temp_ptr, temp_stride);
       break;
     default:
       assert(0);
       break;
   }
 
-  switch (width) {
-    case 2:
-      InvPartialTransform2(shift2, height, high_prec2, false,
-                           temp_ptr, temp_stride, resi, resi_stride);
-      break;
-    case 4:
-      if (height == 4 && is_luma_intra) {
+  switch (cu.GetTransformType(comp, 1)) {
+    case TransformType::kDefault:
+      if (can_dst_4x4 && width == 4 && height == 4) {
         InvPartialDST4(shift2, high_prec2, temp_ptr, temp_stride,
                        resi, resi_stride);
       } else {
-        InvPartialTransform4(shift2, height, high_prec2, false,
-                             temp_ptr, temp_stride, resi, resi_stride);
+        InvDct2(width, shift2, height, high_prec2, false,
+                temp_ptr, temp_stride, resi, resi_stride);
       }
       break;
-    case 8:
-      InvPartialTransform8(shift2, height, high_prec2, false,
-                           temp_ptr, temp_stride, resi, resi_stride);
+    case TransformType::kDCT2:
+      InvDct2(width, shift2, height, high_prec2, false,
+              temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case 16:
-      InvPartialTransform16(shift2, height, high_prec2, false,
-                            temp_ptr, temp_stride, resi, resi_stride);
+    case TransformType::kDCT5:
+      InvDct5(width, shift2, height, high_prec2, false,
+              temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case 32:
-      InvPartialTransform32(shift2, height, high_prec2, false,
-                            temp_ptr, temp_stride, resi, resi_stride);
+    case TransformType::kDCT8:
+      InvDct8(width, shift2, height, high_prec2, false,
+              temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case 64:
-      InvPartialTransform64(shift2, height, high_prec2, false,
-                            temp_ptr, temp_stride, resi, resi_stride);
+    case TransformType::kDST1:
+      InvDst1(width, shift2, height, high_prec2, false,
+              temp_ptr, temp_stride, resi, resi_stride);
+      break;
+    case TransformType::kDST7:
+      InvDst7(width, shift2, height, high_prec2, false,
+              temp_ptr, temp_stride, resi, resi_stride);
       break;
     default:
       assert(0);
@@ -151,8 +159,13 @@ void InverseTransform::Transform(int width, int height, bool is_luma_intra,
 }
 
 void InverseTransform::TransformSkip(int width, int height,
-                                     const Coeff *coeff, ptrdiff_t coeff_stride,
-                                     Residual *resi, ptrdiff_t resi_stride) {
+                                     const CoeffBuffer &in_buffer,
+                                     ResidualBuffer *out_buffer) {
+  const Coeff *coeff = in_buffer.GetDataPtr();
+  const ptrdiff_t coeff_stride = in_buffer.GetStride();
+  Residual *resi = out_buffer->GetDataPtr();
+  const ptrdiff_t resi_stride = out_buffer->GetStride();
+
   // TODO(PH) Duplicate code that should be extracted to common function
   const bool size_rounding_bias =
     (util::SizeToLog2(width) + util::SizeToLog2(height)) % 2 != 0;
@@ -205,12 +218,180 @@ void InverseTransform::InvPartialDST4(int shift, bool high_prec,
   }
 }
 
+void InverseTransform::InvDct2(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  switch (size) {
+    case 2:
+      InvDct2Transform2(shift, lines, high_prec, zero_out,
+                        in, in_stride, out, out_stride);
+      break;
+    case 4:
+      InvDct2Transform4(shift, lines, high_prec, zero_out,
+                        in, in_stride, out, out_stride);
+      break;
+    case 8:
+      InvDct2Transform8(shift, lines, high_prec, zero_out,
+                        in, in_stride, out, out_stride);
+      break;
+    case 16:
+      InvDct2Transform16(shift, lines, high_prec, zero_out,
+                         in, in_stride, out, out_stride);
+      break;
+    case 32:
+      InvDct2Transform32(shift, lines, high_prec, zero_out,
+                         in, in_stride, out, out_stride);
+      break;
+    case 64:
+      InvDct2Transform64(shift, lines, high_prec, zero_out,
+                         in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void InverseTransform::InvDct5(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      InvGenericTransformN<4>(shift, lines, zero_out, kDct5Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      InvGenericTransformN<8>(shift, lines, zero_out, kDct5Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      InvGenericTransformN<16>(shift, lines, zero_out, kDct5Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      InvGenericTransformN<32>(shift, lines, zero_out, kDct5Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      InvGenericTransformN<64>(shift, lines, zero_out, kDct5Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void InverseTransform::InvDct8(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      InvGenericTransformN<4>(shift, lines, zero_out, kDct8Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      InvGenericTransformN<8>(shift, lines, zero_out, kDct8Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      InvGenericTransformN<16>(shift, lines, zero_out, kDct8Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      InvGenericTransformN<32>(shift, lines, zero_out, kDct8Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      InvGenericTransformN<64>(shift, lines, zero_out, kDct8Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void InverseTransform::InvDst1(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      InvGenericTransformN<4>(shift, lines, zero_out, kDst1Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      InvGenericTransformN<8>(shift, lines, zero_out, kDst1Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      InvGenericTransformN<16>(shift, lines, zero_out, kDst1Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      InvGenericTransformN<32>(shift, lines, zero_out, kDst1Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      InvGenericTransformN<64>(shift, lines, zero_out, kDst1Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void InverseTransform::InvDst7(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      InvGenericTransformN<4>(shift, lines, zero_out, kDst7Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      InvGenericTransformN<8>(shift, lines, zero_out, kDst7Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      InvGenericTransformN<16>(shift, lines, zero_out, kDst7Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      InvGenericTransformN<32>(shift, lines, zero_out, kDst7Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      InvGenericTransformN<64>(shift, lines, zero_out, kDst7Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
 void
-InverseTransform::InvPartialTransform2(int shift, int lines,
-                                       bool high_prec, bool zero_out,
-                                       const Coeff *in, ptrdiff_t in_stride,
-                                       Coeff *out, ptrdiff_t out_stride) {
-  assert(high_prec);
+InverseTransform::InvDct2Transform2(int shift, int lines,
+                                    bool high_prec, bool zero_out,
+                                    const Coeff *in, ptrdiff_t in_stride,
+                                    Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
   const auto &kMatrix = kDct2Transform2High;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -236,10 +417,10 @@ InverseTransform::InvPartialTransform2(int shift, int lines,
 }
 
 void
-InverseTransform::InvPartialTransform4(int shift, int lines,
-                                       bool high_prec, bool zero_out,
-                                       const Coeff *in, ptrdiff_t in_stride,
-                                       Coeff *out, ptrdiff_t out_stride) {
+InverseTransform::InvDct2Transform4(int shift, int lines,
+                                    bool high_prec, bool zero_out,
+                                    const Coeff *in, ptrdiff_t in_stride,
+                                    Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform4High : kDct2Transform4;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -273,10 +454,10 @@ InverseTransform::InvPartialTransform4(int shift, int lines,
 }
 
 void
-InverseTransform::InvPartialTransform8(int shift, int lines,
-                                       bool high_prec, bool zero_out,
-                                       const Coeff *in, ptrdiff_t in_stride,
-                                       Coeff *out, ptrdiff_t out_stride) {
+InverseTransform::InvDct2Transform8(int shift, int lines,
+                                    bool high_prec, bool zero_out,
+                                    const Coeff *in, ptrdiff_t in_stride,
+                                    Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform8High : kDct2Transform8;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -319,10 +500,10 @@ InverseTransform::InvPartialTransform8(int shift, int lines,
 }
 
 void
-InverseTransform::InvPartialTransform16(int shift, int lines,
-                                        bool high_prec, bool zero_out,
-                                        const Coeff *in, ptrdiff_t in_stride,
-                                        Coeff *out, ptrdiff_t out_stride) {
+InverseTransform::InvDct2Transform16(int shift, int lines,
+                                     bool high_prec, bool zero_out,
+                                     const Coeff *in, ptrdiff_t in_stride,
+                                     Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform16High : kDct2Transform16;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -380,10 +561,10 @@ InverseTransform::InvPartialTransform16(int shift, int lines,
 }
 
 void
-InverseTransform::InvPartialTransform32(int shift, int lines,
-                                        bool high_prec, bool zero_out,
-                                        const Coeff *in, ptrdiff_t in_stride,
-                                        Coeff *out, ptrdiff_t out_stride) {
+InverseTransform::InvDct2Transform32(int shift, int lines,
+                                     bool high_prec, bool zero_out,
+                                     const Coeff *in, ptrdiff_t in_stride,
+                                     Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform32High : kDct2Transform32;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -468,11 +649,12 @@ InverseTransform::InvPartialTransform32(int shift, int lines,
 }
 
 void
-InverseTransform::InvPartialTransform64(int shift, int lines,
-                                        bool high_prec, bool zero_out,
-                                        const Coeff *in, ptrdiff_t in_stride,
-                                        Coeff *out, ptrdiff_t out_stride) {
-  assert(high_prec);
+InverseTransform::InvDct2Transform64(int shift, int lines,
+                                     bool high_prec, bool zero_out,
+                                     const Coeff *in, ptrdiff_t in_stride,
+                                     Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
   const auto &kMatrix = kDct2Transform64High;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -613,9 +795,42 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
   }
 }
 
-void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
-                                 const Residual *resi, ptrdiff_t resi_stride,
-                                 Coeff *coeff, ptrdiff_t coeff_stride) {
+template<int N>
+void
+InverseTransform::InvGenericTransformN(int shift, int lines, bool zero_out,
+                                       const Coeff(&kMatrix)[N * N],
+                                       const Coeff *in, ptrdiff_t in_stride,
+                                       Coeff *out, ptrdiff_t out_stride) {
+  const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
+  const int in_rows = std::min(N, constants::kTransformZeroOutMinSize);
+
+  for (int y = 0; y < tx_lines; y++) {
+    for (int x = 0; x < N; x++) {
+      int sum = 0;
+      for (int k = 0; k < in_rows; k++) {
+        sum += kMatrix[k * N + x] * in[k * in_stride];
+      }
+      out[x] = util::Clip3((sum + add) >> shift,
+                           constants::kInt16Min, constants::kInt16Max);
+    }
+    in++;
+    out += out_stride;
+  }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * N);
+    out += out_stride;
+  }
+}
+
+void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
+                                 const ResidualBuffer &in_buffer,
+                                 CoeffBuffer *out_buffer) {
+  const int width = cu.GetWidth(comp);
+  const int height = cu.GetHeight(comp);
+  const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra();
+  // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool default_high_precision =
     !Restrictions::Get().disable_ext_transform_high_precision;
   const bool high_prec1 = default_high_precision || width >= 64 || width == 2;
@@ -624,74 +839,77 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
     (high_prec1 ? kTransformHighPrecisionShift : 0);
   const int shift2 = util::SizeToLog2(height) + 6 +
     (high_prec2 ? kTransformHighPrecisionShift : 0);
+  const Residual *resi_ptr = in_buffer.GetDataPtr();
+  ptrdiff_t resi_stride = in_buffer.GetStride();
+  Coeff *coeff_ptr = out_buffer->GetDataPtr();
+  const ptrdiff_t coeff_stride = out_buffer->GetStride();
   Coeff *temp_ptr = &coeff_temp_[0];
   const ptrdiff_t temp_stride = kBufferStride_;
 
-  switch (width) {
-    case 2:
-      FwdPartialTransform2(shift1, height, high_prec1, false,
-                           resi, resi_stride, temp_ptr, temp_stride);
-      break;
-    case 4:
-      if (height == 4 && is_luma_intra) {
-        FwdPartialDST4(shift1, high_prec1, resi, resi_stride,
+  switch (cu.GetTransformType(comp, 1)) {
+    case TransformType::kDefault:
+      if (can_dst_4x4 && width == 4 && height == 4) {
+        FwdPartialDST4(shift1, high_prec1, resi_ptr, resi_stride,
                        temp_ptr, temp_stride);
       } else {
-        FwdPartialTransform4(shift1, height, high_prec1, false,
-                             resi, resi_stride, temp_ptr, temp_stride);
+        FwdDct2(width, shift1, height, high_prec1, false,
+                resi_ptr, resi_stride, temp_ptr, temp_stride);
       }
       break;
-    case 8:
-      FwdPartialTransform8(shift1, height, high_prec1, false,
-                           resi, resi_stride, temp_ptr, temp_stride);
+    case TransformType::kDCT2:
+      FwdDct2(width, shift1, height, high_prec1, false,
+              resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case 16:
-      FwdPartialTransform16(shift1, height, high_prec1, false,
-                            resi, resi_stride, temp_ptr, temp_stride);
+    case TransformType::kDCT5:
+      FwdDct5(width, shift1, height, high_prec1, false,
+              resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case 32:
-      FwdPartialTransform32(shift1, height, high_prec1, false,
-                            resi, resi_stride, temp_ptr, temp_stride);
+    case TransformType::kDCT8:
+      FwdDct8(width, shift1, height, high_prec1, false,
+              resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case 64:
-      FwdPartialTransform64(shift1, height, high_prec1, false,
-                            resi, resi_stride, temp_ptr, temp_stride);
+    case TransformType::kDST1:
+      FwdDst1(width, shift1, height, high_prec1, false,
+              resi_ptr, resi_stride, temp_ptr, temp_stride);
+      break;
+    case TransformType::kDST7:
+      FwdDst7(width, shift1, height, high_prec1, false,
+              resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
     default:
       assert(0);
       break;
   }
 
-  switch (height) {
-    case 2:
-      FwdPartialTransform2(shift2, width, high_prec2, true,
-                           temp_ptr, temp_stride,
-                           coeff, coeff_stride);
-      break;
-    case 4:
-      if (width == 4 && is_luma_intra) {
+  switch (cu.GetTransformType(comp, 0)) {
+    case TransformType::kDefault:
+      if (can_dst_4x4 && width == 4 && height == 4) {
         FwdPartialDST4(shift2, high_prec2, temp_ptr, temp_stride,
-                       coeff, coeff_stride);
+                       coeff_ptr, coeff_stride);
       } else {
-        FwdPartialTransform4(shift2, width, high_prec2, true,
-                             temp_ptr, temp_stride, coeff, coeff_stride);
+        FwdDct2(height, shift2, width, high_prec2, true,
+                temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       }
       break;
-    case 8:
-      FwdPartialTransform8(shift2, width, high_prec2, true,
-                           temp_ptr, temp_stride, coeff, coeff_stride);
+    case TransformType::kDCT2:
+      FwdDct2(height, shift2, width, high_prec2, true,
+              temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case 16:
-      FwdPartialTransform16(shift2, width, high_prec2, true,
-                            temp_ptr, temp_stride, coeff, coeff_stride);
+    case TransformType::kDCT5:
+      FwdDct5(height, shift2, width, high_prec2, true,
+              temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case 32:
-      FwdPartialTransform32(shift2, width, high_prec2, true,
-                            temp_ptr, temp_stride, coeff, coeff_stride);
+    case TransformType::kDCT8:
+      FwdDct8(height, shift2, width, high_prec2, true,
+              temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case 64:
-      FwdPartialTransform64(shift2, width, high_prec2, true,
-                            temp_ptr, temp_stride, coeff, coeff_stride);
+    case TransformType::kDST1:
+      FwdDst1(height, shift2, width, high_prec2, true,
+              temp_ptr, temp_stride, coeff_ptr, coeff_stride);
+      break;
+    case TransformType::kDST7:
+      FwdDst7(height, shift2, width, high_prec2, true,
+              temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
     default:
       assert(0);
@@ -701,8 +919,13 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
 
 void
 ForwardTransform::TransformSkip(int width, int height,
-                                const Residual *resi, ptrdiff_t resi_stride,
-                                Coeff *coeff, ptrdiff_t coeff_stride) {
+                                const ResidualBuffer &in_buffer,
+                                CoeffBuffer *out_buffer) {
+  const Residual *resi = in_buffer.GetDataPtr();
+  ptrdiff_t resi_stride = in_buffer.GetStride();
+  Coeff *coeff = out_buffer->GetDataPtr();
+  const ptrdiff_t coeff_stride = out_buffer->GetStride();
+
   // TODO(PH) Duplicate code that should be extracted to common function
   const bool size_rounding_bias =
     (util::SizeToLog2(width) + util::SizeToLog2(height)) % 2 != 0;
@@ -750,12 +973,180 @@ void ForwardTransform::FwdPartialDST4(int shift, bool high_prec,
   }
 }
 
+void ForwardTransform::FwdDct2(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  switch (size) {
+    case 2:
+      FwdDct2Transform2(shift, lines, high_prec, zero_out,
+                        in, in_stride, out, out_stride);
+      break;
+    case 4:
+      FwdDct2Transform4(shift, lines, high_prec, zero_out,
+                        in, in_stride, out, out_stride);
+      break;
+    case 8:
+      FwdDct2Transform8(shift, lines, high_prec, zero_out,
+                        in, in_stride, out, out_stride);
+      break;
+    case 16:
+      FwdDct2Transform16(shift, lines, high_prec, zero_out,
+                         in, in_stride, out, out_stride);
+      break;
+    case 32:
+      FwdDct2Transform32(shift, lines, high_prec, zero_out,
+                         in, in_stride, out, out_stride);
+      break;
+    case 64:
+      FwdDct2Transform64(shift, lines, high_prec, zero_out,
+                         in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void ForwardTransform::FwdDct5(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      FwdGenericTransformN<4>(shift, lines, zero_out, kDct5Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      FwdGenericTransformN<8>(shift, lines, zero_out, kDct5Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      FwdGenericTransformN<16>(shift, lines, zero_out, kDct5Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      FwdGenericTransformN<32>(shift, lines, zero_out, kDct5Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      FwdGenericTransformN<64>(shift, lines, zero_out, kDct5Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void ForwardTransform::FwdDct8(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      FwdGenericTransformN<4>(shift, lines, zero_out, kDct8Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      FwdGenericTransformN<8>(shift, lines, zero_out, kDct8Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      FwdGenericTransformN<16>(shift, lines, zero_out, kDct8Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      FwdGenericTransformN<32>(shift, lines, zero_out, kDct8Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      FwdGenericTransformN<64>(shift, lines, zero_out, kDct8Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void ForwardTransform::FwdDst1(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      FwdGenericTransformN<4>(shift, lines, zero_out, kDst1Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      FwdGenericTransformN<8>(shift, lines, zero_out, kDst1Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      FwdGenericTransformN<16>(shift, lines, zero_out, kDst1Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      FwdGenericTransformN<32>(shift, lines, zero_out, kDst1Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      FwdGenericTransformN<64>(shift, lines, zero_out, kDst1Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
+void ForwardTransform::FwdDst7(int size, int shift, int lines,
+                               bool high_prec, bool zero_out,
+                               const Coeff *in, ptrdiff_t in_stride,
+                               Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
+  switch (size) {
+    case 4:
+      FwdGenericTransformN<4>(shift, lines, zero_out, kDst7Transform4High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 8:
+      FwdGenericTransformN<8>(shift, lines, zero_out, kDst7Transform8High,
+                              in, in_stride, out, out_stride);
+      break;
+    case 16:
+      FwdGenericTransformN<16>(shift, lines, zero_out, kDst7Transform16High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 32:
+      FwdGenericTransformN<32>(shift, lines, zero_out, kDst7Transform32High,
+                               in, in_stride, out, out_stride);
+      break;
+    case 64:
+      FwdGenericTransformN<64>(shift, lines, zero_out, kDst7Transform64High,
+                               in, in_stride, out, out_stride);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+}
+
 void
-ForwardTransform::FwdPartialTransform2(int shift, int lines,
-                                       bool high_prec, bool zero_out,
-                                       const Coeff *in, ptrdiff_t in_stride,
-                                       Coeff *out, ptrdiff_t out_stride) {
-  assert(high_prec);
+ForwardTransform::FwdDct2Transform2(int shift, int lines,
+                                    bool high_prec, bool zero_out,
+                                    const Coeff *in, ptrdiff_t in_stride,
+                                    Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
   const auto &kMatrix = kDct2Transform2High;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -778,10 +1169,10 @@ ForwardTransform::FwdPartialTransform2(int shift, int lines,
 }
 
 void
-ForwardTransform::FwdPartialTransform4(int shift, int lines,
-                                       bool high_prec, bool zero_out,
-                                       const Coeff *in, ptrdiff_t in_stride,
-                                       Coeff *out, ptrdiff_t out_stride) {
+ForwardTransform::FwdDct2Transform4(int shift, int lines,
+                                    bool high_prec, bool zero_out,
+                                    const Coeff *in, ptrdiff_t in_stride,
+                                    Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform4High : kDct2Transform4;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -812,10 +1203,10 @@ ForwardTransform::FwdPartialTransform4(int shift, int lines,
 }
 
 void
-ForwardTransform::FwdPartialTransform8(int shift, int lines,
-                                       bool high_prec, bool zero_out,
-                                       const Coeff *in, ptrdiff_t in_stride,
-                                       Coeff *out, ptrdiff_t out_stride) {
+ForwardTransform::FwdDct2Transform8(int shift, int lines,
+                                    bool high_prec, bool zero_out,
+                                    const Coeff *in, ptrdiff_t in_stride,
+                                    Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform8High : kDct2Transform8;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -868,10 +1259,10 @@ ForwardTransform::FwdPartialTransform8(int shift, int lines,
 }
 
 void
-ForwardTransform::FwdPartialTransform16(int shift, int lines,
-                                        bool high_prec, bool zero_out,
-                                        const Coeff *in, ptrdiff_t in_stride,
-                                        Coeff *out, ptrdiff_t out_stride) {
+ForwardTransform::FwdDct2Transform16(int shift, int lines,
+                                     bool high_prec, bool zero_out,
+                                     const Coeff *in, ptrdiff_t in_stride,
+                                     Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform16High : kDct2Transform16;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -928,10 +1319,10 @@ ForwardTransform::FwdPartialTransform16(int shift, int lines,
 }
 
 void
-ForwardTransform::FwdPartialTransform32(int shift, int lines,
-                                        bool high_prec, bool zero_out,
-                                        const Coeff *in, ptrdiff_t in_stride,
-                                        Coeff *out, ptrdiff_t out_stride) {
+ForwardTransform::FwdDct2Transform32(int shift, int lines,
+                                     bool high_prec, bool zero_out,
+                                     const Coeff *in, ptrdiff_t in_stride,
+                                     Coeff *out, ptrdiff_t out_stride) {
   const auto &kMatrix = high_prec ? kDct2Transform32High : kDct2Transform32;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -1011,11 +1402,12 @@ ForwardTransform::FwdPartialTransform32(int shift, int lines,
 }
 
 void
-ForwardTransform::FwdPartialTransform64(int shift, int lines,
-                                        bool high_prec, bool zero_out,
-                                        const Coeff *in, ptrdiff_t in_stride,
-                                        Coeff *out, ptrdiff_t out_stride) {
-  assert(high_prec);
+ForwardTransform::FwdDct2Transform64(int shift, int lines,
+                                     bool high_prec, bool zero_out,
+                                     const Coeff *in, ptrdiff_t in_stride,
+                                     Coeff *out, ptrdiff_t out_stride) {
+  // Only high precision matrices supported
+  shift += !high_prec ? kTransformHighPrecisionShift : 0;
   const auto &kMatrix = kDct2Transform64High;
   const int add = 1 << (shift - 1);
   const int tx_lines = zero_out ?
@@ -1138,6 +1530,40 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
   if (out_rows < 64) {
     for (int y = out_rows; y < 64; y++) {
       std::memset(orig_out + y * out_stride, 0, sizeof(Coeff) * lines);
+    }
+  }
+}
+
+template<int N>
+void
+ForwardTransform::FwdGenericTransformN(int shift, int lines, bool zero_out,
+                                       const Coeff(&kMatrix)[N * N],
+                                       const Coeff *in, ptrdiff_t in_stride,
+                                       Coeff *out, ptrdiff_t out_stride) {
+  const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
+  const int out_rows = std::min(N, constants::kTransformZeroOutMinSize);
+
+  for (int y = 0; y < tx_lines; y++) {
+    for (int x = 0; x < out_rows; x++) {
+      int sum = 0;
+      for (int k = 0; k < N; k++) {
+        sum += kMatrix[x * N + k] * in[k];
+      }
+      out[x * out_stride + y] = (sum + add) >> shift;
+    }
+    in += in_stride;
+  }
+  if (tx_lines < lines) {
+    for (int y = 0; y < out_rows; y++) {
+      memset(out + y * out_stride + tx_lines, 0,
+             sizeof(Coeff) * (lines - tx_lines));
+    }
+  }
+  if (out_rows < N) {
+    for (int y = out_rows; y < N; y++) {
+      std::memset(out + y * out_stride, 0, sizeof(Coeff) * lines);
     }
   }
 }

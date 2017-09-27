@@ -113,17 +113,10 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
   temp_resi_orig_.Subtract(width, height, orig_buffer, temp_pred_);
 
   // Transform
-  const bool is_luma_intra = util::IsLuma(comp) && cu->IsIntra();
   if (!skip_transform) {
-    fwd_transform_.Transform(width, height, is_luma_intra,
-                             temp_resi_orig_.GetDataPtr(),
-                             temp_resi_orig_.GetStride(),
-                             temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
+    fwd_transform_.Transform(*cu, comp, temp_resi_orig_, &temp_coeff_);
   } else {
-    fwd_transform_.TransformSkip(width, height, temp_resi_orig_.GetDataPtr(),
-                                 temp_resi_orig_.GetStride(),
-                                 temp_coeff_.GetDataPtr(),
-                                 temp_coeff_.GetStride());
+    fwd_transform_.TransformSkip(width, height, temp_resi_orig_, &temp_coeff_);
   }
 
   // Quant
@@ -156,16 +149,9 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
 
     // Inv transform
     if (!skip_transform) {
-      inv_transform_.Transform(width, height, is_luma_intra,
-                               temp_coeff_.GetDataPtr(),
-                               temp_coeff_.GetStride(),
-                               temp_resi_.GetDataPtr(),
-                               temp_resi_.GetStride());
+      inv_transform_.Transform(*cu, comp, temp_coeff_, &temp_resi_);
     } else {
-      inv_transform_.TransformSkip(width, height, temp_coeff_.GetDataPtr(),
-                                   temp_coeff_.GetStride(),
-                                   temp_resi_.GetDataPtr(),
-                                   temp_resi_.GetStride());
+      inv_transform_.TransformSkip(width, height, temp_coeff_, &temp_resi_);
     }
 
     // Reconstruct

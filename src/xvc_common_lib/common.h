@@ -78,6 +78,7 @@ static const uint32_t kSupportedOldBitstreamVersions[1][2] = { { 1, 0 } };
 
 // Picture
 const int kMaxYuvComponents = 3;
+const int kMaxNumPlanes = 2;  // luma and chroma
 const int kMaxNumCuTrees = 2;
 
 // CU limits

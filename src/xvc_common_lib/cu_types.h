@@ -51,6 +51,15 @@ enum class PartitionType {
   kSizeNone = 15,
 };
 
+enum class TransformType {
+  kDefault,
+  kDCT2,
+  kDCT5,
+  kDCT8,
+  kDST1,
+  kDST7,
+};
+
 enum IntraMode : int {
   kPlanar = 0,
   kDc = 1,

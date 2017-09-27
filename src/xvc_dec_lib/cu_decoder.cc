@@ -126,16 +126,10 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
                     temp_coeff_.GetDataPtr(), temp_coeff_.GetStride());
 
   // Inverse transform
-  const bool is_luma_intra = util::IsLuma(comp) && cu->IsIntra();
   if (!cu->GetTransformSkip(comp)) {
-    inv_transform_.Transform(width, height, is_luma_intra,
-                             temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
-                             temp_resi_.GetDataPtr(), temp_resi_.GetStride());
+    inv_transform_.Transform(*cu, comp, temp_coeff_, &temp_resi_);
   } else {
-    inv_transform_.TransformSkip(width, height, temp_coeff_.GetDataPtr(),
-                                 temp_coeff_.GetStride(),
-                                 temp_resi_.GetDataPtr(),
-                                 temp_resi_.GetStride());
+    inv_transform_.TransformSkip(width, height, temp_coeff_, &temp_resi_);
   }
 
   // Reconstruct
