@@ -422,7 +422,7 @@ void InverseTransform::Transform(int width, int height, bool is_luma_intra,
     (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (height) {
     case 2:
-      InvPartialTransform2(shift1, width, coeff, coeff_stride,
+      InvPartialTransform2(shift1, width, true, coeff, coeff_stride,
                            &coeff_temp_[0], kBufferStride_);
       break;
     case 4:
@@ -430,25 +430,24 @@ void InverseTransform::Transform(int width, int height, bool is_luma_intra,
         InvPartialDST4(shift1, coeff, coeff_stride,
                        &coeff_temp_[0], kBufferStride_);
       } else {
-        InvPartialTransform4(shift1, width, coeff, coeff_stride,
+        InvPartialTransform4(shift1, width, true, coeff, coeff_stride,
                              &coeff_temp_[0], kBufferStride_);
       }
       break;
     case 8:
-      InvPartialTransform8(shift1, width, coeff, coeff_stride,
+      InvPartialTransform8(shift1, width, true, coeff, coeff_stride,
                            &coeff_temp_[0], kBufferStride_);
       break;
     case 16:
-      InvPartialTransform16(shift1, width, coeff, coeff_stride,
+      InvPartialTransform16(shift1, width, true, coeff, coeff_stride,
                             &coeff_temp_[0], kBufferStride_);
       break;
     case 32:
-      InvPartialTransform32(shift1, width, coeff, coeff_stride,
+      InvPartialTransform32(shift1, width, true, coeff, coeff_stride,
                             &coeff_temp_[0], kBufferStride_);
       break;
     case 64:
-      InvPartialTransform64(shift1, width,
-                            constants::kZeroOutHighFreqLargeTransforms,
+      InvPartialTransform64(shift1, width, true,
                             coeff, coeff_stride,
                             &coeff_temp_[0], kBufferStride_);
       break;
@@ -460,34 +459,33 @@ void InverseTransform::Transform(int width, int height, bool is_luma_intra,
     (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (width) {
     case 2:
-      InvPartialTransform2(shift2, height, &coeff_temp_[0], kBufferStride_,
-                           resi, resi_stride);
+      InvPartialTransform2(shift2, height, false, &coeff_temp_[0],
+                           kBufferStride_, resi, resi_stride);
       break;
     case 4:
       if (height == 4 && is_luma_intra) {
         InvPartialDST4(shift2, &coeff_temp_[0], kBufferStride_, resi,
                        resi_stride);
       } else {
-        InvPartialTransform4(shift2, height, &coeff_temp_[0], kBufferStride_,
-                             resi, resi_stride);
+        InvPartialTransform4(shift2, height, false, &coeff_temp_[0],
+                             kBufferStride_, resi, resi_stride);
       }
       break;
     case 8:
-      InvPartialTransform8(shift2, height, &coeff_temp_[0], kBufferStride_,
-                           resi, resi_stride);
+      InvPartialTransform8(shift2, height, false, &coeff_temp_[0],
+                           kBufferStride_, resi, resi_stride);
       break;
     case 16:
-      InvPartialTransform16(shift2, height, &coeff_temp_[0], kBufferStride_,
-                            resi, resi_stride);
+      InvPartialTransform16(shift2, height, false, &coeff_temp_[0],
+                            kBufferStride_, resi, resi_stride);
       break;
     case 32:
-      InvPartialTransform32(shift2, height, &coeff_temp_[0], kBufferStride_,
-                            resi, resi_stride);
+      InvPartialTransform32(shift2, height, false, &coeff_temp_[0],
+                            kBufferStride_, resi, resi_stride);
       break;
     case 64:
-      InvPartialTransform64(shift2, height, false,
-                            &coeff_temp_[0], kBufferStride_,
-                            resi, resi_stride);
+      InvPartialTransform64(shift2, height, false, &coeff_temp_[0],
+                            kBufferStride_, resi, resi_stride);
       break;
     default:
       assert(0);
@@ -549,13 +547,15 @@ void InverseTransform::InvPartialDST4(int shift,
 }
 
 void
-InverseTransform::InvPartialTransform2(int shift, int lines,
+InverseTransform::InvPartialTransform2(int shift, int lines, bool zero_out,
                                        const Coeff *in, ptrdiff_t in_stride,
                                        Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int O[1], E[1];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     O[0] = kInvTransform2[1][0] * in[0 * in_stride] -
       kInvTransform2[1][0] * in[1 * in_stride];
     E[0] = kInvTransform2[0][0] * in[0 * in_stride] +
@@ -567,16 +567,22 @@ InverseTransform::InvPartialTransform2(int shift, int lines,
     in++;
     out += out_stride;
   }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * 2);
+    out += out_stride;
+  }
 }
 
 void
-InverseTransform::InvPartialTransform4(int shift, int lines,
+InverseTransform::InvPartialTransform4(int shift, int lines, bool zero_out,
                                        const Coeff *in, ptrdiff_t in_stride,
                                        Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int O[2], E[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     O[0] = kInvTransform4[1][0] * in[1 * in_stride] +
       kInvTransform4[3][0] * in[3 * in_stride];
     O[1] = kInvTransform4[1][1] * in[1 * in_stride] +
@@ -596,17 +602,23 @@ InverseTransform::InvPartialTransform4(int shift, int lines,
     in++;
     out += out_stride;
   }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * 4);
+    out += out_stride;
+  }
 }
 
 void
-InverseTransform::InvPartialTransform8(int shift, int lines,
+InverseTransform::InvPartialTransform8(int shift, int lines, bool zero_out,
                                        const Coeff *in, ptrdiff_t in_stride,
                                        Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int O[4], E[4];
   int EE[2], EO[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 4; k++) {
       O[k] = kInvTransform8[1][k] * in[1 * in_stride] +
         kInvTransform8[3][k] * in[3 * in_stride] +
@@ -634,18 +646,24 @@ InverseTransform::InvPartialTransform8(int shift, int lines,
     in++;
     out += out_stride;
   }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * 8);
+    out += out_stride;
+  }
 }
 
 void
-InverseTransform::InvPartialTransform16(int shift, int lines,
+InverseTransform::InvPartialTransform16(int shift, int lines, bool zero_out,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int O[8], E[8];
   int EO[4], EE[4];
   int EEO[2], EEE[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 8; k++) {
       O[k] = kInvTransform16[1][k] * in[in_stride]
         + kInvTransform16[3][k] * in[3 * in_stride]
@@ -687,19 +705,25 @@ InverseTransform::InvPartialTransform16(int shift, int lines,
     in++;
     out += out_stride;
   }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * 16);
+    out += out_stride;
+  }
 }
 
 void
-InverseTransform::InvPartialTransform32(int shift, int lines,
+InverseTransform::InvPartialTransform32(int shift, int lines, bool zero_out,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int O[16], E[16];
   int EO[8], EE[8];
   int EEO[4], EEE[4];
   int EEEO[2], EEEE[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 16; k++) {
       O[k] =
         kInvTransform32[1][k] * in[1 * in_stride] +
@@ -767,21 +791,25 @@ InverseTransform::InvPartialTransform32(int shift, int lines,
     in++;
     out += out_stride;
   }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * 32);
+    out += out_stride;
+  }
 }
 
 void
-InverseTransform::InvPartialTransform64(int shift, int lines,
-                                        bool zero_height,
+InverseTransform::InvPartialTransform64(int shift, int lines, bool zero_out,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
+  const int in_rows = std::min(64, constants::kTransformZeroOutMinSize);
   int E[32], O[32];
   int EO[16], EE[16];
   int EEO[8], EEE[8];
   int EEEO[4], EEEE[4];
   int EEEEO[2], EEEEE[2];
-  const int max_lines = zero_height ? 32 : 64;
-  const int tx_lines = std::min(max_lines, lines);
 
   for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 32; k++) {
@@ -802,7 +830,7 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
         kInvTransform64[27][k] * in[27 * in_stride] +
         kInvTransform64[29][k] * in[29 * in_stride] +
         kInvTransform64[31][k] * in[31 * in_stride];
-      if (!constants::kZeroOutHighFreqLargeTransforms) {
+      if (in_rows > 32) {
         O[k] +=
           kInvTransform64[33][k] * in[33 * in_stride] +
           kInvTransform64[35][k] * in[35 * in_stride] +
@@ -832,7 +860,7 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
         kInvTransform64[22][k] * in[22 * in_stride] +
         kInvTransform64[26][k] * in[26 * in_stride] +
         kInvTransform64[30][k] * in[30 * in_stride];
-      if (!constants::kZeroOutHighFreqLargeTransforms) {
+      if (in_rows > 32) {
         EO[k] += kInvTransform64[34][k] * in[34 * in_stride] +
           kInvTransform64[38][k] * in[38 * in_stride] +
           kInvTransform64[42][k] * in[42 * in_stride] +
@@ -849,7 +877,7 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
         kInvTransform64[12][k] * in[12 * in_stride] +
         kInvTransform64[20][k] * in[20 * in_stride] +
         kInvTransform64[28][k] * in[28 * in_stride];
-      if (!constants::kZeroOutHighFreqLargeTransforms) {
+      if (in_rows > 32) {
         EEO[k] += kInvTransform64[36][k] * in[36 * in_stride] +
           kInvTransform64[44][k] * in[44 * in_stride] +
           kInvTransform64[52][k] * in[52 * in_stride] +
@@ -860,25 +888,25 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
       EEEO[k] =
         kInvTransform64[8][k] * in[8 * in_stride] +
         kInvTransform64[24][k] * in[24 * in_stride];
-      if (!constants::kZeroOutHighFreqLargeTransforms) {
+      if (in_rows > 32) {
         EEEO[k] += kInvTransform64[40][k] * in[40 * in_stride] +
           kInvTransform64[56][k] * in[56 * in_stride];
       }
     }
     EEEEO[0] = kInvTransform64[16][0] * in[16 * in_stride];
-    if (!constants::kZeroOutHighFreqLargeTransforms) {
+    if (in_rows > 32) {
       EEEEO[0] += kInvTransform64[48][0] * in[48 * in_stride];
     }
     EEEEO[1] = kInvTransform64[16][1] * in[16 * in_stride];
-    if (!constants::kZeroOutHighFreqLargeTransforms) {
+    if (in_rows > 32) {
       EEEEO[1] += kInvTransform64[48][1] * in[48 * in_stride];
     }
     EEEEE[0] = kInvTransform64[0][0] * in[0];
-    if (!constants::kZeroOutHighFreqLargeTransforms) {
+    if (in_rows > 32) {
       EEEEE[0] += kInvTransform64[32][0] * in[32 * in_stride];
     }
     EEEEE[1] = kInvTransform64[0][1] * in[0];
-    if (!constants::kZeroOutHighFreqLargeTransforms) {
+    if (in_rows > 32) {
       EEEEE[1] += kInvTransform64[32][1] * in[32 * in_stride];
     }
     EEEE[0] = EEEEE[0] + EEEEO[0];
@@ -906,11 +934,9 @@ InverseTransform::InvPartialTransform64(int shift, int lines,
     in++;
     out += out_stride;
   }
-  if (zero_height) {
-    for (int y = tx_lines; y < lines; y++) {
-      memset(out, 0, sizeof(Coeff) * 64);
-      out += out_stride;
-    }
+  for (int y = tx_lines; y < lines; y++) {
+    memset(out, 0, sizeof(Coeff) * 64);
+    out += out_stride;
   }
 }
 
@@ -921,7 +947,7 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
     (width >= 64 || width == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (width) {
     case 2:
-      FwdPartialTransform2(shift1, height, resi, resi_stride,
+      FwdPartialTransform2(shift1, height, false, resi, resi_stride,
                            &coeff_temp_[0], kBufferStride_);
       break;
     case 4:
@@ -929,30 +955,25 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
         FwdPartialDST4(shift1, resi, resi_stride, &coeff_temp_[0],
                        kBufferStride_);
       } else {
-        FwdPartialTransform4(shift1, height, resi, resi_stride,
+        FwdPartialTransform4(shift1, height, false, resi, resi_stride,
                              &coeff_temp_[0], kBufferStride_);
       }
       break;
     case 8:
-      FwdPartialTransform8(shift1, height, resi, resi_stride,
+      FwdPartialTransform8(shift1, height, false, resi, resi_stride,
                            &coeff_temp_[0], kBufferStride_);
       break;
     case 16:
-      FwdPartialTransform16(shift1, height, resi, resi_stride,
+      FwdPartialTransform16(shift1, height, false, resi, resi_stride,
                             &coeff_temp_[0], kBufferStride_);
       break;
     case 32:
-      FwdPartialTransform32(shift1, height, resi, resi_stride,
+      FwdPartialTransform32(shift1, height, false, resi, resi_stride,
                             &coeff_temp_[0], kBufferStride_);
       break;
     case 64:
-      if (constants::kZeroOutHighFreqLargeTransforms) {
-        FwdPartialTransform64<false, true>(shift1, height, resi, resi_stride,
-                                           &coeff_temp_[0], kBufferStride_);
-      } else {
-        FwdPartialTransform64<false, false>(shift1, height, resi, resi_stride,
-                                            &coeff_temp_[0], kBufferStride_);
-      }
+      FwdPartialTransform64(shift1, height, false, resi, resi_stride,
+                            &coeff_temp_[0], kBufferStride_);
       break;
     default:
       assert(0);
@@ -962,7 +983,8 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
     (height >= 64 || height == 2 ? constants::kTransformExtendedPrecision : 0);
   switch (height) {
     case 2:
-      FwdPartialTransform2(shift2, width, &coeff_temp_[0], kBufferStride_,
+      FwdPartialTransform2(shift2, width, true,
+                           &coeff_temp_[0], kBufferStride_,
                            coeff, coeff_stride);
       break;
     case 4:
@@ -970,32 +992,30 @@ void ForwardTransform::Transform(int width, int height, bool is_luma_intra,
         FwdPartialDST4(shift2, &coeff_temp_[0], kBufferStride_,
                        coeff, coeff_stride);
       } else {
-        FwdPartialTransform4(shift2, width, &coeff_temp_[0], kBufferStride_,
+        FwdPartialTransform4(shift2, width, true,
+                             &coeff_temp_[0], kBufferStride_,
                              coeff, coeff_stride);
       }
       break;
     case 8:
-      FwdPartialTransform8(shift2, width, &coeff_temp_[0], kBufferStride_,
+      FwdPartialTransform8(shift2, width, true,
+                           &coeff_temp_[0], kBufferStride_,
                            coeff, coeff_stride);
       break;
     case 16:
-      FwdPartialTransform16(shift2, width, &coeff_temp_[0], kBufferStride_,
+      FwdPartialTransform16(shift2, width, true,
+                            &coeff_temp_[0], kBufferStride_,
                             coeff, coeff_stride);
       break;
     case 32:
-      FwdPartialTransform32(shift2, width, &coeff_temp_[0], kBufferStride_,
+      FwdPartialTransform32(shift2, width, true,
+                            &coeff_temp_[0], kBufferStride_,
                             coeff, coeff_stride);
       break;
     case 64:
-      if (constants::kZeroOutHighFreqLargeTransforms) {
-        FwdPartialTransform64<true, true>(shift2, width,
-                                          &coeff_temp_[0], kBufferStride_,
-                                          coeff, coeff_stride);
-      } else {
-        FwdPartialTransform64<false, false>(shift2, width,
-                                            &coeff_temp_[0], kBufferStride_,
-                                            coeff, coeff_stride);
-      }
+      FwdPartialTransform64(shift2, width, true,
+                            &coeff_temp_[0], kBufferStride_,
+                            coeff, coeff_stride);
       break;
     default:
       assert(0);
@@ -1053,13 +1073,15 @@ void ForwardTransform::FwdPartialDST4(int shift,
 }
 
 void
-ForwardTransform::FwdPartialTransform2(int shift, int lines,
+ForwardTransform::FwdPartialTransform2(int shift, int lines, bool zero_out,
                                        const Coeff *in, ptrdiff_t in_stride,
                                        Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int E[1], O[1];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     E[0] = in[0] + in[1];
     O[0] = in[0] - in[1];
     out[0 * out_stride] = (kFwdTransform2[0][0] * E[0] + add) >> shift;
@@ -1067,16 +1089,23 @@ ForwardTransform::FwdPartialTransform2(int shift, int lines,
     in += in_stride;
     out++;
   }
+  if (tx_lines < lines) {
+    for (int y = 0; y < 2; y++) {
+      memset(out + y * out_stride, 0, sizeof(Coeff)*(lines - tx_lines));
+    }
+  }
 }
 
 void
-ForwardTransform::FwdPartialTransform4(int shift, int lines,
+ForwardTransform::FwdPartialTransform4(int shift, int lines, bool zero_out,
                                        const Coeff *in, ptrdiff_t in_stride,
                                        Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int E[2], O[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     E[0] = in[0] + in[3];
     E[1] = in[1] + in[2];
     O[0] = in[0] - in[3];
@@ -1092,17 +1121,24 @@ ForwardTransform::FwdPartialTransform4(int shift, int lines,
     in += in_stride;
     out++;
   }
+  if (tx_lines < lines) {
+    for (int y = 0; y < 4; y++) {
+      memset(out + y * out_stride, 0, sizeof(Coeff)*(lines - tx_lines));
+    }
+  }
 }
 
 void
-ForwardTransform::FwdPartialTransform8(int shift, int lines,
+ForwardTransform::FwdPartialTransform8(int shift, int lines, bool zero_out,
                                        const Coeff *in, ptrdiff_t in_stride,
                                        Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int E[4], O[4];
   int EE[2], EO[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int x = 0; x < 4; x++) {
       E[x] = in[x] + in[7 - x];
       O[x] = in[x] - in[7 - x];
@@ -1139,18 +1175,25 @@ ForwardTransform::FwdPartialTransform8(int shift, int lines,
     in += in_stride;
     out++;
   }
+  if (tx_lines < lines) {
+    for (int y = 0; y < 8; y++) {
+      memset(out + y * out_stride, 0, sizeof(Coeff)*(lines - tx_lines));
+    }
+  }
 }
 
 void
-ForwardTransform::FwdPartialTransform16(int shift, int lines,
+ForwardTransform::FwdPartialTransform16(int shift, int lines, bool zero_out,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int E[8], O[8];
   int EE[4], EO[4];
   int EEE[2], EEO[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 8; k++) {
       E[k] = in[k] + in[15 - k];
       O[k] = in[k] - in[15 - k];
@@ -1190,19 +1233,26 @@ ForwardTransform::FwdPartialTransform16(int shift, int lines,
     in += in_stride;
     out++;
   }
+  if (tx_lines < lines) {
+    for (int y = 0; y < 16; y++) {
+      memset(out + y * out_stride, 0, sizeof(Coeff)*(lines - tx_lines));
+    }
+  }
 }
 
 void
-ForwardTransform::FwdPartialTransform32(int shift, int lines,
+ForwardTransform::FwdPartialTransform32(int shift, int lines, bool zero_out,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
   int E[16], O[16];
   int EE[8], EO[8];
   int EEE[4], EEO[4];
   int EEEE[2], EEEO[2];
 
-  for (int y = 0; y < lines; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 16; k++) {
       E[k] = in[k] + in[31 - k];
       O[k] = in[k] - in[31 - k];
@@ -1264,24 +1314,29 @@ ForwardTransform::FwdPartialTransform32(int shift, int lines,
     in += in_stride;
     out++;
   }
+  if (tx_lines < lines) {
+    for (int y = 0; y < 32; y++) {
+      memset(out + y * out_stride, 0, sizeof(Coeff)*(lines - tx_lines));
+    }
+  }
 }
 
-template<bool ZeroWdt, bool ZeroHgt>
 void
-ForwardTransform::FwdPartialTransform64(int shift, int lines,
+ForwardTransform::FwdPartialTransform64(int shift, int lines, bool zero_out,
                                         const Coeff *in, ptrdiff_t in_stride,
                                         Coeff *out, ptrdiff_t out_stride) {
   const int add = 1 << (shift - 1);
+  const int tx_lines = zero_out ?
+    std::min(lines, constants::kTransformZeroOutMinSize) : lines;
+  const int out_rows = std::min(64, constants::kTransformZeroOutMinSize);
   int E[32], O[32];
   int EE[16], EO[16];
   int EEE[8], EEO[8];
   int EEEE[4], EEEO[4];
   int EEEEE[2], EEEEO[2];
-  const int tx_lines = ZeroHgt ? 32 : 64;
-  const int tx_cols = ZeroWdt ? std::min(32, lines) : lines;
   Coeff *orig_out = out;
 
-  for (int y = 0; y < tx_cols; y++) {
+  for (int y = 0; y < tx_lines; y++) {
     for (int k = 0; k < 32; k++) {
       E[k] = in[k] + in[63 - k];
       O[k] = in[k] - in[63 - k];
@@ -1306,19 +1361,19 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
                            kFwdTransform64[0][1] * EEEEE[1] + add) >> shift;
     out[16 * out_stride] = (kFwdTransform64[16][0] * EEEEO[0] +
                             kFwdTransform64[16][1] * EEEEO[1] + add) >> shift;
-    if (tx_lines > 32) {
+    if (out_rows > 32) {
       out[32 * out_stride] = (kFwdTransform64[32][0] * EEEEE[0] +
                               kFwdTransform64[32][1] * EEEEE[1] + add) >> shift;
       out[48 * out_stride] = (kFwdTransform64[48][0] * EEEEO[0] +
                               kFwdTransform64[48][1] * EEEEO[1] + add) >> shift;
     }
-    for (int k = 8; k < tx_lines; k += 16) {
+    for (int k = 8; k < out_rows; k += 16) {
       out[k*out_stride] = (kFwdTransform64[k][0] * EEEO[0] +
                            kFwdTransform64[k][1] * EEEO[1] +
                            kFwdTransform64[k][2] * EEEO[2] +
                            kFwdTransform64[k][3] * EEEO[3] + add) >> shift;
     }
-    for (int k = 4; k < tx_lines; k += 8) {
+    for (int k = 4; k < out_rows; k += 8) {
       out[k*out_stride] = (kFwdTransform64[k][0] * EEO[0] +
                            kFwdTransform64[k][1] * EEO[1] +
                            kFwdTransform64[k][2] * EEO[2] +
@@ -1328,7 +1383,7 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
                            kFwdTransform64[k][6] * EEO[6] +
                            kFwdTransform64[k][7] * EEO[7] + add) >> shift;
     }
-    for (int k = 2; k < tx_lines; k += 4) {
+    for (int k = 2; k < out_rows; k += 4) {
       out[k*out_stride] = (kFwdTransform64[k][0] * EO[0] +
                            kFwdTransform64[k][1] * EO[1] +
                            kFwdTransform64[k][2] * EO[2] +
@@ -1346,7 +1401,7 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
                            kFwdTransform64[k][14] * EO[14] +
                            kFwdTransform64[k][15] * EO[15] + add) >> shift;
     }
-    for (int k = 1; k < tx_lines; k += 2) {
+    for (int k = 1; k < out_rows; k += 2) {
       out[k*out_stride] = (kFwdTransform64[k][0] * O[0] +
                            kFwdTransform64[k][1] * O[1] +
                            kFwdTransform64[k][2] * O[2] +
@@ -1383,18 +1438,14 @@ ForwardTransform::FwdPartialTransform64(int shift, int lines,
     in += in_stride;
     out++;
   }
-  if (ZeroWdt) {
-    Coeff *tmp = orig_out;
-    for (int y = 0; y < tx_cols; y++) {
-      memset(tmp + tx_lines, 0, sizeof(Coeff)*tx_lines);
-      tmp += out_stride;
+  if (tx_lines < lines) {
+    for (int y = 0; y < out_rows; y++) {
+      memset(out + y * out_stride, 0, sizeof(Coeff)*(lines - tx_lines));
     }
   }
-  if (ZeroHgt) {
-    Coeff *tmp = orig_out + tx_lines * out_stride;
-    for (int y = tx_lines; y < lines; y++) {
-      std::memset(tmp, 0, sizeof(Coeff) * 64);
-      tmp += out_stride;
+  if (out_rows < 64) {
+    for (int y = out_rows; y < 64; y++) {
+      std::memset(orig_out + y * out_stride, 0, sizeof(Coeff) * lines);
     }
   }
 }

@@ -107,7 +107,7 @@ const int kQuadSplit = 4;
 // Transform
 const int kTransformSkipMaxArea = 4 * 4;
 const int kTransformExtendedPrecision = 2;
-const bool kZeroOutHighFreqLargeTransforms = true;
+const int kTransformZeroOutMinSize = 32;
 
 // Prediction
 const int kNumIntraMpm = 3;
