@@ -539,7 +539,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
   }
 
   RdoCost best_cost(std::numeric_limits<Cost>::max());
-  CodingUnit::TransformState &best_transform_state = rd_transform_state_;
+  CodingUnit::ResidualState &best_transform_state = rd_transform_state_;
   int best_merge_idx = -1;
   const int skip_eval_init = fast_merge_skip ? 1 : 0;
   for (int skip_eval_idx = skip_eval_init; skip_eval_idx < 2; skip_eval_idx++) {

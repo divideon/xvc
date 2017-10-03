@@ -36,6 +36,10 @@ constexpr bool IsFirstChroma(YuvComponent comp) {
   return comp == YuvComponent::kU;
 }
 
+constexpr int CompToPlane(YuvComponent comp) {
+  return IsLuma(comp) ? 0 : 1;
+}
+
 template <typename T, typename U>
 static T Clip3(U value, T min, T max) {
   return static_cast<T>(std::min(std::max(value, static_cast<U>(min)),

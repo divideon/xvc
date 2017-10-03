@@ -32,6 +32,9 @@
 // Disable warning 4244 in Visual Studio in order to be able to do implicit
 // type conversions (without static_cast).
 #pragma warning(disable:4244)
+// Disables C6294 Ill-defined for-loop: initial condition does not satisfy test.
+// Some transform logic depends on the zero out threshold constant
+#pragma warning(disable:6294)
 #endif
 
 namespace xvc {

@@ -29,6 +29,14 @@
 
 namespace xvc {
 
+CodingUnit::TransformState::TransformState()
+  : root_cbf(false),
+  cbf({ { false, false, false } }),
+  transform_skip({ { false, false, false } }),
+  transform_type({ { { { TransformType::kDefault, TransformType::kDefault } },
+  { { TransformType::kDefault, TransformType::kDefault } } } }) {
+}
+
 CodingUnit::CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
                        CuTree cu_tree, int depth, int pic_x, int pic_y,
                        int width, int height)
@@ -44,13 +52,8 @@ CodingUnit::CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
   pred_mode_(PredictionMode::kIntra),
   sub_cu_list_({ { nullptr, nullptr, nullptr, nullptr } }),
   qp_(pic_data->GetPicQp()),
-  root_cbf_(false),
-  cbf_({ { false, false, false } }),
-  transform_skip_({ { false, false, false } }),
-  transform_type_({ { {{ TransformType::kDefault, TransformType::kDefault }},
-  {{ TransformType::kDefault, TransformType::kDefault }} } }),
-  intra_mode_luma_(IntraMode::kInvalid),
-  intra_mode_chroma_(IntraChromaMode::kInvalid),
+  tx_(),
+  intra_(),
   inter_() {
 }
 
@@ -65,12 +68,8 @@ CodingUnit& CodingUnit::operator=(const CodingUnit &cu) {
          cu.split_state_ == SplitType::kNone);
   pred_mode_ = cu.pred_mode_;
   qp_ = cu.qp_;
-  root_cbf_ = cu.root_cbf_;
-  cbf_ = cu.cbf_;
-  transform_skip_ = cu.transform_skip_;
-  transform_type_ = cu.transform_type_;
-  intra_mode_luma_ = cu.intra_mode_luma_;
-  intra_mode_chroma_ = cu.intra_mode_chroma_;
+  tx_ = cu.tx_;
+  intra_ = cu.intra_;
   inter_ = cu.inter_;
   return *this;
 }
@@ -88,12 +87,8 @@ void CodingUnit::CopyPositionAndSizeFrom(const CodingUnit &cu) {
 void CodingUnit::CopyPredictionDataFrom(const CodingUnit &cu) {
   pred_mode_ = cu.pred_mode_;
   qp_ = cu.qp_;
-  root_cbf_ = cu.root_cbf_;
-  cbf_ = cu.cbf_;
-  transform_skip_ = cu.transform_skip_;
-  transform_type_ = cu.transform_type_;
-  intra_mode_luma_ = cu.intra_mode_luma_;
-  intra_mode_chroma_ = cu.intra_mode_chroma_;
+  tx_ = cu.tx_;
+  intra_ = cu.intra_;
   inter_ = cu.inter_;
 }
 
@@ -274,17 +269,17 @@ int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
 IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
   if (util::IsLuma(comp)) {
     assert(cu_tree_ == CuTree::Primary);
-    return intra_mode_luma_;
+    return intra_.mode_luma;
   }
-  if (intra_mode_chroma_ == IntraChromaMode::kDmChroma) {
+  if (intra_.mode_chroma == IntraChromaMode::kDmChroma) {
     if (cu_tree_ == CuTree::Primary) {
-      return intra_mode_luma_;
+      return intra_.mode_luma;
     }
     const CodingUnit *luma_cu = pic_data_->GetLumaCu(this);
-    return luma_cu->intra_mode_luma_;
+    return luma_cu->intra_.mode_luma;
   }
-  assert(static_cast<int>(intra_mode_chroma_) < IntraMode::kTotalNumber);
-  return static_cast<IntraMode>(intra_mode_chroma_);
+  assert(static_cast<int>(intra_.mode_chroma) < IntraMode::kTotalNumber);
+  return static_cast<IntraMode>(intra_.mode_chroma);
 }
 
 void CodingUnit::Split(SplitType split_type) {
@@ -376,21 +371,22 @@ void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
   }
 }
 
-void CodingUnit::SaveStateTo(TransformState *dst_state,
+void CodingUnit::SaveStateTo(ResidualState *dst_state,
                              const YuvPicture &rec_pic,
                              YuvComponent comp) const {
+  const int plane = util::CompToPlane(comp);
   SaveStateTo(&dst_state->reco, rec_pic, comp);
-  dst_state->cbf[comp] = cbf_[comp];
-  dst_state->transform_skip[comp] = transform_skip_[comp];
+  dst_state->tx.cbf[comp] = tx_.cbf[comp];
+  dst_state->tx.transform_skip[comp] = tx_.transform_skip[comp];
+  dst_state->tx.transform_type[plane] = tx_.transform_type[plane];
 }
 
-void CodingUnit::SaveStateTo(TransformState *dst_state,
+void CodingUnit::SaveStateTo(ResidualState *dst_state,
                              const YuvPicture &rec_pic) const {
   for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
     SaveStateTo(&dst_state->reco, rec_pic, comp);
   }
-  dst_state->cbf = cbf_;
-  dst_state->transform_skip = transform_skip_;
+  dst_state->tx = tx_;
 }
 
 void CodingUnit::SaveStateTo(InterState *state) const {
@@ -420,21 +416,21 @@ void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
   }
 }
 
-void CodingUnit::LoadStateFrom(const TransformState &src_state,
+void CodingUnit::LoadStateFrom(const ResidualState &src_state,
                                YuvPicture *rec_pic, YuvComponent comp) {
+  const int plane = util::CompToPlane(comp);
   LoadStateFrom(src_state.reco, rec_pic, comp);
-  cbf_[comp] = src_state.cbf[comp];
-  transform_skip_[comp] = src_state.transform_skip[comp];
+  tx_.cbf[comp] = src_state.tx.cbf[comp];
+  tx_.transform_skip[comp] = src_state.tx.transform_skip[comp];
+  tx_.transform_type[plane] = src_state.tx.transform_type[plane];
 }
 
-void CodingUnit::LoadStateFrom(const TransformState &src_state,
+void CodingUnit::LoadStateFrom(const ResidualState &src_state,
                                YuvPicture *rec_pic) {
   for (YuvComponent comp : pic_data_->GetComponents(cu_tree_)) {
     LoadStateFrom(src_state.reco, rec_pic, comp);
   }
-  cbf_ = src_state.cbf;
-  transform_skip_ = src_state.transform_skip;
-  SetRootCbf(GetHasAnyCbf());
+  tx_ = src_state.tx;
 }
 
 void CodingUnit::LoadStateFrom(const InterState &state) {

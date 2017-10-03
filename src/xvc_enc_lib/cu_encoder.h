@@ -90,7 +90,7 @@ private:
   // +2 for allow access to one depth lower than smallest CU in RDO
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;
-  CodingUnit::TransformState rd_transform_state_;
+  CodingUnit::ResidualState rd_transform_state_;
   std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 2>,
     constants::kMaxNumCuTrees> rdo_temp_cu_;
 };

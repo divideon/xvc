@@ -43,9 +43,16 @@ public:
       constants::kMaxYuvComponents> coeff;
   };
   struct TransformState {
-    ReconstructionState reco;
+    TransformState();
+    bool root_cbf;
     std::array<bool, constants::kMaxYuvComponents> cbf;
     std::array<bool, constants::kMaxYuvComponents> transform_skip;
+    std::array<std::array<TransformType, 2>,
+      constants::kMaxNumPlanes> transform_type;
+  };
+  struct IntraState {
+    IntraMode mode_luma = IntraMode::kInvalid;
+    IntraChromaMode mode_chroma = IntraChromaMode::kInvalid;
   };
   struct InterState {
     InterDir inter_dir = InterDir::kL0;
@@ -56,6 +63,10 @@ public:
     std::array<MotionVector, 2> mvd;
     std::array<int8_t, 2> ref_idx;
     std::array<int8_t, 2> mvp_idx;
+  };
+  struct ResidualState {
+    ReconstructionState reco;
+    TransformState tx;
   };
   CodingUnit() {}
   CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
@@ -140,18 +151,18 @@ public:
   int GetCuSizeBelowLeft(YuvComponent comp) const;
 
   // Transform
-  bool GetRootCbf() const { return root_cbf_; }
-  void SetRootCbf(bool root_cbf) { root_cbf_ = root_cbf; }
-  bool GetCbf(YuvComponent comp) const { return cbf_[comp]; }
-  void SetCbf(YuvComponent comp, bool cbf) { cbf_[comp] = cbf; }
+  bool GetRootCbf() const { return tx_.root_cbf; }
+  void SetRootCbf(bool root_cbf) { tx_.root_cbf = root_cbf; }
+  bool GetCbf(YuvComponent comp) const { return tx_.cbf[comp]; }
+  void SetCbf(YuvComponent comp, bool cbf) { tx_.cbf[comp] = cbf; }
   bool GetTransformSkip(YuvComponent comp) const {
-    return transform_skip_[comp];
+    return tx_.transform_skip[comp];
   }
   void SetTransformSkip(YuvComponent comp, bool tx_skip) {
-    transform_skip_[comp] = tx_skip;
+    tx_.transform_skip[comp] = tx_skip;
   }
   TransformType GetTransformType(YuvComponent comp, int idx) const {
-    return transform_type_[comp != YuvComponent::kY][idx];
+    return tx_.transform_type[comp != YuvComponent::kY][idx];
   }
   CoeffBuffer GetCoeff(YuvComponent comp) {
     return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
@@ -160,8 +171,8 @@ public:
     return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   }
   bool GetHasAnyCbf() const {
-    return cbf_[YuvComponent::kY] || cbf_[YuvComponent::kU] ||
-      cbf_[YuvComponent::kV];
+    return tx_.cbf[YuvComponent::kY] || tx_.cbf[YuvComponent::kU] ||
+      tx_.cbf[YuvComponent::kV];
   }
   bool CanTransformSkip(YuvComponent comp) const {
     return GetWidth(comp) * GetHeight(comp) <= constants::kTransformSkipMaxArea;
@@ -175,10 +186,10 @@ public:
 
   // Intra
   IntraMode GetIntraMode(YuvComponent comp) const;
-  IntraChromaMode GetIntraChromaMode() const { return intra_mode_chroma_; }
-  void SetIntraModeLuma(IntraMode intra_mode) { intra_mode_luma_ = intra_mode; }
+  IntraChromaMode GetIntraChromaMode() const { return intra_.mode_chroma; }
+  void SetIntraModeLuma(IntraMode intra_mode) { intra_.mode_luma = intra_mode; }
   void SetIntraModeChroma(IntraChromaMode intra_mode) {
-    intra_mode_chroma_ = intra_mode;
+    intra_.mode_chroma = intra_mode;
   }
 
   // Inter
@@ -226,16 +237,16 @@ public:
   void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic,
                    YuvComponent comp) const;
   void SaveStateTo(ReconstructionState *state, const YuvPicture &rec_pic) const;
-  void SaveStateTo(TransformState *state, const YuvPicture &rec_pic,
+  void SaveStateTo(ResidualState *state, const YuvPicture &rec_pic,
                    YuvComponent comp) const;
-  void SaveStateTo(TransformState *state, const YuvPicture &rec_pic) const;
+  void SaveStateTo(ResidualState *state, const YuvPicture &rec_pic) const;
   void SaveStateTo(InterState *state) const;
   void LoadStateFrom(const ReconstructionState &state, YuvPicture *rec_pic,
                      YuvComponent comp);
   void LoadStateFrom(const ReconstructionState &state, YuvPicture *rec_pic);
-  void LoadStateFrom(const TransformState &state, YuvPicture *rec_pic,
+  void LoadStateFrom(const ResidualState &state, YuvPicture *rec_pic,
                      YuvComponent comp);
-  void LoadStateFrom(const TransformState &state, YuvPicture *rec_pic);
+  void LoadStateFrom(const ResidualState &state, YuvPicture *rec_pic);
   void LoadStateFrom(const InterState &state);
 
 private:
@@ -251,15 +262,8 @@ private:
   PredictionMode pred_mode_;
   std::array<CodingUnit*, constants::kQuadSplit> sub_cu_list_;
   const Qp *qp_;
-  bool root_cbf_;
-  std::array<bool, constants::kMaxYuvComponents> cbf_;
-  std::array<bool, constants::kMaxYuvComponents> transform_skip_;
-  std::array<std::array<TransformType, 2>,
-    constants::kMaxNumPlanes> transform_type_;
-  // Intra
-  IntraMode intra_mode_luma_;
-  IntraChromaMode intra_mode_chroma_;
-  // Inter
+  TransformState tx_;
+  IntraState intra_;
   InterState inter_;
 };
 
