@@ -49,6 +49,7 @@ public:
     std::array<bool, constants::kMaxYuvComponents> transform_skip;
     std::array<std::array<TransformType, 2>,
       constants::kMaxNumPlanes> transform_type;
+    int transform_select_idx;
   };
   struct IntraState {
     IntraMode mode_luma = IntraMode::kInvalid;
@@ -155,6 +156,7 @@ public:
   void SetRootCbf(bool root_cbf) { tx_.root_cbf = root_cbf; }
   bool GetCbf(YuvComponent comp) const { return tx_.cbf[comp]; }
   void SetCbf(YuvComponent comp, bool cbf) { tx_.cbf[comp] = cbf; }
+  void ClearCbf(YuvComponent comp);   // sets cbf=false & reset tx related vars
   bool GetTransformSkip(YuvComponent comp) const {
     return tx_.transform_skip[comp];
   }
@@ -164,6 +166,9 @@ public:
   TransformType GetTransformType(YuvComponent comp, int idx) const {
     return tx_.transform_type[comp != YuvComponent::kY][idx];
   }
+  bool HasTransformSelectIdx() const { return tx_.transform_select_idx >= 0; }
+  int GetTransformSelectIdx() const { return tx_.transform_select_idx; }
+  void SetTransformFromSelectIdx(YuvComponent comp, int tx_select_idx);
   CoeffBuffer GetCoeff(YuvComponent comp) {
     return ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   }

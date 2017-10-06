@@ -52,21 +52,21 @@ void SyntaxWriter::WriteQp(int qp_value) {
   entropyenc_->EncodeBypassBins(qp_value, 7);
 }
 
-void SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
-                                     const Coeff *coeff,
-                                     ptrdiff_t src_coeff_stride) {
+int SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+                                    const Coeff *coeff,
+                                    ptrdiff_t src_coeff_stride) {
   if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
-    WriteCoeffSubblock<1>(cu, comp, coeff, src_coeff_stride);
+    return WriteCoeffSubblock<1>(cu, comp, coeff, src_coeff_stride);
   } else {
-    WriteCoeffSubblock<constants::kSubblockShift>(cu, comp, coeff,
-                                                  src_coeff_stride);
+    return WriteCoeffSubblock<constants::kSubblockShift>(cu, comp, coeff,
+                                                         src_coeff_stride);
   }
 }
 
 template<int SubBlockShift>
-void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
-                                      const Coeff *src_coeff,
-                                      ptrdiff_t src_coeff_stride) {
+int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                                     const Coeff *src_coeff,
+                                     ptrdiff_t src_coeff_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int width_log2 = util::SizeToLog2(width);
@@ -94,6 +94,7 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   int subblock_last_coeff_offset = 1;
   uint32_t coeff_signs = 0;
   int coeff_num_non_zero = 0;
+  int total_num_sig_coeff = 0;
   std::array<Coeff, subblock_size> subblock_coeff;
   int pos_last_index = 0, pos_last_x = 0, pos_last_y = 0;
 
@@ -174,7 +175,6 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       ctx_.GetSubblockCsbfCtx(comp, &subblock_csbf[0], subblock_scan_x,
                               subblock_scan_y, subblock_width, subblock_height,
                               &pattern_sig_ctx);
-
     } else {
       ContextModel &ctx = ctx_.GetSubblockCsbfCtx(comp, &subblock_csbf[0],
                                                   subblock_scan_x,
@@ -297,8 +297,10 @@ void SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         }
       }
     }
+    total_num_sig_coeff += coeff_num_non_zero;
     coeff_num_non_zero = 0;
   }
+  return total_num_sig_coeff;
 }
 
 void SyntaxWriter::WriteEndOfSlice(bool end_of_slice) {
@@ -541,6 +543,30 @@ void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
   }
   ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
   entropyenc_->EncodeBin(transform_skip ? 1 : 0, &ctx);
+}
+
+void SyntaxWriter::WriteTransformSelectEnable(const CodingUnit &cu,
+                                              bool enable) {
+  if (Restrictions::Get().disable_ext_transform_select) {
+    assert(!enable);
+    return;
+  }
+  ContextModel &ctx = ctx_.transform_select_flag[cu.GetDepth()];
+  entropyenc_->EncodeBin(enable ? 1 : 0, &ctx);
+}
+
+void SyntaxWriter::WriteTransformSelectIdx(const CodingUnit &cu, int type_idx) {
+  if (Restrictions::Get().disable_ext_transform_select) {
+    assert(!type_idx);
+    return;
+  }
+  static_assert(constants::kMaxTransformSelectIdx == 4, "2 bits signaling");
+  ContextModel &ctx1 = cu.IsIntra() ?
+    ctx_.transform_select_idx[0] : ctx_.transform_select_idx[2];
+  ContextModel &ctx2 = cu.IsIntra() ?
+    ctx_.transform_select_idx[1] : ctx_.transform_select_idx[3];
+  entropyenc_->EncodeBin((type_idx & 1) ? 1 : 0, &ctx1);
+  entropyenc_->EncodeBin((type_idx >> 1) ? 1 : 0, &ctx2);
 }
 
 void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,

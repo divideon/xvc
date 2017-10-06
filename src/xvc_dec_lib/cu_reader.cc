@@ -162,15 +162,37 @@ void CuReader::ReadResidualData(CodingUnit *cu, YuvComponent comp,
   cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
   if (cbf) {
     ctu_has_coeffs_ = true;
-    bool transform_skip = reader->ReadTransformSkip(*cu, comp);
-    cu->SetTransformSkip(comp, transform_skip);
+    ReadResidualDataInternal(cu, comp, reader);
+  }
+}
+
+void CuReader::ReadResidualDataInternal(CodingUnit *cu, YuvComponent comp,
+                                        SyntaxReader *reader) const {
+  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
+  bool use_transform_select = false;
+  if (util::IsLuma(comp)) {
+    use_transform_select = reader->ReadTransformSelectEnable(*cu);
+    if (!use_transform_select) {
+      cu->SetTransformFromSelectIdx(comp, -1);
+    }
+  }
+  bool transform_skip = reader->ReadTransformSkip(*cu, comp);
+  cu->SetTransformSkip(comp, transform_skip);
+  int num_coeff =
     reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
                              cu_coeff_buf.GetStride());
+  if (util::IsLuma(comp) && use_transform_select) {
+    int tx_select_idx = 0;
+    if (!transform_skip &&
+      (cu->IsInter() || num_coeff >= constants::kTransformSelectMinSigCoeffs)) {
+      tx_select_idx = reader->ReadTransformSelectIdx(*cu);
+    }
+    cu->SetTransformFromSelectIdx(comp, tx_select_idx);
   }
 }
 
 bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
-                                SyntaxReader *reader) {
+                                SyntaxReader *reader) const {
   bool signal_root_cbf = cu->IsInter() &&
     !Restrictions::Get().disable_transform_root_cbf &&
     (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);

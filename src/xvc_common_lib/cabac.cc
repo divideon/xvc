@@ -294,6 +294,20 @@ kInitTransformSkipFlag[3][CabacContexts::kNumTransformSkipFlagCtx] = {
   { 139,  139 },
 };
 
+static const uint8_t
+kInitTransformSelectEnable[3][CabacContexts::kNumTransformSelectEnableCtx] = {
+  { kDef, kDef, kDef, kDef, kDef, kDef },
+  { kDef, kDef, kDef, kDef, kDef, kDef },
+  { kDef, kDef, kDef, kDef, kDef, kDef },
+};
+
+static const uint8_t
+kInitTransformSelectIdx[3][CabacContexts::kNumTransformSelectIdxCtx] = {
+  { kDef, kDef, kDef, kDef },
+  { kDef, kDef, kDef, kDef },
+  { kDef, kDef, kDef, kDef },
+};
+
 template <size_t N>
 inline static void Init(int qp, int slice_type,
                         std::array<ContextModel, N> *ctx,
@@ -346,6 +360,8 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &coeff_last_pos_x_luma, &coeff_last_pos_x_chroma, kInitLastPos);
   Init(q, s, &coeff_last_pos_y_luma, &coeff_last_pos_y_chroma, kInitLastPos);
   Init(q, s, &transform_skip_flag, kInitTransformSkipFlag);
+  Init(q, s, &transform_select_flag, kInitTransformSelectEnable);
+  Init(q, s, &transform_select_idx, kInitTransformSelectIdx);
 }
 
 ContextModel& CabacContexts::GetSkipFlagCtx(const CodingUnit &cu) {

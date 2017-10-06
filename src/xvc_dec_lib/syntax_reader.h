@@ -35,8 +35,8 @@ public:
                EntropyDecoder *entropydec);
   bool ReadCbf(const CodingUnit &cu, YuvComponent comp);
   int ReadQp();
-  void ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
-                        Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
+  int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
+                       Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   bool ReadEndOfSlice();
   IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);
   InterDir ReadInterDir(const CodingUnit &cu);
@@ -54,11 +54,13 @@ public:
                             SplitRestriction split_restriction);
   SplitType ReadSplitQuad(const CodingUnit &cu, int max_depth);
   bool ReadTransformSkip(const CodingUnit &cu, YuvComponent comp);
+  bool ReadTransformSelectEnable(const CodingUnit &cu);
+  int ReadTransformSelectIdx(const CodingUnit &cu);
 
 private:
   template<int SubBlockShift>
-  void ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
-                         Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
+  int ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                        Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   void ReadCoeffLastPos(int width, int height, YuvComponent comp,
                         ScanOrder scan_order, uint32_t *pos_last_x,
                         uint32_t *pos_last_y);

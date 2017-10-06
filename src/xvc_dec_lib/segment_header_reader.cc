@@ -175,12 +175,14 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext_deblock_subblock_size_4 |= !!bit_reader->ReadBit();
     if (segment_header->major_version > 1) {
       restr.disable_ext_transform_high_precision |= !!bit_reader->ReadBit();
+      restr.disable_ext_transform_select |= !!bit_reader->ReadBit();
     }
   }
 
   if (segment_header->major_version <= 1) {
     restr.disable_transform_skip = true;
     restr.disable_ext_transform_high_precision = true;
+    restr.disable_ext_transform_select = true;
   }
 
   Restrictions::GetRW() = restr;

@@ -178,7 +178,7 @@ int RdoQuant::QuantFast(const CodingUnit &cu, YuvComponent comp, const Qp &qp,
       int sign = in_ptr[x] < 0 ? -1 : 1;
       int64_t abs_coeff = std::abs(in_ptr[x]);
       int level = static_cast<int>(((abs_coeff * scale) + offset) >> shift);
-      num_non_zero += level;
+      num_non_zero += level ? 1 : 0;
       int coeff =
         util::Clip3(level * sign, constants::kInt16Min, constants::kInt16Max);
       out_ptr[x] = static_cast<Coeff>(coeff);
@@ -414,7 +414,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       Coeff level = out[y * out_stride + x];
-      num_non_zero += level;
+      num_non_zero += level ? 1 : 0;
       out[y * out_stride + x] = (src[y * src_stride + x] < 0) ? -level : level;
     }
   }
@@ -422,7 +422,8 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   // Sign hiding
   if (!Restrictions::Get().disable_transform_sign_hiding &&
       num_non_zero > 1 && SubBlockShift > 1) {
-    CoeffSignHideRdo(cu, comp, qp, src, src_stride, out, out_stride);
+    num_non_zero =
+      CoeffSignHideRdo(cu, comp, qp, src, src_stride, out, out_stride);
   }
 
   return num_non_zero;
@@ -546,7 +547,7 @@ void RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
   }
 }
 
-void
+int
 RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
                            const Qp &qp,
                            const Coeff *src, ptrdiff_t src_stride,
@@ -566,6 +567,7 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
   const int64_t rd_factor = static_cast<int64_t>(
     inv_scale * inv_scale / lambda / subblock_size /
     (1ull << (2 * (bitdepth_ - 8))) + 0.5);
+  int num_non_zero = 0;
 
   int is_last_subblock = -1;
   SubblockScan<SubBlockShift> subblock_scan_(scan_order, width, height);
@@ -578,6 +580,7 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
         first_in_subblock = std::min(first_in_subblock, coeff.offset);
         last_in_subblock = std::max(last_in_subblock, coeff.offset);
         subblock_sum += out[coeff.scan_y * out_stride + coeff.scan_x];
+        num_non_zero++;
       }
     }
     if (last_in_subblock >= 0 && is_last_subblock == -1) {
@@ -658,15 +661,22 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
         out[best_scan_y * out_stride + best_scan_x] == -32768) {
       best_level_delta = -1;
     }
+    if (!out[best_scan_y * out_stride + best_scan_x]) {
+      num_non_zero++;
+    }
     if (src[best_scan_y * src_stride + best_scan_x] >= 0) {
       out[best_scan_y * out_stride + best_scan_x] += best_level_delta;
     } else {
       out[best_scan_y * out_stride + best_scan_x] -= best_level_delta;
     }
+    if (!out[best_scan_y * out_stride + best_scan_x]) {
+      num_non_zero--;
+    }
     if (is_last_subblock == 1) {
       is_last_subblock = 0;
     }
   }
+  return num_non_zero;
 }
 
 Coeff

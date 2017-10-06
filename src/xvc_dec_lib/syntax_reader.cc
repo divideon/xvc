@@ -47,19 +47,19 @@ int SyntaxReader::ReadQp() {
   return entropydec_->DecodeBypassBins(7);
 }
 
-void SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
-                                    Coeff *dst_coeff, ptrdiff_t dst_stride) {
+int SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
+                                   Coeff *dst_coeff, ptrdiff_t dst_stride) {
   if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
-    ReadCoeffSubblock<1>(cu, comp, dst_coeff, dst_stride);
+    return ReadCoeffSubblock<1>(cu, comp, dst_coeff, dst_stride);
   } else {
-    ReadCoeffSubblock<constants::kSubblockShift>(cu, comp,
-                                                 dst_coeff, dst_stride);
+    return ReadCoeffSubblock<constants::kSubblockShift>(cu, comp,
+                                                        dst_coeff, dst_stride);
   }
 }
 
 template<int SubBlockShift>
-void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
-                                     Coeff *dst_coeff, ptrdiff_t dst_stride) {
+int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                                    Coeff *dst_coeff, ptrdiff_t dst_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int width_log2 = util::SizeToLog2(width);
@@ -85,6 +85,7 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   int subblock_last_index = subblock_width * subblock_height - 1;
   int subblock_last_coeff_offset = 1;
   int coeff_num_non_zero = 0;
+  int total_num_sig_coeff = 0;
   std::array<Coeff, subblock_size> subblock_coeff;
   std::array<uint16_t, subblock_size> subblock_nz_coeff_pos;
 
@@ -308,9 +309,10 @@ void SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         coeff_signs <<= 1;
       }
     }
-
+    total_num_sig_coeff += coeff_num_non_zero;
     coeff_num_non_zero = 0;
   }
+  return total_num_sig_coeff;
 }
 
 bool SyntaxReader::ReadEndOfSlice() {
@@ -535,6 +537,29 @@ bool SyntaxReader::ReadTransformSkip(const CodingUnit &cu, YuvComponent comp) {
   }
   ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
   return entropydec_->DecodeBin(&ctx) != 0;
+}
+
+bool SyntaxReader::ReadTransformSelectEnable(const CodingUnit &cu) {
+  if (Restrictions::Get().disable_ext_transform_select) {
+    return false;
+  }
+  ContextModel &ctx = ctx_.transform_select_flag[cu.GetDepth()];
+  return entropydec_->DecodeBin(&ctx) != 0;
+}
+
+int SyntaxReader::ReadTransformSelectIdx(const CodingUnit &cu) {
+  if (Restrictions::Get().disable_ext_transform_select) {
+    return 0;
+  }
+  static_assert(constants::kMaxTransformSelectIdx == 4, "2 bits signaling");
+  ContextModel &ctx1 = cu.IsIntra() ?
+    ctx_.transform_select_idx[0] : ctx_.transform_select_idx[2];
+  ContextModel &ctx2 = cu.IsIntra() ?
+    ctx_.transform_select_idx[1] : ctx_.transform_select_idx[3];
+  int type_idx = 0;
+  type_idx += entropydec_->DecodeBin(&ctx1) ? 1 : 0;
+  type_idx += entropydec_->DecodeBin(&ctx2) ? 2 : 0;
+  return type_idx;
 }
 
 void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,

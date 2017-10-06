@@ -107,7 +107,9 @@ const int kQuadSplit = 4;
 
 // Transform
 const int kTransformSkipMaxArea = 4 * 4;
+const int kTransformSelectMinSigCoeffs = 3;
 const int kTransformZeroOutMinSize = 32;
+const int kMaxTransformSelectIdx = 4;
 
 // Prediction
 const int kNumIntraMpm = 3;

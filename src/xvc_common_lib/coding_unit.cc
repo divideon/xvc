@@ -34,7 +34,8 @@ CodingUnit::TransformState::TransformState()
   cbf({ { false, false, false } }),
   transform_skip({ { false, false, false } }),
   transform_type({ { { { TransformType::kDefault, TransformType::kDefault } },
-  { { TransformType::kDefault, TransformType::kDefault } } } }) {
+  { { TransformType::kDefault, TransformType::kDefault } } } }),
+  transform_select_idx(-1) {
 }
 
 CodingUnit::CodingUnit(PictureData *pic_data, CoeffCtuBuffer *ctu_coeff,
@@ -264,6 +265,64 @@ int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
     }
   }
   return 0;
+}
+
+void CodingUnit::ClearCbf(YuvComponent comp) {
+  tx_.cbf[static_cast<int>(comp)] = false;
+  tx_.transform_skip[static_cast<int>(comp)] = false;
+  SetTransformFromSelectIdx(comp, -1);
+}
+
+void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
+  static const std::array<std::array<TransformType, 2>, 3> kIntraTxMap = { {
+    { TransformType::kDST7, TransformType::kDCT8 },
+    { TransformType::kDST7, TransformType::kDST1 },
+    { TransformType::kDST7, TransformType::kDCT5 },
+  } };
+  static const std::array<TransformType, 2> kInterTxMap = { {
+    TransformType::kDCT8, TransformType::kDST7
+  } };
+  static const std::array<int8_t, kNbrIntraModes> kIntraVerticalMap = { {
+    2, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2,
+    2, 2, 2, 2, 1, 0, 1, 0, 1, 0
+  } };
+  static const std::array<int8_t, kNbrIntraModes> kIntraHorisontalMap = { {
+    2, 1, 0, 1, 0, 1, 0, 1, 2, 2, 2, 2, 2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    0, 0, 0, 0, 1, 0, 1, 0, 1, 0
+  } };
+  static const int kLuma = static_cast<int>(YuvComponent::kY);
+  static const int kChroma = static_cast<int>(YuvComponent::kU);
+
+  if (!util::IsLuma(comp)) {
+    return;
+  }
+  assert(select_idx < constants::kMaxTransformSelectIdx);
+  tx_.transform_select_idx = select_idx;
+  if (Restrictions::Get().disable_ext_transform_select) {
+    tx_.transform_type[kLuma][0] = TransformType::kDefault;
+    tx_.transform_type[kLuma][1] = TransformType::kDefault;
+    tx_.transform_type[kChroma][0] = TransformType::kDefault;
+    tx_.transform_type[kChroma][1] = TransformType::kDefault;
+  } else if (select_idx < 0) {
+    // No adaptive transform type used
+    tx_.transform_type[kLuma][0] = TransformType::kDCT2;
+    tx_.transform_type[kLuma][1] = TransformType::kDCT2;
+    tx_.transform_type[kChroma][0] = TransformType::kDCT2;
+    tx_.transform_type[kChroma][1] = TransformType::kDCT2;
+  } else {
+    if (IsIntra()) {
+      int intra_mode = static_cast<int>(intra_.mode_luma);
+      tx_.transform_type[kLuma][0] =
+        kIntraTxMap[kIntraVerticalMap[intra_mode]][select_idx >> 1];
+      tx_.transform_type[kLuma][1] =
+        kIntraTxMap[kIntraHorisontalMap[intra_mode]][select_idx & 1];
+    } else {
+      tx_.transform_type[kLuma][0] = kInterTxMap[select_idx >> 1];
+      tx_.transform_type[kLuma][1] = kInterTxMap[select_idx & 1];
+    }
+    tx_.transform_type[kChroma][0] = TransformType::kDCT2;
+    tx_.transform_type[kChroma][1] = TransformType::kDCT2;
+  }
 }
 
 IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {

@@ -45,7 +45,7 @@ public:
 
   void WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf);
   void WriteQp(int qp_value);
-  void WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+  int WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
                          const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteEndOfSlice(bool end_of_slice);
   void WriteInterDir(const CodingUnit &cu, InterDir inter_dir);
@@ -66,10 +66,12 @@ public:
   void WriteSplitQuad(const CodingUnit &cu, int max_depth, SplitType split);
   void WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
                           bool tx_skip);
+  void WriteTransformSelectEnable(const CodingUnit &cu, bool enable);
+  void WriteTransformSelectIdx(const CodingUnit &cu, int type_idx);
 
 protected:
   template<int SubBlockShift>
-  void WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+  int WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                           const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteCoeffLastPos(int width, int height, YuvComponent comp,
                          ScanOrder scan_order, int last_pos_x,

@@ -143,10 +143,7 @@ void CuWriter::WriteResidualData(const CodingUnit &cu, YuvComponent comp,
   bool cbf = WriteCbfInvariant(cu, comp, writer);
   if (cbf) {
     ctu_has_coeffs_ = true;
-    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
-    writer->WriteTransformSkip(cu, comp, cu.GetTransformSkip(comp));
-    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
-                              cu_coeff.GetStride());
+    WriteResidualDataInternal(cu, comp, writer);
   }
 }
 
@@ -157,16 +154,35 @@ void CuWriter::WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
   // components during invocation of the luma component
   writer->WriteCbf(cu, comp, cbf);
   if (cbf) {
-    // TODO(PH) Remove code duplication with method above
-    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
-    writer->WriteTransformSkip(cu, comp, cu.GetTransformSkip(comp));
+    WriteResidualDataInternal(cu, comp, writer);
+  }
+}
+
+void
+CuWriter::WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
+                                    SyntaxWriter *writer) const {
+  DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+  bool use_transform_select = false;
+  if (util::IsLuma(comp)) {
+    use_transform_select = cu.HasTransformSelectIdx();
+    writer->WriteTransformSelectEnable(cu, use_transform_select);
+  }
+  writer->WriteTransformSkip(cu, comp, cu.GetTransformSkip(comp));
+  int num_coeff =
     writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
                               cu_coeff.GetStride());
+  if (util::IsLuma(comp) && use_transform_select) {
+    if (!cu.GetTransformSkip(comp) &&
+      (cu.IsInter() || num_coeff >= constants::kTransformSelectMinSigCoeffs)) {
+      writer->WriteTransformSelectIdx(cu, cu.GetTransformSelectIdx());
+    } else {
+      assert(cu.GetTransformSelectIdx() == 0);
+    }
   }
 }
 
 bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
-                                 SyntaxWriter *writer) {
+                                 SyntaxWriter *writer) const {
   bool signal_root_cbf = cu.IsInter() &&
     !Restrictions::Get().disable_transform_root_cbf &&
     (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);

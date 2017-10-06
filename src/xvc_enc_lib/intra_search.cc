@@ -112,6 +112,7 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
 
   IntraMode best_mode = static_cast<IntraMode>(0);
   Cost best_cost = std::numeric_limits<Cost>::max();
+  bool best_uses_tx_select = false;
   for (int i = 0; i < num_modes_for_slow_rdo; i++) {
     IntraMode intra_mode = modes_cost[i].first;
     cu->SetIntraModeLuma(intra_mode);
@@ -123,9 +124,13 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
 
     Bits bits = rdo_writer.GetNumWrittenBits();
     Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
-    if (cost < best_cost) {
+    const bool bias_tx_cost = cost == best_cost &&
+      encoder_settings_.bias_transform_select_cost &&
+      best_uses_tx_select && !cu->HasTransformSelectIdx();
+    if (cost < best_cost || bias_tx_cost) {
       best_cost = cost;
       best_mode = intra_mode;
+      best_uses_tx_select = cu->HasTransformSelectIdx();
     }
   }
   return best_mode;

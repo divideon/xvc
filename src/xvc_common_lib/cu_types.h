@@ -69,6 +69,7 @@ enum IntraMode : int {
   kTotalNumber = 35,
   kInvalid = 99,
 };
+static const int kNbrIntraModes = static_cast<int>(IntraMode::kTotalNumber);
 
 enum class IntraChromaMode : int {
   kPlanar = 0,

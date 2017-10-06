@@ -227,10 +227,12 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
       dist_fast = encoder->GetResidualDist(*cu, comp, &metric);
     }
     bool force_comp_zero = false;
-    if (!Restrictions::Get().disable_transform_cbf) {
+    if (cu->GetCbf(comp) &&
+        !Restrictions::Get().disable_transform_cbf) {
       force_comp_zero = encoder->EvalCbfZero(cu, qp, comp, bitstream_writer,
                                              &cu_writer_, dist_fast, dist_zero);
     }
+    // if cbf was already zero from start then dist_zero == dist_orig
     final_dist += force_comp_zero ? dist_zero : dist_orig;
     sum_dist_zero += dist_zero;
     sum_dist_fast += force_comp_zero ? dist_zero : dist_fast;
@@ -257,7 +259,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
       continue;
     }
     YuvComponent comp = YuvComponent(c);
-    cu->SetCbf(comp, false);
+    cu->ClearCbf(comp);
     // TODO(Dev) Faster to save and reuse predicition buffers
     SampleBuffer reco =
       rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
@@ -287,7 +289,7 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const Qp &qp,
     SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, posx, posy);
     MotionCompensation(*cu, comp, reco_buffer.GetDataPtr(),
                        reco_buffer.GetStride());
-    cu->SetCbf(comp, false);
+    cu->ClearCbf(comp);
     Distortion dist = metric.CompareSample(*cu, comp, orig_pic_, reco_buffer);
     sum_dist += dist;
   }

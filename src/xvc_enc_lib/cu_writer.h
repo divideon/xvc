@@ -51,11 +51,13 @@ public:
                          SyntaxWriter *writer);
   // Encoder only method with simplified cbf rdo signaling
   void WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
-                                  SyntaxWriter *writer) const;
+                               SyntaxWriter *writer) const;
 
 private:
+  void WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
+                                 SyntaxWriter *writer) const;
   bool WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
-                         SyntaxWriter *writer);
+                         SyntaxWriter *writer) const;
 
   const PictureData &pic_data_;
   const IntraPrediction *intra_pred_;

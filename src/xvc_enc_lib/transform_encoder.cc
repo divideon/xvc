@@ -18,6 +18,8 @@
 
 #include "xvc_enc_lib/transform_encoder.h"
 
+#include <limits>
+
 #include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
@@ -47,6 +49,9 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
                                            CuWriter *cu_writer,
                                            YuvPicture *rec_pic) {
   const auto get_transform_cost = [&](Distortion dist) {
+    if (dist == std::numeric_limits<Distortion>::max()) {
+      return std::numeric_limits<Cost>::max();
+    }
     if (encoder_settings_.fast_inter_transform_dist &&
         cu->IsInter() && cu->GetCbf(comp)) {
       // Set new distortion based on residual instead of reconstructed samples
@@ -65,34 +70,51 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
     return dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
   };
 
-  if (Restrictions::Get().disable_transform_skip ||
-      !cu->CanTransformSkip(comp)) {
-    // Most common case: no transform skip evaluated
-    return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false,
-                                   rec_pic);
+  int nbr_tx_select_normal = 0;
+  if (util::IsLuma(comp) &&
+      !Restrictions::Get().disable_ext_transform_select) {
+    nbr_tx_select_normal = constants::kMaxTransformSelectIdx;
+  }
+
+  // Evaluate normal transform
+  Cost best_cost_normal = std::numeric_limits<Cost>::max();
+  int best_txselect_normal = -1;
+  for (int tx_select = -1; tx_select < nbr_tx_select_normal; tx_select++) {
+    cu->SetTransformFromSelectIdx(comp, tx_select);
+    Distortion dist_normal =
+      TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false, rec_pic);
+    Cost cost = get_transform_cost(dist_normal);
+    if (cost < best_cost_normal) {
+      best_cost_normal = cost;
+      best_txselect_normal = tx_select;
+    }
   }
 
   // Evaluate transform skip
-  Distortion dist_txskip =
-    TransformAndReconstruct(cu, comp, qp, writer, orig_pic, true, rec_pic);
-  if (!cu->GetCbf(comp)) {
-    // Transform skip requires cbf
+  Cost best_cost_txskip = std::numeric_limits<Cost>::max();
+  if (cu->CanTransformSkip(comp) &&
+      !Restrictions::Get().disable_transform_skip) {
+    cu->SetTransformFromSelectIdx(comp, -1);
+    Distortion dist_txskip =
+      TransformAndReconstruct(cu, comp, qp, writer, orig_pic, true, rec_pic);
+    Cost cost = get_transform_cost(dist_txskip);
+    if (cost < best_cost_txskip) {
+      best_cost_txskip = cost;
+    }
+  }
+
+  const bool bias_tskip = best_cost_txskip == best_cost_normal &&
+    encoder_settings_.bias_transform_select_cost && best_txselect_normal >= 0;
+  // TODO(PH) Evaluate saving best state instead of re-calculating
+  if (best_cost_txskip < best_cost_normal || bias_tskip) {
+    cu->SetTransformFromSelectIdx(comp, -1);
+    return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, true,
+                                   rec_pic);
+  } else {
+    cu->SetTransformFromSelectIdx(comp, best_txselect_normal);
     return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false,
                                    rec_pic);
   }
-  Cost cost_txskip = get_transform_cost(dist_txskip);
-
-  // Evaluate normal transform
-  Distortion dist_normal =
-    TransformAndReconstruct(cu, comp, qp, writer, orig_pic, false, rec_pic);
-  Cost cost_normal = get_transform_cost(dist_normal);
-
-  if (cost_txskip < cost_normal) {
-    // TODO(PH) Evaluate saving coefficients instead of re-calculating tx skip
-    return TransformAndReconstruct(cu, comp, qp, writer, orig_pic, true,
-                                   rec_pic);
-  }
-  return dist_normal;
 }
 
 Distortion
@@ -131,6 +153,20 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
       fwd_quant_.QuantFast(*cu, comp, qp, cu->GetPicType(),
                            temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
                            cu_coeff.GetDataPtr(), cu_coeff.GetStride());
+  }
+  if (util::IsLuma(comp) && cu->GetTransformSelectIdx() > 0 &&
+      cu->IsIntra() && non_zero < constants::kTransformSelectMinSigCoeffs) {
+    // enforce transform select idx signaling invariant for intra
+    return std::numeric_limits<Distortion>::max();
+  }
+  if (util::IsLuma(comp) && cu->HasTransformSelectIdx() &&
+      cu->IsInter() & !non_zero) {
+    // enforce transform select idx signaling invariant for inter
+    return std::numeric_limits<Distortion>::max();
+  }
+  if (skip_transform && !non_zero) {
+    // prevent transform skip without coefficients
+    return std::numeric_limits<Distortion>::max();
   }
   bool cbf = non_zero != 0;
   if (!cbf && Restrictions::Get().disable_transform_cbf) {
@@ -171,9 +207,6 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
                                    CuWriter *cu_writer,
                                    Distortion dist_non_zero,
                                    Distortion dist_zero) {
-  if (!cu->GetCbf(comp)) {
-    return false;
-  }
   RdoSyntaxWriter non_zero_writer(rdo_writer, 0);
   cu_writer->WriteResidualDataRdoCbf(*cu, comp, &non_zero_writer);
   Bits non_zero_bits = non_zero_writer.GetNumWrittenBits();
@@ -186,9 +219,12 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
     static_cast<Cost>(non_zero_bits * qp.GetLambda() + 0.5);
   Cost cost_zero = dist_zero +
     static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);
-  if (cost_zero < cost_non_zero ||
-    (cost_zero == cost_non_zero && cu->GetTransformSkip(comp))) {
-    cu->SetCbf(comp, false);
+  const bool bias_cbf_zero = cost_zero == cost_non_zero &&
+    encoder_settings_.bias_transform_select_cost &&
+    ((cu->HasTransformSelectIdx() && util::IsLuma(comp) ||
+      cu->GetTransformSkip(comp)));
+  if (cost_zero < cost_non_zero || bias_cbf_zero) {
+    cu->ClearCbf(comp);
     return true;
   }
   return false;

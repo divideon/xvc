@@ -280,6 +280,10 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_EXT_TRANSFORM_HIGH_PRECISION
   disable_ext_transform_high_precision = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT_TRANSFORM_SELECT
+  disable_ext_transform_select = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
@@ -292,7 +296,6 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_tmvp_exclude_intra_from_ref_list = true;
     disable_ext_ref_list_l0_trim = true;
     disable_ext_intra_unrestricted_predictor = true;
-    disable_ext_transform_high_precision = true;
   }
   if (mode == RestrictedMode::kModeA) {
     disable_ext_sink = true;
@@ -303,6 +306,8 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_two_cu_trees = true;
     disable_ext_transform_size_64 = true;
     disable_ext_deblock_subblock_size_4 = true;
+    disable_ext_transform_high_precision = true;
+    disable_ext_transform_select = true;
   }
 }
 

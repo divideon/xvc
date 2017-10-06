@@ -224,6 +224,7 @@ bool PictureDecoder::ValidateChecksum(const SegmentHeader &segment,
   if (segment.major_version <= 1) {
     size_t checksum_len = bit_reader->ReadByte();
     assert(checksum_len == pic_hash_.size());
+    ((void)(checksum_len));   // not used
   }
   std::vector<uint8_t> expected_hash;
   expected_hash.resize(pic_hash_.size());

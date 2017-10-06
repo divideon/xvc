@@ -54,10 +54,10 @@ private:
                          const Coeff *in, ptrdiff_t in_stride,
                          const Coeff *delta, ptrdiff_t delta_stride,
                          Coeff *out, ptrdiff_t out_stride) const;
-  void CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
-                        const Qp &qp,
-                        const Coeff *src, ptrdiff_t src_stride,
-                        Coeff *out, ptrdiff_t out_stride) const;
+  int CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
+                       const Qp &qp,
+                       const Coeff *src, ptrdiff_t src_stride,
+                       Coeff *out, ptrdiff_t out_stride) const;
   Coeff QuantCoeffRdo(YuvComponent comp, Coeff orig_coeff, Coeff level,
                       const CoeffCodingState &code_state, Bits sig1_bits,
                       int64_t lambda, int cost_scale, CabacContexts *contexts,
