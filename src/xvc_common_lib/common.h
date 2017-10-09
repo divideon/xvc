@@ -89,7 +89,7 @@ const int kMaxCuDepthChroma = kMaxCuDepth + 1;
 const int kMinCuSize = (kCtuSize >> kMaxCuDepth);
 // Binary split
 const int kMaxBinarySplitDepth = 3;
-const int kMaxBinarySplitSizeInter = 128;
+const int kMaxBinarySplitSizeInter = kCtuSize;
 const int kMaxBinarySplitSizeIntra1 = 32;
 const int kMaxBinarySplitSizeIntra2 = 16;
 const int kMinBinarySplitSize = 4;
