@@ -87,6 +87,7 @@ set(XVC_ENC_LIB_SOURCES
     "xvc_enc_lib/cu_writer.h"
     "xvc_enc_lib/encoder.cc"
     "xvc_enc_lib/encoder.h"
+    "xvc_enc_lib/encoder_settings.cc"
     "xvc_enc_lib/encoder_settings.h"
     "xvc_enc_lib/entropy_encoder.cc"
     "xvc_enc_lib/entropy_encoder.h"
