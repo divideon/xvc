@@ -46,6 +46,7 @@ struct EncoderSettings {
         always_evaluate_intra_in_inter = 1;
         default_num_ref_pics = 3;
         max_binary_split_depth = 3;
+        fast_transform_select_eval = 0;
         break;
       case SpeedMode::kSlow:
         fast_intra_mode_eval_level = 1;
@@ -54,6 +55,7 @@ struct EncoderSettings {
         always_evaluate_intra_in_inter = 0;
         default_num_ref_pics = 2;
         max_binary_split_depth = 2;
+        fast_transform_select_eval = 1;
         break;
       default:
         assert(0);
@@ -75,6 +77,7 @@ struct EncoderSettings {
         smooth_lambda_scaling = 0;
         default_num_ref_pics = 2;
         max_binary_split_depth = 0;
+        fast_transform_select_eval = 1;
         adaptive_qp = 0;
         chroma_qp_offset_table = 1;
         chroma_qp_offset_u = 0;
@@ -91,6 +94,7 @@ struct EncoderSettings {
         smooth_lambda_scaling = 0;
         default_num_ref_pics = 2;
         max_binary_split_depth = 2;
+        fast_transform_select_eval = 1;
         adaptive_qp = 0;
         chroma_qp_offset_table = 1;
         chroma_qp_offset_u = 1;
@@ -134,7 +138,6 @@ struct EncoderSettings {
   static const bool skip_mode_decision_for_identical_cu = false;
   static const bool fast_inter_transform_dist = true;  // not really any impact
   static const bool fast_inter_root_cbf_zero_bits = false;  // very small loss
-  static const bool bias_transform_select_cost = true;  // no performance impact
 
   // Speed mode dependent settings
   int fast_intra_mode_eval_level = -1;
@@ -143,6 +146,7 @@ struct EncoderSettings {
   int always_evaluate_intra_in_inter = -1;
   int default_num_ref_pics = -1;
   int max_binary_split_depth = -1;
+  int fast_transform_select_eval = -1;
 
   // Setting with default values used in all speed modes
   int fast_quad_split_based_on_binary_split = 1;

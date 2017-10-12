@@ -124,10 +124,9 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
 
     Bits bits = rdo_writer.GetNumWrittenBits();
     Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
-    const bool bias_tx_cost = cost == best_cost &&
-      encoder_settings_.bias_transform_select_cost &&
+    const bool bias_normal_tx_type = cost == best_cost &&
       best_uses_tx_select && !cu->HasTransformSelectIdx();
-    if (cost < best_cost || bias_tx_cost) {
+    if (cost < best_cost || bias_normal_tx_type) {
       best_cost = cost;
       best_mode = intra_mode;
       best_uses_tx_select = cu->HasTransformSelectIdx();
@@ -204,8 +203,11 @@ Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
   IntraMode intra_mode = cu->GetIntraMode(comp);
   Predict(intra_mode, *cu, comp, reco_buffer.GetDataPtr(),
           reco_buffer.GetStride(), pred_buf.GetDataPtr(), pred_buf.GetStride());
-  return encoder->CompressAndEvalTransform(cu, comp, qp, writer, orig_pic_,
-                                           &cu_writer_, rec_pic);
+  TxSearchFlags tx_flags = TxSearchFlags::kFullEval & ~TxSearchFlags::kCbfZero;
+  TransformEncoder::RdCost tx_cost =
+    encoder->CompressAndEvalTransform(cu, comp, qp, writer, orig_pic_, tx_flags,
+                                      nullptr, nullptr, &cu_writer_, rec_pic);
+  return tx_cost.dist_reco;
 }
 
 }   // namespace xvc

@@ -33,8 +33,24 @@
 
 namespace xvc {
 
+enum class TxSearchFlags {
+  kNone = 0,
+  kNormalTx = 1 << 0,
+  kCbfZero = 1 << 1,
+  kTransformTskip = 1 << 2,
+  kTransformSelect = 1 << 3,
+  kFullEval = 0xFFFFFF,
+};
+
 class TransformEncoder {
 public:
+  struct RdCost {
+    bool operator==(const RdCost &other) { return cost == other.cost; }
+    bool operator<(const RdCost &other) { return cost < other.cost; }
+    Cost cost;
+    Distortion dist_reco;
+    Distortion dist_resi;
+  };
   TransformEncoder(int bitdepth, int num_components,
                    const YuvPicture &orig_pic,
                    const EncoderSettings &encoder_settings);
@@ -42,25 +58,27 @@ public:
   SampleBuffer& GetPredBuffer(YuvComponent comp) {
     return temp_pred_[static_cast<int>(comp)];
   }
-  Distortion CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
-                                      const Qp &qp, const SyntaxWriter &writer,
-                                      const YuvPicture &orig_pic,
-                                      CuWriter *cu_writer, YuvPicture *rec_pic);
-  bool EvalCbfZero(CodingUnit *cu, const Qp &qp, YuvComponent comp,
-                   const SyntaxWriter &bitstream_writer, CuWriter *cu_writer,
-                   Distortion dist_non_zero, Distortion dist_zero);
-  bool EvalRootCbfZero(CodingUnit *cu, const Qp &qp,
-                       const SyntaxWriter &bitstream_writer,
-                       CuWriter *cu_writer, Distortion sum_dist_non_zero,
-                       Distortion sum_dist_zero);
+  RdCost
+    CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
+                             const Qp &qp, const SyntaxWriter &writer,
+                             const YuvPicture &orig_pic,
+                             TxSearchFlags search_flags, const Cost *orig_cost,
+                             Distortion *out_dist_zero, CuWriter *cu_writer,
+                             YuvPicture *rec_pic);
+  Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
+                                     const Qp &qp, const SyntaxWriter &writer,
+                                     const YuvPicture &orig_pic,
+                                     YuvPicture *rec_pic);
+  Bits GetCuBitsResidual(const CodingUnit &cu, const SyntaxWriter &writer,
+                         CuWriter *cu_writer);
+  Bits GetCuBitsFull(const CodingUnit &cu, const SyntaxWriter &writer,
+                     CuWriter *cu_writer);
   Distortion GetResidualDist(const CodingUnit &cu, YuvComponent comp,
                              SampleMetric *metric);
 
 private:
-  Distortion TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
-                                     const Qp &qp, const SyntaxWriter &writer,
-                                     const YuvPicture &orig_pic,
-                                     bool skip_transform, YuvPicture *rec_pic);
+  void ReconstructZeroCbf(CodingUnit *cu, YuvComponent comp,
+                          const YuvPicture &orig_pic, YuvPicture *rec_pic);
   MetricType GetTransformMetric(YuvComponent comp) const {
     return encoder_settings_.structural_ssd > 0 && comp == YuvComponent::kY ?
       MetricType::kStructuralSsd : MetricType::kSsd;
@@ -75,11 +93,30 @@ private:
   ForwardTransform fwd_transform_;
   Quantize inv_quant_;
   RdoQuant fwd_quant_;
+  CodingUnit::ResidualState best_cu_state_;
   std::array<SampleBufferStorage, constants::kMaxYuvComponents> temp_pred_;
   ResidualBufferStorage temp_resi_orig_;
   ResidualBufferStorage temp_resi_;
   CoeffBufferStorage temp_coeff_;
 };
+
+inline TxSearchFlags operator~ (TxSearchFlags a) {
+  return static_cast<TxSearchFlags>(~static_cast<int>(a));
+}
+inline TxSearchFlags operator| (TxSearchFlags a, TxSearchFlags b) {
+  return static_cast<TxSearchFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+inline TxSearchFlags operator& (TxSearchFlags a, TxSearchFlags b) {
+  return static_cast<TxSearchFlags>(static_cast<int>(a) & static_cast<int>(b));
+}
+inline TxSearchFlags& operator|= (TxSearchFlags& a, TxSearchFlags b) {  // NOLINT
+  a = static_cast<TxSearchFlags>(static_cast<int>(a) | static_cast<int>(b));
+  return a;
+}
+inline TxSearchFlags& operator&= (TxSearchFlags& a, TxSearchFlags b) {  // NOLINT
+  a = static_cast<TxSearchFlags>(static_cast<int>(a) & static_cast<int>(b));
+  return a;
+}
 
 }   // namespace xvc
 

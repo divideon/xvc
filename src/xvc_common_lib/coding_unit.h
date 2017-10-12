@@ -245,6 +245,7 @@ public:
   void SaveStateTo(ResidualState *state, const YuvPicture &rec_pic,
                    YuvComponent comp) const;
   void SaveStateTo(ResidualState *state, const YuvPicture &rec_pic) const;
+  void SaveStateTo(TransformState *state) const;
   void SaveStateTo(InterState *state) const;
   void LoadStateFrom(const ReconstructionState &state, YuvPicture *rec_pic,
                      YuvComponent comp);
@@ -252,6 +253,7 @@ public:
   void LoadStateFrom(const ResidualState &state, YuvPicture *rec_pic,
                      YuvComponent comp);
   void LoadStateFrom(const ResidualState &state, YuvPicture *rec_pic);
+  void LoadStateFrom(const TransformState &state);
   void LoadStateFrom(const InterState &state);
 
 private:

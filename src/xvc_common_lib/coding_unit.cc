@@ -438,6 +438,9 @@ void CodingUnit::SaveStateTo(ResidualState *dst_state,
   dst_state->tx.cbf[comp] = tx_.cbf[comp];
   dst_state->tx.transform_skip[comp] = tx_.transform_skip[comp];
   dst_state->tx.transform_type[plane] = tx_.transform_type[plane];
+  if (util::IsLuma(comp)) {
+    dst_state->tx.transform_select_idx = tx_.transform_select_idx;
+  }
 }
 
 void CodingUnit::SaveStateTo(ResidualState *dst_state,
@@ -446,6 +449,10 @@ void CodingUnit::SaveStateTo(ResidualState *dst_state,
     SaveStateTo(&dst_state->reco, rec_pic, comp);
   }
   dst_state->tx = tx_;
+}
+
+void CodingUnit::SaveStateTo(TransformState *state) const {
+  *state = tx_;
 }
 
 void CodingUnit::SaveStateTo(InterState *state) const {
@@ -482,6 +489,9 @@ void CodingUnit::LoadStateFrom(const ResidualState &src_state,
   tx_.cbf[comp] = src_state.tx.cbf[comp];
   tx_.transform_skip[comp] = src_state.tx.transform_skip[comp];
   tx_.transform_type[plane] = src_state.tx.transform_type[plane];
+  if (util::IsLuma(comp)) {
+    tx_.transform_select_idx = src_state.tx.transform_select_idx;
+  }
 }
 
 void CodingUnit::LoadStateFrom(const ResidualState &src_state,
@@ -490,6 +500,10 @@ void CodingUnit::LoadStateFrom(const ResidualState &src_state,
     LoadStateFrom(src_state.reco, rec_pic, comp);
   }
   tx_ = src_state.tx;
+}
+
+void CodingUnit::LoadStateFrom(const TransformState &state) {
+  tx_ = state;
 }
 
 void CodingUnit::LoadStateFrom(const InterState &state) {

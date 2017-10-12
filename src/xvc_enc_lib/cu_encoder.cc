@@ -409,7 +409,8 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     if (!Restrictions::Get().disable_inter_merge_mode) {
       const bool fast_merge_skip =
         encoder_settings_.fast_merge_eval && cache_result.any_skip;
-      cost = CompressMerge(temp_cu, qp, *writer, fast_merge_skip);
+      cost =
+        CompressMerge(temp_cu, qp, *writer, best_cost.cost, fast_merge_skip);
       if (cost < best_cost) {
         best_cost = cost;
         temp_cu->SaveStateTo(best_state, rec_pic_);
@@ -418,7 +419,7 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     }
 
     if (!fast_skip_inter) {
-      cost = CompressInter(temp_cu, qp, *writer);
+      cost = CompressInter(temp_cu, qp, *writer, best_cost.cost);
       if (cost < best_cost) {
         best_cost = cost;
         temp_cu->SaveStateTo(best_state, rec_pic_);
@@ -509,16 +510,18 @@ CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
 
 CuEncoder::RdoCost
 CuEncoder::CompressInter(CodingUnit *cu, const Qp &qp,
-                         const SyntaxWriter &bitstream_writer) {
+                         const SyntaxWriter &bitstream_writer,
+                         Cost best_cu_cost) {
   Distortion dist =
-    inter_search_.CompressInter(cu, qp, bitstream_writer, this, &rec_pic_);
+    inter_search_.CompressInter(cu, qp, bitstream_writer, best_cu_cost,
+                                this, &rec_pic_);
   return GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
 }
 
 CuEncoder::RdoCost
 CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
                          const SyntaxWriter &bitstream_writer,
-                         bool fast_merge_skip) {
+                         Cost best_cu_cost, bool fast_merge_skip) {
   std::array<bool,
     constants::kNumInterMergeCandidates> skip_evaluated = { false };
   InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
@@ -551,12 +554,14 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
       }
       Distortion dist =
         inter_search_.CompressMergeCand(cu, qp, bitstream_writer, merge_list,
-                                        merge_idx, force_skip, this, &rec_pic_);
+                                        merge_idx, force_skip, best_cu_cost,
+                                        this, &rec_pic_);
       RdoCost cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
       if (!cu->GetHasAnyCbf()) {
         skip_evaluated[merge_idx] = true;
       }
       if (cost.cost < best_cost.cost) {
+        best_cu_cost = std::min(cost.cost, best_cu_cost);
         best_cost = cost;
         best_merge_idx = merge_idx;
         cu->SaveStateTo(&best_transform_state, rec_pic_);

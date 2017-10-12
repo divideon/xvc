@@ -45,7 +45,8 @@ public:
               const EncoderSettings &encoder_settings);
   Distortion CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
-                           TransformEncoder *encoder, YuvPicture *rec_pic);
+                           Cost best_cu_cost, TransformEncoder *encoder,
+                           YuvPicture *rec_pic);
   Distortion CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                TransformEncoder *encoder, YuvPicture *rec_pic);
@@ -53,7 +54,8 @@ public:
                                const SyntaxWriter &bitstream_writer,
                                const InterMergeCandidateList &merge_list,
                                int merge_idx, bool force_skip,
-                               TransformEncoder *encoder, YuvPicture *rec_pic);
+                               Cost best_cu_cost, TransformEncoder *encoder,
+                               YuvPicture *rec_pic);
   int SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
                             const SyntaxWriter &bitstream_writer,
                             const InterMergeCandidateList &merge_list,
@@ -66,13 +68,15 @@ private:
   static const int kSearchRangeBi = 4;
   static constexpr int kFastMergeNumCand = 4;
   static constexpr double kFastMergeCostFactor = 1.25;
+  static constexpr double kFastTransformSelectCostFactor = 1.1;
 
   void SearchMotion(CodingUnit *cu, const Qp &qp, bool uni_prediction_only,
                     const SyntaxWriter &bitstream_writer,
                     SampleBuffer *pred_buffer);
   Distortion CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
-                                TransformEncoder *encoder, YuvPicture *rec_pic);
+                                Cost best_cu_cost, TransformEncoder *encoder,
+                                YuvPicture *rec_pic);
   Distortion CompressSkipOnly(CodingUnit *cu, const Qp &qp,
                               const SyntaxWriter &bitstream_writer,
                               TransformEncoder *encoder, YuvPicture *rec_pic);
