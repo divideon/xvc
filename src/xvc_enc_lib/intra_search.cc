@@ -63,7 +63,7 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
   IntraPrediction::State intra_state =
     ComputeReferenceState(*cu, comp, reco, reco_stride);
 
-  SampleBuffer &pred_buf = encoder->GetPredBuffer();
+  SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
   SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
   std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber> modes_cost;
   for (int i = 0; i < IntraMode::kTotalNumber; i++) {
@@ -200,7 +200,7 @@ Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
   int cu_x = cu->GetPosX(comp);
   int cu_y = cu->GetPosY(comp);
   SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
-  SampleBuffer &pred_buf = encoder->GetPredBuffer();
+  SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
   IntraMode intra_mode = cu->GetIntraMode(comp);
   Predict(intra_mode, *cu, comp, reco_buffer.GetDataPtr(),
           reco_buffer.GetStride(), pred_buf.GetDataPtr(), pred_buf.GetStride());

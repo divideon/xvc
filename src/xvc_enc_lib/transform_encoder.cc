@@ -35,7 +35,9 @@ TransformEncoder::TransformEncoder(int bitdepth, int num_components,
   fwd_transform_(bitdepth),
   inv_quant_(),
   fwd_quant_(bitdepth),
-  temp_pred_(kBufferStride_, constants::kMaxBlockSize),
+  temp_pred_({ { { constants::kMaxBlockSize, constants::kMaxBlockSize },
+  { constants::kMaxBlockSize, constants::kMaxBlockSize },
+  { constants::kMaxBlockSize, constants::kMaxBlockSize } } }),
   temp_resi_orig_(kBufferStride_, constants::kMaxBlockSize),
   temp_resi_(kBufferStride_, constants::kMaxBlockSize),
   temp_coeff_(kBufferStride_, constants::kMaxBlockSize) {
@@ -132,7 +134,8 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
 
   // Calculate residual
   auto orig_buffer = orig_pic.GetSampleBuffer(comp, cu_x, cu_y);
-  temp_resi_orig_.Subtract(width, height, orig_buffer, temp_pred_);
+  SampleBuffer &pred_buffer = GetPredBuffer(comp);
+  temp_resi_orig_.Subtract(width, height, orig_buffer, pred_buffer);
 
   // Transform
   if (!skip_transform) {
@@ -191,10 +194,10 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     }
 
     // Reconstruct
-    reco_buffer.AddClip(width, height, temp_pred_, temp_resi_,
+    reco_buffer.AddClip(width, height, pred_buffer, temp_resi_,
                         min_pel_, max_pel_);
   } else {
-    reco_buffer.CopyFrom(width, height, temp_pred_);
+    reco_buffer.CopyFrom(width, height, pred_buffer);
   }
 
   SampleMetric metric(GetTransformMetric(comp), qp, rec_pic->GetBitdepth());
@@ -221,8 +224,8 @@ bool TransformEncoder::EvalCbfZero(CodingUnit *cu, const Qp &qp,
     static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);
   const bool bias_cbf_zero = cost_zero == cost_non_zero &&
     encoder_settings_.bias_transform_select_cost &&
-    ((cu->HasTransformSelectIdx() && util::IsLuma(comp) ||
-      cu->GetTransformSkip(comp)));
+    ((cu->HasTransformSelectIdx() && util::IsLuma(comp)) ||
+      cu->GetTransformSkip(comp));
   if (cost_zero < cost_non_zero || bias_cbf_zero) {
     cu->ClearCbf(comp);
     return true;

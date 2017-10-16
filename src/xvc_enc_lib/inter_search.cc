@@ -62,7 +62,7 @@ InterSearch::CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
                            TransformEncoder *encoder, YuvPicture *rec_pic) {
   bool uni_pred_only = cu->GetPicType() == PicturePredictionType::kUni;
-  SampleBuffer &pred_buffer = encoder->GetPredBuffer();
+  SampleBuffer &pred_buffer = encoder->GetPredBuffer(YuvComponent::kY);
   SearchMotion(cu, qp, uni_pred_only, bitstream_writer, &pred_buffer);
   return CompressAndEvalCbf(cu, qp, bitstream_writer, encoder, rec_pic);
 }
@@ -81,7 +81,7 @@ InterSearch::CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
     SampleMetric metric(m, qp, rec_pic->GetBitdepth());
     return metric.CompareSample(*cu, comp, orig_pic_, reco);
   } else {
-    SampleBuffer &pred = encoder->GetPredBuffer();
+    SampleBuffer &pred = encoder->GetPredBuffer(comp);
     MotionCompensation(*cu, comp, pred.GetDataPtr(), pred.GetStride());
     return encoder->CompressAndEvalTransform(cu, comp, qp, bitstream_writer,
                                              orig_pic_, &cu_writer_, rec_pic);
@@ -116,7 +116,7 @@ InterSearch::SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
                                    MergeCandLookup *out_cand_list) {
   constexpr int max_merge_cand = constants::kNumInterMergeCandidates;
   SampleMetric metric(MetricType::kSatd, qp, bitdepth_);
-  SampleBuffer pred_buffer = encoder->GetPredBuffer();
+  SampleBuffer pred_buffer = encoder->GetPredBuffer(YuvComponent::kY);
   std::array<std::pair<int, double>, max_merge_cand> cand_cost;
   for (int merge_idx = 0; merge_idx < max_merge_cand; merge_idx++) {
     ApplyMerge(cu, merge_list[merge_idx]);
@@ -210,7 +210,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
     MetricType m = encoder_settings_.structural_ssd > 0 &&
       comp == YuvComponent::kY ? MetricType::kStructuralSsd : MetricType::kSsd;
     SampleMetric metric(m, qp, bitdepth_);
-    SampleBuffer &pred_buffer = encoder->GetPredBuffer();
+    SampleBuffer &pred_buffer = encoder->GetPredBuffer(comp);
     MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
                        pred_buffer.GetStride());
     // TODO(PH) Should update contexts after each component for rdo quant
@@ -218,7 +218,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
       encoder->CompressAndEvalTransform(cu, comp, qp, bitstream_writer,
                                         orig_pic_, &cu_writer_, rec_pic);
     Distortion dist_zero =
-      metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer());
+      metric.CompareSample(*cu, comp, orig_pic_, encoder->GetPredBuffer(comp));
     Distortion dist_fast = dist_orig;
     if (encoder_settings_.fast_inter_transform_dist && cu->GetCbf(comp) &&
         !encoder_settings_.structural_ssd) {

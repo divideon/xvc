@@ -19,6 +19,8 @@
 #ifndef XVC_ENC_LIB_TRANSFORM_ENCODER_H_
 #define XVC_ENC_LIB_TRANSFORM_ENCODER_H_
 
+#include <array>
+
 #include "xvc_common_lib/sample_buffer.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/transform.h"
@@ -37,7 +39,9 @@ public:
                    const YuvPicture &orig_pic,
                    const EncoderSettings &encoder_settings);
 
-  SampleBuffer& GetPredBuffer() { return temp_pred_; }
+  SampleBuffer& GetPredBuffer(YuvComponent comp) {
+    return temp_pred_[static_cast<int>(comp)];
+  }
   Distortion CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
                                       const Qp &qp, const SyntaxWriter &writer,
                                       const YuvPicture &orig_pic,
@@ -71,7 +75,7 @@ private:
   ForwardTransform fwd_transform_;
   Quantize inv_quant_;
   RdoQuant fwd_quant_;
-  SampleBufferStorage temp_pred_;
+  std::array<SampleBufferStorage, constants::kMaxYuvComponents> temp_pred_;
   ResidualBufferStorage temp_resi_orig_;
   ResidualBufferStorage temp_resi_;
   CoeffBufferStorage temp_coeff_;
