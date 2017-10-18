@@ -18,7 +18,6 @@
 
 #include "xvc_enc_lib/intra_search.h"
 
-#include <utility>
 #include <limits>
 
 #include "xvc_common_lib/restrictions.h"
@@ -36,86 +35,25 @@ IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
   cu_writer_(pic_data, this) {
 }
 
-IntraMode
-IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
-                             const SyntaxWriter &bitstream_writer,
-                             TransformEncoder *encoder, YuvPicture *rec_pic) {
-  static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
-      // 1, 2, 4, 8, 16, 32, 64, 128
-    { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
-    { 0, 0, 0, 0, 0, 0, 0, 0 },   // 2
-    { 0, 0, 3, 3, 3, 3, 2, 2 },   // 4
-    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 8
-    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 16
-    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 32
-    { 0, 0, 2, 3, 3, 3, 3, 2 },   // 64
-    { 0, 0, 2, 2, 2, 2, 2, 3 },   // 128
-    } };
-  static const std::array<uint8_t, 7> kNumIntraFastModesNoExt = {
-    /*1x1: */ 0, /*2x2: */ 3, /*4x4: */ 8, /*8x8: */ 8, /*16x16: */ 3,
-    /*32x32: */ 3, /*64x64: */ 3
-  };
+Distortion
+IntraSearch::CompressIntraLuma(CodingUnit *cu, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               TransformEncoder *encoder, YuvPicture *rec_pic) {
   const YuvComponent comp = YuvComponent::kY;
-  Sample *reco =
-    rec_pic->GetSamplePtr(comp, cu->GetPosX(comp), cu->GetPosY(comp));
-  const ptrdiff_t reco_stride = rec_pic->GetStride(comp);
-  IntraPredictorLuma mpm = GetPredictorLuma(*cu);
-  IntraPrediction::State intra_state =
-    ComputeReferenceState(*cu, comp, reco, reco_stride);
+  IntraModeSet intra_modes;
+  int num_modes_for_slow_rdo =
+    DetermineSlowIntraModes(cu, qp, bitstream_writer, encoder, rec_pic,
+                            &intra_modes);
 
-  SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
-  SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
-  std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber> modes_cost;
-  for (int i = 0; i < IntraMode::kTotalNumber; i++) {
-    IntraMode intra_mode = static_cast<IntraMode>(i);
-    Predict(intra_mode, *cu, comp, intra_state,
-            pred_buf.GetDataPtr(), pred_buf.GetStride());
-
-    // Bits
-    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-    rdo_writer.WriteIntraMode(intra_mode, mpm);
-    Bits bits = rdo_writer.GetNumWrittenBits();
-
-    uint64_t sad = metric.CompareSample(*cu, comp, orig_pic_,
-                                        pred_buf.GetDataPtr(),
-                                        pred_buf.GetStride());
-    double cost = sad + bits * qp.GetLambdaSqrt();
-    modes_cost[i] = std::make_pair(intra_mode, cost);
-  }
-  std::stable_sort(modes_cost.begin(), modes_cost.end(),
-                   [](std::pair<IntraMode, double> p1,
-                      std::pair<IntraMode, double> p2) {
-    return p1.second < p2.second;
-  });
-
-  // Extend shortlist with mpm modes if not already included
-  int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
-  int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
-  int num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
-  if (encoder_settings_.fast_intra_mode_eval_level == 2) {
-    num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
-  } else if (encoder_settings_.fast_intra_mode_eval_level == 0) {
-    num_modes_for_slow_rdo = 33;
-  }
-  for (int i = 0; i < mpm.num_neighbor_modes; i++) {
-    bool found = false;
-    for (int j = 0; j < num_modes_for_slow_rdo; j++) {
-      if (modes_cost[j].first == mpm[i]) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      modes_cost[num_modes_for_slow_rdo++].first = mpm[i];
-    }
-  }
-
-  IntraMode best_mode = static_cast<IntraMode>(0);
+  IntraMode best_mode = IntraMode::kInvalid;
   Cost best_cost = std::numeric_limits<Cost>::max();
+  Distortion best_dist = std::numeric_limits<Distortion>::max();
+  bool best_is_applied = false;
   bool best_uses_tx_select = false;
   for (int i = 0; i < num_modes_for_slow_rdo; i++) {
-    IntraMode intra_mode = modes_cost[i].first;
+    IntraMode intra_mode = intra_modes[i].first;
     cu->SetIntraModeLuma(intra_mode);
+    best_is_applied = false;
 
     // Full reconstruction
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
@@ -128,11 +66,19 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, const Qp &qp,
       best_uses_tx_select && !cu->HasTransformSelectIdx();
     if (cost < best_cost || bias_normal_tx_type) {
       best_cost = cost;
+      best_dist = ssd;
       best_mode = intra_mode;
       best_uses_tx_select = cu->HasTransformSelectIdx();
+      best_is_applied = true;
+      cu->SaveStateTo(&best_cu_state_, *rec_pic, YuvComponent::kY);
     }
   }
-  return best_mode;
+
+  cu->SetIntraModeLuma(best_mode);
+  if (!best_is_applied) {
+    cu->LoadStateFrom(best_cu_state_, rec_pic, YuvComponent::kY);
+  }
+  return best_dist;
 }
 
 Distortion
@@ -154,12 +100,12 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
 
   Cost best_cost = std::numeric_limits<Cost>::max();
   IntraChromaMode best_mode = IntraChromaMode::kDmChroma;
-  bool best_loaded = false;
+  bool best_is_applied = false;
 
   for (int i = 0; i < static_cast<int>(chroma_modes.size()); i++) {
     IntraChromaMode chroma_mode = chroma_modes[i];
     cu->SetIntraModeChroma(chroma_mode);
-    best_loaded = false;
+    best_is_applied = false;
 
     // Full reconstruction
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
@@ -179,15 +125,15 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
       best_cost = cost;
       best_dist = dist;
       best_mode = chroma_modes[i];
-      best_loaded = true;
-      cu->SaveStateTo(&best_cu_best_, *rec_pic, YuvComponent::kU);
-      cu->SaveStateTo(&best_cu_best_, *rec_pic, YuvComponent::kV);
+      best_is_applied = true;
+      cu->SaveStateTo(&best_cu_state_, *rec_pic, YuvComponent::kU);
+      cu->SaveStateTo(&best_cu_state_, *rec_pic, YuvComponent::kV);
     }
   }
   cu->SetIntraModeChroma(best_mode);
-  if (!best_loaded) {
-    cu->LoadStateFrom(best_cu_best_, rec_pic, YuvComponent::kU);
-    cu->LoadStateFrom(best_cu_best_, rec_pic, YuvComponent::kV);
+  if (!best_is_applied) {
+    cu->LoadStateFrom(best_cu_state_, rec_pic, YuvComponent::kU);
+    cu->LoadStateFrom(best_cu_state_, rec_pic, YuvComponent::kV);
   }
   return best_dist;
 }
@@ -208,6 +154,83 @@ Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
     encoder->CompressAndEvalTransform(cu, comp, qp, writer, orig_pic_, tx_flags,
                                       nullptr, nullptr, &cu_writer_, rec_pic);
   return tx_cost.dist_reco;
+}
+
+int
+IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
+                                       const SyntaxWriter &bitstream_writer,
+                                       TransformEncoder *encoder,
+                                       YuvPicture *rec_pic,
+                                       IntraModeSet *modes_cost) {
+  const YuvComponent comp = YuvComponent::kY;
+  static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
+      // 1, 2, 4, 8, 16, 32, 64, 128
+    { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
+    { 0, 0, 0, 0, 0, 0, 0, 0 },   // 2
+    { 0, 0, 3, 3, 3, 3, 2, 2 },   // 4
+    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 8
+    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 16
+    { 0, 0, 3, 3, 3, 3, 3, 2 },   // 32
+    { 0, 0, 2, 3, 3, 3, 3, 2 },   // 64
+    { 0, 0, 2, 2, 2, 2, 2, 3 },   // 128
+    } };
+  static const std::array<uint8_t, 7> kNumIntraFastModesNoExt = {
+    /*1x1: */ 0, /*2x2: */ 3, /*4x4: */ 8, /*8x8: */ 8, /*16x16: */ 3,
+    /*32x32: */ 3, /*64x64: */ 3
+  };
+  Sample *reco =
+    rec_pic->GetSamplePtr(comp, cu->GetPosX(comp), cu->GetPosY(comp));
+  const ptrdiff_t reco_stride = rec_pic->GetStride(comp);
+  IntraPredictorLuma mpm = GetPredictorLuma(*cu);
+  IntraPrediction::State intra_state =
+    ComputeReferenceState(*cu, comp, reco, reco_stride);
+  SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
+  SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
+
+  for (int i = 0; i < IntraMode::kTotalNumber; i++) {
+    IntraMode intra_mode = static_cast<IntraMode>(i);
+    Predict(intra_mode, *cu, comp, intra_state,
+            pred_buf.GetDataPtr(), pred_buf.GetStride());
+
+    // Bits
+    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+    rdo_writer.WriteIntraMode(intra_mode, mpm);
+    Bits bits = rdo_writer.GetNumWrittenBits();
+
+    uint64_t sad = metric.CompareSample(*cu, comp, orig_pic_,
+                                        pred_buf.GetDataPtr(),
+                                        pred_buf.GetStride());
+    double cost = sad + bits * qp.GetLambdaSqrt();
+    (*modes_cost)[i] = std::make_pair(intra_mode, cost);
+  }
+  std::stable_sort(modes_cost->begin(), modes_cost->end(),
+                   [](std::pair<IntraMode, double> p1,
+                      std::pair<IntraMode, double> p2) {
+    return p1.second < p2.second;
+  });
+
+  // Extend shortlist with mpm modes if not already included
+  int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
+  int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
+  int num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
+  if (encoder_settings_.fast_intra_mode_eval_level == 2) {
+    num_modes_for_slow_rdo = kNumIntraFastModesExt[width_log2][height_log2];
+  } else if (encoder_settings_.fast_intra_mode_eval_level == 0) {
+    num_modes_for_slow_rdo = 33;
+  }
+  for (int i = 0; i < mpm.num_neighbor_modes; i++) {
+    bool found = false;
+    for (int j = 0; j < num_modes_for_slow_rdo; j++) {
+      if ((*modes_cost)[j].first == mpm[i]) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      (*modes_cost)[num_modes_for_slow_rdo++].first = mpm[i];
+    }
+  }
+  return num_modes_for_slow_rdo;
 }
 
 }   // namespace xvc

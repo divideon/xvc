@@ -259,7 +259,9 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
     cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetRootCbf());
 
     // Evaluate root cbf zero
-    if (tx_pass == 0 || modified) {
+    if ((tx_pass == 0 || modified) &&
+        !Restrictions::Get().disable_transform_cbf &&
+        !Restrictions::Get().disable_transform_root_cbf) {
       Bits bits_non_zero =
         encoder->GetCuBitsResidual(*cu, bitstream_writer, &cu_writer_);
       Cost cost_non_zero =

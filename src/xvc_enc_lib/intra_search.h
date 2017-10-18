@@ -19,6 +19,8 @@
 #ifndef XVC_ENC_LIB_INTRA_SEARCH_H_
 #define XVC_ENC_LIB_INTRA_SEARCH_H_
 
+#include <utility>
+
 #include "xvc_common_lib/intra_prediction.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_enc_lib/syntax_writer.h"
@@ -34,9 +36,9 @@ public:
               const YuvPicture &orig_pic,
               const EncoderSettings &encoder_settings);
 
-  IntraMode SearchIntraLuma(CodingUnit *cu, const Qp &qp,
-                            const SyntaxWriter &bitstream_writer,
-                            TransformEncoder *encoder, YuvPicture *rec_pic);
+  Distortion CompressIntraLuma(CodingUnit *cu, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion CompressIntraChroma(CodingUnit *cu, const Qp &qp,
                                  const SyntaxWriter &bitstream_writer,
                                  TransformEncoder *encoder,
@@ -46,10 +48,17 @@ public:
                            TransformEncoder *encoder, YuvPicture *rec_pic);
 
 private:
+  using IntraModeSet =
+    std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber>;
+  int DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
+                                const SyntaxWriter &bitstream_writer,
+                                TransformEncoder *encoder, YuvPicture *rec_pic,
+                                IntraModeSet *modes_cost);
+
   const PictureData &pic_data_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
-  CodingUnit::ResidualState best_cu_best_;
+  CodingUnit::ResidualState best_cu_state_;
   CuWriter cu_writer_;
 };
 

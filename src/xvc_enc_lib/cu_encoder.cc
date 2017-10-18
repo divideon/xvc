@@ -489,11 +489,8 @@ CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
   RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
   Distortion dist = 0;
   if (YuvComponent::kY == pic_data_.GetComponents(cu->GetCuTree())[0]) {
-    IntraMode best_mode =
-      intra_search_.SearchIntraLuma(cu, qp, bitstream_writer, this, &rec_pic_);
-    cu->SetIntraModeLuma(best_mode);
-    dist += intra_search_.CompressIntra(cu, YuvComponent::kY, qp, rdo_writer,
-                                        this, &rec_pic_);
+    dist += intra_search_.CompressIntraLuma(cu, qp, bitstream_writer, this,
+                                            &rec_pic_);
     cu_writer_.WriteComponent(*cu, YuvComponent::kY, &rdo_writer);
   }
   if (pic_data_.GetComponents(cu->GetCuTree()).size() > 1) {
