@@ -162,6 +162,9 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
                                        TransformEncoder *encoder,
                                        YuvPicture *rec_pic,
                                        IntraModeSet *modes_cost) {
+  const int num_intra_modes =
+    !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kNbrIntraModesExt : kNbrIntraModes;
   const YuvComponent comp = YuvComponent::kY;
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
       // 1, 2, 4, 8, 16, 32, 64, 128
@@ -187,7 +190,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
   SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
   SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
 
-  for (int i = 0; i < IntraMode::kTotalNumber; i++) {
+  for (int i = 0; i < num_intra_modes; i++) {
     IntraMode intra_mode = static_cast<IntraMode>(i);
     Predict(intra_mode, *cu, comp, intra_state,
             pred_buf.GetDataPtr(), pred_buf.GetStride());
@@ -203,7 +206,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     double cost = sad + bits * qp.GetLambdaSqrt();
     (*modes_cost)[i] = std::make_pair(intra_mode, cost);
   }
-  std::stable_sort(modes_cost->begin(), modes_cost->end(),
+  std::stable_sort(modes_cost->begin(), modes_cost->begin() + num_intra_modes,
                    [](std::pair<IntraMode, double> p1,
                       std::pair<IntraMode, double> p2) {
     return p1.second < p2.second;

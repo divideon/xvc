@@ -49,11 +49,11 @@ public:
 
 private:
   using IntraModeSet =
-    std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber>;
+    std::array<std::pair<IntraMode, double>, kNbrIntraModesExt>;
   int DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
-                                const SyntaxWriter &bitstream_writer,
-                                TransformEncoder *encoder, YuvPicture *rec_pic,
-                                IntraModeSet *modes_cost);
+                              const SyntaxWriter &bitstream_writer,
+                              TransformEncoder *encoder, YuvPicture *rec_pic,
+                              IntraModeSet *modes_cost);
 
   const PictureData &pic_data_;
   const YuvPicture &orig_pic_;

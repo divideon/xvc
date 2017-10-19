@@ -1583,10 +1583,12 @@ ScanOrder TransformHelper::DetermineScanOrder(const CodingUnit &cu,
     return ScanOrder::kDiagonal;
   }
   int intra_mode = static_cast<int>(cu.GetIntraMode(comp));
-  if (std::abs(intra_mode - IntraMode::kVertical) < 5) {
+  if (std::abs(intra_mode -
+               IntraPrediction::Convert(IntraAngle::kVertical)) < 5) {
     return ScanOrder::kHorizontal;
   }
-  if (std::abs(intra_mode - IntraMode::kHorizontal) < 5) {
+  if (std::abs(intra_mode -
+               IntraPrediction::Convert(IntraAngle::kHorizontal)) < 5) {
     return ScanOrder::kVertical;
   }
   return ScanOrder::kDiagonal;

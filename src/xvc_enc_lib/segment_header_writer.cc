@@ -170,6 +170,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_ext_deblock_subblock_size_4);
     bit_writer->WriteBit(restr.disable_ext_transform_high_precision);
     bit_writer->WriteBit(restr.disable_ext_transform_select);
+    bit_writer->WriteBit(restr.disable_ext_intra_extra_modes);
   } else {
     bit_writer->WriteBit(0);  // ext_restrictions
   }

@@ -233,6 +233,10 @@ Restrictions::Restrictions() {
   disable_ext_implicit_last_ctu = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT_INTRA_EXTRA_MODES
+  disable_ext_intra_extra_modes = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT_TMVP_FULL_RESOLUTION
   disable_ext_tmvp_full_resolution = true;
 #endif
@@ -287,6 +291,7 @@ Restrictions::Restrictions() {
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
+  disable_ext_intra_extra_modes = true;
   if (mode == RestrictedMode::kUnrestricted) {
     return;
   }

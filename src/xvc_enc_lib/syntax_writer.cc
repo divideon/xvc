@@ -386,7 +386,7 @@ void SyntaxWriter::WriteInterRefIdx(int ref_idx, int num_refs_available) {
 
 void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
                                   const IntraPredictorLuma &mpm) {
-  assert(intra_mode < IntraMode::kTotalNumber);
+  assert(intra_mode < kNbrIntraModesExt);
   // TODO(Dev) NxN support missing
   int mpm_index = -1;
   for (int i = 0; i < static_cast<int>(mpm.size()); i++) {

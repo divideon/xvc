@@ -31,8 +31,7 @@ class IntraPredictorLuma :
 public:
   int num_neighbor_modes = 0;
 };
-typedef std::array<IntraChromaMode,
-  constants::kNumIntraChromaModes> IntraPredictorChroma;
+typedef std::array<IntraChromaMode, kNumIntraChromaModes> IntraPredictorChroma;
 
 class IntraPrediction {
 public:
@@ -53,6 +52,8 @@ public:
                               const Sample *input_pic, ptrdiff_t input_stride);
   IntraPredictorLuma GetPredictorLuma(const CodingUnit &cu) const;
   IntraPredictorChroma GetPredictorsChroma(IntraMode luma_mode) const;
+  static IntraMode Convert(IntraAngle angle);
+  static IntraChromaMode Convert(IntraChromaAngle chroma_angle);
 
 private:
   struct NeighborState {

@@ -344,7 +344,8 @@ IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
     const CodingUnit *luma_cu = pic_data_->GetLumaCu(this);
     return luma_cu->intra_.mode_luma;
   }
-  assert(static_cast<int>(intra_.mode_chroma) < IntraMode::kTotalNumber);
+  assert(static_cast<int>(intra_.mode_chroma) <
+         static_cast<int>(IntraChromaMode::kInvalid));
   return static_cast<IntraMode>(intra_.mode_chroma);
 }
 

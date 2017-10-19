@@ -48,6 +48,10 @@ void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
                               YuvComponent comp, const State &ref_state,
                               Sample *output_buffer, ptrdiff_t output_stride) {
   const Sample *ref_samples = &ref_state.ref_samples[0];
+  if (Restrictions::Get().disable_intra_planar &&
+      intra_mode == IntraMode::kPlanar) {
+    intra_mode = IntraMode::kDc;
+  }
   if (util::IsLuma(comp)) {
     bool filtered_ref = UseFilteredRefSamples(cu, intra_mode);
     ref_samples =
@@ -55,15 +59,13 @@ void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
   }
   bool post_filter = comp == kY && cu.GetWidth(comp) <= 16 &&
     cu.GetHeight(comp) <= 16;
-  IntraMode mode = (Restrictions::Get().disable_intra_planar &&
-                    intra_mode == kPlanar) ? kDc : intra_mode;
-  switch (mode) {
-    case kPlanar:
+  switch (intra_mode) {
+    case IntraMode::kPlanar:
       PlanarPred(cu.GetWidth(comp), cu.GetHeight(comp), ref_samples,
                  kRefSampleStride_, output_buffer, output_stride);
       break;
 
-    case kDc:
+    case IntraMode::kDc:
       PredIntraDC(cu.GetWidth(comp), cu.GetHeight(comp), post_filter,
                   &ref_state.ref_samples[0], kRefSampleStride_, output_buffer,
                   output_stride);
@@ -98,6 +100,10 @@ IntraPrediction::ComputeReferenceState(const CodingUnit &cu, YuvComponent comp,
 
 IntraPredictorLuma
 IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
+  const int max_modes = !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kNbrIntraModesExt : kNbrIntraModes - 1;
+  const int offset = !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kNbrIntraModesExt - 5 : kNbrIntraModes - 6;
   const CodingUnit *cu_left = cu.GetCodingUnitLeft();
   IntraMode left = IntraMode::kDc;
   if (cu_left && cu_left->IsIntra()) {
@@ -118,19 +124,19 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
     mpm.num_neighbor_modes = 1;
     mpm[0] = IntraMode::kPlanar;
     mpm[1] = IntraMode::kDc;
-    mpm[2] = IntraMode::kVertical;
+    mpm[2] = Convert(IntraAngle::kVertical);
     return mpm;
   }
   if (left == above) {
     mpm.num_neighbor_modes = 1;
     if (left > IntraMode::kDc) {
       mpm[0] = left;
-      mpm[1] = static_cast<IntraMode>(((left + 29) % 32) + 2);
-      mpm[2] = static_cast<IntraMode>(((left - 1) % 32) + 2);
+      mpm[1] = static_cast<IntraMode>(((left + offset) % (max_modes - 2)) + 2);
+      mpm[2] = static_cast<IntraMode>(((left - 1) % (max_modes - 2)) + 2);
     } else {
       mpm[0] = IntraMode::kPlanar;
       mpm[1] = IntraMode::kDc;
-      mpm[2] = IntraMode::kVertical;
+      mpm[2] = Convert(IntraAngle::kVertical);
     }
   } else {
     mpm.num_neighbor_modes = 2;
@@ -139,7 +145,8 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
     if (left > IntraMode::kPlanar && above > IntraMode::kPlanar) {
       mpm[2] = IntraMode::kPlanar;
     } else {
-      mpm[2] = (left + above) < 2 ? IntraMode::kVertical : IntraMode::kDc;
+      mpm[2] = (left + above) < 2 ?
+        Convert(IntraAngle::kVertical) : IntraMode::kDc;
     }
   }
   return mpm;
@@ -149,17 +156,38 @@ IntraPredictorChroma
 IntraPrediction::GetPredictorsChroma(IntraMode luma_mode) const {
   IntraPredictorChroma chroma_preds;
   chroma_preds[0] = IntraChromaMode::kPlanar;
-  chroma_preds[1] = IntraChromaMode::kVertical;
-  chroma_preds[2] = IntraChromaMode::kHorizontal;
+  chroma_preds[1] = Convert(IntraChromaAngle::kVertical);
+  chroma_preds[2] = Convert(IntraChromaAngle::kHorizontal);
   chroma_preds[3] = IntraChromaMode::kDc;
-  chroma_preds[4] = IntraChromaMode::kDmChroma;
+  chroma_preds[4] = Convert(IntraChromaAngle::kDmChroma);
   for (int i = 0; i < static_cast<int>(chroma_preds.size()) - 1; i++) {
     if (static_cast<int>(chroma_preds[i]) == luma_mode) {
-      chroma_preds[i] = IntraChromaMode::kVerticalPlus8;
+      chroma_preds[i] = Convert(IntraChromaAngle::kVerticalPlus8);
       break;
     }
   }
   return chroma_preds;
+}
+
+IntraMode IntraPrediction::Convert(IntraAngle intra_dir) {
+  static const std::array<uint8_t, kNbrIntraDirs> kIntraAngleToModeExtMap = {
+    0, 1, 2, 4, 6, 8, 10, 12, 14, 16,   // [0, 10)
+    18, 20, 22, 24, 26, 28, 30, 32,     // [10, 18)
+    34, 36, 38, 40, 42, 44, 46, 48,     // [18, 26)
+    50, 52, 54, 56, 58, 60, 62, 64, 66  // [26, 35)
+  };
+  if (Restrictions::Get().disable_ext_intra_extra_modes) {
+    return static_cast<IntraMode>(intra_dir);
+  }
+  int intra_mode_ext = kIntraAngleToModeExtMap[static_cast<int>(intra_dir)];
+  return static_cast<IntraMode>(intra_mode_ext);
+}
+
+IntraChromaMode IntraPrediction::Convert(IntraChromaAngle angle) {
+  if (angle == IntraChromaAngle::kDmChroma) {
+    return IntraChromaMode::kDmChroma;
+  }
+  return static_cast<IntraChromaMode>(Convert(static_cast<IntraAngle>(angle)));
 }
 
 bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
@@ -173,8 +201,9 @@ bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
   };
   int size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
               util::SizeToLog2(cu.GetHeight(YuvComponent::kY))) >> 1;
-  int mode_diff = std::min(abs(intra_mode - IntraMode::kHorizontal),
-                           abs(intra_mode - IntraMode::kVertical));
+  int mode_diff = std::min(
+    std::abs(intra_mode - Convert(IntraAngle::kHorizontal)),
+    std::abs(intra_mode - Convert(IntraAngle::kVertical)));
   return mode_diff > kFilterRefThreshold[size];
 }
 
@@ -244,7 +273,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
                              const Sample *ref_samples, ptrdiff_t ref_stride,
                              Sample *output_buffer, ptrdiff_t output_stride) {
   Sample ref_flip_buffer[kRefSampleStride_ * 2];
-  const bool is_horizontal = dir_mode < 18;
+  const bool is_horizontal = dir_mode < Convert(IntraAngle::kDiagonal);
   const Sample *ref_ptr = ref_samples;
 
   // Compute flipped reference samples
@@ -266,7 +295,8 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
 
   // Get the prediction angle.
   int angle_offset = is_horizontal ?
-    IntraMode::kHorizontal - dir_mode : dir_mode - IntraMode::kVertical;
+    Convert(IntraAngle::kHorizontal) - dir_mode :
+    dir_mode - Convert(IntraAngle::kVertical);
   int angle = kAngleTable_[8 + angle_offset];
 
   if (!angle) {
