@@ -58,7 +58,10 @@ enum class TransformType {
   kDCT8,
   kDST1,
   kDST7,
+  kTotalNumber,
 };
+static const int kNbrTransformTypes =
+static_cast<int>(TransformType::kTotalNumber);
 
 enum IntraMode : int {
   kPlanar = 0,

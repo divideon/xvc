@@ -18,6 +18,7 @@ set(XVC_TEST_SOURCES
     "xvc_test/restrictions_test.cc"
     "xvc_test/simd_test.cc"
     "xvc_test/test_helper.h"
+    "xvc_test/transform_test.cc"
     "xvc_test/yuv_helper.cc"
     "xvc_test/yuv_helper.h")
 

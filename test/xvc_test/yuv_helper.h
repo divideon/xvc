@@ -26,6 +26,7 @@
 #include "googletest/include/gtest/gtest.h"
 
 #include "xvc_common_lib/common.h"
+#include "xvc_common_lib/sample_buffer.h"
 
 namespace xvc_test {
 
@@ -33,12 +34,18 @@ class TestYuvPic {
 public:
   using Sample = ::xvc::Sample;
   static const int kDefaultSize = 32;
+  static const int kInternalPicSize = 40;
 
   TestYuvPic(int width, int height, int bitdepth, int dx = 0, int dy = 0,
              xvc::ChromaFormat chroma_fmt = xvc::ChromaFormat::k420);
   const std::vector<uint8_t> GetBytes() const { return bytes_; }
+  xvc::DataBuffer<const Sample> GetSampleBuffer() const {
+    return xvc::DataBuffer<const Sample>(&samples_[0], width_);
+  }
+  Sample GetAverageSample();
   int GetBitdepth() const { return bitdepth_; }
   double CalcPsnr(const char *bytes) const;
+  void FillLargerBuffer(int out_width, int out_height, xvc::SampleBuffer *out);
 
   static ::testing::AssertionResult
     AllSampleEqualTo(int width, int height, int bitdepth,
@@ -46,7 +53,6 @@ public:
                      xvc::Sample expected_sample);
 
 private:
-  static const int kInternalPicSize = 40;
   static const int kInternalBitdepth = 10;
   static const int kInternalBufferSize =
     3 * kInternalPicSize * kInternalPicSize / 2;

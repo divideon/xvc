@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 #include "xvc_common_lib/utils.h"
 
@@ -161,6 +162,11 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
   }
 }
 
+xvc::Sample TestYuvPic::GetAverageSample() {
+  int sum = std::accumulate(samples_.begin(), samples_.end(), 0);
+  return static_cast<xvc::Sample>(sum / samples_.size());
+}
+
 double TestYuvPic::CalcPsnr(const char *pic_bytes) const {
   int ssd = 0;
   if (bitdepth_ == 8) {
@@ -176,9 +182,40 @@ double TestYuvPic::CalcPsnr(const char *pic_bytes) const {
       ssd += tmp*tmp;
     }
   }
-  const int max_val = (1 << bitdepth_) - 1;
-  const double max_sum = max_val * max_val * width_ * height_;
+  const int64_t max_val = (1 << bitdepth_) - 1;
+  const int64_t max_sum = max_val * max_val * width_ * height_;
   return ssd > 0 ? 10.0 * std::log10(max_sum / ssd) : 1000;
+}
+
+void TestYuvPic::FillLargerBuffer(int out_width, int out_height,
+                                  xvc::SampleBuffer *out) {
+  assert(width_ <= out_width);
+  assert(height_ <= out_height);
+  xvc::SampleBuffer src_buffer(&samples_[0], width_);
+  // Upper left corner uses original data directly
+  out->CopyFrom(width_, height_, src_buffer);
+  // Pad right side
+  xvc::Sample *src_ptr = src_buffer.GetDataPtr();
+  xvc::Sample *out_ptr = out->GetDataPtr();
+  for (int y = 0; y < height_; y++) {
+    for (int x = width_; x < out_width; x += width_) {
+      std::memcpy(out_ptr + x,
+                  src_ptr,
+                  std::min(width_, out_width - x) * sizeof(Sample));
+      src_ptr += src_buffer.GetStride();
+      out_ptr += out->GetStride();
+    }
+  }
+  // Pad bottom from already padded data
+  out_ptr = out->GetDataPtr();
+  for (int y = height_; y < out_height; y += height_) {
+    int remaining_y = std::min(height_, out_height - height_);
+    for (int y2 = 0; y2 < remaining_y; y2++) {
+      std::memcpy(out_ptr + (y + y2) * out->GetStride(),
+                  out_ptr + y2 * out->GetStride(),
+                  out_width * sizeof(Sample));
+    }
+  }
 }
 
 ::testing::AssertionResult

@@ -273,6 +273,13 @@ void CodingUnit::ClearCbf(YuvComponent comp) {
   SetTransformFromSelectIdx(comp, -1);
 }
 
+void CodingUnit::SetTransformType(YuvComponent comp, TransformType tx1,
+                                  TransformType tx2) {
+  int plane = util::IsLuma(comp) ? 0 : 1;
+  tx_.transform_type[plane][0] = tx1;
+  tx_.transform_type[plane][1] = tx2;
+}
+
 void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
   static const std::array<std::array<TransformType, 2>, 3> kIntraTxMap = { {
     { TransformType::kDST7, TransformType::kDCT8 },

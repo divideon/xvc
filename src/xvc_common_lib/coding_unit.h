@@ -166,6 +166,7 @@ public:
   TransformType GetTransformType(YuvComponent comp, int idx) const {
     return tx_.transform_type[comp != YuvComponent::kY][idx];
   }
+  void SetTransformType(YuvComponent comp, TransformType t1, TransformType t2);
   bool HasTransformSelectIdx() const { return tx_.transform_select_idx >= 0; }
   int GetTransformSelectIdx() const { return tx_.transform_select_idx; }
   void SetTransformFromSelectIdx(YuvComponent comp, int tx_select_idx);
