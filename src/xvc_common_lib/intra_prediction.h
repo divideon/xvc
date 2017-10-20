@@ -27,7 +27,7 @@
 namespace xvc {
 
 class IntraPredictorLuma :
-  public std::array<IntraMode, constants::kNumIntraMpm> {
+  public std::array<IntraMode, constants::kNumIntraMpmExt> {
 public:
   int num_neighbor_modes = 0;
 };
@@ -56,6 +56,9 @@ public:
   static IntraChromaMode Convert(IntraChromaAngle chroma_angle);
 
 private:
+  void FillPredictorLumaDefault(const CodingUnit &cu,
+                                IntraPredictorLuma *predictors) const;
+
   struct NeighborState {
     bool has_any() const {
       return has_above_left || has_above || has_left ||

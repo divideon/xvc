@@ -74,6 +74,7 @@ static const int kNbrIntraModesExt = 67;
 enum class IntraAngle {
   kPlanar = 0,
   kDc = 1,
+  kFirst = 2,
   kHorizontal = 10,
   kDiagonal = 18,
   kVertical = 26,

@@ -100,6 +100,109 @@ IntraPrediction::ComputeReferenceState(const CodingUnit &cu, YuvComponent comp,
 
 IntraPredictorLuma
 IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
+  constexpr YuvComponent comp = YuvComponent::kY;
+  const int max_modes = !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kNbrIntraModesExt : kNbrIntraModes - 1;
+  const int offset = !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kNbrIntraModesExt - 5 : kNbrIntraModes - 6;
+  IntraPredictorLuma mpm;
+  if (Restrictions::Get().disable_intra_mpm_prediction) {
+    mpm.num_neighbor_modes = 1;
+    mpm[0] = IntraMode::kPlanar;
+    mpm[1] = IntraMode::kDc;
+    mpm[2] = Convert(IntraAngle::kVertical);
+    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+      mpm[3] = Convert(IntraAngle::kHorizontal);
+      mpm[4] = Convert(IntraAngle::kDiagonal);
+      mpm[5] = static_cast<IntraMode>(2);
+    }
+    return mpm;
+  }
+  if (Restrictions::Get().disable_ext_intra_extra_predictors) {
+    FillPredictorLumaDefault(cu, &mpm);
+    return mpm;
+  }
+  std::array<bool, kNbrIntraModesExt> added_modes = { false };
+  auto add_predictor_from_cu =
+    [&added_modes, &mpm, &comp](int mpm_index, const CodingUnit *tmp) {
+    if (tmp && tmp->IsIntra()) {
+      IntraMode mode = tmp->GetIntraMode(comp);
+      if (!added_modes[mode]) {
+        added_modes[mode] = true;
+        mpm[mpm_index++] = mode;
+        return 1;
+      }
+    }
+    return 0;
+  };
+  auto add_predictor_if_new =
+    [&added_modes, &mpm](int mpm_index, IntraMode mode) {
+    if (!added_modes[mode]) {
+      added_modes[mode] = true;
+      mpm[mpm_index++] = mode;
+      return 1;
+    }
+    return 0;
+  };
+  int index = 0;
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitLeftCorner());
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitAboveCorner());
+  }
+  mpm.num_neighbor_modes = index > 1 ? 3 : 2;
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_if_new(index, IntraMode::kPlanar);
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_if_new(index, IntraMode::kDc);
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitLeftBelow());
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitAboveRight());
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitAboveLeft());
+  }
+  int current_added = index;
+  for (int i = 0; i < current_added; i++) {
+    if (index == constants::kNumIntraMpmExt) {
+      break;
+    }
+    IntraMode mode = mpm[i];
+    if (mode <= IntraMode::kDc) {
+      continue;
+    }
+    IntraMode predictor =
+      static_cast<IntraMode>(((mode + offset) % (max_modes - 2)) + 2);
+    index += add_predictor_if_new(index, predictor);
+    if (index == constants::kNumIntraMpmExt) {
+      break;
+    }
+    predictor = static_cast<IntraMode>(((mode - 1) % (max_modes - 2)) + 2);
+    index += add_predictor_if_new(index, predictor);
+  }
+  static const std::array<IntraAngle, 4> default_angles = {
+    IntraAngle::kVertical, IntraAngle::kHorizontal,
+    IntraAngle::kFirst, IntraAngle::kDiagonal
+  };
+  for (IntraAngle pred_angle : default_angles) {
+    if (index == constants::kNumIntraMpmExt) {
+      break;
+    }
+    IntraMode predictor = Convert(pred_angle);
+    index += add_predictor_if_new(index, predictor);
+  }
+  assert(index == constants::kNumIntraMpmExt);
+  return mpm;
+}
+
+void IntraPrediction::FillPredictorLumaDefault(const CodingUnit &cu,
+                                               IntraPredictorLuma *mpm) const {
+  constexpr YuvComponent comp = YuvComponent::kY;
   const int max_modes = !Restrictions::Get().disable_ext_intra_extra_modes ?
     kNbrIntraModesExt : kNbrIntraModes - 1;
   const int offset = !Restrictions::Get().disable_ext_intra_extra_modes ?
@@ -107,7 +210,7 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   const CodingUnit *cu_left = cu.GetCodingUnitLeft();
   IntraMode left = IntraMode::kDc;
   if (cu_left && cu_left->IsIntra()) {
-    left = cu_left->GetIntraMode(YuvComponent::kY);
+    left = cu_left->GetIntraMode(comp);
   }
   const CodingUnit *cu_above;
   if (Restrictions::Get().disable_ext_intra_unrestricted_predictor) {
@@ -117,39 +220,31 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   }
   IntraMode above = IntraMode::kDc;
   if (cu_above && cu_above->IsIntra()) {
-    above = cu_above->GetIntraMode(YuvComponent::kY);
-  }
-  IntraPredictorLuma mpm;
-  if (Restrictions::Get().disable_intra_mpm_prediction) {
-    mpm.num_neighbor_modes = 1;
-    mpm[0] = IntraMode::kPlanar;
-    mpm[1] = IntraMode::kDc;
-    mpm[2] = Convert(IntraAngle::kVertical);
-    return mpm;
+    above = cu_above->GetIntraMode(comp);
   }
   if (left == above) {
-    mpm.num_neighbor_modes = 1;
+    mpm->num_neighbor_modes = 1;
     if (left > IntraMode::kDc) {
-      mpm[0] = left;
-      mpm[1] = static_cast<IntraMode>(((left + offset) % (max_modes - 2)) + 2);
-      mpm[2] = static_cast<IntraMode>(((left - 1) % (max_modes - 2)) + 2);
+      (*mpm)[0] = left;
+      (*mpm)[1] =
+        static_cast<IntraMode>(((left + offset) % (max_modes - 2)) + 2);
+      (*mpm)[2] = static_cast<IntraMode>(((left - 1) % (max_modes - 2)) + 2);
     } else {
-      mpm[0] = IntraMode::kPlanar;
-      mpm[1] = IntraMode::kDc;
-      mpm[2] = Convert(IntraAngle::kVertical);
+      (*mpm)[0] = IntraMode::kPlanar;
+      (*mpm)[1] = IntraMode::kDc;
+      (*mpm)[2] = Convert(IntraAngle::kVertical);
     }
   } else {
-    mpm.num_neighbor_modes = 2;
-    mpm[0] = left;
-    mpm[1] = above;
+    mpm->num_neighbor_modes = 2;
+    (*mpm)[0] = left;
+    (*mpm)[1] = above;
     if (left > IntraMode::kPlanar && above > IntraMode::kPlanar) {
-      mpm[2] = IntraMode::kPlanar;
+      (*mpm)[2] = IntraMode::kPlanar;
     } else {
-      mpm[2] = (left + above) < 2 ?
+      (*mpm)[2] = (left + above) < 2 ?
         Convert(IntraAngle::kVertical) : IntraMode::kDc;
     }
   }
-  return mpm;
 }
 
 IntraPredictorChroma

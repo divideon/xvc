@@ -113,6 +113,7 @@ const int kMaxTransformSelectIdx = 4;
 
 // Prediction
 const int kNumIntraMpm = 3;
+const int kNumIntraMpmExt = 6;
 const int kNumInterMvPredictors = 2;
 const int kNumInterMergeCandidates = 5;
 const int kMvPrecisionShift = 2;

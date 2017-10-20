@@ -53,8 +53,7 @@ public:
   static const int kNumMergeIdxCtx = 1;
   static const int kNumPartSizeCtx = 4;
   static const int kNumPredModeCtx = 1;
-  static const int kNumIntraPredCtx = 2;
-  static const int kNumIntraPredCtxLuma = 1;
+  static const int kNumIntraPredCtxLuma = 9;
   static const int kNumIntraPredCtxChroma = 1;
   static const int kNumInterDirCtx = 5;
   static const int kNumMvdCtx = 2;
@@ -93,6 +92,7 @@ public:
   ContextModel& GetSkipFlagCtx(const CodingUnit &cu);
   ContextModel& GetSplitBinaryCtx(const CodingUnit &cu);
   ContextModel& GetSplitFlagCtx(const CodingUnit &cu, int max_depth);
+  ContextModel& GetIntraPredictorCtx(IntraMode intra_mode);
   ContextModel& GetInterDirBiCtx(const CodingUnit &cu);
   ContextModel& GetSubblockCsbfCtx(YuvComponent comp,
                                    const uint8_t *sig_sublock, int posx,

@@ -161,10 +161,17 @@ kInitPredMode[3][CabacContexts::kNumPredModeCtx] = {
 };
 
 static const uint8_t
-kInitIntraPredMode[3][CabacContexts::kNumIntraPredCtx] = {
-  { 183, 152, },
-  { 154, 152, },
-  { 184, 63, },
+kInitIntraLumaPredMode[3][CabacContexts::kNumIntraPredCtxLuma] = {
+  { 183, kDef, kDef, kDef, kDef, kDef, kDef, kDef, kDef },
+  { 154, kDef, kDef, kDef, kDef, kDef, kDef, kDef, kDef },
+  { 184, kDef, kDef, kDef, kDef, kDef, kDef, kDef, kDef },
+};
+
+static const uint8_t
+kInitIntraChromaPredMode[3][CabacContexts::kNumIntraPredCtxChroma] = {
+  { 152, },
+  { 152, },
+  { 63, },
 };
 
 static const uint8_t
@@ -352,7 +359,8 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &inter_mvd, kInitMvd);
   Init(q, s, &inter_mvp_idx, kInitMvpIdx);
   Init(q, s, &inter_ref_idx, kInitRefIdx);
-  Init(q, s, &intra_pred_luma, &intra_pred_chroma, kInitIntraPredMode);
+  Init(q, s, &intra_pred_luma, kInitIntraLumaPredMode);
+  Init(q, s, &intra_pred_chroma, kInitIntraChromaPredMode);
   Init(q, s, &subblock_csbf_luma, &subblock_csbf_chroma, kInitSubblockCsbf);
   Init(q, s, &coeff_sig_luma, &coeff_sig_chroma, kInitCoeffSig);
   Init(q, s, &coeff_greater1_luma, &coeff_greater1_chroma, kInitCoeffGreater1);
@@ -431,6 +439,23 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
     }
   }
   return cu_split_quad_flag[offset];
+}
+
+ContextModel& CabacContexts::GetIntraPredictorCtx(IntraMode intra_mode) {
+  assert(!Restrictions::Get().disable_ext_intra_extra_predictors);
+  static const std::array<uint8_t, kNbrIntraModesExt> kModeToCtxMapExt = {
+    1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3
+  };
+  static const std::array<uint8_t, kNbrIntraModes> kModeToCtxMap = {
+    1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+  };
+  if (Restrictions::Get().disable_ext_intra_extra_modes) {
+    return intra_pred_luma[kModeToCtxMap[intra_mode]];
+  }
+  return intra_pred_luma[kModeToCtxMapExt[intra_mode]];
 }
 
 ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit &cu) {

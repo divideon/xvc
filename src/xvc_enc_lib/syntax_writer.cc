@@ -387,36 +387,78 @@ void SyntaxWriter::WriteInterRefIdx(int ref_idx, int num_refs_available) {
 void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
                                   const IntraPredictorLuma &mpm) {
   assert(intra_mode < kNbrIntraModesExt);
-  // TODO(Dev) NxN support missing
+  const int num_mpm = !Restrictions::Get().disable_ext_intra_extra_predictors ?
+    constants::kNumIntraMpmExt : constants::kNumIntraMpm;
   int mpm_index = -1;
-  for (int i = 0; i < static_cast<int>(mpm.size()); i++) {
+  for (int i = 0; i < num_mpm; i++) {
     if (intra_mode == mpm[i]) {
       mpm_index = i;
     }
   }
   ContextModel &ctx = ctx_.intra_pred_luma[0];
+  entropyenc_->EncodeBin(mpm_index >= 0, &ctx);
   if (mpm_index >= 0) {
-    entropyenc_->EncodeBin(1, &ctx);
-    static_assert(constants::kNumIntraMpm == 3, "non-branching invariant");
-    int num_bits = 1 + (mpm_index > 0);
-    entropyenc_->EncodeBypassBins(mpm_index + (mpm_index > 0), num_bits);
+    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+      entropyenc_->EncodeBin(mpm_index > 0,
+                             &ctx_.GetIntraPredictorCtx(mpm[0]));
+      if (mpm_index > 0) {
+        entropyenc_->EncodeBin(mpm_index > 1,
+                               &ctx_.GetIntraPredictorCtx(mpm[1]));
+        if (mpm_index > 1) {
+          entropyenc_->EncodeBin(mpm_index > 2,
+                                 &ctx_.GetIntraPredictorCtx(mpm[2]));
+          if (mpm_index > 2) {
+            entropyenc_->EncodeBypass(mpm_index > 3);
+            if (mpm_index > 3) {
+              entropyenc_->EncodeBypass(mpm_index > 4);
+            }
+          }
+        }
+      }
+    } else {
+      static_assert(constants::kNumIntraMpm == 3, "non-branching invariant");
+      int num_bits = 1 + (mpm_index > 0);
+      entropyenc_->EncodeBypassBins(mpm_index + (mpm_index > 0), num_bits);
+    }
   } else {
-    entropyenc_->EncodeBin(0, &ctx);
-    std::array<IntraMode, constants::kNumIntraMpm> mpm2 = mpm;
-    if (mpm2[0] > mpm2[1]) {
-      std::swap(mpm2[0], mpm2[1]);
+    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+      IntraPredictorLuma mpm_sorted = mpm;
+      std::sort(mpm_sorted.begin(),
+                mpm_sorted.begin() + constants::kNumIntraMpmExt);
+      int mode_index = static_cast<int>(intra_mode);
+      for (int i = constants::kNumIntraMpmExt - 1; i >= 0; i--) {
+        mode_index -= mode_index >= mpm_sorted[i] ? 1 : 0;
+      }
+      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+        if (mode_index <= kNbrIntraModesExt - 8) {
+          entropyenc_->EncodeBypassBins(mode_index, 6);
+        } else {
+          entropyenc_->EncodeBypassBins(mode_index >> 2, 4);
+        }
+      } else {
+        entropyenc_->EncodeBypassBins(mode_index, 5);
+      }
+    } else {
+      IntraPredictorLuma mpm_sorted = mpm;
+      if (mpm_sorted[0] > mpm_sorted[1]) {
+        std::swap(mpm_sorted[0], mpm_sorted[1]);
+      }
+      if (mpm_sorted[0] > mpm_sorted[2]) {
+        std::swap(mpm_sorted[0], mpm_sorted[2]);
+      }
+      if (mpm_sorted[1] > mpm_sorted[2]) {
+        std::swap(mpm_sorted[1], mpm_sorted[2]);
+      }
+      int mode_index = static_cast<int>(intra_mode);
+      for (int i = constants::kNumIntraMpm - 1; i >= 0; i--) {
+        mode_index -= mode_index >= mpm_sorted[i] ? 1 : 0;
+      }
+      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+        entropyenc_->EncodeBypassBins(mode_index, 6);
+      } else {
+        entropyenc_->EncodeBypassBins(mode_index, 5);
+      }
     }
-    if (mpm2[0] > mpm2[2]) {
-      std::swap(mpm2[0], mpm2[2]);
-    }
-    if (mpm2[1] > mpm2[2]) {
-      std::swap(mpm2[1], mpm2[2]);
-    }
-    int mode_index = static_cast<int>(intra_mode);
-    for (int i = static_cast<int>(mpm2.size()) - 1; i >= 0; i--) {
-      mode_index -= mode_index >= mpm2[i] ? 1 : 0;
-    }
-    entropyenc_->EncodeBypassBins(mode_index, 5);
   }
 }
 
