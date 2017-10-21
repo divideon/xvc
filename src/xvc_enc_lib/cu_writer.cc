@@ -23,22 +23,31 @@
 
 namespace xvc {
 
-void CuWriter::WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
-                       SyntaxWriter *writer) {
-  WriteSplit(cu, split_restriction, writer);
-  if (cu.GetSplit() != SplitType::kNone) {
+bool CuWriter::WriteCtu(CodingUnit *ctu, PictureData *cu_map,
+                        SyntaxWriter *writer) {
+  ctu_has_coeffs_ = false;
+  cu_map->ClearMarkCuInPic(ctu);
+  WriteCu(ctu, SplitRestriction::kNone, cu_map, writer);
+  return ctu_has_coeffs_;
+}
+
+void CuWriter::WriteCu(CodingUnit *cu, SplitRestriction split_restriction,
+                       PictureData *cu_map, SyntaxWriter *writer) {
+  WriteSplit(*cu, split_restriction, writer);
+  if (cu->GetSplit() != SplitType::kNone) {
     SplitRestriction sub_split_restriction = SplitRestriction::kNone;
     for (int i = 0; i < constants::kQuadSplit; i++) {
-      const CodingUnit *sub_cu = cu.GetSubCu(i);
+      CodingUnit *sub_cu = cu->GetSubCu(i);
       if (sub_cu) {
-        WriteCu(*sub_cu, sub_split_restriction, writer);
+        WriteCu(sub_cu, sub_split_restriction, cu_map, writer);
         sub_split_restriction =
-          sub_cu->DeriveSiblingSplitRestriction(cu.GetSplit());
+          sub_cu->DeriveSiblingSplitRestriction(cu->GetSplit());
       }
     }
   } else {
-    for (YuvComponent comp : pic_data_.GetComponents(cu.GetCuTree())) {
-      WriteComponent(cu, comp, writer);
+    cu_map->MarkUsedInPic(cu);
+    for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
+      WriteComponent(*cu, comp, writer);
     }
   }
 }

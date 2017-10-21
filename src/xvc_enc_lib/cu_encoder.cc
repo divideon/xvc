@@ -594,10 +594,10 @@ void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
     writer->ResetBitCounting();
   }
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  bool write_delta_qp = cu_writer_.WriteCtu(*ctu, writer);
+  bool write_delta_qp = cu_writer_.WriteCtu(ctu, &pic_data_, writer);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    write_delta_qp |= cu_writer_.WriteCtu(*ctu2, writer);;
+    write_delta_qp |= cu_writer_.WriteCtu(ctu2, &pic_data_, writer);;
   }
 
   if (pic_data_.GetAdaptiveQp() && write_delta_qp) {

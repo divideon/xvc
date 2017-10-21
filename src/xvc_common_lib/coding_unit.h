@@ -114,9 +114,8 @@ public:
   std::array<CodingUnit*, constants::kQuadSplit>& GetSubCu() {
     return sub_cu_list_;
   }
-  const CodingUnit* GetSubCu(int idx) const {
-    return sub_cu_list_.at(idx);
-  }
+  const CodingUnit* GetSubCu(int idx) const { return sub_cu_list_.at(idx); }
+  CodingUnit* GetSubCu(int idx) { return sub_cu_list_.at(idx); }
   bool IsFirstCuInQuad(int depth) const {
     const int size = constants::kCtuSize >> depth;
     return (pos_x_ & (size - 1)) == 0 && (pos_y_ & (size - 1)) == 0;

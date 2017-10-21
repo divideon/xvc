@@ -32,13 +32,9 @@ public:
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
-  bool WriteCtu(const CodingUnit &cu, SyntaxWriter *writer) {
-    ctu_has_coeffs_ = false;
-    WriteCu(cu, SplitRestriction::kNone, writer);
-    return ctu_has_coeffs_;
-  }
-  void WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
-               SyntaxWriter *writer);
+  bool WriteCtu(CodingUnit *ctu, PictureData *cu_map, SyntaxWriter *writer);
+  void WriteCu(CodingUnit *cu, SplitRestriction split_restriction,
+               PictureData *cu_map, SyntaxWriter *writer);
   void WriteSplit(const CodingUnit &cu, SplitRestriction split_restriction,
                   SyntaxWriter *writer);
   void WriteComponent(const CodingUnit &cu, YuvComponent comp,
