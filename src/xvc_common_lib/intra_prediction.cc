@@ -27,12 +27,22 @@
 
 namespace xvc {
 
-const int8_t IntraPrediction::kAngleTable_[17] = {
+static const std::array<int8_t, 17> kAngleTable = {
   -32, -26, -21, -17, -13, -9, -5, -2, 0, 2, 5, 9, 13, 17, 21, 26, 32
 };
 
-const int16_t IntraPrediction::kInvAngleTable_[8] = {
+static const std::array<int8_t, 33> kAngleTableExt = {
+  -32, -29, -26, -23, -21, -19, -17, -15, -13, -11, -9, -7, -5, -3, -2, -1,
+  0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 26, 29, 32
+};
+
+static const std::array<int16_t, 8> kInvAngleTable = {
   4096, 1638, 910, 630, 482, 390, 315, 256
+};
+
+static const std::array<int16_t, 16> kInvAngleTableExt = {
+  8192, 4096, 2731, 1638, 1170, 910, 745, 630, 546, 482, 431, 390, 356, 315,
+  282, 256
 };
 
 void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
@@ -291,15 +301,21 @@ bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
     return false;
   }
   static const std::array<int8_t, 8> kFilterRefThreshold = {
-      /*1x1:*/0, /*2x2:*/20, /*4x4:*/10, /*8x8:*/7, /*16x16:*/1,
-      /*32x32:*/ 0, /*64x64:*/ 10, /*128x128:*/ 0
+    0, 20, 10, 7, 1, 0, 10, 0   // 1, 2, 4, 8, 16, 32, 64, 128
   };
+  static const std::array<int8_t, 8> kFilterRefThresholdExt = {
+    0, 20, 20, 14, 2, 0, 20, 0   // 1, 2, 4, 8, 16, 32, 64, 128
+  };
+  static_assert(constants::kMaxBlockSize <= 128, "Only defined up to 128");
   int size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
               util::SizeToLog2(cu.GetHeight(YuvComponent::kY))) >> 1;
   int mode_diff = std::min(
     std::abs(intra_mode - Convert(IntraAngle::kHorizontal)),
     std::abs(intra_mode - Convert(IntraAngle::kVertical)));
-  return mode_diff > kFilterRefThreshold[size];
+  if (Restrictions::Get().disable_ext_intra_extra_modes) {
+    return mode_diff > kFilterRefThreshold[size];
+  }
+  return mode_diff > kFilterRefThresholdExt[size];
 }
 
 void
@@ -392,7 +408,8 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
   int angle_offset = is_horizontal ?
     Convert(IntraAngle::kHorizontal) - dir_mode :
     dir_mode - Convert(IntraAngle::kVertical);
-  int angle = kAngleTable_[8 + angle_offset];
+  int angle = !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kAngleTableExt[16 + angle_offset] : kAngleTable[8 + angle_offset];
 
   if (!angle) {
     // Speed-up for pure horizontal and vertical
@@ -402,9 +419,9 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
       }
     }
     if (filter && !Restrictions::Get().disable_intra_ver_hor_post_filter) {
-      Sample above_left = ref_ptr[0];
-      Sample above = ref_ptr[1];
-      Sample max_val = (1 << bitdepth_) - 1;
+      const Sample above_left = ref_ptr[0];
+      const Sample above = ref_ptr[1];
+      const Sample max_val = (1 << bitdepth_) - 1;
       for (int y = 0; y < height; y++) {
         int16_t val = above + ((ref_ptr[ref_stride + y] - above_left) >> 1);
         output_buffer[y * output_stride] = util::ClipBD(val, max_val);
@@ -413,6 +430,8 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
   } else {
     Sample ref_line_buffer[kRefSampleStride_];
     const Sample *ref_line = ref_ptr + 1;
+    auto *inv_angle_ptr = !Restrictions::Get().disable_ext_intra_extra_modes ?
+      &kInvAngleTableExt[0] : &kInvAngleTable[0];
 
     // Project the side direction to the prediction line
     if (angle < 0) {
@@ -423,7 +442,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
         ref_line_base_ptr[i - 1] = ref_ptr[i];
       }
       // Rest is projected from the other side edge to the prediction line
-      int inv_angle = kInvAngleTable_[-angle_offset - 1];
+      int inv_angle = inv_angle_ptr[-angle_offset - 1];
       int inv_angle_sum = 128;
       for (int i = 0; i < num_projected; i++) {
         inv_angle_sum += inv_angle;
@@ -449,6 +468,16 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
         for (int x = 0; x < width; x++) {
           output_buffer[y * output_stride + x] = ref_line[offset + x];
         }
+      }
+    }
+    if (filter && std::abs(angle) <= 1 &&
+        !Restrictions::Get().disable_ext_intra_extra_modes &&
+        !Restrictions::Get().disable_intra_ver_hor_post_filter) {
+      const Sample max_val = (1 << bitdepth_) - 1;
+      for (int y = 0; y < height; y++) {
+        int16_t val = output_buffer[y * output_stride] +
+          ((ref_ptr[ref_stride + y] - ref_ptr[0]) >> 2);
+        output_buffer[y * output_stride] = util::ClipBD(val, max_val);
       }
     }
   }

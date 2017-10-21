@@ -74,8 +74,6 @@ private:
     bool has_left = false;
     int has_below_left = 0;
   };
-  static const int8_t kAngleTable_[17];
-  static const int16_t kInvAngleTable_[8];
 
   bool UseFilteredRefSamples(const CodingUnit &cu, IntraMode intra_mode);
   void PredIntraDC(int width, int height, bool dc_filter,

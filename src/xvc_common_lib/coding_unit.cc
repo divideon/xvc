@@ -297,6 +297,16 @@ void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
     2, 1, 0, 1, 0, 1, 0, 1, 2, 2, 2, 2, 2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
     0, 0, 0, 0, 1, 0, 1, 0, 1, 0
   } };
+  static const std::array<int8_t, kNbrIntraModesExt> kIntraExtVerticalMap = {
+    2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0
+  };
+  static const std::array<int8_t, kNbrIntraModesExt> kIntraExtHorisontalMap = {
+    2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0,
+    1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0
+  };
   static const int kLuma = static_cast<int>(YuvComponent::kY);
   static const int kChroma = static_cast<int>(YuvComponent::kU);
 
@@ -319,10 +329,17 @@ void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
   } else {
     if (IsIntra()) {
       int intra_mode = static_cast<int>(intra_.mode_luma);
-      tx_.transform_type[kLuma][0] =
-        kIntraTxMap[kIntraVerticalMap[intra_mode]][select_idx >> 1];
-      tx_.transform_type[kLuma][1] =
-        kIntraTxMap[kIntraHorisontalMap[intra_mode]][select_idx & 1];
+      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+        tx_.transform_type[kLuma][0] =
+          kIntraTxMap[kIntraExtVerticalMap[intra_mode]][select_idx >> 1];
+        tx_.transform_type[kLuma][1] =
+          kIntraTxMap[kIntraExtHorisontalMap[intra_mode]][select_idx & 1];
+      } else {
+        tx_.transform_type[kLuma][0] =
+          kIntraTxMap[kIntraVerticalMap[intra_mode]][select_idx >> 1];
+        tx_.transform_type[kLuma][1] =
+          kIntraTxMap[kIntraHorisontalMap[intra_mode]][select_idx & 1];
+      }
     } else {
       tx_.transform_type[kLuma][0] = kInterTxMap[select_idx >> 1];
       tx_.transform_type[kLuma][1] = kInterTxMap[select_idx & 1];

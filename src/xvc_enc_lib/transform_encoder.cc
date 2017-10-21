@@ -142,7 +142,7 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
     }
   }
 
-  // Evaluate transform selct
+  // Evaluate transform select
   bool best_has_coeff = best_is_applied ? cu->GetCbf(comp) :
     best_cu_state_.tx.cbf[static_cast<int>(comp)];
   int nbr_tx_select_idx = 0;

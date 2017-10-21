@@ -162,10 +162,6 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
                                        TransformEncoder *encoder,
                                        YuvPicture *rec_pic,
                                        IntraModeSet *modes_cost) {
-  const int num_intra_modes =
-    !Restrictions::Get().disable_ext_intra_extra_modes ?
-    kNbrIntraModesExt : kNbrIntraModes;
-  const YuvComponent comp = YuvComponent::kY;
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
       // 1, 2, 4, 8, 16, 32, 64, 128
     { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
@@ -181,6 +177,12 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     /*1x1: */ 0, /*2x2: */ 3, /*4x4: */ 8, /*8x8: */ 8, /*16x16: */ 3,
     /*32x32: */ 3, /*64x64: */ 3
   };
+  const YuvComponent comp = YuvComponent::kY;
+  const int num_intra_modes =
+    !Restrictions::Get().disable_ext_intra_extra_modes ?
+    kNbrIntraModesExt : kNbrIntraModes;
+  const bool two_fast_search_passes =
+    !Restrictions::Get().disable_ext_intra_extra_modes;
   Sample *reco =
     rec_pic->GetSamplePtr(comp, cu->GetPosX(comp), cu->GetPosY(comp));
   const ptrdiff_t reco_stride = rec_pic->GetStride(comp);
@@ -189,9 +191,15 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     ComputeReferenceState(*cu, comp, reco, reco_stride);
   SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
   SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
+  std::array<bool, kNbrIntraModesExt> evaluated_modes = { false };
 
   for (int i = 0; i < num_intra_modes; i++) {
     IntraMode intra_mode = static_cast<IntraMode>(i);
+    if (two_fast_search_passes && intra_mode > IntraMode::kDc && (i % 2) != 0) {
+      (*modes_cost)[i] = std::make_pair(intra_mode,
+                                        std::numeric_limits<double>::max());
+      continue;
+    }
     Predict(intra_mode, *cu, comp, intra_state,
             pred_buf.GetDataPtr(), pred_buf.GetStride());
 
@@ -200,11 +208,12 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     rdo_writer.WriteIntraMode(intra_mode, mpm);
     Bits bits = rdo_writer.GetNumWrittenBits();
 
-    uint64_t sad = metric.CompareSample(*cu, comp, orig_pic_,
-                                        pred_buf.GetDataPtr(),
-                                        pred_buf.GetStride());
-    double cost = sad + bits * qp.GetLambdaSqrt();
+    uint64_t dist =
+      metric.CompareSample(*cu, comp, orig_pic_,
+                           pred_buf.GetDataPtr(), pred_buf.GetStride());
+    double cost = dist + bits * qp.GetLambdaSqrt();
     (*modes_cost)[i] = std::make_pair(intra_mode, cost);
+    evaluated_modes[intra_mode] = true;
   }
   std::stable_sort(modes_cost->begin(), modes_cost->begin() + num_intra_modes,
                    [](std::pair<IntraMode, double> p1,
@@ -212,7 +221,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     return p1.second < p2.second;
   });
 
-  // Extend shortlist with mpm modes if not already included
+  // Number of modes to evaluate in slow pass
   int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
   int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
   int num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
@@ -221,6 +230,42 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
   } else if (encoder_settings_.fast_intra_mode_eval_level == 0) {
     num_modes_for_slow_rdo = 33;
   }
+
+  if (two_fast_search_passes) {
+    int modes_added = num_modes_for_slow_rdo;
+    for (int i = 0; i < num_modes_for_slow_rdo; i++) {
+      IntraMode base_mode = (*modes_cost)[i].first;
+      if (base_mode <= (IntraMode::kDc + 1) ||
+          base_mode >= kNbrIntraModesExt - 1) {
+        continue;
+      }
+      for (int offset = -1; offset <= 1; offset += 2) {
+        IntraMode intra_mode = static_cast<IntraMode>(base_mode + offset);
+        if (evaluated_modes[intra_mode]) {
+          continue;
+        }
+        Predict(intra_mode, *cu, comp, intra_state,
+                pred_buf.GetDataPtr(), pred_buf.GetStride());
+        // Bits
+        RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+        rdo_writer.WriteIntraMode(intra_mode, mpm);
+        Bits bits = rdo_writer.GetNumWrittenBits();
+        uint64_t dist =
+          metric.CompareSample(*cu, comp, orig_pic_,
+                               pred_buf.GetDataPtr(), pred_buf.GetStride());
+        double cost = dist + bits * qp.GetLambdaSqrt();
+        (*modes_cost)[modes_added++] = std::make_pair(intra_mode, cost);
+        evaluated_modes[intra_mode] = true;
+      }
+    }
+    std::stable_sort(modes_cost->begin(), modes_cost->begin() + modes_added,
+                     [](std::pair<IntraMode, double> p1,
+                        std::pair<IntraMode, double> p2) {
+      return p1.second < p2.second;
+    });
+  }
+
+  // Extend shortlist with predictor modes
   for (int i = 0; i < mpm.num_neighbor_modes; i++) {
     bool found = false;
     for (int j = 0; j < num_modes_for_slow_rdo; j++) {

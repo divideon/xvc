@@ -1574,6 +1574,8 @@ ForwardTransform::FwdGenericTransformN(int shift, int lines, bool zero_out,
 ScanOrder TransformHelper::DetermineScanOrder(const CodingUnit &cu,
                                               YuvComponent comp) {
   static const int kSizeThreshold = 16;
+  const int angle_threshold =
+    !Restrictions::Get().disable_ext_intra_extra_modes ? 10 : 5;
   if (cu.GetPredMode() != PredictionMode::kIntra ||
       Restrictions::Get().disable_transform_adaptive_scan_order) {
     return ScanOrder::kDiagonal;
@@ -1583,12 +1585,12 @@ ScanOrder TransformHelper::DetermineScanOrder(const CodingUnit &cu,
     return ScanOrder::kDiagonal;
   }
   int intra_mode = static_cast<int>(cu.GetIntraMode(comp));
-  if (std::abs(intra_mode -
-               IntraPrediction::Convert(IntraAngle::kVertical)) < 5) {
+  if (std::abs(intra_mode - IntraPrediction::Convert(IntraAngle::kVertical)) <
+      angle_threshold) {
     return ScanOrder::kHorizontal;
   }
-  if (std::abs(intra_mode -
-               IntraPrediction::Convert(IntraAngle::kHorizontal)) < 5) {
+  if (std::abs(intra_mode - IntraPrediction::Convert(IntraAngle::kHorizontal)) <
+      angle_threshold) {
     return ScanOrder::kVertical;
   }
   return ScanOrder::kDiagonal;

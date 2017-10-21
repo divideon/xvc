@@ -295,8 +295,6 @@ Restrictions::Restrictions() {
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
-  disable_ext_intra_extra_modes = true;
-  disable_ext_intra_extra_predictors = true;
   if (mode == RestrictedMode::kUnrestricted) {
     return;
   }
@@ -310,6 +308,8 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
   if (mode == RestrictedMode::kModeA) {
     disable_ext_sink = true;
     disable_ext_implicit_partition_type = true;
+    disable_ext_intra_extra_modes = true;
+    disable_ext_intra_extra_predictors = true;
     disable_ext_cabac_alt_split_flag_ctx = true;
     disable_ext_cabac_alt_inter_dir_ctx = true;
     disable_ext_cabac_alt_last_pos_ctx = true;
