@@ -480,23 +480,25 @@ SampleMetric::ComputeSadFast(int width, int height,
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
-                                             ptrdiff_t stride1,
-                                             const SampleT2 *sample2,
-                                             ptrdiff_t stride2) {
+uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
+                                                 ptrdiff_t stride1,
+                                                 const SampleT2 *sample2,
+                                                 ptrdiff_t stride2, int size) {
   int64_t orig_sum = 0;
   int64_t reco_sum = 0;
   int64_t orig_orig_sum = 0;
   int64_t reco_reco_sum = 0;
   int64_t orig_reco_sum = 0;
-  const int n = 64;
+  const int n = size * size;;
   const int shift = (2 * (bitdepth_ - 8));
   const int64_t c1 = (n * n * 26634ull >> 12) << shift;
   const int64_t c2 = (n * n * 239708ull >> 12) << shift;
   const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
+  const int w1 = 25;
+  const int w2 = 12;
   int64_t ssd = 0;
-  for (int y = 0; y < 8; y++) {
-    for (int x = 0; x < 8; x++) {
+  for (int y = 0; y < size; y++) {
+    for (int x = 0; x < size; x++) {
       orig_sum += sample1[x];
       reco_sum += sample2[x];
       orig_orig_sum += sample1[x] * sample1[x];
@@ -515,46 +517,8 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
      n * reco_reco_sum - reco_sum * reco_sum + c2);
 
   ssd >>= shift;
-  return static_cast<uint64_t>((ssd + c4 * (1 - a * b))) >> 1;
-}
-
-template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
-                                             ptrdiff_t stride1,
-                                             const SampleT2 *sample2,
-                                             ptrdiff_t stride2) {
-  int64_t orig_sum = 0;
-  int64_t reco_sum = 0;
-  int64_t orig_orig_sum = 0;
-  int64_t reco_reco_sum = 0;
-  int64_t orig_reco_sum = 0;
-  const int n = 16;
-  const int shift = (2 * (bitdepth_ - 8));
-  const int64_t c1 = (n * n * 26634ull >> 12) << shift;
-  const int64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
-  int64_t ssd = 0;
-  for (int y = 0; y < 4; y++) {
-    for (int x = 0; x < 4; x++) {
-      orig_sum += sample1[x];
-      reco_sum += sample2[x];
-      orig_orig_sum += sample1[x] * sample1[x];
-      reco_reco_sum += sample2[x] * sample2[x];
-      orig_reco_sum += sample1[x] * sample2[x];
-      int diff = sample1[x] - sample2[x];
-      ssd += diff * diff;
-    }
-    sample1 += stride1;
-    sample2 += stride2;
-  }
-  double m = (1.0 * orig_sum - reco_sum) / n;
-  double a = (c4 - m * m + c1) / (c4 + c1);
-  double b = (2.0 * n * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
-    (n * orig_orig_sum - orig_sum * orig_sum +
-     n * reco_reco_sum - reco_sum * reco_sum + c2);
-
-  ssd >>= shift;
-  return static_cast<uint64_t>(ssd + (c4 >> 2) * (1 - a * b)) >> 1;
+  return static_cast<uint64_t>(w1 * ssd + w2 * (c4 >> ((8 - size) >> 1)) *
+    (1 - a * b)) >> 6;
 }
 
 template<typename SampleT1, typename SampleT2>
@@ -563,26 +527,15 @@ uint64_t SampleMetric::ComputeStructuralSsd(int width, int height,
                                             ptrdiff_t stride1,
                                             const SampleT2 *sample2,
                                             ptrdiff_t stride2) {
-  if (height < 8 || width < 8) {
-    uint64_t ssim = 0;
-    for (int i = 0; i < height / 4; i++) {
-      for (int j = 0; j < width / 4; j++) {
-        ssim += ComputeStructuralSsd4(sample1 + 4 * j, stride1,
-                                      sample2 + 4 * j, stride2);
-      }
-      sample1 += 4 * stride1;
-      sample2 += 4 * stride2;
-    }
-    return ssim;
-  }
+  int size = (height < 8 || width < 8) ? 4 : 8;
   uint64_t ssim = 0;
-  for (int i = 0; i < height / 8; i++) {
-    for (int j = 0; j < width / 8; j++) {
-      ssim += ComputeStructuralSsd8(sample1 + 8 * j, stride1,
-                                    sample2 + 8 * j, stride2);
+  for (int i = 0; i < height / size; i++) {
+    for (int j = 0; j < width / size; j++) {
+      ssim += ComputeStructuralSsdBlock(sample1 + size * j, stride1,
+                                        sample2 + size * j, stride2, size);
     }
-    sample1 += 8 * stride1;
-    sample2 += 8 * stride2;
+    sample1 += size * stride1;
+    sample2 += size * stride2;
   }
   return ssim;
 }

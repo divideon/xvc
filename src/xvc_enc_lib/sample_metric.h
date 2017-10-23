@@ -94,15 +94,13 @@ private:
                           const SampleT1 *sample1, ptrdiff_t stride1,
                           const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeStructuralSsd8(const SampleT1 *sample1, ptrdiff_t stride1,
-                       const SampleT2 *sample2, ptrdiff_t stride2);
-  template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeStructuralSsd4(const SampleT1 *sample1, ptrdiff_t stride1,
-                        const SampleT2 *sample2, ptrdiff_t stride2);
+  uint64_t ComputeStructuralSsdBlock(const SampleT1 *sample1, ptrdiff_t stride1,
+                                     const SampleT2 *sample2, ptrdiff_t stride2,
+                                     int N);
   template<typename SampleT1, typename SampleT2>
   uint64_t ComputeStructuralSsd(int width, int height,
-                       const SampleT1 *sample1, ptrdiff_t stride1,
-                       const SampleT2 *sample2, ptrdiff_t stride2);
+                                const SampleT1 *sample1, ptrdiff_t stride1,
+                                const SampleT2 *sample2, ptrdiff_t stride2);
 
   MetricType type_;
   const Qp &qp_;
