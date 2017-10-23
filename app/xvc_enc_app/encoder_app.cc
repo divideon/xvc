@@ -514,10 +514,16 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
     std::cout << "  TID:" << std::setw(6) << nal_unit.stats.tid;
     std::cout << "   QP:" << std::setw(6) << nal_unit.stats.qp;
   } else {
-    std::cout << "     - not a picture -                          ";
+    std::cout << "     - not a picture -                          " <<
+      "            ";
   }
   std::cout << "  Bytes: " << std::setw(10) << nal_unit.size;
   if (nal_unit.stats.nal_unit_type < 16) {
+    double bpp =
+      (8 * static_cast<double>(nal_unit.size) / (cli_.width * cli_.height));
+    std::stringstream bpp_str;
+    bpp_str << std::fixed << std::setprecision(5) << bpp;
+    std::cout << "  Bpp: " << std::setw(10) << bpp_str.str();
     if (nal_unit.stats.l0[0] >= 0 || nal_unit.stats.l1[0] >= 0) {
       std::cout << "  RefPics: L0: { ";
       int length_l0 = sizeof(nal_unit.stats.l0) / sizeof(nal_unit.stats.l0[0]);

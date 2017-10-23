@@ -852,7 +852,7 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   switch (cu.GetTransformType(comp, 1)) {
     case TransformType::kDefault:
       if (can_dst_4x4 && width == 4 && height == 4) {
-        FwdPartialDST4(shift1, high_prec1, resi_ptr, resi_stride,
+        FwdPartialDst4(shift1, high_prec1, resi_ptr, resi_stride,
                        temp_ptr, temp_stride);
       } else {
         FwdDct2(width, shift1, height, high_prec1, false,
@@ -887,7 +887,7 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   switch (cu.GetTransformType(comp, 0)) {
     case TransformType::kDefault:
       if (can_dst_4x4 && width == 4 && height == 4) {
-        FwdPartialDST4(shift2, high_prec2, temp_ptr, temp_stride,
+        FwdPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
                        coeff_ptr, coeff_stride);
       } else {
         FwdDct2(height, shift2, width, high_prec2, true,
@@ -954,7 +954,7 @@ ForwardTransform::TransformSkip(int width, int height,
   }
 }
 
-void ForwardTransform::FwdPartialDST4(int shift, bool high_prec,
+void ForwardTransform::FwdPartialDst4(int shift, bool high_prec,
                                       const Coeff *in, ptrdiff_t in_stride,
                                       Coeff *out, ptrdiff_t out_stride) {
   // No support for high precision for DST 4x4

@@ -122,7 +122,7 @@ private:
   void FwdDst7(int size, int shift, int lines, bool high_prec, bool zero_out,
                const Coeff *in, ptrdiff_t in_stride,
                Coeff *out, ptrdiff_t out_stride);
-  void FwdPartialDST4(int shift, bool high_prec,
+  void FwdPartialDst4(int shift, bool high_prec,
                       const Coeff *in, ptrdiff_t in_stride,
                       Coeff *out, ptrdiff_t out_stride);
   void FwdDct2Transform2(int shift, int lines,

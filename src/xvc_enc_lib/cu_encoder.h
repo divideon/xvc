@@ -75,9 +75,9 @@ private:
   void SetQpForAllCusInCtu(CodingUnit *ctu, int qp);
 
   static bool CanSkipAnySplitForCu(const PictureData &pic_data,
-                                    const CodingUnit &cu);
+                                   const CodingUnit &cu);
   static bool CanSkipQuadSplitForCu(const PictureData &pic_data,
-                                 const CodingUnit &cu);
+                                    const CodingUnit &cu);
 
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
