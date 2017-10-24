@@ -72,7 +72,7 @@ struct EncoderSettings {
   int smooth_lambda_scaling = 1;
   int adaptive_qp = 1;
   double aqp_strength = 1.0;
-  int structural_ssd = 0;
+  int structural_ssd = 1;
   int encapsulation_mode = 0;
   int chroma_qp_offset_table = 1;
   int chroma_qp_offset_u = 0;

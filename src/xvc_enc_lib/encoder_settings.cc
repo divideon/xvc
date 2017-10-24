@@ -63,6 +63,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       max_binary_split_depth = 0;
       fast_transform_select_eval = 1;
       adaptive_qp = 0;
+      structural_ssd = 0;
       chroma_qp_offset_table = 1;
       chroma_qp_offset_u = 0;
       chroma_qp_offset_v = 0;
@@ -80,6 +81,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       max_binary_split_depth = 2;
       fast_transform_select_eval = 1;
       adaptive_qp = 0;
+      structural_ssd = 0;
       chroma_qp_offset_table = 1;
       chroma_qp_offset_u = 1;
       chroma_qp_offset_v = 1;
@@ -97,6 +99,7 @@ void EncoderSettings::Tune(TuneMode tune_mode) {
       break;
     case TuneMode::kPsnr:
       adaptive_qp = 0;
+      structural_ssd = 0;
       chroma_qp_offset_table = 0;
       chroma_qp_offset_u = 1;
       chroma_qp_offset_v = 1;

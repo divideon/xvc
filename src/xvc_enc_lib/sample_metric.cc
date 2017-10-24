@@ -494,8 +494,8 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
   const int64_t c1 = (n * n * 26634ull >> 12) << shift;
   const int64_t c2 = (n * n * 239708ull >> 12) << shift;
   const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
-  const int w1 = 25;
-  const int w2 = 12;
+  const int w1 = 32;
+  const int w2 = 16;
   int64_t ssd = 0;
   for (int y = 0; y < size; y++) {
     for (int x = 0; x < size; x++) {
