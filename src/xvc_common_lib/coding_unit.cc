@@ -438,11 +438,11 @@ void CodingUnit::SaveStateTo(ReconstructionState *dst_state,
   int posx = GetPosX(comp);
   int posy = GetPosY(comp);
   // Reco
-  auto reco_src = rec_pic.GetSampleBuffer(comp, posx, posy);
+  SampleBufferConst reco_src = rec_pic.GetSampleBuffer(comp, posx, posy);
   SampleBuffer reco_dst(&dst_state->reco[c][0], GetWidth(comp));
   reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
   // Coeff
-  DataBuffer<const Coeff> coeff_src =
+  CoeffBufferConst coeff_src =
     ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   CoeffBuffer coeff_dst(&dst_state->coeff[c][0], GetWidth(comp));
   coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);
@@ -490,11 +490,11 @@ void CodingUnit::LoadStateFrom(const ReconstructionState &src_state,
   int posx = GetPosX(comp);
   int posy = GetPosY(comp);
   // Reco
-  DataBuffer<const Sample> reco_src(&src_state.reco[c][0], GetWidth(comp));
+  SampleBufferConst reco_src(&src_state.reco[c][0], GetWidth(comp));
   SampleBuffer reco_dst = rec_pic->GetSampleBuffer(comp, posx, posy);
   reco_dst.CopyFrom(GetWidth(comp), GetHeight(comp), reco_src);
   // Coeff
-  DataBuffer<const Coeff> coeff_src(&src_state.coeff[c][0], GetWidth(comp));
+  CoeffBufferConst coeff_src(&src_state.coeff[c][0], GetWidth(comp));
   CoeffBuffer coeff_dst =
     ctu_coeff_->GetBuffer(comp, GetPosX(comp), GetPosY(comp));
   coeff_dst.CopyFrom(GetWidth(comp), GetHeight(comp), coeff_src);

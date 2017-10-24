@@ -39,8 +39,8 @@ public:
   TestYuvPic(int width, int height, int bitdepth, int dx = 0, int dy = 0,
              xvc::ChromaFormat chroma_fmt = xvc::ChromaFormat::k420);
   const std::vector<uint8_t> GetBytes() const { return bytes_; }
-  xvc::DataBuffer<const Sample> GetSampleBuffer() const {
-    return xvc::DataBuffer<const Sample>(&samples_[0], width_);
+  xvc::SampleBufferConst GetSampleBuffer() const {
+    return xvc::SampleBufferConst(&samples_[0], width_);
   }
   Sample GetAverageSample();
   int GetBitdepth() const { return bitdepth_; }

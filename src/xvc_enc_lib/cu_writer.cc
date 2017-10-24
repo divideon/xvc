@@ -170,7 +170,7 @@ void CuWriter::WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
 void
 CuWriter::WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
                                     SyntaxWriter *writer) const {
-  DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
+  CoeffBufferConst cu_coeff = cu.GetCoeff(comp);
   bool use_transform_select = false;
   if (util::IsLuma(comp)) {
     use_transform_select = cu.HasTransformSelectIdx();

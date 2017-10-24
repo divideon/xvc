@@ -48,9 +48,8 @@ public:
   SampleBuffer GetSampleBuffer(YuvComponent comp, int x, int y) {
     return SampleBuffer(GetSamplePtr(comp, x, y), GetStride(comp));
   }
-  DataBuffer<const Sample> GetSampleBuffer(YuvComponent comp,
-                                           int x, int y) const {
-    return DataBuffer<const Sample>(GetSamplePtr(comp, x, y), GetStride(comp));
+  SampleBufferConst GetSampleBuffer(YuvComponent comp, int x, int y) const {
+    return SampleBufferConst(GetSamplePtr(comp, x, y), GetStride(comp));
   }
   void CopyFrom(const uint8_t *picture_bytes, int input_bitdepth);
   void CopyFromWithPadding(const uint8_t *picture_bytes, int input_bitdepth);

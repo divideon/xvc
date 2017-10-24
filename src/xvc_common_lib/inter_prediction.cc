@@ -569,7 +569,7 @@ InterPrediction::MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
   }
 }
 
-DataBuffer<const Sample>
+SampleBufferConst
 InterPrediction::GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
                                const YuvPicture &ref_pic, int mv_x, int mv_y,
                                int *frac_x, int *frac_y) {
@@ -597,7 +597,7 @@ InterPrediction::GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
   int posy = cu.GetPosY(comp);
   const Sample *sample_ptr =
     ref_pic.GetSamplePtr(comp, posx + pel_x, posy + pel_y);;
-  return DataBuffer<const Sample>(sample_ptr, ref_pic.GetStride(comp));
+  return SampleBufferConst(sample_ptr, ref_pic.GetStride(comp));
 }
 
 template<int N>

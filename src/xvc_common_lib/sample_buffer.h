@@ -55,6 +55,7 @@ private:
   ptrdiff_t stride_;
 };
 
+using SampleBufferConst = DataBuffer<const Sample>;
 class SampleBuffer : public DataBuffer<Sample> {
 public:
   SampleBuffer(Sample *data, ptrdiff_t stride) : DataBuffer(data, stride) {}
@@ -96,6 +97,7 @@ public:
   }
 };
 
+using ResidualBufferConst = DataBuffer<const Residual>;
 class ResidualBuffer : public DataBuffer<Residual> {
 public:
   ResidualBuffer(Residual *data, ptrdiff_t stride) : DataBuffer(data, stride) {}
@@ -133,6 +135,7 @@ public:
   }
 };
 
+using CoeffBufferConst = DataBuffer<const Coeff>;
 class CoeffBuffer : public DataBuffer<Coeff> {
 public:
   CoeffBuffer(Coeff *data, ptrdiff_t stride) : DataBuffer(data, stride) {}

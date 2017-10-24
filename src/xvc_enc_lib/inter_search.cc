@@ -152,7 +152,7 @@ void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                SampleBuffer *pred_buffer) {
   const YuvComponent comp = YuvComponent::kY;
-  DataBuffer<const Sample> orig_luma =
+  SampleBufferConst orig_luma =
     orig_pic_.GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
   Sample *pred = pred_buffer->GetDataPtr();
   ptrdiff_t pred_stride = pred_buffer->GetStride();
@@ -339,7 +339,7 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const Qp &qp,
                                Sample *pred_buf, ptrdiff_t pred_stride,
                                CodingUnit::InterState *best_state) {
   const YuvComponent comp = YuvComponent::kY;
-  DataBuffer<const Sample> orig_luma =
+  SampleBufferConst orig_luma =
     orig_pic_.GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
   int width = cu->GetWidth(comp);
   int height = cu->GetHeight(comp);

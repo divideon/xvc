@@ -97,7 +97,7 @@ private:
   void MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, const MotionVector &mv,
                             int16_t *pred, ptrdiff_t pred_stride);
-  DataBuffer<const Sample>
+  SampleBufferConst
     GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
                   const YuvPicture &ref_pic, int mv_x, int mv_y,
                   int *frac_x, int *frac_y);
