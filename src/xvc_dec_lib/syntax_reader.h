@@ -38,11 +38,11 @@ public:
   int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                        Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   bool ReadEndOfSlice();
-  IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);
   InterDir ReadInterDir(const CodingUnit &cu);
   MotionVector ReadInterMvd();
   int ReadInterMvpIdx();
   int ReadInterRefIdx(int num_refs_available);
+  IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);
   IntraChromaMode ReadIntraChromaMode(IntraPredictorChroma chroma_preds);
   bool ReadMergeFlag();
   int ReadMergeIdx();

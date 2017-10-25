@@ -169,9 +169,9 @@ kInitIntraLumaPredMode[3][CabacContexts::kNumIntraPredCtxLuma] = {
 
 static const uint8_t
 kInitIntraChromaPredMode[3][CabacContexts::kNumIntraPredCtxChroma] = {
-  { 152, },
-  { 152, },
-  { 63, },
+  { 152, 139 },
+  { 152, 139 },
+  { 63, 139 },
 };
 
 static const uint8_t

@@ -241,6 +241,10 @@ Restrictions::Restrictions() {
   disable_ext_intra_extra_predictors = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT_INTRA_CHROMA_FROM_LUMA
+  disable_ext_intra_chroma_from_luma = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT_TMVP_FULL_RESOLUTION
   disable_ext_tmvp_full_resolution = true;
 #endif
@@ -310,6 +314,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_implicit_partition_type = true;
     disable_ext_intra_extra_modes = true;
     disable_ext_intra_extra_predictors = true;
+    disable_ext_intra_chroma_from_luma = true;
     disable_ext_cabac_alt_split_flag_ctx = true;
     disable_ext_cabac_alt_inter_dir_ctx = true;
     disable_ext_cabac_alt_last_pos_ctx = true;

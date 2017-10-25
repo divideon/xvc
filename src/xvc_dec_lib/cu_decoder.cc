@@ -105,11 +105,8 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
 
   // Predict
   if (cu->IsIntra()) {
-    Sample *dec = decoded_pic_.GetSamplePtr(comp, cu_x, cu_y);
-    ptrdiff_t dec_stride = decoded_pic_.GetStride(comp);
     IntraMode intra_mode = cu->GetIntraMode(comp);
-    intra_pred_.Predict(intra_mode, *cu, comp, dec, dec_stride,
-                        pred_buffer.GetDataPtr(), pred_buffer.GetStride());
+    intra_pred_.Predict(intra_mode, *cu, comp, decoded_pic_, &pred_buffer);
   } else {
     inter_pred_.CalculateMV(cu);
     inter_pred_.MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),

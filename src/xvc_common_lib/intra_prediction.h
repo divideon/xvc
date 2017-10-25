@@ -26,55 +26,39 @@
 
 namespace xvc {
 
-class IntraPredictorLuma :
-  public std::array<IntraMode, constants::kNumIntraMpmExt> {
-public:
+struct IntraPredictorLuma : std::array<IntraMode, constants::kNumIntraMpmExt> {
   int num_neighbor_modes = 0;
 };
-typedef std::array<IntraChromaMode, kNumIntraChromaModes> IntraPredictorChroma;
+using IntraPredictorChroma = std::array<IntraChromaMode,
+  kMaxNumIntraChromaModes>;
 
 class IntraPrediction {
 public:
   static const ptrdiff_t kRefSampleStride_ = constants::kMaxBlockSize * 2 + 1;
   struct State {
-    std::array<Sample, kRefSampleStride_ * 2> ref_samples = {};
-    std::array<Sample, kRefSampleStride_ * 2> ref_filtered = {};
+    std::array<Sample, kRefSampleStride_ * 2> ref_samples;
+    std::array<Sample, kRefSampleStride_ * 2> ref_filtered;
   };
 
-  explicit IntraPrediction(int bitdepth) : bitdepth_(bitdepth) {}
+  explicit IntraPrediction(int bitdepth);
   void Predict(IntraMode intra_mode, const CodingUnit &cu, YuvComponent comp,
-               const Sample *input_pic, ptrdiff_t input_stride,
-               Sample *output_buffer, ptrdiff_t output_stride);
+               const YuvPicture &rec_pic, SampleBuffer *output_buffer);
   void Predict(IntraMode intra_mode, const CodingUnit &cu, YuvComponent comp,
-               const State &ref_state, Sample *output_buffer,
-               ptrdiff_t output_stride);
-  State ComputeReferenceState(const CodingUnit &cu, YuvComponent comp,
-                              const Sample *input_pic, ptrdiff_t input_stride);
+               const State &ref_state, const YuvPicture &rec_pic,
+               SampleBuffer *output_buffer);
+  void FillReferenceState(const CodingUnit &cu, YuvComponent comp,
+                          const SampleBufferConst &src, State *ref_state);
   IntraPredictorLuma GetPredictorLuma(const CodingUnit &cu) const;
   IntraPredictorChroma GetPredictorsChroma(IntraMode luma_mode) const;
   static IntraMode Convert(IntraAngle angle);
   static IntraChromaMode Convert(IntraChromaAngle chroma_angle);
 
 private:
+  static const int kDownscaleLumaPadding = sizeof(int) / (1 * sizeof(Sample));
+  struct NeighborState;
+  struct LmParams;
   void FillPredictorLumaDefault(const CodingUnit &cu,
                                 IntraPredictorLuma *predictors) const;
-
-  struct NeighborState {
-    bool has_any() const {
-      return has_above_left || has_above || has_left ||
-        has_above_right > 0 || has_below_left > 0;
-    }
-    bool has_all(int below_left, int above_right) const {
-      return has_above_left && has_above && has_left &&
-        has_below_left == below_left && has_above_right == above_right;
-    }
-    bool has_above_left = false;
-    bool has_above = false;
-    int has_above_right = 0;
-    bool has_left = false;
-    int has_below_left = 0;
-  };
-
   bool UseFilteredRefSamples(const CodingUnit &cu, IntraMode intra_mode);
   void PredIntraDC(int width, int height, bool dc_filter,
                    const Sample *ref_samples, ptrdiff_t ref_stride,
@@ -83,8 +67,13 @@ private:
                   const Sample *ref_samples, ptrdiff_t ref_stride,
                   Sample *output_buffer, ptrdiff_t output_stride);
   void AngularPred(int width, int height, IntraMode mode, bool filter,
-                  const Sample *ref_samples, ptrdiff_t ref_stride,
-                  Sample *output_buffer, ptrdiff_t output_stride);
+                   const Sample *ref_samples, ptrdiff_t ref_stride,
+                   Sample *output_buffer, ptrdiff_t output_stride);
+  void PredLmChroma(const CodingUnit &cu, YuvComponent comp,
+                    const YuvPicture &rec_pic, SampleBuffer *output_buffer);
+  LmParams DeriveLmParams(const CodingUnit &cu, YuvComponent comp,
+                          const SampleBufferConst &comp_src,
+                          const SampleBufferConst &luma_src);
   NeighborState DetermineNeighbors(const CodingUnit &cu, YuvComponent comp);
   void ComputeRefSamples(int width, int height,
                          const NeighborState &neighbors,
@@ -92,8 +81,12 @@ private:
                          Sample *output, ptrdiff_t output_stride);
   void FilterRefSamples(int width, int height, const Sample *src_ref,
                         Sample *dst_ref, ptrdiff_t stride);
+  void RescaleLuma(const CodingUnit &cu, int src_width, int src_height,
+                     const SampleBufferConst &src_buffer,
+                     int out_width, int out_height, SampleBuffer *out_buffer);
 
   int bitdepth_;
+  SampleBufferStorage temp_pred_buffer_;
 };
 
 }   // namespace xvc

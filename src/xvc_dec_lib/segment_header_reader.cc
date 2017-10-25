@@ -178,6 +178,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_ext_transform_select |= !!bit_reader->ReadBit();
       restr.disable_ext_intra_extra_modes |= !!bit_reader->ReadBit();
       restr.disable_ext_intra_extra_predictors |= !!bit_reader->ReadBit();
+      restr.disable_ext_intra_chroma_from_luma |= !!bit_reader->ReadBit();
     }
   }
 
@@ -187,6 +188,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext_transform_select = true;
     restr.disable_ext_intra_extra_modes = true;
     restr.disable_ext_intra_extra_predictors = true;
+    restr.disable_ext_intra_chroma_from_luma = true;
   }
 
   Restrictions::GetRW() = restr;

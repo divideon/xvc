@@ -63,10 +63,11 @@ enum class TransformType {
 static const int kNbrTransformTypes =
 static_cast<int>(TransformType::kTotalNumber);
 
-enum IntraMode : int {
+enum IntraMode {
+  kLmChroma = -2,
+  kInvalid = -1,
   kPlanar = 0,
   kDc = 1,
-  kInvalid = 99,
 };
 static const int kNbrIntraModes = 35;
 static const int kNbrIntraModesExt = 67;
@@ -82,15 +83,16 @@ enum class IntraAngle {
 static const int kNbrIntraDirs = kNbrIntraModes;
 
 // chroma modes maps directly to intra modes except for kDmChroma
-enum class IntraChromaMode : int {
+enum class IntraChromaMode {
+  kLmChroma = -2,
   kDmChroma = -1,
   kPlanar = 0,
   kDc = 1,
   kInvalid = 99,
 };
-const int kNumIntraChromaModes = 5;
+const int kMaxNumIntraChromaModes = 6;
 
-enum class IntraChromaAngle : int {
+enum class IntraChromaAngle {
   kDmChroma = -1,
   kPlanar = 0,
   kDc = 1,

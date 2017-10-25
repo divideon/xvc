@@ -55,6 +55,7 @@ static Sample ClipBD(T value, Sample max) {
 
 int SizeToLog2(int size);
 int SizeLog2Bits(int size);
+int Log2Floor(int x);
 
 int GetChromaShiftX(ChromaFormat chroma_format);
 int GetChromaShiftY(ChromaFormat chroma_format);

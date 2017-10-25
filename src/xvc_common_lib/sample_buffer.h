@@ -59,6 +59,9 @@ using SampleBufferConst = DataBuffer<const Sample>;
 class SampleBuffer : public DataBuffer<Sample> {
 public:
   SampleBuffer(Sample *data, ptrdiff_t stride) : DataBuffer(data, stride) {}
+  SampleBuffer Offset(int x, int y) {
+    return SampleBuffer(GetDataPtr() + GetStride() * y + x, GetStride());
+  }
 
   void AddClip(int width, int height,
                const DataBuffer<const Sample> &pred_buffer,
@@ -92,6 +95,22 @@ public:
       }
       src1 += src1_buffer.GetStride();
       src2 += src2_buffer.GetStride();
+      dst += GetStride();
+    }
+  }
+
+  void AddLinearModel(int width, int height,
+                      const DataBuffer<const Sample> &ref_buffer,
+                      int scale, int shift, int offset,
+                      Sample min_val, Sample max_val) {
+    const Sample *ref = ref_buffer.GetDataPtr();
+    Sample *dst = GetDataPtr();
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        dst[x] = util::Clip3<Sample>(((scale * ref[x]) >> shift) + offset,
+                                     min_val, max_val);
+      }
+      ref += ref_buffer.GetStride();
       dst += GetStride();
     }
   }

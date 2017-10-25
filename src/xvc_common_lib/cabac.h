@@ -54,7 +54,7 @@ public:
   static const int kNumPartSizeCtx = 4;
   static const int kNumPredModeCtx = 1;
   static const int kNumIntraPredCtxLuma = 9;
-  static const int kNumIntraPredCtxChroma = 1;
+  static const int kNumIntraPredCtxChroma = 2;
   static const int kNumInterDirCtx = 5;
   static const int kNumMvdCtx = 2;
   static const int kNumRefIdxCtx = 2;

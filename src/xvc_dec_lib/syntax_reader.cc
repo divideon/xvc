@@ -320,79 +320,6 @@ bool SyntaxReader::ReadEndOfSlice() {
   return bin != 0;
 }
 
-IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
-  ContextModel &ctx = ctx_.intra_pred_luma[0];
-  uint32_t is_mpm_coded = entropydec_->DecodeBin(&ctx);
-  if (is_mpm_coded) {
-    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
-      int mpm_index =
-        entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[0]));
-      if (mpm_index > 0) {
-        mpm_index +=
-          entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[1]));
-        if (mpm_index > 1) {
-          mpm_index +=
-            entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[2]));
-          if (mpm_index > 2) {
-            mpm_index += entropydec_->DecodeBypass();
-            if (mpm_index > 3) {
-              mpm_index += entropydec_->DecodeBypass();
-            }
-          }
-        }
-      }
-      return mpm[mpm_index];
-    } else {
-      int mpm_index = entropydec_->DecodeBypass();
-      if (mpm_index) {
-        mpm_index += entropydec_->DecodeBypass();
-      }
-      return mpm[mpm_index];
-    }
-  } else {
-    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
-      int intra_mode;
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
-        intra_mode = entropydec_->DecodeBypassBins(4);
-        intra_mode <<= 2;
-        if (intra_mode <= kNbrIntraModesExt - 8) {
-          intra_mode += entropydec_->DecodeBypassBins(2);
-        }
-      } else {
-        intra_mode = entropydec_->DecodeBypassBins(5);
-      }
-      IntraPredictorLuma mpm_sorted = mpm;
-      std::sort(mpm_sorted.begin(),
-                mpm_sorted.begin() + constants::kNumIntraMpmExt);
-      for (int i = 0; i < static_cast<int>(constants::kNumIntraMpmExt); i++) {
-        intra_mode += intra_mode >= mpm_sorted[i] ? 1 : 0;
-      }
-      return static_cast<IntraMode>(intra_mode);
-    } else {
-      int intra_mode;
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
-        intra_mode = entropydec_->DecodeBypassBins(6);
-      } else {
-        intra_mode = entropydec_->DecodeBypassBins(5);
-      }
-      IntraPredictorLuma mpm_sorted = mpm;
-      if (mpm_sorted[0] > mpm_sorted[1]) {
-        std::swap(mpm_sorted[0], mpm_sorted[1]);
-      }
-      if (mpm_sorted[0] > mpm_sorted[2]) {
-        std::swap(mpm_sorted[0], mpm_sorted[2]);
-      }
-      if (mpm_sorted[1] > mpm_sorted[2]) {
-        std::swap(mpm_sorted[1], mpm_sorted[2]);
-      }
-      for (int i = 0; i < static_cast<int>(constants::kNumIntraMpm); i++) {
-        intra_mode += intra_mode >= mpm_sorted[i] ? 1 : 0;
-      }
-      return static_cast<IntraMode>(intra_mode);
-    }
-  }
-}
-
 InterDir SyntaxReader::ReadInterDir(const CodingUnit &cu) {
   assert(cu.GetPartitionType() == PartitionType::kSize2Nx2N);
   ContextModel &ctx = ctx_.GetInterDirBiCtx(cu);
@@ -473,11 +400,90 @@ int SyntaxReader::ReadInterRefIdx(int num_refs_available) {
   return ref_idx + 1;
 }
 
+IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
+  ContextModel &ctx = ctx_.intra_pred_luma[0];
+  uint32_t is_mpm_coded = entropydec_->DecodeBin(&ctx);
+  if (is_mpm_coded) {
+    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+      int mpm_index =
+        entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[0]));
+      if (mpm_index > 0) {
+        mpm_index +=
+          entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[1]));
+        if (mpm_index > 1) {
+          mpm_index +=
+            entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[2]));
+          if (mpm_index > 2) {
+            mpm_index += entropydec_->DecodeBypass();
+            if (mpm_index > 3) {
+              mpm_index += entropydec_->DecodeBypass();
+            }
+          }
+        }
+      }
+      return mpm[mpm_index];
+    } else {
+      int mpm_index = entropydec_->DecodeBypass();
+      if (mpm_index) {
+        mpm_index += entropydec_->DecodeBypass();
+      }
+      return mpm[mpm_index];
+    }
+  } else {
+    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+      int intra_mode;
+      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+        intra_mode = entropydec_->DecodeBypassBins(4);
+        intra_mode <<= 2;
+        if (intra_mode <= kNbrIntraModesExt - 8) {
+          intra_mode += entropydec_->DecodeBypassBins(2);
+        }
+      } else {
+        intra_mode = entropydec_->DecodeBypassBins(5);
+      }
+      IntraPredictorLuma mpm_sorted = mpm;
+      std::sort(mpm_sorted.begin(),
+                mpm_sorted.begin() + constants::kNumIntraMpmExt);
+      for (int i = 0; i < static_cast<int>(constants::kNumIntraMpmExt); i++) {
+        intra_mode += intra_mode >= mpm_sorted[i] ? 1 : 0;
+      }
+      return static_cast<IntraMode>(intra_mode);
+    } else {
+      int intra_mode;
+      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+        intra_mode = entropydec_->DecodeBypassBins(6);
+      } else {
+        intra_mode = entropydec_->DecodeBypassBins(5);
+      }
+      IntraPredictorLuma mpm_sorted = mpm;
+      if (mpm_sorted[0] > mpm_sorted[1]) {
+        std::swap(mpm_sorted[0], mpm_sorted[1]);
+      }
+      if (mpm_sorted[0] > mpm_sorted[2]) {
+        std::swap(mpm_sorted[0], mpm_sorted[2]);
+      }
+      if (mpm_sorted[1] > mpm_sorted[2]) {
+        std::swap(mpm_sorted[1], mpm_sorted[2]);
+      }
+      for (int i = 0; i < static_cast<int>(constants::kNumIntraMpm); i++) {
+        intra_mode += intra_mode >= mpm_sorted[i] ? 1 : 0;
+      }
+      return static_cast<IntraMode>(intra_mode);
+    }
+  }
+}
+
 IntraChromaMode
 SyntaxReader::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
   uint32_t not_dm_chroma = entropydec_->DecodeBin(&ctx_.intra_pred_chroma[0]);
   if (!not_dm_chroma) {
     return IntraChromaMode::kDmChroma;
+  }
+  if (!Restrictions::Get().disable_ext_intra_chroma_from_luma) {
+    uint32_t not_lm_chroma = entropydec_->DecodeBin(&ctx_.intra_pred_chroma[1]);
+    if (!not_lm_chroma) {
+      return IntraChromaMode::kLmChroma;
+    }
   }
   uint32_t chroma_index = entropydec_->DecodeBypassBins(2);
   return chroma_preds[chroma_index];

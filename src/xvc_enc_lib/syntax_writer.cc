@@ -468,13 +468,20 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
     entropyenc_->EncodeBin(0, &ctx_.intra_pred_chroma[0]);
     return;
   }
+  entropyenc_->EncodeBin(1, &ctx_.intra_pred_chroma[0]);
+  if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+    if (chroma_mode == IntraChromaMode::kLmChroma) {
+      entropyenc_->EncodeBin(0, &ctx_.intra_pred_chroma[1]);
+      return;
+    }
+    entropyenc_->EncodeBin(1, &ctx_.intra_pred_chroma[1]);
+  }
   int chroma_index = 0;
   for (int i = 1; i < static_cast<int>(chroma_preds.size()) - 1; i++) {
     if (chroma_mode == chroma_preds[i]) {
       chroma_index = i;
     }
   }
-  entropyenc_->EncodeBin(1, &ctx_.intra_pred_chroma[0]);
   entropyenc_->EncodeBypassBins(chroma_index, 2);
 }
 
