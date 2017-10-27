@@ -78,8 +78,10 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
     return RdCost{ cost, dist, dist_resi };
   };
 
-  RdCost best_cost = { 0 };
-  best_cost.cost = prev_cost ? *prev_cost : std::numeric_limits<Cost>::max();
+  RdCost best_cost = { std::numeric_limits<Cost>::max(), 0 , 0 };
+  if (prev_cost) {
+    best_cost.cost = *prev_cost;
+  }
   // best state is either applied (to rec_pic) or saved (best_cu_state_)
   bool best_is_applied = prev_cost != nullptr;
 

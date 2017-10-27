@@ -208,8 +208,9 @@ bool SegmentHeaderReader::SupportedBitstreamVersion(uint32_t major_version,
     sizeof(constants::kSupportedOldBitstreamVersions[0]);
   for (int i = 0; i < length; i++) {
     if (constants::kSupportedOldBitstreamVersions[i][0] == major_version &&
-        constants::kSupportedOldBitstreamVersions[i][1] <= minor_version)
+        constants::kSupportedOldBitstreamVersions[i][1] <= minor_version) {
       return true;
+    }
   }
   return false;
 }

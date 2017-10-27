@@ -386,7 +386,7 @@ void SyntaxWriter::WriteInterRefIdx(int ref_idx, int num_refs_available) {
 
 void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
                                   const IntraPredictorLuma &mpm) {
-  assert(intra_mode < kNbrIntraModesExt);
+  assert(intra_mode >= 0);
   const int num_mpm = !Restrictions::Get().disable_ext_intra_extra_predictors ?
     constants::kNumIntraMpmExt : constants::kNumIntraMpm;
   int mpm_index = -1;
@@ -469,7 +469,7 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
     return;
   }
   entropyenc_->EncodeBin(1, &ctx_.intra_pred_chroma[0]);
-  if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+  if (!Restrictions::Get().disable_ext_intra_chroma_from_luma) {
     if (chroma_mode == IntraChromaMode::kLmChroma) {
       entropyenc_->EncodeBin(0, &ctx_.intra_pred_chroma[1]);
       return;

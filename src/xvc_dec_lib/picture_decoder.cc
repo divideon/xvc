@@ -181,8 +181,9 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
 std::shared_ptr<YuvPicture>
 PictureDecoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
                                      int height, int bitdepth) const {
-  if (alt_rec_pic_)
+  if (alt_rec_pic_) {
     return alt_rec_pic_;
+  }
   auto alt_rec_pic =
     std::make_shared<YuvPicture>(chroma_format, width, height, bitdepth, true);
   for (int c = 0; c < util::GetNumComponents(chroma_format); c++) {

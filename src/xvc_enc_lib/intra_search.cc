@@ -232,7 +232,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
   if (two_fast_search_passes) {
     int modes_added = num_modes_for_slow_rdo;
     for (int i = 0; i < num_modes_for_slow_rdo; i++) {
-      IntraMode base_mode = (*modes_cost)[i].first;
+      int base_mode = static_cast<int>((*modes_cost)[i].first);
       if (base_mode <= (IntraMode::kDc + 1) ||
           base_mode >= kNbrIntraModesExt - 1) {
         continue;

@@ -63,7 +63,7 @@ enum class TransformType {
 static const int kNbrTransformTypes =
 static_cast<int>(TransformType::kTotalNumber);
 
-enum IntraMode {
+enum IntraMode : int8_t {
   kLmChroma = -2,
   kInvalid = -1,
   kPlanar = 0,

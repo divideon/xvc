@@ -47,7 +47,7 @@ protected:
     cu->SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitWriter bit_writer;
     xvc::EntropyEncoder entropyenc(&bit_writer);
-    xvc::SyntaxWriter writer(*qp_.get(), pic_type, &entropyenc);
+    xvc::SyntaxWriter writer(*qp_, pic_type, &entropyenc);
     entropyenc.Start();
     writer.WriteCoefficients(*cu, comp, &enc_coeff[0], coeff_stride);
     entropyenc.EncodeBinTrm(1);
@@ -62,7 +62,7 @@ protected:
     cu->SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
     xvc::EntropyDecoder entropydec(&bit_reader);
-    xvc::SyntaxReader reader(*qp_.get(), pic_type, &entropydec);
+    xvc::SyntaxReader reader(*qp_, pic_type, &entropydec);
     dec_coeff.fill(0);  // caller responsiblility
     entropydec.Start();
     reader.ReadCoefficients(*cu, comp, &dec_coeff[0], coeff_stride);
