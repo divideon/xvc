@@ -105,8 +105,7 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
 
   // Predict
   if (cu->IsIntra()) {
-    IntraMode intra_mode = cu->GetIntraMode(comp);
-    intra_pred_.Predict(intra_mode, *cu, comp, decoded_pic_, &pred_buffer);
+    PredictIntra(*cu, comp, &pred_buffer);
   } else {
     inter_pred_.CalculateMV(cu);
     inter_pred_.MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
@@ -131,6 +130,15 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
 
   // Reconstruct
   dec_buffer.AddClip(width, height, temp_pred_, temp_resi_, min_pel_, max_pel_);
+}
+
+void CuDecoder::PredictIntra(const CodingUnit &cu, YuvComponent comp,
+                             SampleBuffer *pred_buffer) {
+  const IntraMode intra_mode = cu.GetIntraMode(comp);
+  IntraPrediction::RefState ref_state;
+  intra_pred_.FillReferenceState(cu, comp, decoded_pic_, &ref_state);
+  intra_pred_.Predict(intra_mode, cu, comp, ref_state, decoded_pic_,
+                      pred_buffer);
 }
 
 }   // namespace xvc

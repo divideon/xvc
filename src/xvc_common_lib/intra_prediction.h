@@ -35,19 +35,17 @@ using IntraPredictorChroma = std::array<IntraChromaMode,
 class IntraPrediction {
 public:
   static const ptrdiff_t kRefSampleStride_ = constants::kMaxBlockSize * 2 + 1;
-  struct State {
+  struct RefState {
     std::array<Sample, kRefSampleStride_ * 2> ref_samples;
     std::array<Sample, kRefSampleStride_ * 2> ref_filtered;
   };
 
   explicit IntraPrediction(int bitdepth);
   void Predict(IntraMode intra_mode, const CodingUnit &cu, YuvComponent comp,
-               const YuvPicture &rec_pic, SampleBuffer *output_buffer);
-  void Predict(IntraMode intra_mode, const CodingUnit &cu, YuvComponent comp,
-               const State &ref_state, const YuvPicture &rec_pic,
+               const RefState &ref_state, const YuvPicture &rec_pic,
                SampleBuffer *output_buffer);
   void FillReferenceState(const CodingUnit &cu, YuvComponent comp,
-                          const SampleBufferConst &src, State *ref_state);
+                          const YuvPicture &rec_pic, RefState *ref_state);
   IntraPredictorLuma GetPredictorLuma(const CodingUnit &cu) const;
   IntraPredictorChroma GetPredictorsChroma(IntraMode luma_mode) const;
   static IntraMode Convert(IntraAngle angle);

@@ -43,15 +43,21 @@ public:
                                  const SyntaxWriter &bitstream_writer,
                                  TransformEncoder *encoder,
                                  YuvPicture *rec_pic);
-  Distortion CompressIntra(CodingUnit *cu, YuvComponent comp, const Qp &qp,
-                           const SyntaxWriter &writer,
-                           TransformEncoder *encoder, YuvPicture *rec_pic);
+  Distortion CompressIntraFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
+                               const SyntaxWriter &writer,
+                               TransformEncoder *encoder, YuvPicture *rec_pic);
 
 private:
   using IntraModeSet =
     std::array<std::pair<IntraMode, double>, kNbrIntraModesExt>;
+  Distortion PredictAndTransform(CodingUnit *cu, YuvComponent comp,
+                                 const Qp &qp, const SyntaxWriter &writer,
+                                 const IntraPrediction::RefState &ref_state,
+                                 TransformEncoder *encoder,
+                                 YuvPicture *rec_pic);
   int DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
                               const SyntaxWriter &bitstream_writer,
+                              const IntraPrediction::RefState &ref_state,
                               TransformEncoder *encoder, YuvPicture *rec_pic,
                               IntraModeSet *modes_cost);
 

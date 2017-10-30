@@ -40,10 +40,12 @@ IntraSearch::CompressIntraLuma(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                TransformEncoder *encoder, YuvPicture *rec_pic) {
   const YuvComponent comp = YuvComponent::kY;
+  IntraPrediction::RefState ref_state;
   IntraModeSet intra_modes;
+  FillReferenceState(*cu, comp, *rec_pic, &ref_state);
   int num_modes_for_slow_rdo =
-    DetermineSlowIntraModes(cu, qp, bitstream_writer, encoder, rec_pic,
-                            &intra_modes);
+    DetermineSlowIntraModes(cu, qp, bitstream_writer, ref_state, encoder,
+                            rec_pic, &intra_modes);
 
   IntraMode best_mode = IntraMode::kInvalid;
   Cost best_cost = std::numeric_limits<Cost>::max();
@@ -57,7 +59,8 @@ IntraSearch::CompressIntraLuma(CodingUnit *cu, const Qp &qp,
 
     // Full reconstruction
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-    Distortion ssd = CompressIntra(cu, comp, qp, rdo_writer, encoder, rec_pic);
+    Distortion ssd = PredictAndTransform(cu, comp, qp, rdo_writer, ref_state,
+                                         encoder, rec_pic);
     cu_writer_.WriteComponent(*cu, comp, &rdo_writer);
 
     Bits bits = rdo_writer.GetNumWrittenBits();
@@ -88,13 +91,18 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
   const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
   IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
   IntraPredictorChroma chroma_modes = GetPredictorsChroma(luma_mode);
+  IntraPrediction::RefState ref_state_u;
+  IntraPrediction::RefState ref_state_v;
   Distortion best_dist = 0;
+
+  FillReferenceState(*cu, YuvComponent::kU, *rec_pic, &ref_state_u);
+  FillReferenceState(*cu, YuvComponent::kV, *rec_pic, &ref_state_v);
   if (Restrictions::Get().disable_intra_chroma_predictor) {
     cu->SetIntraModeChroma(IntraChromaMode::kDmChroma);
-    best_dist +=
-      CompressIntra(cu, YuvComponent::kU, qp, bitstream_writer, enc, rec_pic);
-    best_dist +=
-      CompressIntra(cu, YuvComponent::kV, qp, bitstream_writer, enc, rec_pic);
+    best_dist += PredictAndTransform(cu, YuvComponent::kU, qp, bitstream_writer,
+                                     ref_state_u, enc, rec_pic);
+    best_dist += PredictAndTransform(cu, YuvComponent::kV, qp, bitstream_writer,
+                                     ref_state_v, enc, rec_pic);
     return best_dist;
   }
 
@@ -113,9 +121,11 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
     // Full reconstruction
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
     Distortion dist = 0;
-    dist += CompressIntra(cu, YuvComponent::kU, qp, rdo_writer, enc, rec_pic);
+    dist += PredictAndTransform(cu, YuvComponent::kU, qp, rdo_writer,
+                                ref_state_u, enc, rec_pic);
     cu_writer_.WriteResidualData(*cu, YuvComponent::kU, &rdo_writer);
-    dist += CompressIntra(cu, YuvComponent::kV, qp, rdo_writer, enc, rec_pic);
+    dist += PredictAndTransform(cu, YuvComponent::kV, qp, rdo_writer,
+                                ref_state_v, enc, rec_pic);
     cu_writer_.WriteResidualData(*cu, YuvComponent::kV, &rdo_writer);
 
     // TODO(PH) Should optimally be done before rdo quant
@@ -142,13 +152,27 @@ IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
   return best_dist;
 }
 
-Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
-                                      const Qp & qp, const SyntaxWriter &writer,
-                                      TransformEncoder *encoder,
-                                      YuvPicture *rec_pic) {
+Distortion
+IntraSearch::CompressIntraFast(CodingUnit *cu, YuvComponent comp,
+                               const Qp & qp, const SyntaxWriter &writer,
+                               TransformEncoder *encoder,
+                               YuvPicture *rec_pic) {
+  IntraPrediction::RefState ref_state;
+  FillReferenceState(*cu, comp, *rec_pic, &ref_state);
+  // TODO(PH) Make faster method without transform evaluation
+  return PredictAndTransform(cu, comp, qp, writer, ref_state, encoder,
+                             rec_pic);
+}
+
+Distortion
+IntraSearch::PredictAndTransform(CodingUnit *cu, YuvComponent comp,
+                                 const Qp & qp, const SyntaxWriter &writer,
+                                 const IntraPrediction::RefState &ref_state,
+                                 TransformEncoder *encoder,
+                                 YuvPicture *rec_pic) {
   SampleBuffer &pred_buffer = encoder->GetPredBuffer(comp);
   IntraMode intra_mode = cu->GetIntraMode(comp);
-  Predict(intra_mode, *cu, comp, *rec_pic, &pred_buffer);
+  Predict(intra_mode, *cu, comp, ref_state, *rec_pic, &pred_buffer);
   TxSearchFlags tx_flags = TxSearchFlags::kFullEval & ~TxSearchFlags::kCbfZero;
   TransformEncoder::RdCost tx_cost =
     encoder->CompressAndEvalTransform(cu, comp, qp, writer, orig_pic_, tx_flags,
@@ -158,10 +182,11 @@ Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
 
 int
 IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
-                                       const SyntaxWriter &bitstream_writer,
-                                       TransformEncoder *encoder,
-                                       YuvPicture *rec_pic,
-                                       IntraModeSet *modes_cost) {
+                                     const SyntaxWriter &bitstream_writer,
+                                     const IntraPrediction::RefState &ref_state,
+                                     TransformEncoder *encoder,
+                                     YuvPicture *rec_pic,
+                                     IntraModeSet *modes_cost) {
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
       // 1, 2, 4, 8, 16, 32, 64, 128
     { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
@@ -183,15 +208,11 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     kNbrIntraModesExt : kNbrIntraModes;
   const bool two_fast_search_passes =
     !Restrictions::Get().disable_ext_intra_extra_modes;
-  SampleBuffer rec_buffer =
-    rec_pic->GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
-  IntraPrediction::State intra_state;
   SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
   SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
   std::array<bool, kNbrIntraModesExt> evaluated_modes = { false };
 
   IntraPredictorLuma mpm = GetPredictorLuma(*cu);
-  FillReferenceState(*cu, comp, rec_buffer, &intra_state);
   for (int i = 0; i < num_intra_modes; i++) {
     IntraMode intra_mode = static_cast<IntraMode>(i);
     if (two_fast_search_passes && intra_mode > IntraMode::kDc && (i % 2) != 0) {
@@ -199,7 +220,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
                                         std::numeric_limits<double>::max());
       continue;
     }
-    Predict(intra_mode, *cu, comp, intra_state, *rec_pic, &pred_buf);
+    Predict(intra_mode, *cu, comp, ref_state, *rec_pic, &pred_buf);
 
     // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
@@ -242,7 +263,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
         if (evaluated_modes[intra_mode]) {
           continue;
         }
-        Predict(intra_mode, *cu, comp, intra_state, *rec_pic, &pred_buf);
+        Predict(intra_mode, *cu, comp, ref_state, *rec_pic, &pred_buf);
         // Bits
         RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
         rdo_writer.WriteIntraMode(intra_mode, mpm);

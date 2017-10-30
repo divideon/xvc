@@ -468,9 +468,8 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
   Distortion dist = 0;
   if (cu->IsIntra()) {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
-      // TODO(PH) Add fast method without cbf evaluation
       dist +=
-        intra_search_.CompressIntra(cu, comp, qp, writer, this, &rec_pic_);
+        intra_search_.CompressIntraFast(cu, comp, qp, writer, this, &rec_pic_);
     }
   } else {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {

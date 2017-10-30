@@ -74,20 +74,7 @@ IntraPrediction::IntraPrediction(int bitdepth)
 }
 
 void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
-                              YuvComponent comp, const YuvPicture &rec_pic,
-                              SampleBuffer *output_buffer) {
-  const int cu_x = cu.GetPosX(comp);
-  const int cu_y = cu.GetPosY(comp);
-  SampleBufferConst reco_buffer = rec_pic.GetSampleBuffer(comp, cu_x, cu_y);
-  IntraPrediction::State ref_state;
-  if (intra_mode != IntraMode::kLmChroma) {
-    FillReferenceState(cu, comp, reco_buffer, &ref_state);
-  }
-  Predict(intra_mode, cu, comp, ref_state, rec_pic, output_buffer);
-}
-
-void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
-                              YuvComponent comp, const State &ref_state,
+                              YuvComponent comp, const RefState &ref_state,
                               const YuvPicture &rec_pic,
                               SampleBuffer *output_buffer) {
   const int width = cu.GetWidth(comp);
@@ -134,10 +121,12 @@ void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
 
 void
 IntraPrediction::FillReferenceState(const CodingUnit &cu, YuvComponent comp,
-                                    const SampleBufferConst &input_buffer,
-                                    IntraPrediction::State *ref_state) {
-  const Sample *src_ptr = input_buffer.GetDataPtr();
-  const ptrdiff_t src_stride = input_buffer.GetStride();
+                                    const YuvPicture &rec_pic,
+                                    RefState *ref_state) {
+  SampleBufferConst src_buffer =
+    rec_pic.GetSampleBuffer(comp, cu.GetPosX(comp), cu.GetPosY(comp));
+  const Sample *src_ptr = src_buffer.GetDataPtr();
+  const ptrdiff_t src_stride = src_buffer.GetStride();
   NeighborState neighbors = DetermineNeighbors(cu, comp);
   ComputeRefSamples(cu.GetWidth(comp), cu.GetHeight(comp), neighbors,
                     src_ptr, src_stride, &ref_state->ref_samples[0],
@@ -153,7 +142,6 @@ IntraPrediction::FillReferenceState(const CodingUnit &cu, YuvComponent comp,
 
 IntraPredictorLuma
 IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
-  constexpr YuvComponent comp = YuvComponent::kY;
   const int max_modes = !Restrictions::Get().disable_ext_intra_extra_modes ?
     kNbrIntraModesExt : kNbrIntraModes - 1;
   const int offset = !Restrictions::Get().disable_ext_intra_extra_modes ?
@@ -177,9 +165,9 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   }
   std::array<bool, kNbrIntraModesExt> added_modes = { false };
   auto add_predictor_from_cu =
-    [&added_modes, &mpm, &comp](int mpm_index, const CodingUnit *tmp) {
+    [&added_modes, &mpm](int mpm_index, const CodingUnit *tmp) {
     if (tmp && tmp->IsIntra()) {
-      IntraMode mode = tmp->GetIntraMode(comp);
+      IntraMode mode = tmp->GetIntraMode(YuvComponent::kY);
       if (!added_modes[mode]) {
         added_modes[mode] = true;
         mpm[mpm_index++] = mode;
@@ -680,10 +668,9 @@ IntraPrediction::DeriveLmParams(const CodingUnit &cu, YuvComponent comp,
     ((1 << (bitdepth_ + 4)) + (shift_xx_shifted / 2)) / shift_xx_shifted);
   scale = shift_xy >= 0 ? scale >> total_shift : scale << -total_shift;
   LmParams params;
-  params.scale =
+  params.scale = (1 << kModelPrecisionShift) *
     util::Clip3(scale, -(1 << (kModelQuantShift - kModelPrecisionShift)),
     (1 << (kModelQuantShift - kModelPrecisionShift)) - 1);
-  params.scale <<= kModelPrecisionShift;
   const int base_shift =
     util::Log2Floor(std::abs(params.scale) + (params.scale < 0 ? -1 : 0)) -
     (params.scale ? kModelMinResolutionShift : 0);

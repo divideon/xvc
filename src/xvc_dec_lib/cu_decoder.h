@@ -45,6 +45,8 @@ private:
   void ReadCtu(int rsaddr, SyntaxReader *reader);
   void DecompressCu(CodingUnit *cu);
   void DecompressComponent(CodingUnit *cu, YuvComponent comp, const Qp &qp);
+  void PredictIntra(const CodingUnit &cu, YuvComponent comp,
+                    SampleBuffer *pred_buffer);
 
   const Sample min_pel_;
   const Sample max_pel_;
