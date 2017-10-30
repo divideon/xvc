@@ -75,6 +75,12 @@ CodingUnit& CodingUnit::operator=(const CodingUnit &cu) {
   return *this;
 }
 
+void CodingUnit::ResetPredictionState() {
+  tx_ = TransformState();
+  intra_ = IntraState();
+  inter_ = InterState();
+}
+
 void CodingUnit::CopyPositionAndSizeFrom(const CodingUnit &cu) {
   assert(cu_tree_ == cu.cu_tree_);
   pos_x_ = cu.pos_x_;
@@ -364,6 +370,17 @@ IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
   assert(static_cast<int>(intra_.mode_chroma) <
          static_cast<int>(IntraChromaMode::kInvalid));
   return static_cast<IntraMode>(intra_.mode_chroma);
+}
+
+bool CodingUnit::HasZeroMvd() const {
+  if (inter_.inter_dir == InterDir::kBi) {
+    return inter_.mvd[0].x == 0 && inter_.mvd[0].y == 0 &&
+      inter_.mvd[1].x == 0 && inter_.mvd[1].y == 0;
+  } else if (inter_.inter_dir == InterDir::kL0) {
+    return inter_.mvd[0].x == 0 && inter_.mvd[0].y == 0;
+  } else {
+    return inter_.mvd[1].x == 0 && inter_.mvd[1].y == 0;
+  }
 }
 
 void CodingUnit::Split(SplitType split_type) {

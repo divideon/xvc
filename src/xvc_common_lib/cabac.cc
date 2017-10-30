@@ -182,6 +182,13 @@ kInitInterDir[3][CabacContexts::kNumInterDirCtx] = {
 };
 
 static const uint8_t
+kInitInterFullpelMv[3][CabacContexts::kNumInterFullpelMvCtx] = {
+  { 197, 185, 201, },
+  { 197, 185, 201, },
+  { kNotUsed,  kNotUsed,  kNotUsed, },
+};
+
+static const uint8_t
 kInitMvd[3][CabacContexts::kNumMvdCtx] = {
   { 169,  198, },
   { 140,  198, },
@@ -354,6 +361,7 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &cu_split_quad_flag, kInitSplitQuadFlag);
   Init(q, s, &cu_split_binary, kInitSplitBinary);
   Init(q, s, &inter_dir, kInitInterDir);
+  Init(q, s, &inter_fullpel_mv, kInitInterFullpelMv);
   Init(q, s, &inter_merge_flag, kInitMergeFlag);
   Init(q, s, &inter_merge_idx, kInitMergeIdx);
   Init(q, s, &inter_mvd, kInitMvd);
@@ -470,6 +478,18 @@ ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit &cu) {
     idx = util::Clip3(kMaxSize128Log2 - log2_size, 0, 3);
   }
   return inter_dir[idx];
+}
+
+ContextModel& CabacContexts::GetInterFullpelMvCtx(const CodingUnit &cu) {
+  int offset = 0;
+  const CodingUnit *tmp;
+  if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetFullpelMv()) {
+    offset++;
+  }
+  if ((tmp = cu.GetCodingUnitAbove()) != nullptr && tmp->GetFullpelMv()) {
+    offset++;
+  }
+  return inter_fullpel_mv[offset];
 }
 
 ContextModel& CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,

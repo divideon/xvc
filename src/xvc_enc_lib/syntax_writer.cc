@@ -317,6 +317,16 @@ void SyntaxWriter::WriteInterDir(const CodingUnit &cu, InterDir inter_dir) {
   }
 }
 
+void SyntaxWriter::WriteInterFullpelMvFlag(const CodingUnit &cu,
+                                           bool fullpel_mv_only) {
+  if (Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+    assert(!fullpel_mv_only);
+    return;
+  }
+  ContextModel &ctx = ctx_.GetInterFullpelMvCtx(cu);
+  entropyenc_->EncodeBin(fullpel_mv_only ? 1 : 0, &ctx);
+}
+
 void SyntaxWriter::WriteInterMvd(const MotionVector &mvd) {
   int abs_mvd_x = std::abs(mvd.x);
   int abs_mvd_y = std::abs(mvd.y);

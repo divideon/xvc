@@ -71,7 +71,7 @@ struct TzSearch::SearchState {
   Distortion cost_best = 0;
   int last_position = 0;
   int last_range_ = 0;
-  int mv_precision = 0;
+  int mvd_downshift = 0;
   uint32_t lambda = 0;
 };
 
@@ -88,7 +88,7 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
   DistortionWrapper<Sample> dist_wrap(metric, YuvComponent::kY, cu, qp,
                                       bitdepth_, orig_buffer, ref_pic);
   SearchState state(&dist_wrap, mvp, mv_min, mv_max);
-  state.mv_precision = constants::kMvPrecisionShift;
+  state.mvd_downshift = cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
   state.lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   MotionVector fullsearch_min = mv_min;
@@ -256,11 +256,11 @@ void TzSearch::FullpelNeighborPointSearch(SearchState *state) {
 }
 
 Distortion TzSearch::GetCost(SearchState *state, int mv_x, int mv_y) {
-  const int mv_scale = state->mv_precision;
   Distortion dist = state->dist->GetDist(mv_x, mv_y);
-  Bits mvd = InterSearch::GetMvdBits(state->mvp, mv_x, mv_y, mv_scale);
-  Bits bits = ((state->lambda * mvd) >> 16);
-  return dist + bits;
+  Bits bits = InterSearch::GetMvdBits(state->mvp, mv_x, mv_y,
+                                      constants::kMvPrecisionShift,
+                                      state->mvd_downshift);
+  return dist + ((state->lambda * bits) >> 16);
 }
 
 bool TzSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {

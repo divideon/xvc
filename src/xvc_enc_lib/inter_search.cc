@@ -60,11 +60,14 @@ InterSearch::InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
 Distortion
 InterSearch::CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
+                           InterSearchFlags search_flags,
                            Cost best_cu_cost, TransformEncoder *encoder,
                            YuvPicture *rec_pic) {
-  bool uni_pred_only = cu->GetPicType() == PicturePredictionType::kUni;
   SampleBuffer &pred_buffer = encoder->GetPredBuffer(YuvComponent::kY);
-  SearchMotion(cu, qp, uni_pred_only, bitstream_writer, &pred_buffer);
+  SearchMotion(cu, qp, bitstream_writer, search_flags, &pred_buffer);
+  if (cu->GetFullpelMv() && cu->HasZeroMvd()) {
+    return std::numeric_limits<Distortion>::max();
+  }
   return CompressAndEvalCbf(cu, qp, bitstream_writer, best_cu_cost,
                             encoder, rec_pic);
 }
@@ -97,8 +100,6 @@ InterSearch::CompressMergeCand(CodingUnit *cu, const Qp &qp,
                                int merge_idx, bool force_skip,
                                Cost best_cu_cost, TransformEncoder *encoder,
                                YuvPicture *rec_pic) {
-  cu->SetPredMode(PredictionMode::kInter);
-  cu->SetMergeFlag(true);
   cu->SetSkipFlag(!force_skip ? false : true);
   cu->SetMergeIdx(merge_idx);
   ApplyMerge(cu, merge_list[merge_idx]);
@@ -148,8 +149,8 @@ InterSearch::SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
 }
 
 void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
-                               bool uni_prediction_only,
                                const SyntaxWriter &bitstream_writer,
+                               InterSearchFlags search_flags,
                                SampleBuffer *pred_buffer) {
   const YuvComponent comp = YuvComponent::kY;
   SampleBufferConst orig_luma =
@@ -157,8 +158,13 @@ void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
   Sample *pred = pred_buffer->GetDataPtr();
   ptrdiff_t pred_stride = pred_buffer->GetStride();
 
+  cu->ResetPredictionState();
   cu->SetPredMode(PredictionMode::kInter);
   cu->SetMergeFlag(false);
+  cu->SetFullpelMv(false);
+  if ((search_flags & InterSearchFlags::kFullPelMv) != InterSearchFlags(0)) {
+    cu->SetFullpelMv(true);
+  }
 
   CodingUnit::InterState state_l0;
   cu->SetInterDir(InterDir::kL0);
@@ -166,7 +172,7 @@ void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
   cost_l0 = SearchRefIdx(cu, qp, RefPicList::kL0, bitstream_writer,
                          orig_luma, pred, pred_stride, cost_l0, &state_l0,
                          nullptr);
-  if (uni_prediction_only) {
+  if ((search_flags & InterSearchFlags::kUniPredOnly) != InterSearchFlags(0)) {
     return;
   }
 
@@ -383,6 +389,8 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
                           CodingUnit::InterState *best_state_unique,
                           Distortion *out_cost_unique) {
   const int num_ref_idx = cu->GetRefPicLists()->GetNumRefPics(ref_list);
+  const int mvd_precision =
+    cu->GetFullpelMv() ? constants::kMvPrecisionShift : 0;
   const uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   const bool bipred = cu->GetInterDir() == InterDir::kBi;
@@ -431,13 +439,15 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
       unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx] = mvp_idx;
       unipred_best_dist_[static_cast<int>(ref_list)][ref_idx] = dist;
     }
-    MotionVector mvd(mv_subpel.x - mvp_list[mvp_idx].x,
-                     mv_subpel.y - mvp_list[mvp_idx].y);
+    MotionVector mvd((mv_subpel.x - mvp_list[mvp_idx].x) >> mvd_precision,
+      (mv_subpel.y - mvp_list[mvp_idx].y) >> mvd_precision);
 
     cu->SetRefIdx(ref_idx, ref_list);
     cu->SetMvpIdx(mvp_idx, ref_list);
     cu->SetMvDelta(mvd, ref_list);
     cu->SetMv(mv_subpel, ref_list);
+    // If using fullpel mv we might end up with a zero mvd,
+    // which is invalid for uni-prediction but might be ok for bi-prediction
     Bits bits = GetInterPredBits(*cu, bitstream_writer);
     Distortion dist_scaled =
       static_cast<Distortion>(std::floor(dist * weight));
@@ -496,9 +506,18 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const Qp &qp,
   } else {
     assert(0);
   }
-  MotionVector mv_subpel =
-    SubpelSearch(cu, qp, *ref_pic, mvp, mv_fullpel, orig_buffer, pred,
-                 pred_stride, out_dist);
+  MotionVector mv_subpel;
+  if (cu.GetFullpelMv()) {
+    SampleMetric metric = SampleMetric(kSubpelMetricType, qp, bitdepth_);
+    mv_subpel = MotionVector(mv_fullpel.x << constants::kMvPrecisionShift,
+                             mv_fullpel.y << constants::kMvPrecisionShift);
+    *out_dist = GetSubpelDist(cu, *ref_pic, &metric, mv_subpel.x,
+                              mv_subpel.y, orig_buffer, pred, pred_stride);
+  } else {
+    mv_subpel =
+      SubpelSearch(cu, qp, *ref_pic, mvp, mv_fullpel, orig_buffer, pred,
+                   pred_stride, out_dist);
+  }
   return mv_subpel;
 }
 
@@ -508,10 +527,12 @@ MotionVector InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
                                      const MotionVector &mv_min,
                                      const MotionVector &mv_max) {
   const YuvComponent comp = YuvComponent::kY;
-  const int mv_precision = constants::kMvPrecisionShift;
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  uint32_t lambda =
+  const int mv_precision = constants::kMvPrecisionShift;
+  const int mvd_precision =
+    cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
+  const uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   MetricType fullpel_metric = GetFullpelMetric(cu);
   SampleMetric metric(fullpel_metric, qp, bitdepth_);
@@ -527,8 +548,8 @@ MotionVector InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
                                              bipred_orig_buffer_.GetDataPtr(),
                                              bipred_orig_buffer_.GetStride(),
                                              ref_mv, ref_stride);
-      Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, mv_precision)) >> 16);
-      Distortion cost = dist + bits;
+      Bits bits = GetMvdBits(mvp, mv_x, mv_y, mv_precision, mvd_precision);
+      Distortion cost = dist + ((lambda * bits) >> 16);
       if (cost < cost_best) {
         cost_best = cost;
         mv_best.x = mv_x;
@@ -547,7 +568,7 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
                           const DataBuffer<TOrig> &orig_buffer,
                           Sample *buffer, ptrdiff_t buffer_stride,
                           Distortion *out_dist) {
-  SampleMetric metric = SampleMetric(MetricType::kSatd, qp, bitdepth_);
+  SampleMetric metric = SampleMetric(kSubpelMetricType, qp, bitdepth_);
   uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   MotionVector mv_subpel(mv_fullpel.x * (1 << constants::kMvPrecisionShift),
@@ -559,9 +580,9 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
   for (int i = 0; i < static_cast<int>(kSquareXYHalf.size()); i++) {
     int mv_x = mv_subpel.x + kSquareXYHalf[i][0] * 2;
     int mv_y = mv_subpel.y + kSquareXYHalf[i][1] * 2;
-    Distortion dist = GetSubpelDistortion(cu, ref_pic, &metric, mv_x, mv_y,
-                                          orig_buffer, buffer, buffer_stride);
-    Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0))) >> 16;
+    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv_x, mv_y,
+                                    orig_buffer, buffer, buffer_stride);
+    Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0, 0))) >> 16;
     Distortion cost = dist + bits;
     if (cost < best_cost) {
       best_cost = cost;
@@ -579,9 +600,9 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
   for (int i = 1; i < static_cast<int>(kSquareXYQpel.size()); i++) {
     int mv_x = mv_subpel.x + kSquareXYQpel[i][0];
     int mv_y = mv_subpel.y + kSquareXYQpel[i][1];
-    Distortion dist = GetSubpelDistortion(cu, ref_pic, &metric, mv_x, mv_y,
-                                          orig_buffer, buffer, buffer_stride);
-    Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0))) >> 16;
+    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv_x, mv_y,
+                                    orig_buffer, buffer, buffer_stride);
+    Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0, 0))) >> 16;
     Distortion cost = dist + bits;
     if (cost < best_cost) {
       best_cost = cost;
@@ -598,11 +619,11 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
 
 template<typename TOrig>
 Distortion
-InterSearch::GetSubpelDistortion(const CodingUnit &cu,
-                                 const YuvPicture &ref_pic,
-                                 SampleMetric *metric, int mv_x, int mv_y,
-                                 const DataBuffer<TOrig> &orig_buffer,
-                                 Sample *buf, ptrdiff_t buf_stride) {
+InterSearch::GetSubpelDist(const CodingUnit &cu,
+                           const YuvPicture &ref_pic,
+                           SampleMetric *metric, int mv_x, int mv_y,
+                           const DataBuffer<TOrig> &orig_buffer,
+                           Sample *buf, ptrdiff_t buf_stride) {
   YuvComponent comp = YuvComponent::kY;
   int width = cu.GetWidth(comp);
   int height = cu.GetHeight(comp);
@@ -641,11 +662,13 @@ int InterSearch::EvalFinalMvpIdx(const CodingUnit &cu,
                                  const InterPredictorList &mvp_list,
                                  const MotionVector &mv_final,
                                  int mvp_idx_start) {
+  const int mvd_precision =
+    cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
   int best_mvp_idx = 0;
   Bits best_cost = std::numeric_limits<Bits>::max();
   for (int i = 0; i < static_cast<int>(mvp_list.size()); i++) {
     Bits cost = GetMvpBits(i, static_cast<int>(mvp_list.size())) +
-      GetMvdBits(mvp_list[i], mv_final.x, mv_final.y, 0);
+      GetMvdBits(mvp_list[i], mv_final.x, mv_final.y, 0, mvd_precision);
     if (cost < best_cost || (cost == best_cost && i == mvp_idx_start)) {
       best_cost = cost;
       best_mvp_idx = i;
@@ -691,6 +714,7 @@ Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
       }
       return bits;
     }
+    // TODO(PH) Consider adding fullpel mv flag for completeness
   } else {
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
     cu_writer_.WriteInterPrediction(cu, YuvComponent::kY, &rdo_writer);
@@ -710,9 +734,9 @@ Bits InterSearch::GetMvpBits(int mvp_idx, int num_mvp) {
 }
 
 Bits InterSearch::GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
-                             int mv_scale) {
-  int mvd_x = (mv_x * (1 << mv_scale)) - mvp.x;
-  int mvd_y = (mv_y * (1 << mv_scale)) - mvp.y;
+                             int mv_scale, int mvd_precision_shift) {
+  int mvd_x = ((mv_x * (1 << mv_scale)) - mvp.x) >> mvd_precision_shift;
+  int mvd_y = ((mv_y * (1 << mv_scale)) - mvp.y) >> mvd_precision_shift;
   return GetNumExpGolombBits(mvd_x) + GetNumExpGolombBits(mvd_y);
 }
 

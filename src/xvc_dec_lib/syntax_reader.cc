@@ -330,6 +330,14 @@ InterDir SyntaxReader::ReadInterDir(const CodingUnit &cu) {
   return bin == 0 ? InterDir::kL0 : InterDir::kL1;
 }
 
+bool SyntaxReader::ReadInterFullpelMvFlag(const CodingUnit &cu) {
+  if (Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+    return false;
+  }
+  ContextModel &ctx = ctx_.GetInterFullpelMvCtx(cu);
+  return entropydec_->DecodeBin(&ctx) != 0;
+}
+
 MotionVector SyntaxReader::ReadInterMvd() {
   if (Restrictions::Get().disable_inter_mvd_greater_than_flags) {
     MotionVector mvd;

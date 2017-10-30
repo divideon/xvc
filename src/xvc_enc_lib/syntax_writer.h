@@ -49,6 +49,7 @@ public:
                          const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteEndOfSlice(bool end_of_slice);
   void WriteInterDir(const CodingUnit &cu, InterDir inter_dir);
+  void WriteInterFullpelMvFlag(const CodingUnit &cu, bool fullpel_mv_only);
   void WriteInterMvd(const MotionVector &mvd);
   void WriteInterMvpIdx(int mvp_idx);
   void WriteInterRefIdx(int ref_idx, int num_refs_available);

@@ -35,6 +35,12 @@
 
 namespace xvc {
 
+enum class InterSearchFlags {
+  kDefault = 0,
+  kUniPredOnly = 1 << 0,
+  kFullPelMv = 1 << 1,
+};
+
 class InterSearch : public InterPrediction {
 public:
   using MergeCandLookup = std::array<int, constants::kNumInterMergeCandidates>;
@@ -45,8 +51,8 @@ public:
               const EncoderSettings &encoder_settings);
   Distortion CompressInter(CodingUnit *cu, const Qp &qp,
                            const SyntaxWriter &bitstream_writer,
-                           Cost best_cu_cost, TransformEncoder *encoder,
-                           YuvPicture *rec_pic);
+                           InterSearchFlags search_flags, Cost best_cu_cost,
+                           TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion CompressInterFast(CodingUnit *cu, YuvComponent comp, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
                                TransformEncoder *encoder, YuvPicture *rec_pic);
@@ -64,14 +70,16 @@ public:
 
 private:
   enum class SearchMethod { TzSearch, FullSearch };
+  static const MetricType kSubpelMetricType = MetricType::kSatd;
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
   static constexpr int kFastMergeNumCand = 4;
   static constexpr double kFastMergeCostFactor = 1.25;
   static constexpr double kFastTransformSelectCostFactor = 1.1;
 
-  void SearchMotion(CodingUnit *cu, const Qp &qp, bool uni_prediction_only,
+  void SearchMotion(CodingUnit *cu, const Qp &qp,
                     const SyntaxWriter &bitstream_writer,
+                    InterSearchFlags search_flags,
                     SampleBuffer *pred_buffer);
   Distortion CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
@@ -115,11 +123,11 @@ private:
                             Sample *pred_buffer, ptrdiff_t pred_buffer_stride,
                             Distortion *out_dist);
   template<typename TOrig>
-  Distortion GetSubpelDistortion(const CodingUnit &cu,
-                                 const YuvPicture &ref_pic,
-                                 SampleMetric *metric, int mv_x, int mv_y,
-                                 const DataBuffer<TOrig> &orig_buffer,
-                                 Sample *pred_buf, ptrdiff_t pred_buf_stride);
+  Distortion GetSubpelDist(const CodingUnit &cu,
+                           const YuvPicture &ref_pic,
+                           SampleMetric *metric, int mv_x, int mv_y,
+                           const DataBuffer<TOrig> &orig_buffer,
+                           Sample *pred_buf, ptrdiff_t pred_buf_stride);
   int EvalStartMvp(const CodingUnit &cu, const Qp &qp,
                    const InterPredictorList &mvp_list,
                    const YuvPicture &ref_pic, Sample *pred_buf,
@@ -132,7 +140,7 @@ private:
                         const SyntaxWriter &bitstream_writer);
   static Bits GetMvpBits(int mvp_idx, int num_mvp);
   static Bits GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
-                         int mv_scale);
+                         int mv_scale, int mvd_precision_shift);
   static Bits GetNumExpGolombBits(int mvd);
 
   const int bitdepth_;
@@ -156,6 +164,26 @@ private:
     static_cast<int>(RefPicList::kTotalNumber)> previous_fullpel_;
   friend class TzSearch;
 };
+
+inline InterSearchFlags operator~ (InterSearchFlags a) {
+  return static_cast<InterSearchFlags>(~static_cast<int>(a));
+}
+inline InterSearchFlags operator| (InterSearchFlags a, InterSearchFlags b) {
+  return
+    static_cast<InterSearchFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+inline InterSearchFlags operator& (InterSearchFlags a, InterSearchFlags b) {
+  return
+    static_cast<InterSearchFlags>(static_cast<int>(a) & static_cast<int>(b));
+}
+inline InterSearchFlags& operator|= (InterSearchFlags &a, InterSearchFlags b) {  // NOLINT
+  a = static_cast<InterSearchFlags>(static_cast<int>(a) | static_cast<int>(b));
+  return a;
+}
+inline InterSearchFlags& operator&= (InterSearchFlags &a, InterSearchFlags b) {  // NOLINT
+  a = static_cast<InterSearchFlags>(static_cast<int>(a) & static_cast<int>(b));
+  return a;
+}
 
 }   // namespace xvc
 

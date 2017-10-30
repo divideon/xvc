@@ -60,6 +60,7 @@ public:
     bool skip_flag = false;
     bool merge_flag = false;
     int merge_idx = -1;
+    bool fullpel_mv = false;
     std::array<MotionVector, 2> mv;
     std::array<MotionVector, 2> mvd;
     std::array<int8_t, 2> ref_idx;
@@ -75,6 +76,7 @@ public:
              int width, int height);
   CodingUnit(const CodingUnit &) = delete;
   CodingUnit& operator=(const CodingUnit &cu);
+  void ResetPredictionState();
   void CopyPositionAndSizeFrom(const CodingUnit &cu);
   void CopyPredictionDataFrom(const CodingUnit &cu);
 
@@ -211,6 +213,7 @@ public:
       (ref_list == RefPicList::kL0 && GetInterDir() == InterDir::kL0) ||
       (ref_list == RefPicList::kL1 && GetInterDir() == InterDir::kL1);
   }
+  bool HasZeroMvd() const;
   int GetRefIdx(RefPicList list) const {
     return inter_.ref_idx[static_cast<int>(list)];
   }
@@ -235,6 +238,8 @@ public:
   void SetMvpIdx(int mvp_idx, RefPicList list) {
     inter_.mvp_idx[static_cast<int>(list)] = static_cast<uint8_t>(mvp_idx);
   }
+  bool GetFullpelMv() const { return inter_.fullpel_mv; }
+  void SetFullpelMv(bool fullpel) { inter_.fullpel_mv = fullpel; }
 
   // State handling
   void Split(SplitType split_type);

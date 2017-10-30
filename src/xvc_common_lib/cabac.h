@@ -56,6 +56,7 @@ public:
   static const int kNumIntraPredCtxLuma = 9;
   static const int kNumIntraPredCtxChroma = 2;
   static const int kNumInterDirCtx = 5;
+  static const int kNumInterFullpelMvCtx = 3;
   static const int kNumMvdCtx = 2;
   static const int kNumRefIdxCtx = 2;
   static const int kNumTransSubdivFlagCtx = 3;
@@ -94,6 +95,7 @@ public:
   ContextModel& GetSplitFlagCtx(const CodingUnit &cu, int max_depth);
   ContextModel& GetIntraPredictorCtx(IntraMode intra_mode);
   ContextModel& GetInterDirBiCtx(const CodingUnit &cu);
+  ContextModel& GetInterFullpelMvCtx(const CodingUnit &cu);
   ContextModel& GetSubblockCsbfCtx(YuvComponent comp,
                                    const uint8_t *sig_sublock, int posx,
                                    int posy, int width, int height,
@@ -116,6 +118,7 @@ public:
   std::array<ContextModel, kNumSplitQuadFlagCtx> cu_split_quad_flag;
   std::array<ContextModel, kNumSplitBinaryCtx> cu_split_binary;
   std::array<ContextModel, kNumInterDirCtx> inter_dir;
+  std::array<ContextModel, kNumInterFullpelMvCtx> inter_fullpel_mv;
   std::array<ContextModel, kNumMergeFlagCtx> inter_merge_flag;
   std::array<ContextModel, kNumMergeIdxCtx> inter_merge_idx;
   std::array<ContextModel, kNumMvdCtx> inter_mvd;

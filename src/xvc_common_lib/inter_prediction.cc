@@ -56,6 +56,11 @@ InterPrediction::kMergeCandL0L1Idx = { {
 InterPredictorList
 InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
                                  int ref_idx) {
+  auto round_mv = [](MotionVector *mv) {
+    constexpr int scale_shift = constants::kMvPrecisionShift;
+    mv->x = ((mv->x + (1 << (scale_shift - 1))) >> scale_shift) << scale_shift;
+    mv->y = ((mv->y + (1 << (scale_shift - 1))) >> scale_shift) << scale_shift;
+  };
   InterPredictorList list;
   if (Restrictions::Get().disable_inter_mvp) {
     const CodingUnit *tmp = cu.GetCodingUnitLeft();
@@ -70,6 +75,11 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
       } else {
         list[0] = MotionVector(0, 0);
         list[1] = MotionVector(0, 0);
+      }
+    }
+    if (cu.GetFullpelMv()) {
+      for (int i = 0; i < static_cast<int>(list.size()); i++) {
+        round_mv(&list[i]);
       }
     }
     return list;
@@ -122,6 +132,12 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
     }
   }
 
+  if (cu.GetFullpelMv()) {
+    for (int j = 0; j < i; j++) {
+      round_mv(&list[j]);
+    }
+  }
+
   if (i == 2 && list[0] == list[1]) {
     i = 1;
   }
@@ -129,6 +145,9 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
   if (constants::kTemporalMvPrediction && cu.GetPicData()->GetTmvpValid() &&
       !Restrictions::Get().disable_inter_tmvp_mvp && i < 2) {
     if (GetTemporalMvPredictor(cu, ref_list, ref_idx, &list[i])) {
+      if (cu.GetFullpelMv()) {
+        round_mv(&list[i]);
+      }
       i++;
     }
   }
@@ -291,7 +310,11 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_list = static_cast<RefPicList>(i);
       if (cu->HasMv(ref_list)) {
-        const MotionVector &mvd = cu->GetMvDelta(ref_list);
+        MotionVector mvd = cu->GetMvDelta(ref_list);
+        if (cu->GetFullpelMv()) {
+          mvd.x <<= constants::kMvPrecisionShift;
+          mvd.y <<= constants::kMvPrecisionShift;
+        }
         int ref_idx = cu->GetRefIdx(ref_list);
         int mvp_idx = cu->GetMvpIdx(ref_list);
         InterPredictorList mvp_list = GetMvPredictors(*cu, ref_list, ref_idx);

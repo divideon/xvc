@@ -151,6 +151,10 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
       cu->SetMvDelta(reader->ReadInterMvd(), ref_pic_list);
       cu->SetMvpIdx(reader->ReadInterMvpIdx(), ref_pic_list);
     }
+    if (!cu->HasZeroMvd()) {
+      bool fullpel_mv = reader->ReadInterFullpelMvFlag(*cu);
+      cu->SetFullpelMv(fullpel_mv);
+    }
   }
 }
 

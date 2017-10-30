@@ -144,6 +144,9 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
       writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
       writer->WriteInterMvpIdx(cu.GetMvpIdx(ref_pic_list));
     }
+    if (!cu.HasZeroMvd()) {
+      writer->WriteInterFullpelMvFlag(cu, cu.GetFullpelMv());
+    }
   }
 }
 

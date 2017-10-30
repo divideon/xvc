@@ -45,6 +45,10 @@ public:
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 
 private:
+  enum class RdMode {
+    INTER_ME,
+    INTER_FULLPEL,
+  };
   struct RdoCost;
 
   Distortion CompressCu(CodingUnit **cu, int rdo_depth,
@@ -62,7 +66,7 @@ private:
   RdoCost CompressIntra(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressInter(CodingUnit *cu, const Qp &qp,
-                        const SyntaxWriter &bitstream_writer,
+                        const SyntaxWriter &bitstream_writer, RdMode rd_mode,
                         Cost best_cu_cost);
   RdoCost CompressMerge(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer,

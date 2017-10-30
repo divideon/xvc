@@ -39,6 +39,7 @@ public:
                        Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   bool ReadEndOfSlice();
   InterDir ReadInterDir(const CodingUnit &cu);
+  bool ReadInterFullpelMvFlag(const CodingUnit &cu);
   MotionVector ReadInterMvd();
   int ReadInterMvpIdx();
   int ReadInterRefIdx(int num_refs_available);
