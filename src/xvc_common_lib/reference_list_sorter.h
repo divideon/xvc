@@ -99,7 +99,8 @@ private:
       if (rpl) {
         rpl->SetRefPic(ref_pic_list, ref_idx,
                        pic_enc_dec->GetPicData()->GetPoc(),
-                       pic_enc_dec->GetPicData(), pic_enc_dec->GetRecPic());
+                       pic_enc_dec->GetPicData(), pic_enc_dec->GetRecPic(),
+                       pic_enc_dec->GetOrigPic());
       }
       dependencies->push_back(pic_enc_dec);
       ref_idx++;
@@ -150,7 +151,7 @@ private:
       }
       if (rpl) {
         rpl->SetRefPic(ref_pic_list, ref_idx, ref_data->GetPoc(),
-                       ref_data, ref_pic);
+                       ref_data, ref_pic, pic_enc_dec->GetOrigPic());
       }
       dependencies->push_back(pic_enc_dec);
       ref_idx++;
@@ -215,7 +216,8 @@ private:
         if (rpl) {
           rpl->SetRefPic(ref_pic_list, ref_idx,
                          pic_enc_dec1->GetPicData()->GetPoc(),
-                         pic_enc_dec1->GetPicData(), ref_pic);
+                         pic_enc_dec1->GetPicData(), ref_pic,
+                         pic_enc_dec1->GetOrigPic());
         }
         dependencies->push_back(pic_enc_dec1);
       } else {
@@ -225,7 +227,8 @@ private:
           rpl->SetRefPic(ref_pic_list, ref_idx,
                          pic_enc_dec0->GetPicData()->GetPoc(),
                          pic_enc_dec0->GetPicData(),
-                         pic_enc_dec0->GetRecPic());
+                         pic_enc_dec0->GetRecPic(),
+                         pic_enc_dec1->GetOrigPic());
         }
         dependencies->push_back(pic_enc_dec0);
       }

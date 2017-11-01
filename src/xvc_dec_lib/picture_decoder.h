@@ -52,6 +52,7 @@ public:
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
             ReferencePictureLists &&ref_pic_list, int64_t user_data);
   bool Decode(const SegmentHeader &segment, BitReader *bit_reader);
+  std::shared_ptr<const YuvPicture> GetOrigPic() const { return nullptr; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }

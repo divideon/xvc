@@ -74,17 +74,17 @@ ReferencePictureLists::GetCodingUnitAt(RefPicList ref_list, int index,
   return pic_data->GetCuAt(cu_tree, posx, posy);
 }
 
-void
-ReferencePictureLists::SetRefPic(RefPicList list, int index, PicNum ref_poc,
-                                 const std::shared_ptr<const PictureData>
-                                 &pic_data,
-                                 const std::shared_ptr<const YuvPicture>
-                                 &ref_pic) {
+void ReferencePictureLists::SetRefPic(
+  RefPicList list, int index, PicNum ref_poc,
+  const std::shared_ptr<const PictureData> &pic_data,
+  const std::shared_ptr<const YuvPicture> &ref_pic,
+  const std::shared_ptr<const YuvPicture> &orig_pic) {
   std::vector<RefEntry> *entry_list = list == RefPicList::kL0 ? &l0_ : &l1_;
   if (index >= static_cast<int>(entry_list->size())) {
     entry_list->resize(index + 1);
   }
-  (*entry_list)[index].pic = ref_pic;
+  (*entry_list)[index].ref_pic = ref_pic;
+  (*entry_list)[index].orig_pic = orig_pic;
   (*entry_list)[index].data = pic_data;
   (*entry_list)[index].poc = ref_poc;
   if (ref_poc > current_poc_) {
@@ -113,11 +113,13 @@ ReferencePictureLists::GetSamePocMappingFor(RefPicList ref_list,
 
 void ReferencePictureLists::ZeroOutReferences() {
   for (auto &ref : l0_) {
-    ref.pic.reset();
+    ref.ref_pic.reset();
+    ref.orig_pic.reset();
     ref.data.reset();
   }
   for (auto &ref : l1_) {
-    ref.pic.reset();
+    ref.ref_pic.reset();
+    ref.orig_pic.reset();
     ref.data.reset();
   }
 }

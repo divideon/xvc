@@ -40,6 +40,7 @@ class PictureEncoder {
 public:
   PictureEncoder(const SimdFunctions &simd, ChromaFormat chroma_format,
                  int width, int height, int bitdepth);
+  std::shared_ptr<const YuvPicture> GetOrigPic() const { return orig_pic_; }
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
