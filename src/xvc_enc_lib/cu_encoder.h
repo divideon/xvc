@@ -63,6 +63,10 @@ private:
                              RdoSyntaxWriter *rdo_writer);
   Distortion CompressFast(CodingUnit *cu, const Qp &qp,
                           const SyntaxWriter &writer);
+  RdoCost CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
+                           const Qp &qp, int rdo_depth,
+                           const CuCache::Result &cache_result,
+                           const SyntaxWriter &bitstream_writer);
   RdoCost CompressIntra(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressInter(CodingUnit *cu, const Qp &qp,
