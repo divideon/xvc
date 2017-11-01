@@ -107,13 +107,22 @@ SampleMetric::Compare(YuvComponent comp, int width, int height,
       dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kSatd:
-      dist = ComputeSatd(width, height, src1, stride1, src2, stride2);
+      dist = ComputeSatd<false>(width, height, 0, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSatdAcOnly:
+      dist = ComputeSatdAcOnly(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kSad:
-      dist = ComputeSad(width, height, src1, stride1, src2, stride2);
+      dist = ComputeSad<0>(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kSadFast:
-      dist = ComputeSadFast(width, height, src1, stride1, src2, stride2);
+      dist = ComputeSad<1>(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSadAcOnly:
+      dist = ComputeSadAcOnly<0>(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSadAcOnlyFast:
+      dist = ComputeSadAcOnly<1>(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kStructuralSsd:
       dist = ComputeStructuralSsd(width, height, src1, stride1, src2, stride2);
@@ -144,16 +153,17 @@ uint64_t SampleMetric::ComputeSsd(int width, int height,
   return ssd;
 }
 
-template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSatd(int width, int height,
+template<bool RemoveAvg, typename SampleT1, typename SampleT2>
+uint64_t SampleMetric::ComputeSatd(int width, int height, int offset,
                                    const SampleT1 *sample1, ptrdiff_t stride1,
                                    const SampleT2 *sample2, ptrdiff_t stride2) {
-  static_assert(constants::kMinBlockSize >= 4, "SATD only implmented for 4x4");
+  static_assert(constants::kMinBlockSize >= 4, "SATD only implemented for 4x4");
   uint64_t sad = 0;
   if (width == 4 && height == 4) {
     for (int y = 0; y < height; y += 4) {
       for (int x = 0; x < width; x += 4) {
-        sad += ComputeSatdNxM<4, 4>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 4, 4>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 4;
       sample2 += stride2 * 4;
@@ -161,7 +171,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   } else if (height == 4 && width > height) {
     for (int y = 0; y < height; y += 4) {
       for (int x = 0; x < width; x += 8) {
-        sad += ComputeSatdNxM<8, 4>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 8, 4>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 4;
       sample2 += stride2 * 4;
@@ -169,7 +180,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   } else if (width == 4 && height > width) {
     for (int y = 0; y < height; y += 8) {
       for (int x = 0; x < width; x += 4) {
-        sad += ComputeSatdNxM<4, 8>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 4, 8>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 8;
       sample2 += stride2 * 8;
@@ -178,7 +190,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
     for (int y = 0; y < height; y += 8) {
       for (int x = 0; x < width; x += 16) {
         sad +=
-          ComputeSatdNxM<16, 8>(sample1 + x, stride1, sample2 + x, stride2);
+          ComputeSatdNxM<RemoveAvg, 16, 8>(sample1 + x, stride1,
+                                           sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 8;
       sample2 += stride2 * 8;
@@ -187,7 +200,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
     for (int y = 0; y < height; y += 16) {
       for (int x = 0; x < width; x += 8) {
         sad +=
-          ComputeSatdNxM<8, 16>(sample1 + x, stride1, sample2 + x, stride2);
+          ComputeSatdNxM<RemoveAvg, 8, 16>(sample1 + x, stride1,
+                                           sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 16;
       sample2 += stride2 * 16;
@@ -195,7 +209,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   } else {
     for (int y = 0; y < height; y += 8) {
       for (int x = 0; x < width; x += 8) {
-        sad += ComputeSatdNxM<8, 8>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 8, 8>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 8;
       sample2 += stride2 * 8;
@@ -204,33 +219,45 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   return sad >> (bitdepth_ - 8);
 }
 
-template<int W, int H, typename SampleT1, typename SampleT2>
+template<typename SampleT1, typename SampleT2>
+uint64_t
+SampleMetric::ComputeSatdAcOnly(int width, int height,
+                                const SampleT1 *sample1, ptrdiff_t stride1,
+                                const SampleT2 *sample2, ptrdiff_t stride2) {
+  const int avg =
+    CalcMeanDiff<0>(width, height, sample1, stride1, sample2, stride2);
+  return
+    ComputeSatd<true>(width, height, avg, sample1, stride1, sample2, stride2);
+}
+
+template<bool RemoveAvg, int W, int H, typename SampleT1, typename SampleT2>
 int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
-                                 const SampleT2 *sample2, ptrdiff_t stride2) {
+                                 const SampleT2 *sample2, ptrdiff_t stride2,
+                                 int offset) {
   int diff[W*H], m1[H][W], m2[H][W];
-  static_assert(W == 4 || W == 8 || W == 16, "Only W = 8 or 16 supported");
-  static_assert(H == 4 || H == 8 || H == 16, "Only H = 8 or 16 supported");
+  static_assert(W == 4 || W == 8 || W == 16, "Only W = 4, 8 and 16 supported");
+  static_assert(H == 4 || H == 8 || H == 16, "Only H = 4, 8 and 16 supported");
 
   for (int k = 0; k < W*H; k += W) {
-    diff[k + 0] = sample1[0] - sample2[0];
-    diff[k + 1] = sample1[1] - sample2[1];
-    diff[k + 2] = sample1[2] - sample2[2];
-    diff[k + 3] = sample1[3] - sample2[3];
+    diff[k + 0] = sample1[0] - sample2[0] - (RemoveAvg ? offset : 0);
+    diff[k + 1] = sample1[1] - sample2[1] - (RemoveAvg ? offset : 0);
+    diff[k + 2] = sample1[2] - sample2[2] - (RemoveAvg ? offset : 0);
+    diff[k + 3] = sample1[3] - sample2[3] - (RemoveAvg ? offset : 0);
     if (W > 4) {
-      diff[k + 4] = sample1[4] - sample2[4];
-      diff[k + 5] = sample1[5] - sample2[5];
-      diff[k + 6] = sample1[6] - sample2[6];
-      diff[k + 7] = sample1[7] - sample2[7];
+      diff[k + 4] = sample1[4] - sample2[4] - (RemoveAvg ? offset : 0);
+      diff[k + 5] = sample1[5] - sample2[5] - (RemoveAvg ? offset : 0);
+      diff[k + 6] = sample1[6] - sample2[6] - (RemoveAvg ? offset : 0);
+      diff[k + 7] = sample1[7] - sample2[7] - (RemoveAvg ? offset : 0);
     }
     if (W > 8) {
-      diff[k + 8] = sample1[8] - sample2[8];
-      diff[k + 9] = sample1[9] - sample2[9];
-      diff[k + 10] = sample1[10] - sample2[10];
-      diff[k + 11] = sample1[11] - sample2[11];
-      diff[k + 12] = sample1[12] - sample2[12];
-      diff[k + 13] = sample1[13] - sample2[13];
-      diff[k + 14] = sample1[14] - sample2[14];
-      diff[k + 15] = sample1[15] - sample2[15];
+      diff[k + 8] = sample1[8] - sample2[8] - (RemoveAvg ? offset : 0);
+      diff[k + 9] = sample1[9] - sample2[9] - (RemoveAvg ? offset : 0);
+      diff[k + 10] = sample1[10] - sample2[10] - (RemoveAvg ? offset : 0);
+      diff[k + 11] = sample1[11] - sample2[11] - (RemoveAvg ? offset : 0);
+      diff[k + 12] = sample1[12] - sample2[12] - (RemoveAvg ? offset : 0);
+      diff[k + 13] = sample1[13] - sample2[13] - (RemoveAvg ? offset : 0);
+      diff[k + 14] = sample1[14] - sample2[14] - (RemoveAvg ? offset : 0);
+      diff[k + 15] = sample1[15] - sample2[15] - (RemoveAvg ? offset : 0);
     }
     sample1 += stride1;
     sample2 += stride2;
@@ -443,40 +470,38 @@ int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
   return sum;
 }
 
-template<typename SampleT1, typename SampleT2>
+template<int SkipLines, typename SampleT1, typename SampleT2>
 uint64_t SampleMetric::ComputeSad(int width, int height,
                                   const SampleT1 *sample1, ptrdiff_t stride1,
                                   const SampleT2 *sample2, ptrdiff_t stride2) {
   uint64_t sum = 0;
-  for (int y = 0; y < height; y++) {
+  for (int y = 0; y < height; y += (1 + SkipLines)) {
     for (int x = 0; x < width; x++) {
       int diff = sample1[x] - sample2[x];
       sum += std::abs(diff);
     }
-    sample1 += stride1;
-    sample2 += stride2;
+    sample1 += stride1 * (1 + SkipLines);
+    sample2 += stride2 * (1 + SkipLines);
   }
-  return sum >> (bitdepth_ - 8);
+  return (sum * (1 + SkipLines)) >> (bitdepth_ - 8);
 }
 
-template<typename SampleT1, typename SampleT2>
+template<int SkipLines, typename SampleT1, typename SampleT2>
 uint64_t
-SampleMetric::ComputeSadFast(int width, int height,
-                             const SampleT1 *sample1, ptrdiff_t stride1,
-                             const SampleT2 *sample2, ptrdiff_t stride2) {
-  stride1 <<= 1;
-  stride2 <<= 1;
-  uint64_t sum = 0;
-  for (int y = 0; y < height; y += 2) {
+SampleMetric::ComputeSadAcOnly(int width, int height,
+                               const SampleT1 *sample1, ptrdiff_t stride1,
+                               const SampleT2 *sample2, ptrdiff_t stride2) {
+  const int avg =
+    CalcMeanDiff<SkipLines>(width, height, sample1, stride1, sample2, stride2);
+  int sum = 0;
+  for (int y = 0; y < height; y += (1 + SkipLines)) {
     for (int x = 0; x < width; x++) {
-      int diff = sample1[x] - sample2[x];
-      sum += std::abs(diff);
+      sum += std::abs(sample1[x] - sample2[x] - avg);
     }
-    sample1 += stride1;
-    sample2 += stride2;
+    sample1 += stride1 * (1 + SkipLines);
+    sample2 += stride2 * (1 + SkipLines);
   }
-  sum <<= 1;
-  return sum >> (bitdepth_ - 8);
+  return (sum * (1 + SkipLines)) >> (bitdepth_ - 8);
 }
 
 template<typename SampleT1, typename SampleT2>
@@ -538,6 +563,22 @@ uint64_t SampleMetric::ComputeStructuralSsd(int width, int height,
     sample2 += size * stride2;
   }
   return ssim;
+}
+
+template<int SkipLines, typename SampleT1, typename SampleT2>
+int
+SampleMetric::CalcMeanDiff(int width, int height,
+                           const SampleT1 *sample1, ptrdiff_t stride1,
+                           const SampleT2 * sample2, ptrdiff_t stride2) {
+  int delta_sum = 0;
+  for (int y = 0; y < height; y += (1 + SkipLines)) {
+    for (int x = 0; x < width; x++) {
+      delta_sum += (sample1[x] - sample2[x]);
+    }
+    sample1 += stride1 * (1 + SkipLines);
+    sample2 += stride2 * (1 + SkipLines);
+  }
+  return (delta_sum * (1 + SkipLines)) / (width * height);
 }
 
 }   // namespace xvc

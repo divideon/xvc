@@ -33,8 +33,11 @@ namespace xvc {
 enum class MetricType {
   kSsd,
   kSatd,
+  kSatdAcOnly,
   kSad,
   kSadFast,
+  kSadAcOnly,
+  kSadAcOnlyFast,
   kStructuralSsd,
 };
 
@@ -78,21 +81,26 @@ private:
   uint64_t ComputeSsd(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
                       const SampleT2 *sample2, ptrdiff_t stride2);
-  template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSatd(int width, int height,
+  template<bool RemoveAvg, typename SampleT1, typename SampleT2>
+  uint64_t ComputeSatd(int width, int height, int offset,
                        const SampleT1 *sample1, ptrdiff_t stride1,
                        const SampleT2 *sample2, ptrdiff_t stride2);
-  template<int W, int H, typename SampleT1, typename SampleT2>
-  int ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
-                     const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
+  uint64_t ComputeSatdAcOnly(int width, int height,
+                             const SampleT1 *sample1, ptrdiff_t stride1,
+                             const SampleT2 *sample2, ptrdiff_t stride2);
+  template<bool RemoveAvg, int W, int H, typename SampleT1, typename SampleT2>
+  int ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
+                     const SampleT2 *sample2, ptrdiff_t stride2,
+                     int offset);
+  template<int SkipLines, typename SampleT1, typename SampleT2>
   uint64_t ComputeSad(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
                       const SampleT2 *sample2, ptrdiff_t stride2);
-  template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSadFast(int width, int height,
-                          const SampleT1 *sample1, ptrdiff_t stride1,
-                          const SampleT2 *sample2, ptrdiff_t stride2);
+  template<int SkipLines, typename SampleT1, typename SampleT2>
+  uint64_t ComputeSadAcOnly(int width, int height,
+                            const SampleT1 *sample1, ptrdiff_t stride1,
+                            const SampleT2 *sample2, ptrdiff_t stride2);
   template<typename SampleT1, typename SampleT2>
   uint64_t ComputeStructuralSsdBlock(const SampleT1 *sample1, ptrdiff_t stride1,
                                      const SampleT2 *sample2, ptrdiff_t stride2,
@@ -101,6 +109,10 @@ private:
   uint64_t ComputeStructuralSsd(int width, int height,
                                 const SampleT1 *sample1, ptrdiff_t stride1,
                                 const SampleT2 *sample2, ptrdiff_t stride2);
+  template<int SkipLines, typename SampleT1, typename SampleT2>
+  int CalcMeanDiff(int width, int height,
+                   const SampleT1 *sample1, ptrdiff_t stride1,
+                   const SampleT2 *sample2, ptrdiff_t stride2);
 
   MetricType type_;
   const Qp &qp_;
