@@ -58,8 +58,10 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
                                  int ref_idx) {
   auto round_mv = [](MotionVector *mv) {
     constexpr int scale_shift = constants::kMvPrecisionShift;
-    mv->x = ((mv->x + (1 << (scale_shift - 1))) >> scale_shift) << scale_shift;
-    mv->y = ((mv->y + (1 << (scale_shift - 1))) >> scale_shift) << scale_shift;
+    mv->x =
+      ((mv->x + (1 << (scale_shift - 1))) >> scale_shift) * (1 << scale_shift);
+    mv->y =
+      ((mv->y + (1 << (scale_shift - 1))) >> scale_shift) * (1 << scale_shift);
   };
   InterPredictorList list;
   if (Restrictions::Get().disable_inter_mvp) {
@@ -312,8 +314,8 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
       if (cu->HasMv(ref_list)) {
         MotionVector mvd = cu->GetMvDelta(ref_list);
         if (cu->GetFullpelMv()) {
-          mvd.x <<= constants::kMvPrecisionShift;
-          mvd.y <<= constants::kMvPrecisionShift;
+          mvd.x = mvd.x * (1 << constants::kMvPrecisionShift);
+          mvd.y = mvd.y * (1 << constants::kMvPrecisionShift);
         }
         int ref_idx = cu->GetRefIdx(ref_list);
         int mvp_idx = cu->GetMvpIdx(ref_list);

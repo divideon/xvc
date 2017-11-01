@@ -509,8 +509,9 @@ InterSearch::MotionEstimation(const CodingUnit &cu, const Qp &qp,
   MotionVector mv_subpel;
   if (cu.GetFullpelMv()) {
     SampleMetric metric = SampleMetric(kSubpelMetricType, qp, bitdepth_);
-    mv_subpel = MotionVector(mv_fullpel.x << constants::kMvPrecisionShift,
-                             mv_fullpel.y << constants::kMvPrecisionShift);
+    mv_subpel =
+      MotionVector(mv_fullpel.x * (1 << constants::kMvPrecisionShift),
+                   mv_fullpel.y * (1 << constants::kMvPrecisionShift));
     *out_dist = GetSubpelDist(cu, *ref_pic, &metric, mv_subpel.x,
                               mv_subpel.y, orig_buffer, pred, pred_stride);
   } else {
