@@ -90,15 +90,14 @@ private:
                               TransformEncoder *encoder, YuvPicture *rec_pic);
   Distortion SearchBiIterative(CodingUnit *cu, const Qp &qp,
                                const SyntaxWriter &bitstream_writer,
-                               InterDir best_uni_dir,
-                               Sample *pred_buf, ptrdiff_t pred_stride,
+                               InterDir best_uni_dir, SampleBuffer *pred_buffer,
                                CodingUnit::InterState *best_state);
   template<typename TOrig>
   Distortion SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
                           const SyntaxWriter &bitstream_writer,
                           const DataBuffer<TOrig> &orig_buffer,
-                          Sample *pred, ptrdiff_t pred_stride,
                           Distortion initial_best_cost,
+                          SampleBuffer *pred_buffer,
                           CodingUnit::InterState *best_state,
                           CodingUnit::InterState *best_unique = nullptr,
                           Distortion *best_unique_cost = nullptr);
@@ -109,7 +108,7 @@ private:
                                 const DataBuffer<TOrig> &orig_buffer,
                                 const MotionVector &mvp,
                                 const MotionVector *bipred_mv_start,
-                                Sample *pred, ptrdiff_t pred_stride,
+                                SampleBuffer *pred_buffer,
                                 Distortion *out_dist);
   MotionVector FullSearch(const CodingUnit &cu, const Qp &qp,
                           const MotionVector &mvp, const YuvPicture &ref_pic,
@@ -120,18 +119,16 @@ private:
                             const YuvPicture &ref_pic, const MotionVector &mvp,
                             const MotionVector &mv_fullpel,
                             const DataBuffer<TOrig> &orig_buffer,
-                            Sample *pred_buffer, ptrdiff_t pred_buffer_stride,
-                            Distortion *out_dist);
+                            SampleBuffer *pred_buffer, Distortion *out_dist);
   template<typename TOrig>
   Distortion GetSubpelDist(const CodingUnit &cu,
                            const YuvPicture &ref_pic,
                            SampleMetric *metric, int mv_x, int mv_y,
                            const DataBuffer<TOrig> &orig_buffer,
-                           Sample *pred_buf, ptrdiff_t pred_buf_stride);
+                           SampleBuffer *pred_buffer);
   int EvalStartMvp(const CodingUnit &cu, const Qp &qp,
                    const InterPredictorList &mvp_list,
-                   const YuvPicture &ref_pic, Sample *pred_buf,
-                   ptrdiff_t pred_stride);
+                   const YuvPicture &ref_pic, SampleBuffer *pred_buffer);
   int EvalFinalMvpIdx(const CodingUnit &cu,
                       const InterPredictorList &mvp_list,
                       const MotionVector &mv_final, int mvp_idx_start);

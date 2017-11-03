@@ -438,11 +438,11 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
                             const SyntaxWriter &writer) {
   CodingUnit::ReconstructionState *best_state = &temp_cu_state_[rdo_depth + 1];
   CodingUnit *best_cu = *best_cu_ref;
-  CodingUnit *temp_cu = *temp_cu_ref;
+  CodingUnit *cu = *temp_cu_ref;
   assert(best_cu->GetSplit() == SplitType::kNone);
-  temp_cu->CopyPositionAndSizeFrom(*best_cu);
-  if (temp_cu->GetSplit() != SplitType::kNone) {
-    temp_cu->UnSplit();
+  cu->CopyPositionAndSizeFrom(*best_cu);
+  if (cu->GetSplit() != SplitType::kNone) {
+    cu->UnSplit();
   }
 
   const bool fast_skip_inter =
@@ -458,48 +458,48 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
     const bool fast_merge_skip =
       encoder_settings_.fast_merge_eval && cache_result.any_skip;
     RdoCost cost =
-      CompressMerge(temp_cu, qp, writer, best_cost.cost, fast_merge_skip);
+      CompressMerge(cu, qp, writer, best_cost.cost, fast_merge_skip);
     if (cost < best_cost) {
       best_cost = cost;
-      temp_cu->SaveStateTo(best_state, rec_pic_);
-      std::swap(best_cu, temp_cu);
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
     }
   }
 
   if (!fast_skip_inter) {
-    RdoCost cost = CompressInter(temp_cu, qp, writer, RdMode::INTER_ME,
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_ME,
                                  best_cost.cost);
     if (cost < best_cost) {
       best_cost = cost;
-      temp_cu->SaveStateTo(best_state, rec_pic_);
-      std::swap(best_cu, temp_cu);
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
     }
   }
 
   if (!Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
-    RdoCost cost = CompressInter(temp_cu, qp, writer, RdMode::INTER_FULLPEL,
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_FULLPEL,
                                  best_cost.cost);
     if (cost < best_cost) {
       best_cost = cost;
-      temp_cu->SaveStateTo(best_state, rec_pic_);
-      std::swap(best_cu, temp_cu);
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
     }
   }
 
   if ((!fast_skip_intra && best_cu->GetHasAnyCbf()) ||
       encoder_settings_.always_evaluate_intra_in_inter) {
-    RdoCost cost = CompressIntra(temp_cu, qp, writer);
+    RdoCost cost = CompressIntra(cu, qp, writer);
     if (cost < best_cost) {
       best_cost = cost;
-      temp_cu->SaveStateTo(best_state, rec_pic_);
-      std::swap(best_cu, temp_cu);
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
     }
   }
 
   assert(best_cost.cost < std::numeric_limits<Cost>::max());
   best_cu->LoadStateFrom(*best_state, &rec_pic_);
   *best_cu_ref = best_cu;
-  *temp_cu_ref = temp_cu;
+  *temp_cu_ref = cu;
   return best_cost;
 }
 

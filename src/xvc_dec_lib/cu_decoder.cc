@@ -108,8 +108,7 @@ void CuDecoder::DecompressComponent(CodingUnit *cu, YuvComponent comp,
     PredictIntra(*cu, comp, &pred_buffer);
   } else {
     inter_pred_.CalculateMV(cu);
-    inter_pred_.MotionCompensation(*cu, comp, pred_buffer.GetDataPtr(),
-                                   pred_buffer.GetStride());
+    inter_pred_.MotionCompensation(*cu, comp, &pred_buffer);
   }
   if (!cbf) {
     return;

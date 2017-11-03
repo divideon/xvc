@@ -228,7 +228,7 @@ private:
                          pic_enc_dec0->GetPicData()->GetPoc(),
                          pic_enc_dec0->GetPicData(),
                          pic_enc_dec0->GetRecPic(),
-                         pic_enc_dec1->GetOrigPic());
+                         pic_enc_dec0->GetOrigPic());
         }
         dependencies->push_back(pic_enc_dec0);
       }

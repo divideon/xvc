@@ -63,7 +63,7 @@ public:
   void CalculateMV(CodingUnit *cu);
   void ApplyMerge(CodingUnit *cu, const MergeCandidate &merge_cand);
   void MotionCompensation(const CodingUnit &cu, YuvComponent comp,
-                          Sample *pred_ptr, ptrdiff_t pred_stride);
+                          SampleBuffer *pred_buffer);
   void ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
               int *mv_x, int *mv_y) const;
   void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
@@ -77,7 +77,7 @@ public:
 protected:
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, int mv_x, int mv_y,
-                            Sample *pred, ptrdiff_t pred_stride);
+                            SampleBuffer *pred_buffer);
 
 private:
   static const int kBufSize = constants::kMaxBlockSize *
@@ -96,7 +96,7 @@ private:
                               int ref_idx, MotionVector *mv_out);
   void MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, const MotionVector &mv,
-                            int16_t *pred, ptrdiff_t pred_stride);
+                            DataBuffer<int16_t> *pred_buffer);
   SampleBufferConst
     GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
                   const YuvPicture &ref_pic, int mv_x, int mv_y,
@@ -114,9 +114,9 @@ private:
                           const Sample *ref, ptrdiff_t ref_stride,
                           int16_t *pred, ptrdiff_t pred_stride);
   void AddAvgBi(const CodingUnit &cu, YuvComponent comp,
-                const int16_t *src_l0, ptrdiff_t src_l0_stride,
-                const int16_t *src_l1, ptrdiff_t src_l1_stride,
-                Sample *pred, ptrdiff_t pred_stride);
+                const DataBuffer<const int16_t> &src_l0_buffer,
+                const DataBuffer<const int16_t> &src_l1_buffer,
+                SampleBuffer *pred_buffer);
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
 
   const InterPrediction::SimdFunc &simd_;

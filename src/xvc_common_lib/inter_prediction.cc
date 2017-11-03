@@ -342,8 +342,8 @@ void InterPrediction::ApplyMerge(CodingUnit *cu,
 }
 
 void InterPrediction::MotionCompensation(const CodingUnit &cu,
-                                         YuvComponent comp, Sample *pred,
-                                         ptrdiff_t pred_stride) {
+                                         YuvComponent comp,
+                                         SampleBuffer *pred_buffer) {
   auto ref_pic_lists = cu.GetRefPicLists();
   if (cu.GetInterDir() != InterDir::kBi) {
     RefPicList ref_list =
@@ -352,27 +352,26 @@ void InterPrediction::MotionCompensation(const CodingUnit &cu,
     int ref_idx = cu.GetRefIdx(ref_list);
     const YuvPicture *ref_pic = ref_pic_lists->GetRefPic(ref_list, ref_idx);
     ClipMV(cu, *ref_pic, &mv.x, &mv.y);
-    MotionCompensationMv(cu, comp, *ref_pic, mv.x, mv.y, pred, pred_stride);
+    MotionCompensationMv(cu, comp, *ref_pic, mv.x, mv.y, pred_buffer);
   } else {
     // L0
     MotionVector mv_l0 = cu.GetMv(RefPicList::kL0);
     const YuvPicture *ref_pic_l0 =
       ref_pic_lists->GetRefPic(RefPicList::kL0, cu.GetRefIdx(RefPicList::kL0));
     ClipMV(cu, *ref_pic_l0, &mv_l0.x, &mv_l0.y);
-    int16_t *dst_pred_l0 = &bipred_temp_[0][0];
-    MotionCompensationBi(cu, comp, *ref_pic_l0, mv_l0, dst_pred_l0,
-                         constants::kMaxBlockSize);
+    DataBuffer<int16_t> pred_l0_buffer(&bipred_temp_[0][0],
+                                       constants::kMaxBlockSize);
+    MotionCompensationBi(cu, comp, *ref_pic_l0, mv_l0, &pred_l0_buffer);
     // L1
     MotionVector mv_l1 = cu.GetMv(RefPicList::kL1);
     const YuvPicture *ref_pic_l1 =
       ref_pic_lists->GetRefPic(RefPicList::kL1, cu.GetRefIdx(RefPicList::kL1));
     ClipMV(cu, *ref_pic_l1, &mv_l1.x, &mv_l1.y);
-    int16_t *dst_pred_l1 = &bipred_temp_[1][0];
-    MotionCompensationBi(cu, comp, *ref_pic_l1, mv_l1, dst_pred_l1,
-                         constants::kMaxBlockSize);
+    DataBuffer<int16_t> pred_l1_buffer(&bipred_temp_[1][0],
+                                       constants::kMaxBlockSize);
+    MotionCompensationBi(cu, comp, *ref_pic_l1, mv_l1, &pred_l1_buffer);
 
-    AddAvgBi(cu, comp, dst_pred_l0, constants::kMaxBlockSize,
-             dst_pred_l1, constants::kMaxBlockSize, pred, pred_stride);
+    AddAvgBi(cu, comp, pred_l0_buffer, pred_l1_buffer, pred_buffer);
   }
 }
 
@@ -380,23 +379,24 @@ void
 InterPrediction::MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
                                       const YuvPicture &ref_pic,
                                       int mv_x, int mv_y,
-                                      Sample *pred, ptrdiff_t pred_stride) {
+                                      SampleBuffer *pred_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   int frac_x, frac_y;
-  auto ref_buffer =
+  SampleBufferConst ref_buffer =
     GetFullpelRef(cu, comp, ref_pic, mv_x, mv_y, &frac_x, &frac_y);
   if (frac_x == 0 && frac_y == 0) {
-    SampleBuffer pred_buffer(pred, pred_stride);
-    pred_buffer.CopyFrom(width, height, ref_buffer);
+    pred_buffer->CopyFrom(width, height, ref_buffer);
     return;
   }
   if (util::IsLuma(comp)) {
-    FilterLuma(width, height, frac_x, frac_y, ref_buffer.GetDataPtr(),
-               ref_buffer.GetStride(), pred, pred_stride);
+    FilterLuma(width, height, frac_x, frac_y,
+               ref_buffer.GetDataPtr(), ref_buffer.GetStride(),
+               pred_buffer->GetDataPtr(), pred_buffer->GetStride());
   } else {
-    FilterChroma(width, height, frac_x, frac_y, ref_buffer.GetDataPtr(),
-                 ref_buffer.GetStride(), pred, pred_stride);
+    FilterChroma(width, height, frac_x, frac_y,
+                 ref_buffer.GetDataPtr(), ref_buffer.GetStride(),
+                 pred_buffer->GetDataPtr(), pred_buffer->GetStride());
   }
 }
 
@@ -568,29 +568,30 @@ void
 InterPrediction::MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
                                       const YuvPicture &ref_pic,
                                       const MotionVector &mv,
-                                      int16_t *pred, ptrdiff_t pred_stride) {
+                                      DataBuffer<int16_t> *pred_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   int frac_x, frac_y;
-  auto ref_buffer =
+  SampleBufferConst ref_buffer =
     GetFullpelRef(cu, comp, ref_pic, mv.x, mv.y, &frac_x, &frac_y);
   if (frac_x == 0 && frac_y == 0) {
     const int shift = kInternalPrecision - bitdepth_;
     const int offset = kInternalOffset;
     const int i = width > 2;
     simd_.filter_copy_bipred[i](width, height, offset, shift,
-                                ref_buffer.GetDataPtr(),
-                                ref_buffer.GetStride(), pred, pred_stride);
+                                ref_buffer.GetDataPtr(), ref_buffer.GetStride(),
+                                pred_buffer->GetDataPtr(),
+                                pred_buffer->GetStride());
     return;
   }
   if (util::IsLuma(comp)) {
     FilterLumaBipred(width, height, frac_x, frac_y,
                      ref_buffer.GetDataPtr(), ref_buffer.GetStride(),
-                     pred, pred_stride);
+                     pred_buffer->GetDataPtr(), pred_buffer->GetStride());
   } else {
     FilterChromaBipred(width, height, frac_x, frac_y,
                        ref_buffer.GetDataPtr(), ref_buffer.GetStride(),
-                       pred, pred_stride);
+                       pred_buffer->GetDataPtr(), pred_buffer->GetStride());
   }
 }
 
@@ -919,17 +920,18 @@ InterPrediction::FilterChromaBipred(int width, int height,
 }
 
 void InterPrediction::AddAvgBi(const CodingUnit &cu, YuvComponent comp,
-                               const int16_t *src_l0, ptrdiff_t src_l0_stride,
-                               const int16_t *src_l1, ptrdiff_t src_l1_stride,
-                               Sample *pred, ptrdiff_t pred_stride) {
+                               const DataBuffer<const int16_t> &src_l0_buffer,
+                               const DataBuffer<const int16_t> &src_l1_buffer,
+                               SampleBuffer *pred_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int shift = std::max(2, kInternalPrecision - bitdepth_) + 1;
   const int offset = (1 << (shift - 1)) + 2 * kInternalOffset;
   const int i = width > 2;
   simd_.add_avg[i](width, height, offset, shift, bitdepth_,
-                   src_l0, src_l0_stride, src_l1, src_l1_stride,
-                   pred, pred_stride);
+                   src_l0_buffer.GetDataPtr(), src_l0_buffer.GetStride(),
+                   src_l1_buffer.GetDataPtr(), src_l1_buffer.GetStride(),
+                   pred_buffer->GetDataPtr(), pred_buffer->GetStride());
 }
 
 static void AddAvg(int width, int height, int offset,
