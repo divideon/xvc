@@ -128,7 +128,8 @@ public:
       disable_ext_intra_extra_modes ||
       disable_ext_intra_extra_predictors ||
       disable_ext_intra_chroma_from_luma ||
-      disable_ext_inter_adaptive_fullpel_mv;
+      disable_ext_inter_adaptive_fullpel_mv ||
+      disable_ext_local_illumination_compensation;
   }
 
   bool disable_intra_ref_padding = false;
@@ -187,6 +188,7 @@ public:
   bool disable_ext_intra_extra_predictors = false;
   bool disable_ext_intra_chroma_from_luma = false;
   bool disable_ext_inter_adaptive_fullpel_mv = false;
+  bool disable_ext_local_illumination_compensation = false;
   bool disable_ext_tmvp_full_resolution = false;
   bool disable_ext_tmvp_exclude_intra_from_ref_list = false;
   bool disable_ext_ref_list_l0_trim = false;

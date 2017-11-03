@@ -71,6 +71,7 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
     *sub_gop_length = max_sub_gop_length;
   }
   int pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
+  bool allow_lic = bit_reader->ReadBit() != 0;
   bit_reader->SkipBits();
 
   // Ensure that Sub Gop start is updated to include the current doc.
@@ -111,6 +112,7 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
   header.tid = tid;
   header.pic_qp = pic_qp_;
   header.highest_layer = tid == SegmentHeader::GetMaxTid(*sub_gop_length);
+  header.allow_lic = allow_lic;
   return header;
 }
 
@@ -133,6 +135,7 @@ void PictureDecoder::Init(const SegmentHeader &segment,
   pic_data_->SetDeblock(segment.deblock > 0);
   pic_data_->SetBetaOffset(segment.beta_offset);
   pic_data_->SetTcOffset(segment.tc_offset);
+  pic_data_->SetUseLocalIlluminationCompensation(header.allow_lic);
   *pic_data_->GetRefPicLists() = std::move(ref_pic_list);
 }
 

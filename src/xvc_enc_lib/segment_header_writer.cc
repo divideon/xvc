@@ -174,6 +174,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_ext_intra_extra_predictors);
     bit_writer->WriteBit(restr.disable_ext_intra_chroma_from_luma);
     bit_writer->WriteBit(restr.disable_ext_inter_adaptive_fullpel_mv);
+    bit_writer->WriteBit(restr.disable_ext_local_illumination_compensation);
   } else {
     bit_writer->WriteBit(0);  // ext_restrictions
   }

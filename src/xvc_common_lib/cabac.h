@@ -57,6 +57,7 @@ public:
   static const int kNumIntraPredCtxChroma = 2;
   static const int kNumInterDirCtx = 5;
   static const int kNumInterFullpelMvCtx = 3;
+  static const int kNumLicFlagCtx = 1;
   static const int kNumMvdCtx = 2;
   static const int kNumRefIdxCtx = 2;
   static const int kNumTransSubdivFlagCtx = 3;
@@ -126,6 +127,7 @@ public:
   std::array<ContextModel, kNumRefIdxCtx> inter_ref_idx;
   std::array<ContextModel, kNumIntraPredCtxLuma> intra_pred_luma;
   std::array<ContextModel, kNumIntraPredCtxChroma> intra_pred_chroma;
+  std::array<ContextModel, kNumLicFlagCtx> lic_flag;
   std::array<ContextModel, kNumSubblockCsbfCtxLuma> subblock_csbf_luma;
   std::array<ContextModel, kNumSubblockCsbfCtxChroma> subblock_csbf_chroma;
   std::array<ContextModel, kNumCoeffSigCtxLuma> coeff_sig_luma;

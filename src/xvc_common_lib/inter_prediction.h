@@ -34,6 +34,7 @@ struct MergeCandidate {
   InterDir inter_dir = InterDir::kL0;
   std::array<MotionVector, static_cast<int>(RefPicList::kTotalNumber)> mv;
   std::array<int, static_cast<int>(RefPicList::kTotalNumber)> ref_idx = { {0} };
+  bool use_lic = false;
 };
 
 struct InterMergeCandidateList
@@ -51,8 +52,9 @@ public:
   static const int kMergeLevelShift = 2;
   struct SimdFunc;
 
-  InterPrediction(const SimdFunc &simd, int bitdepth)
+  InterPrediction(const SimdFunc &simd, const YuvPicture &rec_pic, int bitdepth)
     : simd_(simd),
+    rec_pic_(rec_pic),
     bitdepth_(bitdepth) {
   }
 
@@ -77,6 +79,7 @@ public:
 protected:
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, int mv_x, int mv_y,
+                            bool post_filter,
                             SampleBuffer *pred_buffer);
 
 private:
@@ -87,13 +90,14 @@ private:
   static const std::array<std::array<uint8_t, 2>, 12> kMergeCandL0L1Idx;
   static void ScaleMv(PicNum poc_current1, PicNum poc_ref1, PicNum poc_current2,
                       PicNum poc_ref2, MotionVector *out);
+  struct LicParams;
 
   bool GetMvpCand(const CodingUnit *cu, RefPicList ref_list, int ref_idx,
                   PicNum ref_poc, MotionVector *mv_out);
   bool GetScaledMvpCand(const CodingUnit *cu, RefPicList cu_ref_list,
                         int ref_idx, MotionVector *mv_out);
   bool GetTemporalMvPredictor(const CodingUnit &cu, RefPicList ref_list,
-                              int ref_idx, MotionVector *mv_out);
+                              int ref_idx, MotionVector *mv_out, bool *use_lic);
   void MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, const MotionVector &mv,
                             DataBuffer<int16_t> *pred_buffer);
@@ -107,6 +111,9 @@ private:
   void FilterChroma(int width, int height, int frac_x, int frac_y,
                     const Sample *ref, ptrdiff_t ref_stride,
                     Sample *pred, ptrdiff_t pred_stride);
+  void FilterCopyBipred(int width, int height,
+                        const SampleBufferConst &ref_buffer,
+                        DataBuffer<int16_t> *pred_buffer);
   void FilterLumaBipred(int width, int height, int frac_x, int frac_y,
                         const Sample *ref, ptrdiff_t ref_stride,
                         int16_t *pred, ptrdiff_t pred_stride);
@@ -117,9 +124,17 @@ private:
                 const DataBuffer<const int16_t> &src_l0_buffer,
                 const DataBuffer<const int16_t> &src_l1_buffer,
                 SampleBuffer *pred_buffer);
+  void LocalIlluminationComp(const CodingUnit &cu, YuvComponent comp,
+                             int mv_x, int mv_y, const YuvPicture &ref_pic,
+                             SampleBuffer *pred_buffer);
+  LicParams DeriveLicParams(const CodingUnit &cu, YuvComponent comp,
+                            const MotionVector &mv_full,
+                            const YuvPicture &ref_pic,
+                            const SampleBufferConst &rec_buffer);
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
 
   const InterPrediction::SimdFunc &simd_;
+  const YuvPicture &rec_pic_;    // current picture, used for template matching
   std::array<int16_t, kBufSize> filter_buffer_;
   std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;
   int bitdepth_;

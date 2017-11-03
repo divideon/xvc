@@ -189,6 +189,13 @@ kInitInterFullpelMv[3][CabacContexts::kNumInterFullpelMvCtx] = {
 };
 
 static const uint8_t
+kInitLicFlag[3][CabacContexts::kNumLicFlagCtx] = {
+  { 154 },
+  { 154 },
+  { kNotUsed },
+};
+
+static const uint8_t
 kInitMvd[3][CabacContexts::kNumMvdCtx] = {
   { 169,  198, },
   { 140,  198, },
@@ -369,6 +376,7 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &inter_ref_idx, kInitRefIdx);
   Init(q, s, &intra_pred_luma, kInitIntraLumaPredMode);
   Init(q, s, &intra_pred_chroma, kInitIntraChromaPredMode);
+  Init(q, s, &lic_flag, kInitLicFlag);
   Init(q, s, &subblock_csbf_luma, &subblock_csbf_chroma, kInitSubblockCsbf);
   Init(q, s, &coeff_sig_luma, &coeff_sig_chroma, kInitCoeffSig);
   Init(q, s, &coeff_greater1_luma, &coeff_greater1_chroma, kInitCoeffGreater1);

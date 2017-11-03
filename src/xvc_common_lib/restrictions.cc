@@ -249,6 +249,10 @@ Restrictions::Restrictions() {
   disable_ext_inter_adaptive_fullpel_mv = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT_LOCAL_ILLUMINATION_COMPENSATION
+  disable_ext_local_illumination_compensation = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT_TMVP_FULL_RESOLUTION
   disable_ext_tmvp_full_resolution = true;
 #endif
@@ -320,6 +324,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_intra_extra_predictors = true;
     disable_ext_intra_chroma_from_luma = true;
     disable_ext_inter_adaptive_fullpel_mv = true;
+    disable_ext_local_illumination_compensation = true;
     disable_ext_cabac_alt_split_flag_ctx = true;
     disable_ext_cabac_alt_inter_dir_ctx = true;
     disable_ext_cabac_alt_last_pos_ctx = true;

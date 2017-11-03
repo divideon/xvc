@@ -147,6 +147,11 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
     if (!cu.HasZeroMvd()) {
       writer->WriteInterFullpelMvFlag(cu, cu.GetFullpelMv());
     }
+    if (pic_data_.GetUseLocalIlluminationCompensation()) {
+      writer->WriteLicFlag(cu.GetUseLic());
+    } else {
+      assert(!cu.GetUseLic());
+    }
   }
 }
 

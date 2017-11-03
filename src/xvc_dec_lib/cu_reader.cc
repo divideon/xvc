@@ -128,13 +128,11 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
     bool merge = reader->ReadMergeFlag();
     cu->SetMergeFlag(merge);
     if (merge) {
-      int merge_idx = reader->ReadMergeIdx();
-      cu->SetMergeIdx(merge_idx);
+      cu->SetMergeIdx(reader->ReadMergeIdx());
       return;
     }
     if (pic_data_->GetPredictionType() == PicturePredictionType::kBi) {
-      InterDir inter_dir = reader->ReadInterDir(*cu);
-      cu->SetInterDir(inter_dir);
+      cu->SetInterDir(reader->ReadInterDir(*cu));
     } else {
       cu->SetInterDir(InterDir::kL0);
     }
@@ -152,8 +150,10 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
       cu->SetMvpIdx(reader->ReadInterMvpIdx(), ref_pic_list);
     }
     if (!cu->HasZeroMvd()) {
-      bool fullpel_mv = reader->ReadInterFullpelMvFlag(*cu);
-      cu->SetFullpelMv(fullpel_mv);
+      cu->SetFullpelMv(reader->ReadInterFullpelMvFlag(*cu));
+    }
+    if (pic_data_->GetUseLocalIlluminationCompensation()) {
+      cu->SetUseLic(reader->ReadLicFlag());
     }
   }
 }

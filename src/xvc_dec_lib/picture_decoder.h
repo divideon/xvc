@@ -45,6 +45,7 @@ public:
     int tid;
     int pic_qp;
     bool highest_layer;
+    bool allow_lic;
   };
 
   PictureDecoder(const SimdFunctions &simd, ChromaFormat chroma_format,

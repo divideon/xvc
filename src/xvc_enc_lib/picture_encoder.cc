@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cstring>
 #include <memory>
+#include <numeric>
 #include <utility>
 
 #include "xvc_common_lib/deblocking_filter.h"
@@ -65,6 +66,9 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
              encoder_settings.chroma_qp_offset_v);
 
   pic_data_->Init(segment, base_qp, encoder_settings.adaptive_qp > 0);
+  const bool allow_lic = DetermineAllowLic(pic_data_->GetPredictionType(),
+                                           *pic_data_->GetRefPicLists());
+  pic_data_->SetUseLocalIlluminationCompensation(allow_lic);
 
   bit_writer_.Clear();
   if (encoder_settings.encapsulation_mode != 0) {
@@ -122,9 +126,15 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
   bit_writer->WriteBits(buffer_flag, 1);
   assert(pic_data.GetTid() >= 0);
   bit_writer->WriteBits(pic_data.GetTid(), 3);
-  int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
+  const int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
   assert(pic_qp + constants::kQpSignalBase < (1 << 7));
   bit_writer->WriteBits(pic_qp + constants::kQpSignalBase, 7);
+  const bool allow_lic = pic_data.GetUseLocalIlluminationCompensation();
+  if (!Restrictions::Get().disable_ext_local_illumination_compensation) {
+    bit_writer->WriteBit(allow_lic ? 1 : 0);
+  } else {
+    assert(!allow_lic);
+  }
   bit_writer->PadZeroBits();
 }
 
@@ -153,6 +163,59 @@ int PictureEncoder::DerivePictureQp(const PictureData &pic_data,
   }
   return util::Clip3(pic_qp, constants::kMinAllowedQp,
                      constants::kMaxAllowedQp);
+}
+
+bool
+PictureEncoder::DetermineAllowLic(PicturePredictionType pic_type,
+                                  const ReferencePictureLists &ref_pics) const {
+  static const double kSampleThreshold = 0.06;
+  const YuvComponent comp = YuvComponent::kY;
+  const int pic_width = orig_pic_->GetWidth(comp);
+  const int pic_height = orig_pic_->GetHeight(comp);
+  const int num_buckets = 1 << orig_pic_->GetBitdepth();
+  const auto build_histogram =
+    [pic_width, pic_height](const SampleBufferConst &buffer, bool increment,
+                            std::vector<int32_t> *histogram) {
+    const Sample *sample = buffer.GetDataPtr();
+    for (int y = 0; y < pic_height; y++) {
+      for (int x = 0; x < pic_width; x++) {
+        Sample val = sample[x];
+        (*histogram)[val] += increment ? 1 : -1;
+      }
+      sample += buffer.GetStride();
+    }
+  };
+
+  if (pic_type == PicturePredictionType::kIntra ||
+      Restrictions::Get().disable_ext_local_illumination_compensation) {
+    return false;
+  }
+
+  std::vector<int32_t> histogram_orig(num_buckets, 0);
+  std::vector<int32_t> histogram_ref(num_buckets, 0);
+  SampleBuffer orig_buffer = orig_pic_->GetSampleBuffer(comp, 0, 0);
+  build_histogram(orig_buffer, true, &histogram_orig);
+
+  int num_ref_lists = pic_type == PicturePredictionType::kBi ? 2 : 1;
+  for (int ref_list_idx = 0; ref_list_idx < num_ref_lists; ref_list_idx++) {
+    const RefPicList ref_list = static_cast<RefPicList>(ref_list_idx);
+    const int num_ref_pics = ref_pics.GetNumRefPics(ref_list);
+    for (int ref_idx = 0; ref_idx < num_ref_pics; ref_idx++) {
+      const YuvPicture *ref_pic = ref_pics.GetRefOrigPic(ref_list, ref_idx);
+      SampleBufferConst ref_buffer = ref_pic->GetSampleBuffer(comp, 0, 0);
+      histogram_ref = histogram_orig;
+      build_histogram(ref_buffer, false, &histogram_ref);
+      int err_sum = 0;
+      for (int i = 0; i < num_buckets; i++) {
+        err_sum += std::abs(histogram_ref[i]);
+      }
+      if (err_sum >
+          static_cast<int>(kSampleThreshold * pic_width * pic_height)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 }   // namespace xvc

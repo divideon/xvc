@@ -497,6 +497,13 @@ SyntaxReader::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
   return chroma_preds[chroma_index];
 }
 
+bool SyntaxReader::ReadLicFlag() {
+  if (Restrictions::Get().disable_ext_local_illumination_compensation) {
+    return false;
+  }
+  return entropydec_->DecodeBin(&ctx_.lic_flag[0]) != 0;
+}
+
 bool SyntaxReader::ReadMergeFlag() {
   if (Restrictions::Get().disable_inter_merge_mode) {
     return false;

@@ -39,6 +39,7 @@ enum class InterSearchFlags {
   kDefault = 0,
   kUniPredOnly = 1 << 0,
   kFullPelMv = 1 << 1,
+  kLic = 1 << 2,
 };
 
 class InterSearch : public InterPrediction {
@@ -47,6 +48,7 @@ public:
 
   InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
               const YuvPicture &orig_pic,
+              const YuvPicture &rec_pic,
               const ReferencePictureLists &ref_pic_list,
               const EncoderSettings &encoder_settings);
   Distortion CompressInter(CodingUnit *cu, const Qp &qp,
@@ -70,7 +72,6 @@ public:
 
 private:
   enum class SearchMethod { TzSearch, FullSearch };
-  static const MetricType kSubpelMetricType = MetricType::kSatd;
   static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
   static constexpr int kFastMergeNumCand = 4;
@@ -133,6 +134,7 @@ private:
                       const InterPredictorList &mvp_list,
                       const MotionVector &mv_final, int mvp_idx_start);
   MetricType GetFullpelMetric(const CodingUnit &cu);
+  MetricType GetSubpelMetric(const CodingUnit &cu);
   Bits GetInterPredBits(const CodingUnit &cu,
                         const SyntaxWriter &bitstream_writer);
   static Bits GetMvpBits(int mvp_idx, int num_mvp);

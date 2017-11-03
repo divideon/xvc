@@ -56,6 +56,7 @@ public:
   void WriteIntraMode(IntraMode intra_mode, const IntraPredictorLuma &mpm);
   void WriteIntraChromaMode(IntraChromaMode chroma_mode,
                             IntraPredictorChroma chroma_preds);
+  void WriteLicFlag(bool use_lic);
   void WriteMergeFlag(bool merge);
   void WriteMergeIdx(int merge_idx);
   void WritePartitionType(const CodingUnit &cu, PartitionType type);

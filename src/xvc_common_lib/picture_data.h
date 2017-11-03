@@ -141,6 +141,10 @@ public:
   int GetBetaOffset() const { return beta_offset_; }
   void SetTcOffset(int offset) { tc_offset_ = offset; }
   int GetTcOffset() const { return tc_offset_; }
+  bool GetUseLocalIlluminationCompensation() const { return lic_active_; }
+  void SetUseLocalIlluminationCompensation(bool active) {
+    lic_active_ = active;
+  }
 
 private:
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
@@ -189,6 +193,7 @@ private:
   bool deblock_ = true;
   int beta_offset_ = 0;
   int tc_offset_ = 0;
+  bool lic_active_ = false;
 };
 
 }   // namespace xvc

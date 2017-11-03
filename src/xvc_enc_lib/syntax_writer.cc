@@ -495,6 +495,14 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
   entropyenc_->EncodeBypassBins(chroma_index, 2);
 }
 
+void SyntaxWriter::WriteLicFlag(bool use_lic) {
+  if (Restrictions::Get().disable_ext_local_illumination_compensation) {
+    assert(!use_lic);
+    return;
+  }
+  entropyenc_->EncodeBin(use_lic ? 1 : 0, &ctx_.lic_flag[0]);
+}
+
 void SyntaxWriter::WriteMergeFlag(bool merge) {
   if (Restrictions::Get().disable_inter_merge_mode) {
     assert(!merge);

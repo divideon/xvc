@@ -50,8 +50,8 @@ CuEncoder::CuEncoder(const SimdFunctions &simd,
   encoder_settings_(encoder_settings),
   rec_pic_(*rec_pic),
   pic_data_(*pic_data),
-  inter_search_(simd, *pic_data, orig_pic, *pic_data->GetRefPicLists(),
-                encoder_settings),
+  inter_search_(simd, *pic_data, orig_pic, *rec_pic,
+                *pic_data->GetRefPicLists(), encoder_settings),
   intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
   cu_writer_(pic_data_, &intra_search_),
   cu_cache_(pic_data) {
@@ -452,8 +452,8 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
   const bool fast_skip_intra =
     encoder_settings_.fast_mode_selection_for_cached_cu &&
     cache_result.any_inter;
-
   RdoCost best_cost(std::numeric_limits<Cost>::max());
+
   if (!Restrictions::Get().disable_inter_merge_mode) {
     const bool fast_merge_skip =
       encoder_settings_.fast_merge_eval && cache_result.any_skip;
@@ -476,8 +476,31 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
     }
   }
 
+  if (!fast_skip_inter && pic_data_.GetUseLocalIlluminationCompensation() &&
+      !Restrictions::Get().disable_ext_local_illumination_compensation) {
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC,
+                                 best_cost.cost);
+    if (cost < best_cost) {
+      best_cost = cost;
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
+    }
+  }
+
   if (!Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
     RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_FULLPEL,
+                                 best_cost.cost);
+    if (cost < best_cost) {
+      best_cost = cost;
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
+    }
+  }
+
+  if (pic_data_.GetUseLocalIlluminationCompensation() &&
+      !Restrictions::Get().disable_ext_local_illumination_compensation &&
+      !Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC_FULLPEL,
                                  best_cost.cost);
     if (cost < best_cost) {
       best_cost = cost;
@@ -536,8 +559,21 @@ CuEncoder::CompressInter(CodingUnit *cu, const Qp &qp,
   if (cu->GetPicType() == PicturePredictionType::kUni) {
     search_flags |= InterSearchFlags::kUniPredOnly;
   }
-  if (rd_mode == CuEncoder::RdMode::INTER_FULLPEL) {
-    search_flags |= InterSearchFlags::kFullPelMv;
+  switch (rd_mode) {
+    case CuEncoder::RdMode::INTER_ME:
+      break;
+    case CuEncoder::RdMode::INTER_FULLPEL:
+      search_flags |= InterSearchFlags::kFullPelMv;
+      break;
+    case CuEncoder::RdMode::INTER_LIC:
+      search_flags |= InterSearchFlags::kLic;
+      break;
+    case CuEncoder::RdMode::INTER_LIC_FULLPEL:
+      search_flags |= InterSearchFlags::kFullPelMv;
+      search_flags |= InterSearchFlags::kLic;
+      break;
+    default:
+      assert(0);
   }
   Distortion dist =
     inter_search_.CompressInter(cu, qp, bitstream_writer, search_flags,
@@ -554,14 +590,13 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
                          Cost best_cu_cost, bool fast_merge_skip) {
   std::array<bool,
     constants::kNumInterMergeCandidates> skip_evaluated = { false };
-  InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   int num_merge_cand = Restrictions::Get().disable_inter_merge_candidates ?
     1 : constants::kNumInterMergeCandidates;
-
   cu->ResetPredictionState();
   cu->SetPredMode(PredictionMode::kInter);
   cu->SetMergeFlag(true);
 
+  InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   std::array<int, constants::kNumInterMergeCandidates> cand_lookup;
   if (encoder_settings_.fast_merge_eval &&
       !fast_merge_skip && num_merge_cand > 1) {

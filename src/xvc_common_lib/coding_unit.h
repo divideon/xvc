@@ -61,6 +61,7 @@ public:
     bool merge_flag = false;
     int merge_idx = -1;
     bool fullpel_mv = false;
+    bool use_lic = false;
     std::array<MotionVector, 2> mv;
     std::array<MotionVector, 2> mvd;
     std::array<int8_t, 2> ref_idx;
@@ -240,6 +241,8 @@ public:
   }
   bool GetFullpelMv() const { return inter_.fullpel_mv; }
   void SetFullpelMv(bool fullpel) { inter_.fullpel_mv = fullpel; }
+  bool GetUseLic() const { return inter_.use_lic; }
+  void SetUseLic(bool use_lic) { inter_.use_lic = use_lic; }
 
   // State handling
   void Split(SplitType split_type);

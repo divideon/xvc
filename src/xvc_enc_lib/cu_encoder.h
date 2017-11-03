@@ -48,6 +48,8 @@ private:
   enum class RdMode {
     INTER_ME,
     INTER_FULLPEL,
+    INTER_LIC,
+    INTER_LIC_FULLPEL,
   };
   struct RdoCost;
 

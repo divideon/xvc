@@ -45,6 +45,7 @@ public:
   int ReadInterRefIdx(int num_refs_available);
   IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);
   IntraChromaMode ReadIntraChromaMode(IntraPredictorChroma chroma_preds);
+  bool ReadLicFlag();
   bool ReadMergeFlag();
   int ReadMergeIdx();
   PartitionType ReadPartitionType(const CodingUnit &cu);

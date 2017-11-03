@@ -199,9 +199,9 @@ class CoeffCtuBuffer {
 public:
   CoeffCtuBuffer(int chroma_shift_x, int chroma_shift_y) :
     // For getting relative position within CTU
-    pos_mask_x_({{ constants::kMaxBlockSize - 1,
+    pos_mask_x_({ { constants::kMaxBlockSize - 1,
                 (constants::kMaxBlockSize >> chroma_shift_x) - 1,
-                (constants::kMaxBlockSize >> chroma_shift_x) - 1 }}),
+                (constants::kMaxBlockSize >> chroma_shift_x) - 1 } }),
     pos_mask_y_({ { constants::kMaxBlockSize - 1,
                 (constants::kMaxBlockSize >> chroma_shift_y) - 1,
                 (constants::kMaxBlockSize >> chroma_shift_y) - 1 } }) {
