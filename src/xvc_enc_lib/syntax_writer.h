@@ -71,7 +71,7 @@ public:
   void WriteTransformSelectEnable(const CodingUnit &cu, bool enable);
   void WriteTransformSelectIdx(const CodingUnit &cu, int type_idx);
 
-protected:
+private:
   template<int SubBlockShift>
   int WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                           const Coeff *coeff, ptrdiff_t coeff_stride);
@@ -85,6 +85,7 @@ protected:
 
   CabacContexts ctx_;
   EntropyEncoder *entropyenc_;
+  friend class RdoSyntaxWriter;
 };
 
 class RdoSyntaxWriter : public SyntaxWriter {

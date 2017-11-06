@@ -129,7 +129,8 @@ public:
       disable_ext_intra_extra_predictors ||
       disable_ext_intra_chroma_from_luma ||
       disable_ext_inter_adaptive_fullpel_mv ||
-      disable_ext_local_illumination_compensation;
+      disable_ext_local_illumination_compensation ||
+      disable_ext_cabac_alt_residual_ctx;
   }
 
   bool disable_intra_ref_padding = false;
@@ -196,6 +197,7 @@ public:
   bool disable_ext_cabac_alt_split_flag_ctx = false;
   bool disable_ext_cabac_alt_inter_dir_ctx = false;
   bool disable_ext_cabac_alt_last_pos_ctx = false;
+  bool disable_ext_cabac_alt_residual_ctx = false;
   bool disable_ext_two_cu_trees = false;
   bool disable_ext_transform_size_64 = false;
   bool disable_ext_intra_unrestricted_predictor = false;

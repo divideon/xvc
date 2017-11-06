@@ -178,7 +178,7 @@ int RdoQuant::QuantFast(const CodingUnit &cu, YuvComponent comp, const Qp &qp,
       int sign = in_ptr[x] < 0 ? -1 : 1;
       int64_t abs_coeff = std::abs(in_ptr[x]);
       int level = static_cast<int>(((abs_coeff * scale) + offset) >> shift);
-      num_non_zero += level ? 1 : 0;
+      num_non_zero += level != 0;
       int coeff =
         util::Clip3(level * sign, constants::kInt16Min, constants::kInt16Max);
       out_ptr[x] = static_cast<Coeff>(coeff);
@@ -191,8 +191,8 @@ int RdoQuant::QuantFast(const CodingUnit &cu, YuvComponent comp, const Qp &qp,
   }
   if (!Restrictions::Get().disable_transform_sign_hiding &&
       num_non_zero > 1 && width >= 4 && height >= 4) {
-    CoeffSignHideFast(cu, comp, width, height, in, in_stride,
-                      delta, delta_stride, out, out_stride);
+    num_non_zero = CoeffSignHideFast(cu, comp, width, height, in, in_stride,
+                                     delta, delta_stride, out, out_stride);
   }
   return num_non_zero;
 }
@@ -304,10 +304,25 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
         continue;
       }
 
-      ContextModel &sig_ctx =
+      const ContextModel &sig_ctx =
         contexts->GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order,
-                                 coeff.scan_x, coeff.scan_y,
+                                 coeff.scan_x, coeff.scan_y, out, out_stride,
                                  width_log2, height_log2);
+      const ContextModel &c1_ctx =
+        contexts->GetCoeffGreater1Ctx(comp, code_state.ctx_set, code_state.c1,
+                                      coeff.scan_x, coeff.scan_y,
+                                      coeff.index == last_pos_index,
+                                      out, out_stride, width, height);
+      const ContextModel &c2_ctx =
+        contexts->GetCoeffGreater2Ctx(comp, code_state.ctx_set,
+                                      coeff.scan_x, coeff.scan_y,
+                                      coeff.index == last_pos_index,
+                                      out, out_stride, width, height);
+      if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+        code_state.golomb_rice_k =
+          contexts->GetCoeffGolombRiceK(coeff.scan_x, coeff.scan_y,
+                                        width, height, out, out_stride);
+      }
       const Bits sig0_bits = sig_ctx.GetEntropyBits(0);
       Bits sig1_bits = sig_ctx.GetEntropyBits(1);
       if (last_pos_index == coeff.index ||
@@ -321,9 +336,9 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
       Coeff best_level = quant_coeff;
       if (quant_coeff > 0) {
         best_cost_sig = sig1_bits;
-        best_level =
-          QuantCoeffRdo(comp, abs_coeff, quant_coeff, code_state, sig1_bits,
-                        lambda, cost_scale, contexts, inv_quant, &best_cost);
+        best_level = QuantCoeffRdo(comp, abs_coeff, quant_coeff, code_state,
+                                   sig1_bits, lambda, cost_scale,
+                                   c1_ctx, c2_ctx, inv_quant, &best_cost);
       }
       if (last_pos_index != coeff.index && quant_coeff < 3) {
         // Eval setting coefficient to zero
@@ -348,15 +363,13 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
       if (best_level) {
         subblock_csbf[subblock.scan] = 1;
         num_non_zero++;
-        int lvl_rate = GetAbsLevelBits(comp, best_level, contexts, code_state);
+        int lvl_rate =
+          GetAbsLevelBits(comp, best_level, c1_ctx, c2_ctx, code_state);
         rate_up_[coeff.index] = -lvl_rate +
-          GetAbsLevelBits(comp, best_level + 1, contexts, code_state);
+          GetAbsLevelBits(comp, best_level + 1, c1_ctx, c2_ctx, code_state);
         rate_down_[coeff.index] = -lvl_rate +
-          GetAbsLevelBits(comp, best_level - 1, contexts, code_state);
+          GetAbsLevelBits(comp, best_level - 1, c1_ctx, c2_ctx, code_state);
       } else {
-        const ContextModel &c1_ctx =
-          contexts->GetCoeffGreaterThan1Ctx(comp, code_state.ctx_set,
-                                            code_state.c1);
         rate_up_[coeff.index] = c1_ctx.GetEntropyBits(0);
       }
       UpdateCodeState(comp, best_level, &code_state);
@@ -414,7 +427,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       Coeff level = out[y * out_stride + x];
-      num_non_zero += level ? 1 : 0;
+      num_non_zero += level != 0;
       out[y * out_stride + x] = (src[y * src_stride + x] < 0) ? -level : level;
     }
   }
@@ -429,16 +442,16 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   return num_non_zero;
 }
 
-void RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
-                                 int width, int height,
-                                 const Coeff *in, ptrdiff_t in_stride,
-                                 const Coeff *delta, ptrdiff_t delta_stride,
-                                 Coeff *out, ptrdiff_t out_stride) const {
+int RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
+                                int width, int height,
+                                const Coeff *in, ptrdiff_t in_stride,
+                                const Coeff *delta, ptrdiff_t delta_stride,
+                                Coeff *out, ptrdiff_t out_stride) const {
   constexpr int subblock_shift = constants::kSubblockShift;
   const int subblock_size = 1 << (subblock_shift * 2);
   const ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
   const uint8_t *scan_table = TransformHelper::GetCoeffScanTable4x4(scan_order);
-
+  int num_non_zero = 0;
   int last_subblock = -1;
 
   SubblockScan<subblock_shift> subblock_scan_(scan_order, width, height);
@@ -471,6 +484,7 @@ void RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
         first_nonzero_pos = std::min(first_nonzero_pos, coeff_idx);
         last_nonzero_pos = std::max(last_nonzero_pos, coeff_idx);
         abs_sum += coeff;
+        num_non_zero++;
       }
     }
 
@@ -534,10 +548,16 @@ void RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
           min_change = -1;
         }
 
+        if (!get_coeff(out, out_stride, min_index)) {
+          num_non_zero++;
+        }
         if (get_coeff(in, in_stride, min_index) >= 0) {
           change_coeff(out, out_stride, min_index, min_change);
         } else {
           change_coeff(out, out_stride, min_index, -min_change);
+        }
+        if (!get_coeff(out, out_stride, min_index)) {
+          num_non_zero--;
         }
       }
     }
@@ -545,6 +565,7 @@ void RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
       last_subblock = 0;
     }
   }
+  return num_non_zero;
 }
 
 int
@@ -682,13 +703,15 @@ RdoQuant::CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
 Coeff
 RdoQuant::QuantCoeffRdo(YuvComponent comp, Coeff orig_coeff, Coeff max_level,
                         const CoeffCodingState &code_state, Bits sig1_bits,
-                        int64_t lambda, int cost_scale, CabacContexts *contexts,
+                        int64_t lambda, int cost_scale,
+                        const ContextModel &c1_ctx, const ContextModel &c2_ctx,
                         const std::function<Coeff(Coeff)> &inv_quant,
                         int64_t *out_cost) const {
   int64_t best_cost = std::numeric_limits<int64_t>::max();
   Coeff best_level = max_level;
   auto get_cost = [&](Coeff level) {
-    Bits bits = sig1_bits + GetAbsLevelBits(comp, level, contexts, code_state);
+    Bits bits =
+      sig1_bits + GetAbsLevelBits(comp, level, c1_ctx, c2_ctx, code_state);
     Coeff dequant = inv_quant(level);
     int64_t err = static_cast<int>(orig_coeff) - dequant;
     int64_t dist = (err * err) << cost_scale;
@@ -815,33 +838,31 @@ RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
 }
 
 Bits RdoQuant::GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
-                               CabacContexts *contexts,
+                               const ContextModel &c1_ctx,
+                               const ContextModel &c2_ctx,
                                const CoeffCodingState &state) const {
   const Coeff base_level = (state.c1_idx < constants::kMaxNumC1Flags) ?
     (2 + (state.c2_idx < constants::kMaxNumC2Flags)) : 1;
-  const ContextModel &c1_ctx =
-    contexts->GetCoeffGreaterThan1Ctx(comp, state.ctx_set, state.c1);
-  const ContextModel &c2_ctx =
-    contexts->GetCoeffGreaterThan2Ctx(comp, state.ctx_set);
+  const uint32_t threshold =
+    !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
+    TransformHelper::kGolombRiceRangeExt[state.golomb_rice_k] :
+    constants::kCoeffRemainBinReduction;
   Bits bits_sum = 0;
   bits_sum += ContextModel::kEntropyBypassBits;   // sign bypass coded
 
   if (quant_level >= base_level) {
     uint32_t code_number = quant_level - base_level;
-    if (code_number <
-      (constants::kCoeffRemainBinReduction << state.golomb_rice_k)) {
+    if (code_number < (threshold << state.golomb_rice_k)) {
       int length = code_number >> state.golomb_rice_k;
       bits_sum +=
         (length + 1 + state.golomb_rice_k) * ContextModel::kEntropyBypassBits;
     } else {
       int length = state.golomb_rice_k;
-      code_number = code_number -
-        (constants::kCoeffRemainBinReduction << state.golomb_rice_k);
+      code_number = code_number - (threshold << state.golomb_rice_k);
       while (code_number >= (1u << length)) {
         code_number -= (1 << (length++));
       }
-      int num_bins = length +
-        constants::kCoeffRemainBinReduction + length + 1 - state.golomb_rice_k;
+      int num_bins = length + threshold + length + 1 - state.golomb_rice_k;
       bits_sum += num_bins * ContextModel::kEntropyBypassBits;
     }
     if (state.c1_idx < constants::kMaxNumC1Flags) {

@@ -49,18 +49,19 @@ private:
                PicturePredictionType pic_type, const SyntaxWriter &writer,
                const Coeff *in, ptrdiff_t in_stride,
                Coeff *out, ptrdiff_t out_stride);
-  void CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
-                         int width, int height,
-                         const Coeff *in, ptrdiff_t in_stride,
-                         const Coeff *delta, ptrdiff_t delta_stride,
-                         Coeff *out, ptrdiff_t out_stride) const;
+  int CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
+                        int width, int height,
+                        const Coeff *in, ptrdiff_t in_stride,
+                        const Coeff *delta, ptrdiff_t delta_stride,
+                        Coeff *out, ptrdiff_t out_stride) const;
   int CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
                        const Qp &qp,
                        const Coeff *src, ptrdiff_t src_stride,
                        Coeff *out, ptrdiff_t out_stride) const;
   Coeff QuantCoeffRdo(YuvComponent comp, Coeff orig_coeff, Coeff level,
                       const CoeffCodingState &code_state, Bits sig1_bits,
-                      int64_t lambda, int cost_scale, CabacContexts *contexts,
+                      int64_t lambda, int cost_scale,
+                      const ContextModel &c1_ctx, const ContextModel &c2_ctx,
                       const std::function<Coeff(Coeff)> &inv_quant,
                       int64_t *out_cost) const;
   bool EvalZeroSubblock(int subblock_index, int size, bool subblock_csbf,
@@ -77,7 +78,8 @@ private:
                   const uint8_t *subblock_csbf,
                   const Bits *csbf_bits_to_zero) const;
   Bits GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
-                       CabacContexts *contexts,
+                       const ContextModel &c1_ctx,
+                       const ContextModel &c2_ctx,
                        const CoeffCodingState &state) const;
   void UpdateCodeState(YuvComponent comp, Coeff quant_level,
                        CoeffCodingState *state) const;

@@ -87,7 +87,7 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   int coeff_num_non_zero = 0;
   int total_num_sig_coeff = 0;
   std::array<Coeff, subblock_size> subblock_coeff;
-  std::array<uint16_t, subblock_size> subblock_nz_coeff_pos;
+  std::array<uint16_t, subblock_size> subblock_pos;
 
   int last_nonzero_pos = -1;
   int first_nonzero_pos = subblock_size;
@@ -135,8 +135,9 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     } else {
       subblock_coeff[0] = 1;
       coeff_num_non_zero = 1;
+      dst_coeff[pos_last_y * dst_stride + pos_last_x] = 1;
     }
-    subblock_nz_coeff_pos[0] = static_cast<uint16_t>(pos_last);
+    subblock_pos[0] = static_cast<uint16_t>(pos_last);
     int subblock_last_offset = subblock_last_index << (subblock_shift * 2);
     last_nonzero_pos = pos_last_index - subblock_last_offset;
     first_nonzero_pos = pos_last_index - subblock_last_offset;
@@ -181,9 +182,9 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     // sig flags
     for (int coeff_index = subblock_size - subblock_last_coeff_offset;
          coeff_index >= 0; coeff_index--) {
-      int scan_offset = scan_table[coeff_index];
-      int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
-      int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
+      const int scan_offset = scan_table[coeff_index];
+      const int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+      const int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
       bool sig_coeff;
       bool not_first_subblock = subblock_index > 0 &&
         !Restrictions::Get().disable_transform_subblock_csbf;
@@ -191,15 +192,17 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         sig_coeff = true;
       } else {
         ContextModel &ctx =
-          ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order, coeff_scan_x,
-                              coeff_scan_y, width_log2, height_log2);
+          ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order,
+                              coeff_scan_x, coeff_scan_y, dst_coeff, dst_stride,
+                              width_log2, height_log2);
         sig_coeff = entropydec_->DecodeBin(&ctx) != 0;
       }
       if (sig_coeff) {
         subblock_coeff[coeff_num_non_zero] = 1;
-        subblock_nz_coeff_pos[coeff_num_non_zero] = static_cast<uint16_t>(
-          (coeff_scan_y << log2size) + coeff_scan_x);
+        subblock_pos[coeff_num_non_zero] =
+          static_cast<uint16_t>((coeff_scan_y << log2size) + coeff_scan_x);
         coeff_num_non_zero++;
+        dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] = 1;
         if (last_nonzero_pos == -1) {
           last_nonzero_pos = coeff_index;
         }
@@ -229,7 +232,12 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       if (i == max_num_c1_flags) {
         break;
       }
-      ContextModel &ctx = ctx_.GetCoeffGreaterThan1Ctx(comp, ctx_set, c1);
+      const int coeff_scan_y = subblock_pos[i] >> log2size;
+      const int coeff_scan_x = subblock_pos[i] - (coeff_scan_y << log2size);
+      ContextModel &ctx =
+        ctx_.GetCoeffGreater1Ctx(comp, ctx_set, c1, coeff_scan_x, coeff_scan_y,
+                                 i == 0 && is_last_subblock,
+                                 dst_coeff, dst_stride, width, height);
       uint32_t greater_than_1 = entropydec_->DecodeBin(&ctx);
       if (greater_than_1) {
         c1 = 0;
@@ -238,6 +246,7 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
           first_c2_idx = i;
         }
         subblock_coeff[i] = 2;
+        dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] = 2;
       } else if (c1 < 3 && c1 > 0) {
         c1++;
       }
@@ -245,9 +254,16 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
 
     // greater than 2 flag (max 1)
     if (first_c2_idx >= 0) {
-      ContextModel &ctx = ctx_.GetCoeffGreaterThan2Ctx(comp, ctx_set);
-      uint32_t bin = entropydec_->DecodeBin(&ctx);
-      subblock_coeff[first_c2_idx] += static_cast<Coeff>(bin);
+      const int coeff_scan_y = subblock_pos[first_c2_idx] >> log2size;
+      const int coeff_scan_x = subblock_pos[first_c2_idx] -
+        (coeff_scan_y << log2size);
+      ContextModel &ctx =
+        ctx_.GetCoeffGreater2Ctx(comp, ctx_set, coeff_scan_x, coeff_scan_y,
+                                 first_c2_idx == 0 && is_last_subblock,
+                                 dst_coeff, dst_stride, width, height);
+      Coeff abs_lvl = static_cast<Coeff>(entropydec_->DecodeBin(&ctx));
+      subblock_coeff[first_c2_idx] += abs_lvl;
+      dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] += abs_lvl;
     }
 
     // sign hiding
@@ -275,11 +291,20 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         Restrictions::Get().disable_transform_residual_greater2 ? 0 : 1;
       uint32_t golomb_rice_k = 0;
       for (int i = 0; i < coeff_num_non_zero; i++) {
+        const int coeff_scan_y = subblock_pos[i] >> log2size;
+        const int coeff_scan_x = subblock_pos[i] - (coeff_scan_y << log2size);
         Coeff base_level = static_cast<Coeff>(
           (i < max_num_c1_flags) ? (2 + first_coeff_greater2) : 1);
         if (subblock_coeff[i] == base_level) {
-          subblock_coeff[i] +=
+          if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+            golomb_rice_k =
+              ctx_.GetCoeffGolombRiceK(coeff_scan_x, coeff_scan_y, width,
+                                       height, dst_coeff, dst_stride);
+          }
+          Coeff abs_lvl =
             static_cast<Coeff>(ReadCoeffRemainExpGolomb(golomb_rice_k));
+          subblock_coeff[i] += abs_lvl;
+          dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] += abs_lvl;
           if (subblock_coeff[i] > 3 * (1 << golomb_rice_k) &&
               !Restrictions::Get().disable_transform_adaptive_exp_golomb) {
             golomb_rice_k = std::min(golomb_rice_k + 1, 4u);
@@ -290,21 +315,21 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         }
       }
     }
+
     int abs_sum = 0;
     // store calculated coefficients
     for (int i = 0; i < coeff_num_non_zero; i++) {
-      int coeff_scan = subblock_nz_coeff_pos[i];
-      int y = coeff_scan >> log2size;
-      int x = coeff_scan - (y << log2size);
-
+      const int coeff_scan_y = subblock_pos[i] >> log2size;
+      const int coeff_scan_x = subblock_pos[i] - (coeff_scan_y << log2size);
       Coeff coeff = subblock_coeff[i];
       abs_sum += coeff;
       if (i == coeff_num_non_zero - 1 && sign_hidden) {
         int sign = (abs_sum & 0x1) ? -1 : 1;
-        dst_coeff[y * dst_stride + x] = static_cast<Coeff>(sign * coeff);
+        dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] =
+          static_cast<Coeff>(sign * coeff);
       } else {
-        int sign = static_cast<int>(coeff_signs) >> 31;
-        dst_coeff[y * dst_stride + x] =
+        int sign = static_cast<int32_t>(coeff_signs) >> 31;
+        dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] =
           static_cast<Coeff>((coeff ^ sign) - sign);
         coeff_signs <<= 1;
       }
@@ -680,20 +705,23 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
 }
 
 uint32_t SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
+  const uint32_t threshold =
+    !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
+    TransformHelper::kGolombRiceRangeExt[golomb_rice_k] :
+    constants::kCoeffRemainBinReduction;
   uint32_t prefix = 0;
   uint32_t code_word;
   while ((code_word = entropydec_->DecodeBypass()) != 0) {
     prefix++;
   }
-  if (prefix < constants::kCoeffRemainBinReduction) {
+  if (prefix < threshold) {
     code_word = entropydec_->DecodeBypassBins(golomb_rice_k);
     return (prefix << golomb_rice_k) + code_word;
   } else {
-    code_word = entropydec_->DecodeBypassBins(
-      prefix - constants::kCoeffRemainBinReduction + golomb_rice_k);
+    code_word =
+      entropydec_->DecodeBypassBins(prefix - threshold + golomb_rice_k);
     return code_word +
-      (((1 << (prefix - constants::kCoeffRemainBinReduction)) +
-        constants::kCoeffRemainBinReduction - 1) << golomb_rice_k);
+      (((1 << (prefix - threshold)) + threshold - 1) << golomb_rice_k);
   }
 }
 

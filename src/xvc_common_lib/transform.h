@@ -163,6 +163,7 @@ class TransformHelper {
 public:
   static const std::array<uint8_t, 128> kLastPosGroupIdx;
   static const std::array<uint8_t, 14> kLastPosMinInGroup;
+  static const std::array<uint8_t, 10> kGolombRiceRangeExt;
   static const std::array<std::array<uint8_t, 4>, 3> kScanCoeff2x2;
   static const std::array<std::array<uint8_t, 16>, 3> kScanCoeff4x4;
 

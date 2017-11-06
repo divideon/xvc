@@ -55,6 +55,10 @@ const std::array<uint8_t, 14> TransformHelper::kLastPosMinInGroup = { {
   0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
 } };
 
+const std::array<uint8_t, 10> TransformHelper::kGolombRiceRangeExt = { {
+  6, 5, 6, 3, 3, 3, 3, 3, 3, 3
+} };
+
 const std::array<std::array<uint8_t, 4>, 3> TransformHelper::kScanCoeff2x2 = { {
   { 0, 2, 1, 3 },
   { 0, 1, 2, 3 },

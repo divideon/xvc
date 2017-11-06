@@ -69,12 +69,21 @@ public:
   static const int kNumSubblockCsbfCtx = 4;
   static const int kNumSubblockCsbfCtxLuma = 2;
   static const int kNumSubblockCsbfCtxChroma = 2;
+  static const int kNumExtSubblockCsbfCtx = 4;
+  static const int kNumExtSubblockCsbfCtxLuma = 2;
+  static const int kNumExtSubblockCsbfCtxChroma = 2;
   static const int kNumCoeffSigCtx = 42;
   static const int kNumCoeffSigCtxLuma = 27;
   static const int kNumCoeffSigCtxChroma = 15;
+  static const int kNumExtCoeffSigCtx = 66;
+  static const int kNumExtCoeffSigCtxLuma = 54;
+  static const int kNumExtCoeffSigCtxChroma = 12;
   static const int kNumCoeffGreater1Ctx = 24;
   static const int kNumCoeffGreater1CtxLuma = 16;
   static const int kNumCoeffGreater1CtxChroma = 8;
+  static const int kNumExtCoeffGreater1Ctx = 22;
+  static const int kNumExtCoeffGreater1CtxLuma = 16;
+  static const int kNumExtCoeffGreater1CtxChroma = 6;
   static const int kNumCoeffGreater2Ctx = 6;
   static const int kNumCoeffGreater2CtxLuma = 4;
   static const int kNumCoeffGreater2CtxChroma = 2;
@@ -89,6 +98,7 @@ public:
   static const int kNumTransformSelectIdxCtx = 4;
   static const int kNumTquantBypassFlagCtx = 1;
 
+  CabacContexts() {}
   void ResetStates(const Qp &qp, PicturePredictionType pic_type);
 
   ContextModel& GetSkipFlagCtx(const CodingUnit &cu);
@@ -103,10 +113,18 @@ public:
                                    int *pattern_sig_ctx);
   ContextModel& GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
                                ScanOrder scan_order, int posx, int posy,
+                               const Coeff *coeff, ptrdiff_t coeff_stride,
                                int width_log2, int height_log2);
-  ContextModel& GetCoeffGreaterThan1Ctx(YuvComponent comp, int ctx_set,
-                                        int c1);
-  ContextModel& GetCoeffGreaterThan2Ctx(YuvComponent comp, int ctx_set);
+  ContextModel& GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
+                                    int posx, int posy, bool is_last_coeff,
+                                    const Coeff *coeff, ptrdiff_t coeff_stride,
+                                    int width_log2, int height_log2);
+  ContextModel& GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
+                                    int posx, int posy, bool is_last_coeff,
+                                    const Coeff *coeff, ptrdiff_t coeff_stride,
+                                    int width_log2, int height_log2);
+  uint32_t GetCoeffGolombRiceK(int posx, int posy, int width, int height,
+                               const Coeff *coeff, ptrdiff_t coeff_stride);
   ContextModel& GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
                                    int pos, bool is_pos_x);
 
@@ -128,14 +146,26 @@ public:
   std::array<ContextModel, kNumIntraPredCtxLuma> intra_pred_luma;
   std::array<ContextModel, kNumIntraPredCtxChroma> intra_pred_chroma;
   std::array<ContextModel, kNumLicFlagCtx> lic_flag;
-  std::array<ContextModel, kNumSubblockCsbfCtxLuma> subblock_csbf_luma;
-  std::array<ContextModel, kNumSubblockCsbfCtxChroma> subblock_csbf_chroma;
-  std::array<ContextModel, kNumCoeffSigCtxLuma> coeff_sig_luma;
-  std::array<ContextModel, kNumCoeffSigCtxChroma> coeff_sig_chroma;
-  std::array<ContextModel, kNumCoeffGreater1CtxLuma> coeff_greater1_luma;
-  std::array<ContextModel, kNumCoeffGreater1CtxChroma> coeff_greater1_chroma;
-  std::array<ContextModel, kNumCoeffGreater2CtxLuma> coeff_greater2_luma;
-  std::array<ContextModel, kNumCoeffGreater2CtxChroma> coeff_greater2_chroma;
+  union {
+    struct {
+      std::array<ContextModel, kNumSubblockCsbfCtxLuma> csbf_luma;
+      std::array<ContextModel, kNumSubblockCsbfCtxChroma> csbf_chroma;
+      std::array<ContextModel, kNumCoeffSigCtxLuma> sig_luma;
+      std::array<ContextModel, kNumCoeffSigCtxChroma> sig_chroma;
+      std::array<ContextModel, kNumCoeffGreater1CtxLuma> greater1_luma;
+      std::array<ContextModel, kNumCoeffGreater1CtxChroma> greater1_chroma;
+      std::array<ContextModel, kNumCoeffGreater2CtxLuma> greater2_luma;
+      std::array<ContextModel, kNumCoeffGreater2CtxChroma> greater2_chroma;
+    } coeff;
+    struct {
+      std::array<ContextModel, kNumExtSubblockCsbfCtxLuma> csbf_luma;
+      std::array<ContextModel, kNumExtSubblockCsbfCtxChroma> csbf_chroma;
+      std::array<ContextModel, kNumExtCoeffSigCtxLuma> sig_luma;
+      std::array<ContextModel, kNumExtCoeffSigCtxChroma> sig_chroma;
+      std::array<ContextModel, kNumExtCoeffGreater1CtxLuma> greater1_luma;
+      std::array<ContextModel, kNumExtCoeffGreater1CtxChroma> greater1_chroma;
+    } coeff_ext;
+  };
   std::array<ContextModel, kNumCoeffLastPosCtxLuma> coeff_last_pos_x_luma;
   std::array<ContextModel, kNumCoeffLastPosCtxChroma> coeff_last_pos_x_chroma;
   std::array<ContextModel, kNumCoeffLastPosCtxLuma> coeff_last_pos_y_luma;

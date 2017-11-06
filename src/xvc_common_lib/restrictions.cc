@@ -281,6 +281,10 @@ Restrictions::Restrictions() {
   disable_ext_cabac_alt_last_pos_ctx = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT_CABAC_ALT_RESIDUAL_CTX
+  disable_ext_cabac_alt_residual_ctx = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT_TWO_CU_TREES
   disable_ext_two_cu_trees = true;
 #endif
@@ -328,6 +332,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_cabac_alt_split_flag_ctx = true;
     disable_ext_cabac_alt_inter_dir_ctx = true;
     disable_ext_cabac_alt_last_pos_ctx = true;
+    disable_ext_cabac_alt_residual_ctx = true;
     disable_ext_two_cu_trees = true;
     disable_ext_transform_size_64 = true;
     disable_ext_deblock_subblock_size_4 = true;

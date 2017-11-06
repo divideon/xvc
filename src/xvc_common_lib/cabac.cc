@@ -251,6 +251,13 @@ kInitSubblockCsbf[3][CabacContexts::kNumSubblockCsbfCtx] = {
 };
 
 static const uint8_t
+kInitExtSubblockCsbf[3][CabacContexts::kNumExtSubblockCsbfCtx] = {
+  { 122, 143, 91, 141, },
+  { 61, 154, 78, 111, },
+  { 135, 155, 104, 139, },
+};
+
+static const uint8_t
 kInitCoeffSig[3][CabacContexts::kNumCoeffSigCtx] = {
   { 170, 154, 139, 153, 139, 123, 123, 63, 124, 166, 183, 140, 136, 153, 154,
   166, 183, 140, 136, 153, 154, 166, 183, 140, 136, 153, 154, 170, 153, 138,
@@ -264,6 +271,25 @@ kInitCoeffSig[3][CabacContexts::kNumCoeffSigCtx] = {
 };
 
 static const uint8_t
+kInitExtCoeffSig[3][CabacContexts::kNumExtCoeffSigCtx] = {
+  { 107, 139, 154, 140, 140, 141, 108, 154, 125, 155, 126, 127, 139, 155, 155,
+  141, 156, 143, 107, 139, 154, 140, 140, 141, 108, 154, 125, 155, 126, 127,
+  139, 155, 155, 141, 156, 143, 107, 139, 154, 140, 140, 141, 108, 154, 125,
+  155, 126, 127, 139, 155, 155, 141, 156, 143, 137, 154, 154, 155, 155, 156,
+  124, 185, 156, 171, 142, 158, },
+  { 121, 167, 153, 139, 154, 140, 137, 168, 139, 154, 169, 155, 167, 169, 169,
+  184, 199, 156, 121, 167, 153, 139, 154, 140, 137, 168, 139, 154, 169, 155,
+  167, 169, 169, 184, 199, 156, 121, 167, 153, 139, 154, 140, 137, 168, 139,
+  154, 169, 155, 167, 169, 169, 184, 199, 156, 136, 153, 139, 154, 125, 140,
+  122, 154, 184, 185, 171, 157, },
+  { 152, 139, 154, 154, 169, 155, 182, 154, 169, 184, 155, 141, 168, 214, 199,
+  170, 170, 171, 152, 139, 154, 154, 169, 155, 182, 154, 169, 184, 155, 141,
+  168, 214, 199, 170, 170, 171, 152, 139, 154, 154, 169, 155, 182, 154, 169,
+  184, 155, 141, 168, 214, 199, 170, 170, 171, 167, 154, 169, 140, 155, 141,
+  153, 171, 185, 156, 171, 172, },
+};
+
+static const uint8_t
 kInitCoeffGreater1[3][CabacContexts::kNumCoeffGreater1Ctx] = {
   { 154, 196, 167, 167, 154, 152, 167, 182, 182, 134, 149, 136, 153, 121, 136,
   122, 169, 208, 166, 167, 154, 152, 167, 182, },
@@ -271,6 +297,16 @@ kInitCoeffGreater1[3][CabacContexts::kNumCoeffGreater1Ctx] = {
   137, 169, 194, 166, 167, 154, 167, 137, 182, },
   { 140, 92, 137, 138, 140, 152, 138, 139, 153, 74, 149, 92, 139, 107, 122,
   152, 140, 179, 166, 182, 140, 227, 122, 197, },
+};
+
+static const uint8_t
+kInitExtCoeffGreater1[3][CabacContexts::kNumExtCoeffGreater1Ctx] = {
+  { 121, 135, 123, 124, 139, 125,  92, 124, 154, 125, 155, 138, 169, 155, 170,
+  156, 166, 152, 140, 170, 171, 157 },
+  { 165,  75, 152, 153, 139, 154, 121, 138, 139, 154, 140, 167, 183, 169, 170,
+  156, 193, 181, 169, 170, 171, 172 },
+  { 196, 105, 152, 153, 139, 154, 136, 138, 139, 169, 140, 196, 183, 169, 170,
+  171, 195, 181, 169, 170, 156, 157 },
 };
 
 static const uint8_t
@@ -377,10 +413,20 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &intra_pred_luma, kInitIntraLumaPredMode);
   Init(q, s, &intra_pred_chroma, kInitIntraChromaPredMode);
   Init(q, s, &lic_flag, kInitLicFlag);
-  Init(q, s, &subblock_csbf_luma, &subblock_csbf_chroma, kInitSubblockCsbf);
-  Init(q, s, &coeff_sig_luma, &coeff_sig_chroma, kInitCoeffSig);
-  Init(q, s, &coeff_greater1_luma, &coeff_greater1_chroma, kInitCoeffGreater1);
-  Init(q, s, &coeff_greater2_luma, &coeff_greater2_chroma, kInitCoeffGreater2);
+  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+    Init(q, s, &coeff_ext.csbf_luma, &coeff_ext.csbf_chroma,
+         kInitExtSubblockCsbf);
+    Init(q, s, &coeff_ext.sig_luma, &coeff_ext.sig_chroma, kInitExtCoeffSig);
+    Init(q, s, &coeff_ext.greater1_luma, &coeff_ext.greater1_chroma,
+         kInitExtCoeffGreater1);
+  } else {
+    Init(q, s, &coeff.csbf_luma, &coeff.csbf_chroma, kInitSubblockCsbf);
+    Init(q, s, &coeff.sig_luma, &coeff.sig_chroma, kInitCoeffSig);
+    Init(q, s, &coeff.greater1_luma, &coeff.greater1_chroma,
+         kInitCoeffGreater1);
+    Init(q, s, &coeff.greater2_luma, &coeff.greater2_chroma,
+         kInitCoeffGreater2);
+  }
   Init(q, s, &coeff_last_pos_x_luma, &coeff_last_pos_x_chroma, kInitLastPos);
   Init(q, s, &coeff_last_pos_y_luma, &coeff_last_pos_y_chroma, kInitLastPos);
   Init(q, s, &transform_skip_flag, kInitTransformSkipFlag);
@@ -500,15 +546,20 @@ ContextModel& CabacContexts::GetInterFullpelMvCtx(const CodingUnit &cu) {
   return inter_fullpel_mv[offset];
 }
 
-ContextModel& CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
-                                                const uint8_t *sublock_csbf,
-                                                int posx, int posy, int width,
-                                                int height,
-                                                int *pattern_sig_ctx) {
+ContextModel&
+CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
+                                  const uint8_t *sublock_csbf,
+                                  int posx, int posy, int width, int height,
+                                  int *pattern_sig_ctx) {
   int below = false;
   int right = false;
-  ContextModel *ctx_base =
-    util::IsLuma(comp) ? &subblock_csbf_luma[0] : &subblock_csbf_chroma[0];
+  ContextModel *ctx_base;
+  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+    ctx_base = util::IsLuma(comp) ?
+      &coeff_ext.csbf_luma[0] : &coeff_ext.csbf_chroma[0];
+  } else {
+    ctx_base = util::IsLuma(comp) ? &coeff.csbf_luma[0] : &coeff.csbf_chroma[0];
+  }
   if (posx < width - 1) {
     right = sublock_csbf[posy * width + posx + 1] != 0;
   }
@@ -525,59 +576,198 @@ ContextModel& CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
 ContextModel&
 CabacContexts::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
                               ScanOrder scan_order, int posx, int posy,
+                              const Coeff *in_coeff, ptrdiff_t in_coeff_stride,
                               int width_log2, int height_log2) {
   static const uint8_t kCtxIndexMap[16] = {
     0, 1, 4, 5, 2, 3, 4, 5, 6, 6, 8, 8, 7, 7, 8, 8
   };
-  ContextModel *ctx_base =
-    util::IsLuma(comp) ? &coeff_sig_luma[0] : &coeff_sig_chroma[0];
-  if ((!posx && !posy) || Restrictions::Get().disable_cabac_coeff_sig_ctx) {
-    return ctx_base[0];
-  }
-  if (width_log2 == 2 && height_log2 == 2) {
-    return ctx_base[kCtxIndexMap[4 * posy + posx]];
-  }
-  int start_offset = util::IsLuma(comp) ? 21 : 12;
-  if (width_log2 == 3 && height_log2 == 3) {
-    start_offset = scan_order == ScanOrder::kDiagonal ? 9 : 15;
-  }
-  int pos_x_in_subset = posx - ((posx >> 2) << 2);
-  int pos_y_in_subset = posy - ((posy >> 2) << 2);
-  int cnt = 0;
-  if (pattern_sig_ctx == 0) {
-    cnt = pos_x_in_subset + pos_y_in_subset <= 2 ?
-      (pos_x_in_subset + pos_y_in_subset == 0 ? 2 : 1) : 0;
-  } else if (pattern_sig_ctx == 1) {
-    cnt = pos_y_in_subset <= 1 ? (pos_y_in_subset == 0 ? 2 : 1) : 0;
-  } else if (pattern_sig_ctx == 2) {
-    cnt = pos_x_in_subset <= 1 ? (pos_x_in_subset == 0 ? 2 : 1) : 0;
+  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+    const int width = 1 << width_log2;
+    const int height = 1 << height_log2;
+    const int size = (width_log2 + height_log2) >> 1;
+    const int posxy = posx + posy;
+    if (Restrictions::Get().disable_cabac_coeff_sig_ctx) {
+      return coeff_ext.sig_luma[0];
+    }
+    in_coeff += posx + posy * in_coeff_stride;
+    int offset = 0;
+    if (posx < width - 1) {
+      offset += in_coeff[1] != 0;
+      if (posx < width - 2) {
+        offset += in_coeff[2] != 0;
+      }
+      if (posy < height - 1) {
+        offset += in_coeff[1 + in_coeff_stride] != 0;
+      }
+    }
+    if (posy < height - 1) {
+      offset += in_coeff[in_coeff_stride] != 0;
+      if (posy < height - 2) {
+        offset += in_coeff[in_coeff_stride * 2] != 0;
+      }
+    }
+    offset = std::min(offset, 5);
+    int start_offset = posxy < 2 ? 6 : 0;
+    start_offset += util::IsLuma(comp) && posxy < 5 ? 6 : 0;
+    start_offset += size > 2 && util::IsLuma(comp) ?
+      18 << std::min(1, size - 3) : 0;
+    return util::IsLuma(comp) ? coeff_ext.sig_luma[start_offset + offset] :
+      coeff_ext.sig_chroma[start_offset + offset];
   } else {
-    cnt = 2;
+    ContextModel *ctx_base = util::IsLuma(comp) ?
+      &coeff.sig_luma[0] : &coeff.sig_chroma[0];
+    if ((!posx && !posy) || Restrictions::Get().disable_cabac_coeff_sig_ctx) {
+      return ctx_base[0];
+    }
+    if (width_log2 == 2 && height_log2 == 2) {
+      return ctx_base[kCtxIndexMap[4 * posy + posx]];
+    }
+    int start_offset = util::IsLuma(comp) ? 21 : 12;
+    if (width_log2 == 3 && height_log2 == 3) {
+      start_offset = scan_order == ScanOrder::kDiagonal ? 9 : 15;
+    }
+    int pos_x_in_subset = posx - ((posx >> 2) << 2);
+    int pos_y_in_subset = posy - ((posy >> 2) << 2);
+    int cnt = 0;
+    if (pattern_sig_ctx == 0) {
+      cnt = pos_x_in_subset + pos_y_in_subset <= 2 ?
+        (pos_x_in_subset + pos_y_in_subset == 0 ? 2 : 1) : 0;
+    } else if (pattern_sig_ctx == 1) {
+      cnt = pos_y_in_subset <= 1 ? (pos_y_in_subset == 0 ? 2 : 1) : 0;
+    } else if (pattern_sig_ctx == 2) {
+      cnt = pos_x_in_subset <= 1 ? (pos_x_in_subset == 0 ? 2 : 1) : 0;
+    } else {
+      cnt = 2;
+    }
+    int comp_offset =
+      util::IsLuma(comp) && ((posx >> 2) + (posy >> 2)) > 0 ? 3 : 0;
+    return ctx_base[start_offset + comp_offset + cnt];
   }
-  int comp_offset =
-    util::IsLuma(comp) && ((posx >> 2) + (posy >> 2)) > 0 ? 3 : 0;
-  return ctx_base[start_offset + comp_offset + cnt];
 }
 
-ContextModel& CabacContexts::GetCoeffGreaterThan1Ctx(YuvComponent comp,
-                                                     int ctx_set, int c1) {
-  ContextModel *ctx_base =
-    util::IsLuma(comp) ? &coeff_greater1_luma[0] : &coeff_greater1_chroma[0];
-  if (Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
-    return ctx_base[0];
+ContextModel&
+CabacContexts::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
+                                   int posx, int posy, bool is_last_coeff,
+                                   const Coeff *in_coeff,
+                                   ptrdiff_t in_coeff_stride,
+                                   int width, int height) {
+  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+    const int posxy = posx + posy;
+    if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
+      return util::IsLuma(comp) ?
+        coeff_ext.greater1_luma[0] : coeff_ext.greater1_chroma[0];
+    }
+    in_coeff += posx + posy * in_coeff_stride;
+    int offset = 0;
+    if (posx < width - 1) {
+      offset += std::abs(in_coeff[1]) > 1;
+      if (posx < width - 2) {
+        offset += std::abs(in_coeff[2]) > 1;
+      }
+      if (posy < height - 1) {
+        offset += std::abs(in_coeff[1 + in_coeff_stride]) > 1;
+      }
+    }
+    if (posy < height - 1) {
+      offset += std::abs(in_coeff[in_coeff_stride]) > 1;
+      if (posy < height - 2) {
+        offset += std::abs(in_coeff[in_coeff_stride * 2]) > 1;
+      }
+    }
+    offset = std::min(offset, 4) + 1;
+    int start_offset = util::IsLuma(comp) ?
+      (posxy < 3 ? 10 : (posxy < 10 ? 5 : 0)) : 0;
+    return util::IsLuma(comp) ? coeff_ext.greater1_luma[start_offset + offset] :
+      coeff_ext.greater1_chroma[start_offset + offset];
+  } else {
+    if (Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
+      return util::IsLuma(comp) ?
+        coeff.greater1_luma[0] : coeff.greater1_chroma[0];
+    }
+    const int offset = 4 * ctx_set + c1;
+    return util::IsLuma(comp) ?
+      coeff.greater1_luma[offset] : coeff.greater1_chroma[offset];
   }
-  return ctx_base[4 * ctx_set + c1];
 }
 
-ContextModel& CabacContexts::GetCoeffGreaterThan2Ctx(YuvComponent comp,
-                                                     int ctx_set) {
-  ContextModel *ctx_base =
-    util::IsLuma(comp) ? &coeff_greater2_luma[0] : &coeff_greater2_chroma[0];
-  if (Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
-    return ctx_base[0];
+ContextModel&
+CabacContexts::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
+                                   int posx, int posy, bool is_last_coeff,
+                                   const Coeff *in_coeff,
+                                   ptrdiff_t in_coeff_stride,
+                                   int width, int height) {
+  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+    const int posxy = posx + posy;
+    if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
+      return util::IsLuma(comp) ?
+        coeff_ext.greater1_luma[0] : coeff_ext.greater1_chroma[0];
+    }
+    in_coeff += posx + posy * in_coeff_stride;
+    int offset = 0;
+    if (posx < width - 1) {
+      offset += std::abs(in_coeff[1]) > 2;
+      if (posx < width - 2) {
+        offset += std::abs(in_coeff[2]) > 2;
+      }
+      if (posy < height - 1) {
+        offset += std::abs(in_coeff[1 + in_coeff_stride]) > 2;
+      }
+    }
+    if (posy < height - 1) {
+      offset += std::abs(in_coeff[in_coeff_stride]) > 2;
+      if (posy < height - 2) {
+        offset += std::abs(in_coeff[in_coeff_stride * 2]) > 2;
+      }
+    }
+    offset = std::min(offset, 4) + 1;
+    int start_offset = util::IsLuma(comp) ?
+      (posxy < 3 ? 10 : (posxy < 10 ? 5 : 0)) : 0;
+    return util::IsLuma(comp) ? coeff_ext.greater1_luma[start_offset + offset] :
+      coeff_ext.greater1_chroma[start_offset + offset];
+  } else {
+    static_assert(1 == constants::kMaxNumC2Flags, "Assumes only 1 c2 flag");
+    return util::IsLuma(comp) ?
+      coeff.greater2_luma[ctx_set] : coeff.greater2_chroma[ctx_set];
   }
-  static_assert(1 == constants::kMaxNumC2Flags, "Assumes only 1 greater2 flag");
-  return ctx_base[ctx_set];
+}
+
+uint32_t
+CabacContexts::GetCoeffGolombRiceK(int posx, int posy, int width, int height,
+                                   const Coeff *in_coeff,
+                                   ptrdiff_t in_coeff_stride) {
+  assert(!Restrictions::Get().disable_ext_cabac_alt_residual_ctx);
+  in_coeff += posx + posy * in_coeff_stride;
+  int offset = 0;
+  int num = 0;
+  if (posx < width - 1) {
+    offset += std::abs(in_coeff[1]);
+    num += in_coeff[1] != 0;
+    if (posx < width - 2) {
+      offset += std::abs(in_coeff[2]);
+      num += in_coeff[2] != 0;
+    }
+    if (posy < height - 1) {
+      offset += std::abs(in_coeff[1 + in_coeff_stride]);
+      num += in_coeff[1 + in_coeff_stride] != 0;
+    }
+  }
+  if (posy < height - 1) {
+    offset += std::abs(in_coeff[in_coeff_stride]);
+    num += in_coeff[in_coeff_stride] != 0;
+    if (posy < height - 2) {
+      offset += std::abs(in_coeff[in_coeff_stride * 2]);
+      num += in_coeff[in_coeff_stride * 2] != 0;
+    }
+  }
+  const int num_k =
+    static_cast<int>(TransformHelper::kGolombRiceRangeExt.size());
+  uint32_t threshold = 4 + static_cast<uint32_t>(offset - num);
+  for (uint32_t k = 0; k < num_k; k++) {
+    if ((1u << (k + 3)) > threshold) {
+      return k;
+    }
+  }
+  return static_cast<uint32_t>(TransformHelper::kGolombRiceRangeExt.size() - 1);
 }
 
 ContextModel&

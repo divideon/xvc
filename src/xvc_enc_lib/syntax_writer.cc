@@ -71,6 +71,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   const int height = cu.GetHeight(comp);
   const int width_log2 = util::SizeToLog2(width);
   const int height_log2 = util::SizeToLog2(height);
+  const int log2size = util::SizeToLog2(width);
   constexpr int subblock_shift = SubBlockShift;
   constexpr int subblock_mask = (1 << subblock_shift) - 1;
   constexpr int subblock_size = 1 << (subblock_shift * 2);
@@ -96,6 +97,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   int coeff_num_non_zero = 0;
   int total_num_sig_coeff = 0;
   std::array<Coeff, subblock_size> subblock_coeff;
+  std::array<uint16_t, subblock_size> subblock_pos;
   int pos_last_index = 0, pos_last_x = 0, pos_last_y = 0;
 
   // Find all significant subblocks and last coeff pos x/y
@@ -141,6 +143,8 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       coeff_signs = last_coeff < 0;
     }
     subblock_coeff[0] = static_cast<Coeff>(std::abs(last_coeff));
+    subblock_pos[0] =
+      static_cast<uint16_t>((pos_last_y << log2size) + pos_last_x);
     int subblock_last_offset = subblock_last_index << (subblock_shift * 2);
     last_nonzero_pos = pos_last_index - subblock_last_offset;
     first_nonzero_pos = pos_last_index - subblock_last_offset;
@@ -192,8 +196,8 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     for (int coeff_index = subblock_size - subblock_last_coeff_offset;
          coeff_index >= 0; coeff_index--) {
       int scan_offset = scan_table[coeff_index];
-      int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
-      int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
+      const int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+      const int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
       Coeff coeff = src_coeff[coeff_scan_y * src_coeff_stride + coeff_scan_x];
       bool not_first_subblock = subblock_index > 0 &&
         !Restrictions::Get().disable_transform_subblock_csbf;
@@ -202,13 +206,18 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         assert(coeff != 0);
       } else {
         ContextModel &ctx =
-          ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order, coeff_scan_x,
-                              coeff_scan_y, width_log2, height_log2);
+          ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order,
+                              coeff_scan_x, coeff_scan_y,
+                              src_coeff, src_coeff_stride,
+                              width_log2, height_log2);
         entropyenc_->EncodeBin(coeff != 0, &ctx);
       }
       if (coeff != 0) {
-        subblock_coeff[coeff_num_non_zero++] =
+        subblock_coeff[coeff_num_non_zero] =
           static_cast<Coeff>(std::abs(coeff));
+        subblock_pos[coeff_num_non_zero] =
+          static_cast<uint16_t>((coeff_scan_y << log2size) + coeff_scan_x);
+        coeff_num_non_zero++;
         coeff_signs = (coeff_signs << 1) + (coeff < 0);
         if (last_nonzero_pos == -1) {
           last_nonzero_pos = coeff_index;
@@ -238,8 +247,13 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       if (i == max_num_c1_flags) {
         break;
       }
+      const int coeff_scan_y = subblock_pos[i] >> log2size;
+      const int coeff_scan_x = subblock_pos[i] - (coeff_scan_y << log2size);
       uint32_t greater_than_1 = subblock_coeff[i] > 1;
-      ContextModel &ctx = ctx_.GetCoeffGreaterThan1Ctx(comp, ctx_set, c1);
+      ContextModel &ctx =
+        ctx_.GetCoeffGreater1Ctx(comp, ctx_set, c1, coeff_scan_x, coeff_scan_y,
+                                 i == 0 && is_last_subblock,
+                                 src_coeff, src_coeff_stride, width, height);
       entropyenc_->EncodeBin(greater_than_1, &ctx);
       if (greater_than_1) {
         c1 = 0;
@@ -254,8 +268,14 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
 
     // greater than 2 flag (max 1)
     if (first_c2_idx >= 0) {
+      const int coeff_scan_y = subblock_pos[first_c2_idx] >> log2size;
+      const int coeff_scan_x = subblock_pos[first_c2_idx] -
+        (coeff_scan_y << log2size);
       uint32_t greater_than_2 = subblock_coeff[first_c2_idx] > 2;
-      ContextModel &ctx = ctx_.GetCoeffGreaterThan2Ctx(comp, ctx_set);
+      ContextModel &ctx =
+        ctx_.GetCoeffGreater2Ctx(comp, ctx_set, coeff_scan_x, coeff_scan_y,
+                                 first_c2_idx == 0 && is_last_subblock,
+                                 src_coeff, src_coeff_stride, width, height);
       entropyenc_->EncodeBin(greater_than_2, &ctx);
     }
 
@@ -274,7 +294,6 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     } else {
       entropyenc_->EncodeBypassBins(coeff_signs, coeff_num_non_zero);
     }
-    coeff_signs = 0;
 
     // abs level remaining
     if (c1 == 0 || coeff_num_non_zero > max_num_c1_flags) {
@@ -282,9 +301,16 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         Restrictions::Get().disable_transform_residual_greater2 ? 0 : 1;
       uint32_t golomb_rice_k = 0;
       for (int i = 0; i < coeff_num_non_zero; i++) {
+        const int coeff_scan_y = subblock_pos[i] >> log2size;
+        const int coeff_scan_x = subblock_pos[i] - (coeff_scan_y << log2size);
         Coeff base_level = static_cast<Coeff>(
           (i < max_num_c1_flags) ? (2 + first_coeff_greater2) : 1);
         if (subblock_coeff[i] >= base_level) {
+          if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+            golomb_rice_k =
+              ctx_.GetCoeffGolombRiceK(coeff_scan_x, coeff_scan_y, width,
+                                       height, src_coeff, src_coeff_stride);
+          }
           WriteCoeffRemainExpGolomb(subblock_coeff[i] - base_level,
                                     golomb_rice_k);
           if (subblock_coeff[i] > 3 * (1 << golomb_rice_k) &&
@@ -297,8 +323,10 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         }
       }
     }
+
     total_num_sig_coeff += coeff_num_non_zero;
     coeff_num_non_zero = 0;
+    coeff_signs = 0;
   }
   return total_num_sig_coeff;
 }
@@ -690,19 +718,22 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
 
 void SyntaxWriter::WriteCoeffRemainExpGolomb(uint32_t code_number,
                                              uint32_t golomb_rice_k) {
-  if (code_number < (constants::kCoeffRemainBinReduction << golomb_rice_k)) {
+  const uint32_t threshold =
+    !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
+    TransformHelper::kGolombRiceRangeExt[golomb_rice_k] :
+    constants::kCoeffRemainBinReduction;
+  if (code_number < (threshold << golomb_rice_k)) {
     uint32_t length = code_number >> golomb_rice_k;
     entropyenc_->EncodeBypassBins((1 << (length + 1)) - 2, length + 1);
     entropyenc_->EncodeBypassBins((code_number % (1 << golomb_rice_k)),
                                   golomb_rice_k);
   } else {
     uint32_t length = golomb_rice_k;
-    code_number -= (constants::kCoeffRemainBinReduction << golomb_rice_k);
+    code_number -= (threshold << golomb_rice_k);
     while (code_number >= (1u << length)) {
       code_number -= (1 << (length++));
     }
-    int num_bins =
-      constants::kCoeffRemainBinReduction + length + 1 - golomb_rice_k;
+    int num_bins = threshold + length + 1 - golomb_rice_k;
     entropyenc_->EncodeBypassBins((1 << num_bins) - 2, num_bins);
     entropyenc_->EncodeBypassBins(code_number, length);
   }
