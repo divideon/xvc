@@ -94,32 +94,11 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   if (!Restrictions::Get().disable_transform_last_position) {
     uint32_t pos_last_x, pos_last_y;
     ReadCoeffLastPos(width, height, comp, scan_order, &pos_last_x, &pos_last_y);
-    int pos_last = (pos_last_y << log2size) + pos_last_x;
-
-    // determine last subblock
-    int pos_last_index = -1;
-    for (int subblock_index = 0; subblock_index < nbr_subblocks;
-         subblock_index++) {
-      int subblock_scan = scan_subblock_table[subblock_index];
-      int subblock_scan_y = subblock_scan / subblock_width;
-      int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
-      int subblock_pos_x = subblock_scan_x << subblock_shift;
-      int subblock_pos_y = subblock_scan_y << subblock_shift;
-      for (int coeff_index = 0; coeff_index < subblock_size; coeff_index++) {
-        int scan_offset = scan_table[coeff_index];
-        int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
-        int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
-        int coeff_scan = (coeff_scan_y << log2size) + coeff_scan_x;
-        if (coeff_scan == pos_last) {
-          pos_last_index =
-            (subblock_index << (subblock_shift * 2)) + coeff_index;
-          break;
-        }
-      }
-      if (pos_last_index >= 0) {
-        break;
-      }
-    }
+    const int pos_last_index =
+      DetermineLastPosIndex<SubBlockShift>(subblock_width, subblock_height,
+                                           pos_last_x, pos_last_y,
+                                           &scan_subblock_table[0], scan_table);
+    const int pos_last = (pos_last_y << log2size) + pos_last_x;
 
     subblock_last_index =
       pos_last_index >> (subblock_shift + subblock_shift);
@@ -336,6 +315,13 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     }
     total_num_sig_coeff += coeff_num_non_zero;
     coeff_num_non_zero = 0;
+  }
+  if (!total_num_sig_coeff) {
+    assert(Restrictions::Get().disable_transform_cbf);
+    // Cleanup assumed implicit signaled last sig coeff
+    const int coeff_scan_y = subblock_pos[0] >> log2size;
+    const int coeff_scan_x = subblock_pos[0] - (coeff_scan_y << log2size);
+    dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] = 0;
   }
   return total_num_sig_coeff;
 }
@@ -702,6 +688,34 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
   }
   *out_pos_last_x = pos_last_x;
   *out_pos_last_y = pos_last_y;
+}
+
+template<int SubBlockShift>
+int SyntaxReader::DetermineLastPosIndex(int subblock_width, int subblock_height,
+                                        int pos_last_x, int pos_last_y,
+                                        const uint16_t *subblock_scan_table,
+                                        const uint8_t *coeff_scan_table) {
+  constexpr int subblock_shift = SubBlockShift;
+  constexpr int subblock_mask = (1 << subblock_shift) - 1;
+  constexpr int subblock_size = 1 << (subblock_shift * 2);
+  const int nbr_subblocks = subblock_width * subblock_height;
+  for (int subblock_i = 0; subblock_i < nbr_subblocks; subblock_i++) {
+    int subblock_scan = subblock_scan_table[subblock_i];
+    int subblock_scan_y = subblock_scan / subblock_width;
+    int subblock_scan_x = subblock_scan - (subblock_scan_y * subblock_width);
+    int subblock_pos_x = subblock_scan_x << subblock_shift;
+    int subblock_pos_y = subblock_scan_y << subblock_shift;
+    for (int coeff_index = 0; coeff_index < subblock_size; coeff_index++) {
+      int scan_offset = coeff_scan_table[coeff_index];
+      int coeff_scan_x = subblock_pos_x + (scan_offset & subblock_mask);
+      int coeff_scan_y = subblock_pos_y + (scan_offset >> subblock_shift);
+      if (coeff_scan_x == pos_last_x && coeff_scan_y == pos_last_y) {
+        return (subblock_i << (subblock_shift * 2)) + coeff_index;
+      }
+    }
+  }
+  assert(0);
+  return 0;
 }
 
 uint32_t SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {

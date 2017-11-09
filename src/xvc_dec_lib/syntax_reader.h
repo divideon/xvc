@@ -66,6 +66,11 @@ private:
   void ReadCoeffLastPos(int width, int height, YuvComponent comp,
                         ScanOrder scan_order, uint32_t *pos_last_x,
                         uint32_t *pos_last_y);
+  template<int SubBlockShift>
+  int DetermineLastPosIndex(int subblock_width, int subblock_height,
+                            int pos_last_x, int pos_last_y,
+                            const uint16_t *subblock_scan_table,
+                            const uint8_t *coeff_scan_table);
   uint32_t ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k);
   uint32_t ReadExpGolomb(uint32_t golomb_rice_k);
   uint32_t ReadUnaryMaxSymbol(uint32_t max_val, ContextModel *ctx_start,
