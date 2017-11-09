@@ -101,6 +101,10 @@ Restrictions::Restrictions() {
   disable_inter_bipred = true;
 #endif
 
+#if RESTRICTION_DISABLE_INTER_BIPRED_L1_MVD_ZERO
+  disable_inter_bipred_l1_mvd_zero = true;
+#endif
+
 #if RESTRICTION_DISABLE_TRANSFORM_ADAPTIVE_SCAN_ORDER
   disable_transform_adaptive_scan_order = true;
 #endif

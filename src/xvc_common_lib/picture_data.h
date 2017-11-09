@@ -130,6 +130,7 @@ public:
   const ReferencePictureLists *GetRefPicLists() const {
     return &ref_pic_lists_;
   }
+  bool GetForceBipredL1MvdZero() const { return force_bipred_l1_mvd_zero_; }
   bool GetTmvpValid() const { return tmvp_valid_; }
   RefPicList GetTmvpRefList() const { return tmvp_ref_list_; }
   int GetTmvpRefIdx() const { return tmvp_ref_idx_; }
@@ -147,6 +148,7 @@ public:
   }
 
 private:
+  bool DetermineForceBipredL1MvdZero();
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void AllocateAllCtu(CuTree cu_tree);
 
@@ -186,6 +188,7 @@ private:
   std::vector<Qp> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;
   ReferencePictureLists ref_pic_lists_;
+  bool force_bipred_l1_mvd_zero_ = false;
   bool tmvp_valid_ = false;
   RefPicList tmvp_ref_list_ = RefPicList::kTotalNumber;
   int tmvp_ref_idx_ = -1;

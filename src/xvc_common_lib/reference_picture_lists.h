@@ -68,8 +68,7 @@ public:
                  const std::shared_ptr<const PictureData> &pic_data,
                  const std::shared_ptr<const YuvPicture> &ref_pic,
                  const std::shared_ptr<const YuvPicture> &orig_pic);
-  void GetSamePocMappingFor(RefPicList ref_list,
-                            std::vector<int> *mapping) const;
+  std::vector<int> GetSamePocMappingFor(RefPicList ref_list) const;
   void ZeroOutReferences();
   void Reset(PicNum current_poc);
 

@@ -129,7 +129,8 @@ private:
                            SampleBuffer *pred_buffer);
   int EvalStartMvp(const CodingUnit &cu, const Qp &qp,
                    const InterPredictorList &mvp_list,
-                   const YuvPicture &ref_pic, SampleBuffer *pred_buffer);
+                   const YuvPicture &ref_pic, SampleBuffer *pred_buffer,
+                   Distortion *best_cost);
   int EvalFinalMvpIdx(const CodingUnit &cu,
                       const InterPredictorList &mvp_list,
                       const MotionVector &mv_final, int mvp_idx_start);

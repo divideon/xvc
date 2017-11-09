@@ -141,7 +141,11 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
         pic_data_.GetRefPicLists()->GetNumRefPics(ref_pic_list);
       assert(num_refs_available > 0);
       writer->WriteInterRefIdx(cu.GetRefIdx(ref_pic_list), num_refs_available);
-      writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
+      if (!cu.GetForceMvdZero(ref_pic_list)) {
+        writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
+      } else {
+        assert(cu.GetMvDelta(ref_pic_list) == MotionVector(0, 0));
+      }
       writer->WriteInterMvpIdx(cu.GetMvpIdx(ref_pic_list));
     }
     if (!cu.HasZeroMvd()) {

@@ -214,6 +214,10 @@ public:
       (ref_list == RefPicList::kL0 && GetInterDir() == InterDir::kL0) ||
       (ref_list == RefPicList::kL1 && GetInterDir() == InterDir::kL1);
   }
+  bool GetForceMvdZero(RefPicList ref_list) const {
+    return pic_data_->GetForceBipredL1MvdZero() &&
+      inter_.inter_dir == InterDir::kBi && ref_list == RefPicList::kL1;
+  }
   bool HasZeroMvd() const;
   int GetRefIdx(RefPicList list) const {
     return inter_.ref_idx[static_cast<int>(list)];

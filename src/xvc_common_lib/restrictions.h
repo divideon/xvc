@@ -130,7 +130,8 @@ public:
       disable_ext_intra_chroma_from_luma ||
       disable_ext_inter_adaptive_fullpel_mv ||
       disable_ext_local_illumination_compensation ||
-      disable_ext_cabac_alt_residual_ctx;
+      disable_ext_cabac_alt_residual_ctx ||
+      disable_inter_bipred_l1_mvd_zero;
   }
 
   bool disable_intra_ref_padding = false;
@@ -152,6 +153,7 @@ public:
   bool disable_inter_chroma_subpel = false;
   bool disable_inter_mvd_greater_than_flags = false;
   bool disable_inter_bipred = false;
+  bool disable_inter_bipred_l1_mvd_zero = false;
   bool disable_transform_adaptive_scan_order = false;
   bool disable_transform_residual_greater_than_flags = false;
   bool disable_transform_residual_greater2 = false;

@@ -92,23 +92,23 @@ void ReferencePictureLists::SetRefPic(
   }
 }
 
-void
-ReferencePictureLists::GetSamePocMappingFor(RefPicList ref_list,
-                                            std::vector<int> *mapping) const {
+std::vector<int>
+ReferencePictureLists::GetSamePocMappingFor(RefPicList ref_list) const {
   RefPicList other_list = ReferencePictureLists::Inverse(ref_list);
   int num_ref_pics = GetNumRefPics(ref_list);
   int other_ref_pics = GetNumRefPics(other_list);
-  mapping->resize(num_ref_pics);
+  std::vector<int> mapping(num_ref_pics);
   for (int i = 0; i < num_ref_pics; i++) {
-    (*mapping)[i] = -1;
+    mapping[i] = -1;
     PicNum ref_poc = GetRefPoc(ref_list, i);
     for (int j = 0; j < other_ref_pics; j++) {
       if (ref_poc == GetRefPoc(other_list, j)) {
-        (*mapping)[i] = j;
+        mapping[i] = j;
         break;
       }
     }
   }
+  return mapping;
 }
 
 void ReferencePictureLists::ZeroOutReferences() {

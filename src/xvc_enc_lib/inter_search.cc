@@ -51,8 +51,8 @@ InterSearch::InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
   cu_writer_(pic_data, nullptr),
   bipred_orig_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize),
   bipred_pred_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize) {
-  std::vector<int> l1_mapping;
-  ref_pic_list.GetSamePocMappingFor(RefPicList::kL1, &l1_mapping);
+  std::vector<int> l1_mapping =
+    ref_pic_list.GetSamePocMappingFor(RefPicList::kL1);
   assert(l1_mapping.size() <= same_poc_in_l0_mapping_.size());
   std::copy(l1_mapping.begin(), l1_mapping.end(),
             same_poc_in_l0_mapping_.begin());
@@ -346,6 +346,7 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const Qp &qp,
     orig_pic_.GetSampleBuffer(comp, cu->GetPosX(comp), cu->GetPosY(comp));
   int width = cu->GetWidth(comp);
   int height = cu->GetHeight(comp);
+  cu->SetInterDir(InterDir::kBi);
 
   // Start searching the second best list
   RefPicList search_list =
@@ -353,6 +354,10 @@ InterSearch::SearchBiIterative(CodingUnit *cu, const Qp &qp,
 
   Distortion cost_best = std::numeric_limits<Distortion>::max();
   int num_iterations = encoder_settings_.bipred_refinement_iterations;
+  if (cu->GetPicData()->GetForceBipredL1MvdZero()) {
+    num_iterations = 1;
+    search_list = RefPicList::kL0;
+  }
   for (int iteration = 0; iteration < num_iterations; iteration++) {
     // If searching in L1 use original without L0 prediction
     cu->SetInterDir(search_list == RefPicList::kL0 ?
@@ -390,6 +395,8 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
   const uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   const bool bipred = cu->GetInterDir() == InterDir::kBi;
+  const bool force_mvd_zero = cu->GetPicData()->GetForceBipredL1MvdZero() &&
+    ref_list == RefPicList::kL1;
   const double weight = bipred ? 0.5 : 1;
   const SearchMethod search_method =
     bipred ? SearchMethod::FullSearch : SearchMethod::TzSearch;
@@ -401,63 +408,81 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
     cu->SetMv(MotionVector(), other_list);
     cu->SetRefIdx(-1, other_list);
   }
+  assert(!(bipred && force_mvd_zero));
 
   for (int ref_idx = 0; ref_idx < num_ref_idx; ref_idx++) {
+    const bool unique_ref_pic = ref_list == RefPicList::kL1 &&
+      same_poc_in_l0_mapping_[ref_idx] < 0;
     InterPredictorList mvp_list = GetMvPredictors(*cu, ref_list, ref_idx);
-    const MotionVector *mv_start = nullptr;
     int mvp_idx;
-    if (!bipred) {
+    const MotionVector *mv_bootstrap = nullptr;
+    if (bipred) {
+      // Reuse start mv predictor from uni-pred search
+      mvp_idx = unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx];
+      mv_bootstrap = &unipred_best_mv_[static_cast<int>(ref_list)][ref_idx];
+    } else {
+      // Determine best start mv predictor
       const YuvPicture *ref_pic =
         cu->GetRefPicLists()->GetRefPic(ref_list, ref_idx);
-      mvp_idx = EvalStartMvp(*cu, qp, mvp_list, *ref_pic, pred_buffer);
-    } else {
-      mv_start = &unipred_best_mv_[static_cast<int>(ref_list)][ref_idx];
-      mvp_idx = unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx];
+      Distortion mvp_cost = std::numeric_limits<Distortion>::max();
+      mvp_idx =
+        EvalStartMvp(*cu, qp, mvp_list, *ref_pic, pred_buffer, &mvp_cost);
+      if (force_mvd_zero) {
+        if (mvp_cost < cost_best) {
+          cu->SetRefIdx(ref_idx, ref_list);
+          cu->SetMvpIdx(mvp_idx, ref_list);
+          cu->SetMvDelta(MotionVector(0, 0), ref_list);
+          cu->SetMv(mvp_list[mvp_idx], ref_list);
+          cost_best = mvp_cost;
+          cu->SaveStateTo(best_state);
+        }
+        if (bipred || !unique_ref_pic) {
+          continue;
+        }
+      }
     }
     Distortion dist = 0;
-    MotionVector mv_subpel;
-    if (!bipred && ref_list == RefPicList::kL1 &&
-        same_poc_in_l0_mapping_[ref_idx] >= 0) {
+    // Search best motion vector
+    MotionVector mv;
+    if (!bipred && !unique_ref_pic && ref_list == RefPicList::kL1) {
       // Encoder speed-up for already searched ref pictures in L0
       int l0_list_idx = static_cast<int>(RefPicList::kL0);
       int l0_ref_idx = same_poc_in_l0_mapping_[ref_idx];
-      mv_subpel = unipred_best_mv_[l0_list_idx][l0_ref_idx];
+      mv = unipred_best_mv_[l0_list_idx][l0_ref_idx];
       dist = unipred_best_dist_[l0_list_idx][l0_ref_idx];
       // TODO(Dev) also update previous_fullpel_ to seed search for next CU?
     } else {
-      mv_subpel =
+      mv =
         MotionEstimation(*cu, qp, search_method, ref_list, ref_idx, orig_buffer,
-                         mvp_list[mvp_idx], mv_start, pred_buffer, &dist);
+                         mvp_list[mvp_idx], mv_bootstrap, pred_buffer, &dist);
     }
-    mvp_idx = EvalFinalMvpIdx(*cu, mvp_list, mv_subpel, mvp_idx);
+    // Refine best start mv predictor
+    mvp_idx = EvalFinalMvpIdx(*cu, mvp_list, mv, mvp_idx);
     if (!bipred || encoder_settings_.bipred_refinement_iterations > 1) {
-      unipred_best_mv_[static_cast<int>(ref_list)][ref_idx] = mv_subpel;
+      unipred_best_mv_[static_cast<int>(ref_list)][ref_idx] = mv;
       unipred_best_mvp_idx_[static_cast<int>(ref_list)][ref_idx] = mvp_idx;
       unipred_best_dist_[static_cast<int>(ref_list)][ref_idx] = dist;
     }
-    MotionVector mvd((mv_subpel.x - mvp_list[mvp_idx].x) >> mvd_precision,
-      (mv_subpel.y - mvp_list[mvp_idx].y) >> mvd_precision);
+    MotionVector mvd((mv.x - mvp_list[mvp_idx].x) >> mvd_precision,
+      (mv.y - mvp_list[mvp_idx].y) >> mvd_precision);
 
     cu->SetRefIdx(ref_idx, ref_list);
     cu->SetMvpIdx(mvp_idx, ref_list);
     cu->SetMvDelta(mvd, ref_list);
-    cu->SetMv(mv_subpel, ref_list);
+    cu->SetMv(mv, ref_list);
     // If using fullpel mv we might end up with a zero mvd,
     // which is invalid for uni-prediction but might be ok for bi-prediction
     Bits bits = GetInterPredBits(*cu, bitstream_writer);
     Distortion dist_scaled =
       static_cast<Distortion>(std::floor(dist * weight));
     Distortion cost = dist_scaled + ((bits * lambda) >> 16);
-    if (cost < cost_best) {
+    if (!force_mvd_zero && cost < cost_best) {
       cost_best = cost;
       cu->SaveStateTo(best_state);
     }
-    if (best_state_unique && !bipred && ref_list == RefPicList::kL1) {
-      bool unique_ref_pic = same_poc_in_l0_mapping_[ref_idx] < 0;
-      if (unique_ref_pic && cost < cost_best_unique) {
-        cost_best_unique = cost;
-        cu->SaveStateTo(best_state_unique);
-      }
+    if (best_state_unique && unique_ref_pic && cost < cost_best_unique) {
+      cost_best_unique = cost;
+      cu->SaveStateTo(best_state_unique);
     }
   }
   cu->LoadStateFrom(*best_state);
@@ -632,12 +657,12 @@ InterSearch::GetSubpelDist(const CodingUnit &cu,
 int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
                               const InterPredictorList &mvp_list,
                               const YuvPicture &ref_pic,
-                              SampleBuffer *pred_buffer) {
+                              SampleBuffer *pred_buffer, Distortion *out_cost) {
   SampleMetric metric(MetricType::kSad, qp, bitdepth_);
   uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   int best_mvp_idx = 0;
-  Cost best_mvp_cost = std::numeric_limits<Cost>::max();
+  Distortion best_cost = std::numeric_limits<Distortion>::max();
   for (int i = 0; i < static_cast<int>(mvp_list.size()); i++) {
     MotionVector mv = mvp_list[i];
     ClipMV(cu, ref_pic, &mv.x, &mv.y);
@@ -646,11 +671,14 @@ int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
     Distortion dist = metric.CompareSample(cu, YuvComponent::kY, orig_pic_,
                                            *pred_buffer);
     Bits bits = GetMvpBits(i, static_cast<int>(mvp_list.size()));
-    Cost cost = dist + (static_cast<uint32_t>(bits * lambda + 0.5) >> 16);
-    if (cost < best_mvp_cost) {
-      best_mvp_cost = cost;
+    Distortion cost = dist + (static_cast<uint32_t>(bits * lambda + 0.5) >> 16);
+    if (cost < best_cost) {
+      best_cost = cost;
       best_mvp_idx = i;
     }
+  }
+  if (out_cost) {
+    *out_cost = best_cost;
   }
   return best_mvp_idx;
 }
@@ -717,8 +745,10 @@ Bits InterSearch::GetInterPredBits(const CodingUnit &cu,
         bits -= num_ref_idx > 1 && cu.GetRefIdx(ref_list) == num_ref_idx - 1;
         bits += GetMvpBits(cu.GetMvpIdx(ref_list),
                            constants::kNumInterMvPredictors);
-        bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).x);
-        bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).y);
+        if (!cu.GetForceMvdZero(ref_list)) {
+          bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).x);
+          bits += GetNumExpGolombBits(cu.GetMvDelta(ref_list).y);
+        }
       }
       return bits;
     }

@@ -183,6 +183,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_ext_local_illumination_compensation |=
         !!bit_reader->ReadBit();
       restr.disable_ext_cabac_alt_residual_ctx = !!bit_reader->ReadBit();
+      restr.disable_inter_bipred_l1_mvd_zero = !!bit_reader->ReadBit();
     }
   }
 
@@ -196,6 +197,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext_inter_adaptive_fullpel_mv = true;
     restr.disable_ext_local_illumination_compensation = true;
     restr.disable_ext_cabac_alt_residual_ctx = true;
+    restr.disable_inter_bipred_l1_mvd_zero = true;
   }
 
   Restrictions::GetRW() = restr;
