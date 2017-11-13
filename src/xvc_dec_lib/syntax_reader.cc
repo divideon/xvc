@@ -29,26 +29,43 @@
 
 namespace xvc {
 
-SyntaxReader::SyntaxReader(const Qp &qp, PicturePredictionType pic_type,
-                           EntropyDecoder *entropydec)
-  : entropydec_(entropydec) {
+template<typename Ctx>
+SyntaxReaderCabac<Ctx>::SyntaxReaderCabac(const Qp &qp,
+                                          PicturePredictionType pic_type,
+                                          BitReader *bit_reader)
+  : decoder_(bit_reader) {
   ctx_.ResetStates(qp, pic_type);
+  decoder_.Start();
 }
 
-bool SyntaxReader::ReadCbf(const CodingUnit &cu, YuvComponent comp) {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::Finish() {
+  if (!decoder_.DecodeBinTrm()) {
+    return false;
+  }
+  decoder_.Finish();
+  return true;
+}
+
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadCbf(const CodingUnit &cu, YuvComponent comp) {
   if (util::IsLuma(comp)) {
-    return entropydec_->DecodeBin(&ctx_.cu_cbf_luma[0]) != 0;
+    return decoder_.DecodeBin(&ctx_.cu_cbf_luma[0]) != 0;
   } else {
-    return entropydec_->DecodeBin(&ctx_.cu_cbf_chroma[0]) != 0;
+    return decoder_.DecodeBin(&ctx_.cu_cbf_chroma[0]) != 0;
   }
 }
 
-int SyntaxReader::ReadQp() {
-  return entropydec_->DecodeBypassBins(7);
+template<typename Ctx>
+int SyntaxReaderCabac<Ctx>::ReadQp() {
+  return decoder_.DecodeBypassBins(7);
 }
 
-int SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
-                                   Coeff *dst_coeff, ptrdiff_t dst_stride) {
+template<typename Ctx>
+int
+SyntaxReaderCabac<Ctx>::ReadCoefficients(const CodingUnit &cu,
+                                         YuvComponent comp, Coeff *dst_coeff,
+                                         ptrdiff_t dst_stride) {
   if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
     return ReadCoeffSubblock<1>(cu, comp, dst_coeff, dst_stride);
   } else {
@@ -57,9 +74,12 @@ int SyntaxReader::ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
   }
 }
 
+template<typename Ctx>
 template<int SubBlockShift>
-int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
-                                    Coeff *dst_coeff, ptrdiff_t dst_stride) {
+int
+SyntaxReaderCabac<Ctx>::ReadCoeffSubblock(const CodingUnit &cu,
+                                          YuvComponent comp, Coeff *dst_coeff,
+                                          ptrdiff_t dst_stride) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const int width_log2 = util::SizeToLog2(width);
@@ -96,9 +116,9 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     uint32_t pos_last_x, pos_last_y;
     ReadCoeffLastPos(width, height, comp, scan_order, &pos_last_x, &pos_last_y);
     const int pos_last_index =
-      DetermineLastPosIndex<SubBlockShift>(subblock_width, subblock_height,
-                                           pos_last_x, pos_last_y,
-                                           &scan_subblock_table[0], scan_table);
+      DetermineLastIndex<SubBlockShift>(subblock_width, subblock_height,
+                                        pos_last_x, pos_last_y,
+                                        &scan_subblock_table[0], scan_table);
     const int pos_last = (pos_last_y << log2size) + pos_last_x;
 
     subblock_last_index =
@@ -148,12 +168,12 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                               subblock_scan_y, subblock_width, subblock_height,
                               &pattern_sig_ctx);
     } else {
-      ContextModel &ctx =
+      Ctx &ctx =
         ctx_.GetSubblockCsbfCtx(comp, &subblock_csbf[0], subblock_scan_x,
                                 subblock_scan_y, subblock_width,
                                 subblock_height, &pattern_sig_ctx);
       subblock_csbf[subblock_scan] =
-        static_cast<uint8_t>(entropydec_->DecodeBin(&ctx));
+        static_cast<uint8_t>(decoder_.DecodeBin(&ctx));
     }
     if (!subblock_csbf[subblock_scan]) {
       continue;
@@ -171,11 +191,11 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       if (coeff_index == 0 && not_first_subblock && coeff_num_non_zero == 0) {
         sig_coeff = true;
       } else {
-        ContextModel &ctx =
+        Ctx &ctx =
           ctx_.GetCoeffSigCtx(comp, pattern_sig_ctx, scan_order,
                               coeff_scan_x, coeff_scan_y, dst_coeff, dst_stride,
                               width_log2, height_log2);
-        sig_coeff = entropydec_->DecodeBin(&ctx) != 0;
+        sig_coeff = decoder_.DecodeBin(&ctx) != 0;
       }
       if (sig_coeff) {
         subblock_coeff[coeff_num_non_zero] = 1;
@@ -214,11 +234,11 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       }
       const int coeff_scan_y = subblock_pos[i] >> log2size;
       const int coeff_scan_x = subblock_pos[i] - (coeff_scan_y << log2size);
-      ContextModel &ctx =
+      Ctx &ctx =
         ctx_.GetCoeffGreater1Ctx(comp, ctx_set, c1, coeff_scan_x, coeff_scan_y,
                                  i == 0 && is_last_subblock,
                                  dst_coeff, dst_stride, width, height);
-      uint32_t greater_than_1 = entropydec_->DecodeBin(&ctx);
+      uint32_t greater_than_1 = decoder_.DecodeBin(&ctx);
       if (greater_than_1) {
         c1 = 0;
         if (first_c2_idx == -1 &&
@@ -237,11 +257,11 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
       const int coeff_scan_y = subblock_pos[first_c2_idx] >> log2size;
       const int coeff_scan_x = subblock_pos[first_c2_idx] -
         (coeff_scan_y << log2size);
-      ContextModel &ctx =
+      Ctx &ctx =
         ctx_.GetCoeffGreater2Ctx(comp, ctx_set, coeff_scan_x, coeff_scan_y,
                                  first_c2_idx == 0 && is_last_subblock,
                                  dst_coeff, dst_stride, width, height);
-      Coeff abs_lvl = static_cast<Coeff>(entropydec_->DecodeBin(&ctx));
+      Coeff abs_lvl = static_cast<Coeff>(decoder_.DecodeBin(&ctx));
       subblock_coeff[first_c2_idx] += abs_lvl;
       dst_coeff[coeff_scan_y * dst_stride + coeff_scan_x] += abs_lvl;
     }
@@ -258,10 +278,10 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     // sign flags
     uint32_t coeff_signs;
     if (sign_hidden) {
-      coeff_signs = entropydec_->DecodeBypassBins(coeff_num_non_zero - 1);
+      coeff_signs = decoder_.DecodeBypassBins(coeff_num_non_zero - 1);
       coeff_signs <<= 32 - (coeff_num_non_zero - 1);
     } else {
-      coeff_signs = entropydec_->DecodeBypassBins(coeff_num_non_zero);
+      coeff_signs = decoder_.DecodeBypassBins(coeff_num_non_zero);
       coeff_signs <<= 32 - coeff_num_non_zero;
     }
 
@@ -326,71 +346,76 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   return total_num_sig_coeff;
 }
 
-bool SyntaxReader::ReadEndOfSlice() {
-  uint32_t bin = entropydec_->DecodeBinTrm();
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadEndOfSlice() {
+  uint32_t bin = decoder_.DecodeBinTrm();
   return bin != 0;
 }
 
-InterDir SyntaxReader::ReadInterDir(const CodingUnit &cu) {
+template<typename Ctx>
+InterDir SyntaxReaderCabac<Ctx>::ReadInterDir(const CodingUnit &cu) {
   assert(cu.GetPartitionType() == PartitionType::kSize2Nx2N);
-  ContextModel &ctx = ctx_.GetInterDirBiCtx(cu);
-  if (entropydec_->DecodeBin(&ctx) != 0) {
+  Ctx &ctx = ctx_.GetInterDirBiCtx(cu);
+  if (decoder_.DecodeBin(&ctx) != 0) {
     return InterDir::kBi;
   }
-  uint32_t bin = entropydec_->DecodeBin(&ctx_.inter_dir[4]);
+  uint32_t bin = decoder_.DecodeBin(&ctx_.inter_dir[4]);
   return bin == 0 ? InterDir::kL0 : InterDir::kL1;
 }
 
-bool SyntaxReader::ReadInterFullpelMvFlag(const CodingUnit &cu) {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadInterFullpelMvFlag(const CodingUnit &cu) {
   if (Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
     return false;
   }
-  ContextModel &ctx = ctx_.GetInterFullpelMvCtx(cu);
-  return entropydec_->DecodeBin(&ctx) != 0;
+  Ctx &ctx = ctx_.GetInterFullpelMvCtx(cu);
+  return decoder_.DecodeBin(&ctx) != 0;
 }
 
-MotionVector SyntaxReader::ReadInterMvd() {
+template<typename Ctx>
+MotionVector SyntaxReaderCabac<Ctx>::ReadInterMvd() {
   if (Restrictions::Get().disable_inter_mvd_greater_than_flags) {
     MotionVector mvd;
     mvd.x += ReadExpGolomb(1);
     if (mvd.x) {
-      uint32_t sign = entropydec_->DecodeBypass();
+      uint32_t sign = decoder_.DecodeBypass();
       mvd.x = sign ? -mvd.x : mvd.x;
     }
     mvd.y += ReadExpGolomb(1);
     if (mvd.y) {
-      uint32_t sign = entropydec_->DecodeBypass();
+      uint32_t sign = decoder_.DecodeBypass();
       mvd.y = sign ? -mvd.y : mvd.y;
     }
     return mvd;
   }
-  uint32_t non_zero_x = entropydec_->DecodeBin(&ctx_.inter_mvd[0]);
-  uint32_t non_zero_y = entropydec_->DecodeBin(&ctx_.inter_mvd[0]);
+  uint32_t non_zero_x = decoder_.DecodeBin(&ctx_.inter_mvd[0]);
+  uint32_t non_zero_y = decoder_.DecodeBin(&ctx_.inter_mvd[0]);
   MotionVector mvd;
   if (non_zero_x) {
-    mvd.x = 1 + entropydec_->DecodeBin(&ctx_.inter_mvd[1]);
+    mvd.x = 1 + decoder_.DecodeBin(&ctx_.inter_mvd[1]);
   }
   if (non_zero_y) {
-    mvd.y = 1 + entropydec_->DecodeBin(&ctx_.inter_mvd[1]);
+    mvd.y = 1 + decoder_.DecodeBin(&ctx_.inter_mvd[1]);
   }
   if (mvd.x) {
     if (mvd.x > 1) {
       mvd.x += ReadExpGolomb(1);
     }
-    uint32_t sign = entropydec_->DecodeBypass();
+    uint32_t sign = decoder_.DecodeBypass();
     mvd.x = sign ? -mvd.x : mvd.x;
   }
   if (mvd.y) {
     if (mvd.y > 1) {
       mvd.y += ReadExpGolomb(1);
     }
-    uint32_t sign = entropydec_->DecodeBypass();
+    uint32_t sign = decoder_.DecodeBypass();
     mvd.y = sign ? -mvd.y : mvd.y;
   }
   return mvd;
 }
 
-int SyntaxReader::ReadInterMvpIdx() {
+template<typename Ctx>
+int SyntaxReaderCabac<Ctx>::ReadInterMvpIdx() {
   if (Restrictions::Get().disable_inter_mvp) {
     return 0;
   }
@@ -398,20 +423,21 @@ int SyntaxReader::ReadInterMvpIdx() {
                             &ctx_.inter_mvp_idx[0], &ctx_.inter_mvp_idx[0]);
 }
 
-int SyntaxReader::ReadInterRefIdx(int num_refs_available) {
+template<typename Ctx>
+int SyntaxReaderCabac<Ctx>::ReadInterRefIdx(int num_refs_available) {
   if (num_refs_available == 1) {
     return 0;
   }
-  int ref_idx = entropydec_->DecodeBin(&ctx_.inter_ref_idx[0]);
+  int ref_idx = decoder_.DecodeBin(&ctx_.inter_ref_idx[0]);
   if (!ref_idx || num_refs_available == 2) {
     return ref_idx;
   }
-  ref_idx += entropydec_->DecodeBin(&ctx_.inter_ref_idx[1]);
+  ref_idx += decoder_.DecodeBin(&ctx_.inter_ref_idx[1]);
   if (ref_idx == 1) {
     return ref_idx;
   }
   for (ref_idx = 1; ref_idx < num_refs_available - 2; ref_idx++) {
-    uint32_t bin = entropydec_->DecodeBypass();
+    uint32_t bin = decoder_.DecodeBypass();
     if (!bin) {
       break;
     }
@@ -419,32 +445,33 @@ int SyntaxReader::ReadInterRefIdx(int num_refs_available) {
   return ref_idx + 1;
 }
 
-IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
-  ContextModel &ctx = ctx_.intra_pred_luma[0];
-  uint32_t is_mpm_coded = entropydec_->DecodeBin(&ctx);
+template<typename Ctx>
+IntraMode SyntaxReaderCabac<Ctx>::ReadIntraMode(const IntraPredictorLuma &mpm) {
+  Ctx &ctx = ctx_.intra_pred_luma[0];
+  uint32_t is_mpm_coded = decoder_.DecodeBin(&ctx);
   if (is_mpm_coded) {
     if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
       int mpm_index =
-        entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[0]));
+        decoder_.DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[0]));
       if (mpm_index > 0) {
         mpm_index +=
-          entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[1]));
+          decoder_.DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[1]));
         if (mpm_index > 1) {
           mpm_index +=
-            entropydec_->DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[2]));
+            decoder_.DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[2]));
           if (mpm_index > 2) {
-            mpm_index += entropydec_->DecodeBypass();
+            mpm_index += decoder_.DecodeBypass();
             if (mpm_index > 3) {
-              mpm_index += entropydec_->DecodeBypass();
+              mpm_index += decoder_.DecodeBypass();
             }
           }
         }
       }
       return mpm[mpm_index];
     } else {
-      int mpm_index = entropydec_->DecodeBypass();
+      int mpm_index = decoder_.DecodeBypass();
       if (mpm_index) {
-        mpm_index += entropydec_->DecodeBypass();
+        mpm_index += decoder_.DecodeBypass();
       }
       return mpm[mpm_index];
     }
@@ -452,13 +479,13 @@ IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
     if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
       int intra_mode;
       if (!Restrictions::Get().disable_ext_intra_extra_modes) {
-        intra_mode = entropydec_->DecodeBypassBins(4);
+        intra_mode = decoder_.DecodeBypassBins(4);
         intra_mode <<= 2;
         if (intra_mode <= kNbrIntraModesExt - 8) {
-          intra_mode += entropydec_->DecodeBypassBins(2);
+          intra_mode += decoder_.DecodeBypassBins(2);
         }
       } else {
-        intra_mode = entropydec_->DecodeBypassBins(5);
+        intra_mode = decoder_.DecodeBypassBins(5);
       }
       IntraPredictorLuma mpm_sorted = mpm;
       std::sort(mpm_sorted.begin(),
@@ -470,9 +497,9 @@ IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
     } else {
       int intra_mode;
       if (!Restrictions::Get().disable_ext_intra_extra_modes) {
-        intra_mode = entropydec_->DecodeBypassBins(6);
+        intra_mode = decoder_.DecodeBypassBins(6);
       } else {
-        intra_mode = entropydec_->DecodeBypassBins(5);
+        intra_mode = decoder_.DecodeBypassBins(5);
       }
       IntraPredictorLuma mpm_sorted = mpm;
       if (mpm_sorted[0] > mpm_sorted[1]) {
@@ -492,64 +519,69 @@ IntraMode SyntaxReader::ReadIntraMode(const IntraPredictorLuma &mpm) {
   }
 }
 
+template<typename Ctx>
 IntraChromaMode
-SyntaxReader::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
-  uint32_t not_dm_chroma = entropydec_->DecodeBin(&ctx_.intra_pred_chroma[0]);
+SyntaxReaderCabac<Ctx>::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
+  uint32_t not_dm_chroma = decoder_.DecodeBin(&ctx_.intra_pred_chroma[0]);
   if (!not_dm_chroma) {
     return IntraChromaMode::kDmChroma;
   }
   if (!Restrictions::Get().disable_ext_intra_chroma_from_luma) {
-    uint32_t not_lm_chroma = entropydec_->DecodeBin(&ctx_.intra_pred_chroma[1]);
+    uint32_t not_lm_chroma = decoder_.DecodeBin(&ctx_.intra_pred_chroma[1]);
     if (!not_lm_chroma) {
       return IntraChromaMode::kLmChroma;
     }
   }
-  uint32_t chroma_index = entropydec_->DecodeBypassBins(2);
+  uint32_t chroma_index = decoder_.DecodeBypassBins(2);
   return chroma_preds[chroma_index];
 }
 
-bool SyntaxReader::ReadLicFlag() {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadLicFlag() {
   if (Restrictions::Get().disable_ext_local_illumination_compensation) {
     return false;
   }
-  return entropydec_->DecodeBin(&ctx_.lic_flag[0]) != 0;
+  return decoder_.DecodeBin(&ctx_.lic_flag[0]) != 0;
 }
 
-bool SyntaxReader::ReadMergeFlag() {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadMergeFlag() {
   if (Restrictions::Get().disable_inter_merge_mode) {
     return false;
   }
-  uint32_t bin = entropydec_->DecodeBin(&ctx_.inter_merge_flag[0]);
+  uint32_t bin = decoder_.DecodeBin(&ctx_.inter_merge_flag[0]);
   return bin != 0;
 }
 
-int SyntaxReader::ReadMergeIdx() {
+template<typename Ctx>
+int SyntaxReaderCabac<Ctx>::ReadMergeIdx() {
   if (Restrictions::Get().disable_inter_merge_candidates) {
     return 0;
   }
   const int max_merge_cand = constants::kNumInterMergeCandidates;
-  uint32_t merge_idx = entropydec_->DecodeBin(&ctx_.inter_merge_idx[0]);
+  uint32_t merge_idx = decoder_.DecodeBin(&ctx_.inter_merge_idx[0]);
   if (merge_idx) {
-    while (merge_idx < max_merge_cand - 1 && entropydec_->DecodeBypass()) {
+    while (merge_idx < max_merge_cand - 1 && decoder_.DecodeBypass()) {
       merge_idx++;
     }
   }
   return merge_idx;
 }
 
-PartitionType SyntaxReader::ReadPartitionType(const CodingUnit &cu) {
+template<typename Ctx>
+PartitionType SyntaxReaderCabac<Ctx>::ReadPartitionType(const CodingUnit &cu) {
   if (cu.GetPredMode() == PredictionMode::kIntra) {
     PartitionType part_type = PartitionType::kSize2Nx2N;
     // Signaling partition type for lowest level assumes single CU tree
     assert(cu.GetCuTree() == CuTree::Primary);
     if (cu.GetDepth() == constants::kMaxCuDepth) {
-      uint32_t bin = entropydec_->DecodeBin(&ctx_.cu_part_size[0]);
+      uint32_t bin = decoder_.DecodeBin(&ctx_.cu_part_size[0]);
       part_type =
         bin != 0 ? PartitionType::kSize2Nx2N : PartitionType::kSizeNxN;
     }
     return part_type;
   }
-  uint32_t bin = entropydec_->DecodeBin(&ctx_.cu_part_size[0]);
+  uint32_t bin = decoder_.DecodeBin(&ctx_.cu_part_size[0]);
   if (bin) {
     return PartitionType::kSize2Nx2N;
   }
@@ -558,29 +590,34 @@ PartitionType SyntaxReader::ReadPartitionType(const CodingUnit &cu) {
   return PartitionType::kSizeNxN;
 }
 
-PredictionMode SyntaxReader::ReadPredMode() {
-  uint32_t is_intra = entropydec_->DecodeBin(&ctx_.cu_pred_mode[0]);
+template<typename Ctx>
+PredictionMode SyntaxReaderCabac<Ctx>::ReadPredMode() {
+  uint32_t is_intra = decoder_.DecodeBin(&ctx_.cu_pred_mode[0]);
   return is_intra != 0 ? PredictionMode::kIntra : PredictionMode::kInter;
 }
 
-bool SyntaxReader::ReadRootCbf() {
-  uint32_t bin = entropydec_->DecodeBin(&ctx_.cu_root_cbf[0]);
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadRootCbf() {
+  uint32_t bin = decoder_.DecodeBin(&ctx_.cu_root_cbf[0]);
   return bin != 0;
 }
 
-bool SyntaxReader::ReadSkipFlag(const CodingUnit &cu) {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadSkipFlag(const CodingUnit &cu) {
   if (Restrictions::Get().disable_inter_skip_mode ||
       Restrictions::Get().disable_inter_merge_mode) {
     return false;
   }
-  ContextModel &ctx = ctx_.GetSkipFlagCtx(cu);
-  return entropydec_->DecodeBin(&ctx) != 0;
+  Ctx &ctx = ctx_.GetSkipFlagCtx(cu);
+  return decoder_.DecodeBin(&ctx) != 0;
 }
 
-SplitType SyntaxReader::ReadSplitBinary(const CodingUnit &cu,
+template<typename Ctx>
+SplitType
+SyntaxReaderCabac<Ctx>::ReadSplitBinary(const CodingUnit &cu,
                                         SplitRestriction split_restriction) {
-  ContextModel &ctx = ctx_.GetSplitBinaryCtx(cu);
-  uint32_t bin = entropydec_->DecodeBin(&ctx);
+  Ctx &ctx = ctx_.GetSplitBinaryCtx(cu);
+  uint32_t bin = decoder_.DecodeBin(&ctx);
   if (!bin) {
     return SplitType::kNone;
   }
@@ -595,53 +632,61 @@ SplitType SyntaxReader::ReadSplitBinary(const CodingUnit &cu,
   int offset =
     cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :
     (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
-  ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
-  uint32_t bin2 = entropydec_->DecodeBin(&ctx2);
+  Ctx &ctx2 = ctx_.cu_split_binary[3 + offset];
+  uint32_t bin2 = decoder_.DecodeBin(&ctx2);
   return bin2 != 0 ? SplitType::kVertical : SplitType::kHorizontal;
 }
 
-SplitType SyntaxReader::ReadSplitQuad(const CodingUnit &cu, int max_depth) {
-  ContextModel &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
-  uint32_t bin = entropydec_->DecodeBin(&ctx);
+template<typename Ctx>
+SplitType SyntaxReaderCabac<Ctx>::ReadSplitQuad(const CodingUnit &cu,
+                                                int max_depth) {
+  Ctx &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
+  uint32_t bin = decoder_.DecodeBin(&ctx);
   return bin != 0 ? SplitType::kQuad : SplitType::kNone;
 }
 
-bool SyntaxReader::ReadTransformSkip(const CodingUnit &cu, YuvComponent comp) {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadTransformSkip(const CodingUnit &cu,
+                                               YuvComponent comp) {
   if (Restrictions::Get().disable_transform_skip ||
       !cu.CanTransformSkip(comp)) {
     return false;
   }
-  ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
-  return entropydec_->DecodeBin(&ctx) != 0;
+  Ctx &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
+  return decoder_.DecodeBin(&ctx) != 0;
 }
 
-bool SyntaxReader::ReadTransformSelectEnable(const CodingUnit &cu) {
+template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadTransformSelectEnable(const CodingUnit &cu) {
   if (Restrictions::Get().disable_ext_transform_select) {
     return false;
   }
-  ContextModel &ctx = ctx_.transform_select_flag[cu.GetDepth()];
-  return entropydec_->DecodeBin(&ctx) != 0;
+  Ctx &ctx = ctx_.transform_select_flag[cu.GetDepth()];
+  return decoder_.DecodeBin(&ctx) != 0;
 }
 
-int SyntaxReader::ReadTransformSelectIdx(const CodingUnit &cu) {
+template<typename Ctx>
+int SyntaxReaderCabac<Ctx>::ReadTransformSelectIdx(const CodingUnit &cu) {
   if (Restrictions::Get().disable_ext_transform_select) {
     return 0;
   }
   static_assert(constants::kMaxTransformSelectIdx == 4, "2 bits signaling");
-  ContextModel &ctx1 = cu.IsIntra() ?
+  Ctx &ctx1 = cu.IsIntra() ?
     ctx_.transform_select_idx[0] : ctx_.transform_select_idx[2];
-  ContextModel &ctx2 = cu.IsIntra() ?
+  Ctx &ctx2 = cu.IsIntra() ?
     ctx_.transform_select_idx[1] : ctx_.transform_select_idx[3];
   int type_idx = 0;
-  type_idx += entropydec_->DecodeBin(&ctx1) ? 1 : 0;
-  type_idx += entropydec_->DecodeBin(&ctx2) ? 2 : 0;
+  type_idx += decoder_.DecodeBin(&ctx1) ? 1 : 0;
+  type_idx += decoder_.DecodeBin(&ctx2) ? 2 : 0;
   return type_idx;
 }
 
-void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
-                                    ScanOrder scan_order,
-                                    uint32_t *out_pos_last_x,
-                                    uint32_t *out_pos_last_y) {
+template<typename Ctx>
+void SyntaxReaderCabac<Ctx>::ReadCoeffLastPos(int width, int height,
+                                              YuvComponent comp,
+                                              ScanOrder scan_order,
+                                              uint32_t *out_pos_last_x,
+                                              uint32_t *out_pos_last_y) {
   if (scan_order == ScanOrder::kVertical) {
     std::swap(width, height);
   }
@@ -649,18 +694,18 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
   uint32_t group_idx_y = TransformHelper::kLastPosGroupIdx[height - 1];
   uint32_t pos_last_x = 0;
   for (; pos_last_x < group_idx_x; pos_last_x++) {
-    ContextModel &ctx = ctx_.GetCoeffLastPosCtx(comp, width, height,
-                                                pos_last_x, true);
-    uint32_t has_more = entropydec_->DecodeBin(&ctx);
+    Ctx &ctx = ctx_.GetCoeffLastPosCtx(comp, width, height,
+                                       pos_last_x, true);
+    uint32_t has_more = decoder_.DecodeBin(&ctx);
     if (!has_more) {
       break;
     }
   }
   uint32_t pos_last_y = 0;
   for (; pos_last_y < group_idx_y; pos_last_y++) {
-    ContextModel &ctx = ctx_.GetCoeffLastPosCtx(comp, width, height,
-                                                pos_last_y, false);
-    uint32_t has_more = entropydec_->DecodeBin(&ctx);
+    Ctx &ctx = ctx_.GetCoeffLastPosCtx(comp, width, height,
+                                       pos_last_y, false);
+    uint32_t has_more = decoder_.DecodeBin(&ctx);
     if (!has_more) {
       break;
     }
@@ -669,7 +714,7 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
     uint32_t offset = 0;
     uint32_t count = (pos_last_x - 2) >> 1;
     for (int i = count - 1; i >= 0; i--) {
-      uint32_t bin = entropydec_->DecodeBypass();
+      uint32_t bin = decoder_.DecodeBypass();
       offset += bin << i;
     }
     pos_last_x = TransformHelper::kLastPosMinInGroup[pos_last_x] + offset;
@@ -678,7 +723,7 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
     uint32_t offset = 0;
     uint32_t count = (pos_last_y - 2) >> 1;
     for (int i = count - 1; i >= 0; i--) {
-      uint32_t bin = entropydec_->DecodeBypass();
+      uint32_t bin = decoder_.DecodeBypass();
       offset += bin << i;
     }
     pos_last_y = TransformHelper::kLastPosMinInGroup[pos_last_y] + offset;
@@ -690,11 +735,14 @@ void SyntaxReader::ReadCoeffLastPos(int width, int height, YuvComponent comp,
   *out_pos_last_y = pos_last_y;
 }
 
+template<typename Ctx>
 template<int SubBlockShift>
-int SyntaxReader::DetermineLastPosIndex(int subblock_width, int subblock_height,
-                                        int pos_last_x, int pos_last_y,
-                                        const uint16_t *subblock_scan_table,
-                                        const uint8_t *coeff_scan_table) {
+int
+SyntaxReaderCabac<Ctx>::DetermineLastIndex(int subblock_width,
+                                           int subblock_height,
+                                           int pos_last_x, int pos_last_y,
+                                           const uint16_t *subblock_scan_table,
+                                           const uint8_t *coeff_scan_table) {
   constexpr int subblock_shift = SubBlockShift;
   constexpr int subblock_mask = (1 << subblock_shift) - 1;
   constexpr int subblock_size = 1 << (subblock_shift * 2);
@@ -718,59 +766,75 @@ int SyntaxReader::DetermineLastPosIndex(int subblock_width, int subblock_height,
   return 0;
 }
 
-uint32_t SyntaxReader::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
+template<typename Ctx>
+uint32_t
+SyntaxReaderCabac<Ctx>::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
   const uint32_t threshold =
     !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
     TransformHelper::kGolombRiceRangeExt[golomb_rice_k] :
     constants::kCoeffRemainBinReduction;
   uint32_t prefix = 0;
   uint32_t code_word;
-  while ((code_word = entropydec_->DecodeBypass()) != 0) {
+  while ((code_word = decoder_.DecodeBypass()) != 0) {
     prefix++;
   }
   if (prefix < threshold) {
-    code_word = entropydec_->DecodeBypassBins(golomb_rice_k);
+    code_word = decoder_.DecodeBypassBins(golomb_rice_k);
     return (prefix << golomb_rice_k) + code_word;
   } else {
     code_word =
-      entropydec_->DecodeBypassBins(prefix - threshold + golomb_rice_k);
+      decoder_.DecodeBypassBins(prefix - threshold + golomb_rice_k);
     return code_word +
       (((1 << (prefix - threshold)) + threshold - 1) << golomb_rice_k);
   }
 }
 
-uint32_t SyntaxReader::ReadExpGolomb(uint32_t golomb_rice_k) {
+template<typename Ctx>
+uint32_t SyntaxReaderCabac<Ctx>::ReadExpGolomb(uint32_t golomb_rice_k) {
   uint32_t abs_level = 0;
   uint32_t bin = 1;
   while (bin) {
-    bin = entropydec_->DecodeBypass();
+    bin = decoder_.DecodeBypass();
     abs_level += bin << golomb_rice_k;
     golomb_rice_k++;
   }
   if (--golomb_rice_k) {
-    abs_level += entropydec_->DecodeBypassBins(golomb_rice_k);
+    abs_level += decoder_.DecodeBypassBins(golomb_rice_k);
   }
   return abs_level;
 }
 
-uint32_t SyntaxReader::ReadUnaryMaxSymbol(uint32_t max_val,
-                                          ContextModel *ctx_start,
-                                          ContextModel *ctx_rest) {
+template<typename Ctx>
+uint32_t
+SyntaxReaderCabac<Ctx>::ReadUnaryMaxSymbol(uint32_t max_val,
+                                           Ctx *ctx_start,
+                                           Ctx *ctx_rest) {
   assert(max_val > 0);
-  uint32_t symbol = entropydec_->DecodeBin(ctx_start);
+  uint32_t symbol = decoder_.DecodeBin(ctx_start);
   if (!symbol || max_val == 1) {
     return symbol;
   }
   symbol = 0;
   uint32_t bin;
   do {
-    bin = entropydec_->DecodeBin(ctx_rest);
+    bin = decoder_.DecodeBin(ctx_rest);
     symbol++;
   } while (bin && symbol < (max_val - 1));
   if (bin && symbol == (max_val - 1)) {
     symbol++;
   }
   return symbol;
+}
+
+std::unique_ptr<SyntaxReader>
+SyntaxReader::Create(const Qp &qp, PicturePredictionType pic_type,
+                     BitReader *bit_reader) {
+  if (Restrictions::Get().disable_cabac_ctx_update) {
+    return std::unique_ptr<SyntaxReader>(
+      new SyntaxReaderCabac<ContextModelStatic>(qp, pic_type, bit_reader));
+  }
+  return std::unique_ptr<SyntaxReader>(
+    new SyntaxReaderCabac<ContextModelDynamic>(qp, pic_type, bit_reader));
 }
 
 }   // namespace xvc

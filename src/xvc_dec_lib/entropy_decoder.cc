@@ -22,14 +22,16 @@
 
 namespace xvc {
 
-EntropyDecoder::EntropyDecoder(BitReader *bit_reader)
+template<typename Ctx>
+EntropyDecoder<Ctx>::EntropyDecoder(BitReader *bit_reader)
   : bit_reader_(bit_reader) {
   range_ = 510;
   bits_needed_ = -24;
   value_ = 0;
 }
 
-uint32_t EntropyDecoder::DecodeBin(ContextModel *ctx) {
+template<typename Ctx>
+uint32_t EntropyDecoder<Ctx>::DecodeBin(Ctx *ctx) {
   uint32_t ctxmps = ctx->GetMps();
   uint32_t lps = ctx->GetLps(range_);
 
@@ -61,7 +63,8 @@ uint32_t EntropyDecoder::DecodeBin(ContextModel *ctx) {
   return binval;
 }
 
-uint32_t EntropyDecoder::DecodeBypass() {
+template<typename Ctx>
+uint32_t EntropyDecoder<Ctx>::DecodeBypass() {
   value_ += value_;
 
   if (++bits_needed_ >= 0) {
@@ -78,7 +81,8 @@ uint32_t EntropyDecoder::DecodeBypass() {
   return binval;
 }
 
-uint32_t EntropyDecoder::DecodeBypassBins(int num_bins) {
+template<typename Ctx>
+uint32_t EntropyDecoder<Ctx>::DecodeBypassBins(int num_bins) {
   uint32_t bins = 0;
   while (num_bins > 8) {
     value_ = (value_ << 8) + (bit_reader_->ReadByte() << (8 + bits_needed_));
@@ -113,7 +117,8 @@ uint32_t EntropyDecoder::DecodeBypassBins(int num_bins) {
   return bins;
 }
 
-uint32_t EntropyDecoder::DecodeBinTrm() {
+template<typename Ctx>
+uint32_t EntropyDecoder<Ctx>::DecodeBinTrm() {
   range_ -= 2;
   uint32_t scaled_range = range_ << 7;
   if (value_ >= scaled_range) {
@@ -131,16 +136,21 @@ uint32_t EntropyDecoder::DecodeBinTrm() {
   return 0;
 }
 
-void EntropyDecoder::Start() {
+template<typename Ctx>
+void EntropyDecoder<Ctx>::Start() {
   range_ = 510;
   bits_needed_ = -8;
   value_ = (bit_reader_->ReadByte() << 8);
   value_ |= bit_reader_->ReadByte();
 }
 
-void EntropyDecoder::Finish() {
+template<typename Ctx>
+void EntropyDecoder<Ctx>::Finish() {
   bit_reader_->ReadBits(1);
   bit_reader_->SkipBits();
 }
+
+template class EntropyDecoder<ContextModelDynamic>;
+template class EntropyDecoder<ContextModelStatic>;
 
 }   // namespace xvc

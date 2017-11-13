@@ -77,10 +77,8 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   }
   WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
 
-  EntropyEncoder entropy_encoder(&bit_writer_);
-  entropy_encoder.Start();
   SyntaxWriter writer(base_qp, pic_data_->GetPredictionType(),
-                      &entropy_encoder);
+                      &bit_writer_);
   std::unique_ptr<CuEncoder>
     cu_encoder(new CuEncoder(simd_, *orig_pic_, rec_pic_.get(), pic_data_.get(),
                              encoder_settings));
@@ -94,8 +92,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                                pic_data_->GetTcOffset());
     deblocker.DeblockPicture();
   }
-  entropy_encoder.EncodeBinTrm(1);
-  entropy_encoder.Finish();
+  writer.Finish();
 
   int pic_tid = pic_data_->GetTid();
   if (pic_tid == 0 || !pic_data_->IsHighestLayer()) {

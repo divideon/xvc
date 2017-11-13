@@ -30,26 +30,32 @@
 namespace xvc {
 
 SyntaxWriter::SyntaxWriter(const Qp &qp, PicturePredictionType pic_type,
-                           EntropyEncoder *entropyenc)
-  : entropyenc_(entropyenc) {
+                           BitWriter *bit_writer)
+  : encoder_(bit_writer) {
   ctx_.ResetStates(qp, pic_type);
+  encoder_.Start();
 }
 
-SyntaxWriter::SyntaxWriter(const CabacContexts &contexts,
-                           EntropyEncoder *entropyenc)
-  : ctx_(contexts), entropyenc_(entropyenc) {
+SyntaxWriter::SyntaxWriter(const Contexts &contexts,
+                           EntropyEncoder &&entropyenc)
+  : ctx_(contexts), encoder_(std::move(entropyenc)) {
+}
+
+void SyntaxWriter::Finish() {
+  encoder_.EncodeBinTrm(1);
+  encoder_.Finish();
 }
 
 void SyntaxWriter::WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf) {
   if (util::IsLuma(comp)) {
-    entropyenc_->EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_luma[0]);
+    encoder_.EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_luma[0]);
   } else {
-    entropyenc_->EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_chroma[0]);
+    encoder_.EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_chroma[0]);
   }
 }
 
 void SyntaxWriter::WriteQp(int qp_value) {
-  entropyenc_->EncodeBypassBins(qp_value, 7);
+  encoder_.EncodeBypassBins(qp_value, 7);
 }
 
 int SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
@@ -186,7 +192,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                                                   subblock_width,
                                                   subblock_height,
                                                   &pattern_sig_ctx);
-      entropyenc_->EncodeBin(sig ? 1 : 0, &ctx);
+      encoder_.EncodeBin(sig ? 1 : 0, &ctx);
     }
     if (!sig) {
       continue;
@@ -210,7 +216,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
                               coeff_scan_x, coeff_scan_y,
                               src_coeff, src_coeff_stride,
                               width_log2, height_log2);
-        entropyenc_->EncodeBin(coeff != 0, &ctx);
+        encoder_.EncodeBin(coeff != 0, &ctx);
       }
       if (coeff != 0) {
         subblock_coeff[coeff_num_non_zero] =
@@ -254,7 +260,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         ctx_.GetCoeffGreater1Ctx(comp, ctx_set, c1, coeff_scan_x, coeff_scan_y,
                                  i == 0 && is_last_subblock,
                                  src_coeff, src_coeff_stride, width, height);
-      entropyenc_->EncodeBin(greater_than_1, &ctx);
+      encoder_.EncodeBin(greater_than_1, &ctx);
       if (greater_than_1) {
         c1 = 0;
         if (first_c2_idx == -1 &&
@@ -276,7 +282,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         ctx_.GetCoeffGreater2Ctx(comp, ctx_set, coeff_scan_x, coeff_scan_y,
                                  first_c2_idx == 0 && is_last_subblock,
                                  src_coeff, src_coeff_stride, width, height);
-      entropyenc_->EncodeBin(greater_than_2, &ctx);
+      encoder_.EncodeBin(greater_than_2, &ctx);
     }
 
     // sign hiding
@@ -290,9 +296,9 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
 
     // sign flags
     if (sign_hidden) {
-      entropyenc_->EncodeBypassBins(coeff_signs >> 1, coeff_num_non_zero - 1);
+      encoder_.EncodeBypassBins(coeff_signs >> 1, coeff_num_non_zero - 1);
     } else {
-      entropyenc_->EncodeBypassBins(coeff_signs, coeff_num_non_zero);
+      encoder_.EncodeBypassBins(coeff_signs, coeff_num_non_zero);
     }
 
     // abs level remaining
@@ -332,16 +338,16 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
 }
 
 void SyntaxWriter::WriteEndOfSlice(bool end_of_slice) {
-  entropyenc_->EncodeBinTrm(end_of_slice ? 1 : 0);
+  encoder_.EncodeBinTrm(end_of_slice ? 1 : 0);
 }
 
 void SyntaxWriter::WriteInterDir(const CodingUnit &cu, InterDir inter_dir) {
   assert(cu.GetPartitionType() == PartitionType::kSize2Nx2N);
   ContextModel &ctx = ctx_.GetInterDirBiCtx(cu);
-  entropyenc_->EncodeBin(inter_dir == InterDir::kBi ? 1 : 0, &ctx);
+  encoder_.EncodeBin(inter_dir == InterDir::kBi ? 1 : 0, &ctx);
   if (inter_dir != InterDir::kBi) {
     uint32_t bin = inter_dir == InterDir::kL0 ? 0 : 1;
-    entropyenc_->EncodeBin(bin, &ctx_.inter_dir[4]);
+    encoder_.EncodeBin(bin, &ctx_.inter_dir[4]);
   }
 }
 
@@ -352,7 +358,7 @@ void SyntaxWriter::WriteInterFullpelMvFlag(const CodingUnit &cu,
     return;
   }
   ContextModel &ctx = ctx_.GetInterFullpelMvCtx(cu);
-  entropyenc_->EncodeBin(fullpel_mv_only ? 1 : 0, &ctx);
+  encoder_.EncodeBin(fullpel_mv_only ? 1 : 0, &ctx);
 }
 
 void SyntaxWriter::WriteInterMvd(const MotionVector &mvd) {
@@ -361,33 +367,33 @@ void SyntaxWriter::WriteInterMvd(const MotionVector &mvd) {
   if (Restrictions::Get().disable_inter_mvd_greater_than_flags) {
     WriteExpGolomb(abs_mvd_x, 1);
     if (abs_mvd_x) {
-      entropyenc_->EncodeBypass(mvd.x < 0 ? 1 : 0);
+      encoder_.EncodeBypass(mvd.x < 0 ? 1 : 0);
     }
     WriteExpGolomb(abs_mvd_y, 1);
     if (abs_mvd_y) {
-      entropyenc_->EncodeBypass(mvd.y < 0 ? 1 : 0);
+      encoder_.EncodeBypass(mvd.y < 0 ? 1 : 0);
     }
     return;
   }
-  entropyenc_->EncodeBin(mvd.x != 0, &ctx_.inter_mvd[0]);
-  entropyenc_->EncodeBin(mvd.y != 0, &ctx_.inter_mvd[0]);
+  encoder_.EncodeBin(mvd.x != 0, &ctx_.inter_mvd[0]);
+  encoder_.EncodeBin(mvd.y != 0, &ctx_.inter_mvd[0]);
   if (abs_mvd_x) {
-    entropyenc_->EncodeBin(abs_mvd_x > 1, &ctx_.inter_mvd[1]);
+    encoder_.EncodeBin(abs_mvd_x > 1, &ctx_.inter_mvd[1]);
   }
   if (abs_mvd_y) {
-    entropyenc_->EncodeBin(abs_mvd_y > 1, &ctx_.inter_mvd[1]);
+    encoder_.EncodeBin(abs_mvd_y > 1, &ctx_.inter_mvd[1]);
   }
   if (abs_mvd_x) {
     if (abs_mvd_x > 1) {
       WriteExpGolomb(abs_mvd_x - 2, 1);
     }
-    entropyenc_->EncodeBypass(mvd.x < 0 ? 1 : 0);
+    encoder_.EncodeBypass(mvd.x < 0 ? 1 : 0);
   }
   if (abs_mvd_y) {
     if (abs_mvd_y > 1) {
       WriteExpGolomb(abs_mvd_y - 2, 1);
     }
-    entropyenc_->EncodeBypass(mvd.y < 0 ? 1 : 0);
+    encoder_.EncodeBypass(mvd.y < 0 ? 1 : 0);
   }
 }
 
@@ -404,18 +410,18 @@ void SyntaxWriter::WriteInterRefIdx(int ref_idx, int num_refs_available) {
   if (num_refs_available == 1) {
     return;
   }
-  entropyenc_->EncodeBin(ref_idx != 0 ? 1 : 0, &ctx_.inter_ref_idx[0]);
+  encoder_.EncodeBin(ref_idx != 0 ? 1 : 0, &ctx_.inter_ref_idx[0]);
   if (!ref_idx || num_refs_available == 2) {
     return;
   }
   ref_idx--;
-  entropyenc_->EncodeBin(ref_idx != 0 ? 1 : 0, &ctx_.inter_ref_idx[1]);
+  encoder_.EncodeBin(ref_idx != 0 ? 1 : 0, &ctx_.inter_ref_idx[1]);
   if (!ref_idx) {
     return;
   }
   for (int i = 1; i < num_refs_available - 2; i++) {
     uint32_t bin = (i == ref_idx) ? 0 : 1;
-    entropyenc_->EncodeBypass(bin);
+    encoder_.EncodeBypass(bin);
     if (!bin) {
       break;
     }
@@ -434,21 +440,21 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
     }
   }
   ContextModel &ctx = ctx_.intra_pred_luma[0];
-  entropyenc_->EncodeBin(mpm_index >= 0, &ctx);
+  encoder_.EncodeBin(mpm_index >= 0, &ctx);
   if (mpm_index >= 0) {
     if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
-      entropyenc_->EncodeBin(mpm_index > 0,
-                             &ctx_.GetIntraPredictorCtx(mpm[0]));
+      encoder_.EncodeBin(mpm_index > 0,
+                         &ctx_.GetIntraPredictorCtx(mpm[0]));
       if (mpm_index > 0) {
-        entropyenc_->EncodeBin(mpm_index > 1,
-                               &ctx_.GetIntraPredictorCtx(mpm[1]));
+        encoder_.EncodeBin(mpm_index > 1,
+                           &ctx_.GetIntraPredictorCtx(mpm[1]));
         if (mpm_index > 1) {
-          entropyenc_->EncodeBin(mpm_index > 2,
-                                 &ctx_.GetIntraPredictorCtx(mpm[2]));
+          encoder_.EncodeBin(mpm_index > 2,
+                             &ctx_.GetIntraPredictorCtx(mpm[2]));
           if (mpm_index > 2) {
-            entropyenc_->EncodeBypass(mpm_index > 3);
+            encoder_.EncodeBypass(mpm_index > 3);
             if (mpm_index > 3) {
-              entropyenc_->EncodeBypass(mpm_index > 4);
+              encoder_.EncodeBypass(mpm_index > 4);
             }
           }
         }
@@ -456,7 +462,7 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
     } else {
       static_assert(constants::kNumIntraMpm == 3, "non-branching invariant");
       int num_bits = 1 + (mpm_index > 0);
-      entropyenc_->EncodeBypassBins(mpm_index + (mpm_index > 0), num_bits);
+      encoder_.EncodeBypassBins(mpm_index + (mpm_index > 0), num_bits);
     }
   } else {
     if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
@@ -469,12 +475,12 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
       }
       if (!Restrictions::Get().disable_ext_intra_extra_modes) {
         if (mode_index <= kNbrIntraModesExt - 8) {
-          entropyenc_->EncodeBypassBins(mode_index, 6);
+          encoder_.EncodeBypassBins(mode_index, 6);
         } else {
-          entropyenc_->EncodeBypassBins(mode_index >> 2, 4);
+          encoder_.EncodeBypassBins(mode_index >> 2, 4);
         }
       } else {
-        entropyenc_->EncodeBypassBins(mode_index, 5);
+        encoder_.EncodeBypassBins(mode_index, 5);
       }
     } else {
       IntraPredictorLuma mpm_sorted = mpm;
@@ -492,9 +498,9 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
         mode_index -= mode_index >= mpm_sorted[i] ? 1 : 0;
       }
       if (!Restrictions::Get().disable_ext_intra_extra_modes) {
-        entropyenc_->EncodeBypassBins(mode_index, 6);
+        encoder_.EncodeBypassBins(mode_index, 6);
       } else {
-        entropyenc_->EncodeBypassBins(mode_index, 5);
+        encoder_.EncodeBypassBins(mode_index, 5);
       }
     }
   }
@@ -503,16 +509,16 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
 void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
                                         IntraPredictorChroma chroma_preds) {
   if (chroma_mode == IntraChromaMode::kDmChroma) {
-    entropyenc_->EncodeBin(0, &ctx_.intra_pred_chroma[0]);
+    encoder_.EncodeBin(0, &ctx_.intra_pred_chroma[0]);
     return;
   }
-  entropyenc_->EncodeBin(1, &ctx_.intra_pred_chroma[0]);
+  encoder_.EncodeBin(1, &ctx_.intra_pred_chroma[0]);
   if (!Restrictions::Get().disable_ext_intra_chroma_from_luma) {
     if (chroma_mode == IntraChromaMode::kLmChroma) {
-      entropyenc_->EncodeBin(0, &ctx_.intra_pred_chroma[1]);
+      encoder_.EncodeBin(0, &ctx_.intra_pred_chroma[1]);
       return;
     }
-    entropyenc_->EncodeBin(1, &ctx_.intra_pred_chroma[1]);
+    encoder_.EncodeBin(1, &ctx_.intra_pred_chroma[1]);
   }
   int chroma_index = 0;
   for (int i = 1; i < static_cast<int>(chroma_preds.size()) - 1; i++) {
@@ -520,7 +526,7 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
       chroma_index = i;
     }
   }
-  entropyenc_->EncodeBypassBins(chroma_index, 2);
+  encoder_.EncodeBypassBins(chroma_index, 2);
 }
 
 void SyntaxWriter::WriteLicFlag(bool use_lic) {
@@ -528,7 +534,7 @@ void SyntaxWriter::WriteLicFlag(bool use_lic) {
     assert(!use_lic);
     return;
   }
-  entropyenc_->EncodeBin(use_lic ? 1 : 0, &ctx_.lic_flag[0]);
+  encoder_.EncodeBin(use_lic ? 1 : 0, &ctx_.lic_flag[0]);
 }
 
 void SyntaxWriter::WriteMergeFlag(bool merge) {
@@ -536,7 +542,7 @@ void SyntaxWriter::WriteMergeFlag(bool merge) {
     assert(!merge);
     return;
   }
-  entropyenc_->EncodeBin(merge ? 1 : 0, &ctx_.inter_merge_flag[0]);
+  encoder_.EncodeBin(merge ? 1 : 0, &ctx_.inter_merge_flag[0]);
 }
 
 void SyntaxWriter::WriteMergeIdx(int merge_idx) {
@@ -545,12 +551,12 @@ void SyntaxWriter::WriteMergeIdx(int merge_idx) {
   }
   const int max_merge_cand = constants::kNumInterMergeCandidates;
   uint32_t bin = merge_idx != 0;
-  entropyenc_->EncodeBin(bin, &ctx_.inter_merge_idx[0]);
+  encoder_.EncodeBin(bin, &ctx_.inter_merge_idx[0]);
   if (merge_idx != 0) {
     uint32_t bins = (1 << merge_idx) - 2;
     bins >>= (merge_idx == max_merge_cand - 1) ? 1 : 0;
     int num_bins = merge_idx - ((merge_idx == max_merge_cand - 1) ? 1 : 0);
-    entropyenc_->EncodeBypassBins(bins, num_bins);
+    encoder_.EncodeBypassBins(bins, num_bins);
   }
 }
 
@@ -561,16 +567,16 @@ void SyntaxWriter::WritePartitionType(const CodingUnit &cu,
     assert(cu.GetCuTree() == CuTree::Primary);
     if (cu.GetDepth() == constants::kMaxCuDepth) {
       uint32_t bin = type == PartitionType::kSize2Nx2N ? 1 : 0;
-      entropyenc_->EncodeBin(bin, &ctx_.cu_part_size[0]);
+      encoder_.EncodeBin(bin, &ctx_.cu_part_size[0]);
     }
     return;
   }
   switch (type) {
     case PartitionType::kSize2Nx2N:
-      entropyenc_->EncodeBin(1, &ctx_.cu_part_size[0]);
+      encoder_.EncodeBin(1, &ctx_.cu_part_size[0]);
       break;
     default:
-      entropyenc_->EncodeBin(0, &ctx_.cu_part_size[0]);
+      encoder_.EncodeBin(0, &ctx_.cu_part_size[0]);
       // TODO(Dev) Non 2Nx2N part size not implemented
       assert(0);
       break;
@@ -579,11 +585,11 @@ void SyntaxWriter::WritePartitionType(const CodingUnit &cu,
 
 void SyntaxWriter::WritePredMode(PredictionMode pred_mode) {
   uint32_t is_intra = pred_mode == PredictionMode::kIntra ? 1 : 0;
-  entropyenc_->EncodeBin(is_intra, &ctx_.cu_pred_mode[0]);
+  encoder_.EncodeBin(is_intra, &ctx_.cu_pred_mode[0]);
 }
 
 void SyntaxWriter::WriteRootCbf(bool root_cbf) {
-  entropyenc_->EncodeBin(root_cbf != 0, &ctx_.cu_root_cbf[0]);
+  encoder_.EncodeBin(root_cbf != 0, &ctx_.cu_root_cbf[0]);
 }
 
 void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
@@ -592,7 +598,7 @@ void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
     return;
   }
   ContextModel &ctx = ctx_.GetSkipFlagCtx(cu);
-  entropyenc_->EncodeBin(skip_flag ? 1 : 0, &ctx);
+  encoder_.EncodeBin(skip_flag ? 1 : 0, &ctx);
 }
 
 void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu,
@@ -600,7 +606,7 @@ void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu,
                                     SplitType split) {
   assert(split != SplitType::kQuad);
   ContextModel &ctx = ctx_.GetSplitBinaryCtx(cu);
-  entropyenc_->EncodeBin(split != SplitType::kNone ? 1 : 0, &ctx);
+  encoder_.EncodeBin(split != SplitType::kNone ? 1 : 0, &ctx);
   if (split == SplitType::kNone) {
     return;
   }
@@ -620,13 +626,13 @@ void SyntaxWriter::WriteSplitBinary(const CodingUnit &cu,
     cu.GetWidth(YuvComponent::kY) == cu.GetHeight(YuvComponent::kY) ? 0 :
     (cu.GetWidth(YuvComponent::kY) > cu.GetHeight(YuvComponent::kY) ? 1 : 2);
   ContextModel &ctx2 = ctx_.cu_split_binary[3 + offset];
-  entropyenc_->EncodeBin(split == SplitType::kVertical ? 1 : 0, &ctx2);
+  encoder_.EncodeBin(split == SplitType::kVertical ? 1 : 0, &ctx2);
 }
 
 void SyntaxWriter::WriteSplitQuad(const CodingUnit &cu, int max_depth,
                                   SplitType split) {
   ContextModel &ctx = ctx_.GetSplitFlagCtx(cu, max_depth);
-  entropyenc_->EncodeBin(split == SplitType::kQuad ? 1 : 0, &ctx);
+  encoder_.EncodeBin(split == SplitType::kQuad ? 1 : 0, &ctx);
 }
 
 void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
@@ -637,7 +643,7 @@ void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
     return;
   }
   ContextModel &ctx = ctx_.transform_skip_flag[util::IsLuma(comp) ? 0 : 1];
-  entropyenc_->EncodeBin(transform_skip ? 1 : 0, &ctx);
+  encoder_.EncodeBin(transform_skip ? 1 : 0, &ctx);
 }
 
 void SyntaxWriter::WriteTransformSelectEnable(const CodingUnit &cu,
@@ -647,7 +653,7 @@ void SyntaxWriter::WriteTransformSelectEnable(const CodingUnit &cu,
     return;
   }
   ContextModel &ctx = ctx_.transform_select_flag[cu.GetDepth()];
-  entropyenc_->EncodeBin(enable ? 1 : 0, &ctx);
+  encoder_.EncodeBin(enable ? 1 : 0, &ctx);
 }
 
 void SyntaxWriter::WriteTransformSelectIdx(const CodingUnit &cu, int type_idx) {
@@ -660,8 +666,8 @@ void SyntaxWriter::WriteTransformSelectIdx(const CodingUnit &cu, int type_idx) {
     ctx_.transform_select_idx[0] : ctx_.transform_select_idx[2];
   ContextModel &ctx2 = cu.IsIntra() ?
     ctx_.transform_select_idx[1] : ctx_.transform_select_idx[3];
-  entropyenc_->EncodeBin((type_idx & 1) ? 1 : 0, &ctx1);
-  entropyenc_->EncodeBin((type_idx >> 1) ? 1 : 0, &ctx2);
+  encoder_.EncodeBin((type_idx & 1) ? 1 : 0, &ctx1);
+  encoder_.EncodeBin((type_idx >> 1) ? 1 : 0, &ctx2);
 }
 
 void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
@@ -678,24 +684,24 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
   for (ctx_last_x = 0; ctx_last_x < group_idx_x; ctx_last_x++) {
     ContextModel &ctx =
       ctx_.GetCoeffLastPosCtx(comp, width, height, ctx_last_x, true);
-    entropyenc_->EncodeBin(1, &ctx);
+    encoder_.EncodeBin(1, &ctx);
   }
   if (group_idx_x < TransformHelper::kLastPosGroupIdx[width - 1]) {
     ContextModel &ctx =
       ctx_.GetCoeffLastPosCtx(comp, width, height, ctx_last_x, true);
-    entropyenc_->EncodeBin(0, &ctx);
+    encoder_.EncodeBin(0, &ctx);
   }
   // pos Y
   int ctx_last_y;
   for (ctx_last_y = 0; ctx_last_y < group_idx_y; ctx_last_y++) {
     ContextModel &ctx =
       ctx_.GetCoeffLastPosCtx(comp, width, height, ctx_last_y, false);
-    entropyenc_->EncodeBin(1, &ctx);
+    encoder_.EncodeBin(1, &ctx);
   }
   if (group_idx_y < TransformHelper::kLastPosGroupIdx[height - 1]) {
     ContextModel &ctx =
       ctx_.GetCoeffLastPosCtx(comp, width, height, ctx_last_y, false);
-    entropyenc_->EncodeBin(0, &ctx);
+    encoder_.EncodeBin(0, &ctx);
   }
 
   if (group_idx_x > 3) {
@@ -703,7 +709,7 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
     uint32_t remain_x =
       last_pos_x - TransformHelper::kLastPosMinInGroup[group_idx_x];
     for (int i = length - 1; i >= 0; i--) {
-      entropyenc_->EncodeBypass((remain_x >> i) & 1);
+      encoder_.EncodeBypass((remain_x >> i) & 1);
     }
   }
   if (group_idx_y > 3) {
@@ -711,7 +717,7 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
     uint32_t remain_y =
       last_pos_y - TransformHelper::kLastPosMinInGroup[group_idx_y];
     for (int i = length - 1; i >= 0; i--) {
-      entropyenc_->EncodeBypass((remain_y >> i) & 1);
+      encoder_.EncodeBypass((remain_y >> i) & 1);
     }
   }
 }
@@ -724,9 +730,9 @@ void SyntaxWriter::WriteCoeffRemainExpGolomb(uint32_t code_number,
     constants::kCoeffRemainBinReduction;
   if (code_number < (threshold << golomb_rice_k)) {
     uint32_t length = code_number >> golomb_rice_k;
-    entropyenc_->EncodeBypassBins((1 << (length + 1)) - 2, length + 1);
-    entropyenc_->EncodeBypassBins((code_number % (1 << golomb_rice_k)),
-                                  golomb_rice_k);
+    encoder_.EncodeBypassBins((1 << (length + 1)) - 2, length + 1);
+    encoder_.EncodeBypassBins((code_number % (1 << golomb_rice_k)),
+                              golomb_rice_k);
   } else {
     uint32_t length = golomb_rice_k;
     code_number -= (threshold << golomb_rice_k);
@@ -734,8 +740,8 @@ void SyntaxWriter::WriteCoeffRemainExpGolomb(uint32_t code_number,
       code_number -= (1 << (length++));
     }
     int num_bins = threshold + length + 1 - golomb_rice_k;
-    entropyenc_->EncodeBypassBins((1 << num_bins) - 2, num_bins);
-    entropyenc_->EncodeBypassBins(code_number, length);
+    encoder_.EncodeBypassBins((1 << num_bins) - 2, num_bins);
+    encoder_.EncodeBypassBins(code_number, length);
   }
 }
 
@@ -752,52 +758,51 @@ void SyntaxWriter::WriteExpGolomb(uint32_t abs_level, uint32_t golomb_rice_k) {
   num_bins++;
   bins = (bins << golomb_rice_k) | abs_level;
   num_bins += golomb_rice_k;
-  entropyenc_->EncodeBypassBins(bins, num_bins);
+  encoder_.EncodeBypassBins(bins, num_bins);
 }
 
 void SyntaxWriter::WriteUnaryMaxSymbol(uint32_t symbol, uint32_t max_val,
                                        ContextModel *ctx_start,
                                        ContextModel *ctx_rest) {
   assert(max_val > 0);
-  entropyenc_->EncodeBin(symbol > 0, ctx_start);
+  encoder_.EncodeBin(symbol > 0, ctx_start);
   if (!symbol || max_val == 1) {
     return;
   }
   bool not_max = symbol < max_val;
   while (--symbol) {
-    entropyenc_->EncodeBin(1, ctx_rest);
+    encoder_.EncodeBin(1, ctx_rest);
   }
   if (not_max) {
-    entropyenc_->EncodeBin(0, ctx_rest);
+    encoder_.EncodeBin(0, ctx_rest);
   }
 }
 
 RdoSyntaxWriter::RdoSyntaxWriter(const SyntaxWriter &writer)
-  : SyntaxWriter(writer.GetContexts(), &entropy_instance_),
-  entropy_instance_(nullptr, writer.GetNumWrittenBits(),
+  : RdoSyntaxWriter(writer, writer.GetNumWrittenBits(),
                     writer.GetFractionalBits()) {
 }
 
 RdoSyntaxWriter::RdoSyntaxWriter(const RdoSyntaxWriter &writer)
-  : RdoSyntaxWriter(static_cast<const SyntaxWriter&>(writer)) {
+  : RdoSyntaxWriter(static_cast<const SyntaxWriter&>(writer),
+                    writer.GetNumWrittenBits(), writer.GetFractionalBits()) {
 }
 
 RdoSyntaxWriter::RdoSyntaxWriter(const SyntaxWriter &writer,
                                  uint32_t bits_written)
-  : SyntaxWriter(writer.GetContexts(), &entropy_instance_),
-  entropy_instance_(nullptr, bits_written, writer.GetFractionalBits()) {
+  : RdoSyntaxWriter(static_cast<const SyntaxWriter&>(writer),
+                    bits_written, writer.GetFractionalBits()) {
 }
 
 RdoSyntaxWriter::RdoSyntaxWriter(const SyntaxWriter & writer,
                                  uint32_t bits_written, uint32_t frac_bits)
-  : SyntaxWriter(writer.GetContexts(), &entropy_instance_),
-  entropy_instance_(nullptr, bits_written, frac_bits) {
+  : SyntaxWriter(writer.GetContexts(),
+                 EntropyEncoder(nullptr, bits_written, frac_bits)) {
 }
 
 RdoSyntaxWriter& RdoSyntaxWriter::operator=(const RdoSyntaxWriter &writer) {
   ctx_ = writer.ctx_;
-  // Assumes a null BitWriter is used
-  entropy_instance_ = writer.entropy_instance_;
+  encoder_ = writer.encoder_;
   return *this;
 }
 

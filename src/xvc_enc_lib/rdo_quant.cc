@@ -248,7 +248,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
   const int64_t lambda = static_cast<int64_t>(qp.GetLambdaScaled(comp) *
     (1 << kLambdaPrecision) + 0.5);
   // TODO(PH) Fix cabac context get methods to be const!
-  CabacContexts *contexts = const_cast<CabacContexts*>(&writer.GetContexts());
+  Contexts *contexts = const_cast<Contexts*>(&writer.GetContexts());
 
   const ScanOrder scan_order = TransformHelper::DetermineScanOrder(cu, comp);
   const auto fwd_quant = GetFwdQuantFunc(comp, qp, width, height);
@@ -771,7 +771,7 @@ RdoQuant::EvalZeroSubblock(int subblock_index, int size, bool subblock_csbf,
 template<int SubBlockShift>
 int
 RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
-                      ScanOrder scan_order, CabacContexts *contexts,
+                      ScanOrder scan_order, Contexts *contexts,
                       int last_pos_index, int64_t lambda,
                       int64_t comp_code_cost, int64_t comp_zero_dist,
                       const Coeff *out, ptrdiff_t out_stride,
@@ -782,9 +782,9 @@ RdoQuant::EvalLastPos(const CodingUnit &cu, YuvComponent comp,
   const int height = cu.GetHeight(comp);
   SubblockScan<SubBlockShift> subblock_scan(scan_order, width, height);
 
-  static_assert(1 == CabacContexts::kNumCuCbfCtxLuma, "only 1 cbf ctx");
-  static_assert(1 == CabacContexts::kNumCuCbfCtxChroma, "only 1 cbf ctx");
-  static_assert(1 == CabacContexts::kNumCuRootCbfCtx, "only 1 root cbf ctx");
+  static_assert(1 == Contexts::kNumCuCbfCtxLuma, "only 1 cbf ctx");
+  static_assert(1 == Contexts::kNumCuCbfCtxChroma, "only 1 cbf ctx");
+  static_assert(1 == Contexts::kNumCuRootCbfCtx, "only 1 root cbf ctx");
   ContextModel &cbf_ctx = !util::IsLuma(comp) ? contexts->cu_cbf_chroma[0] :
     (cu.IsIntra() ? contexts->cu_cbf_luma[0] : contexts->cu_root_cbf[0]);
   comp_code_cost += BitCost(cbf_ctx.GetEntropyBits(1), lambda);
@@ -903,7 +903,7 @@ void RdoQuant::UpdateCodeState(YuvComponent comp, Coeff quant_level,
 }
 
 Bits RdoQuant::GetLastPosBits(int width, int height, YuvComponent comp,
-                              ScanOrder scan_order, CabacContexts *contexts,
+                              ScanOrder scan_order, Contexts *contexts,
                               int last_pos_x, int last_pos_y) const {
   // TODO(PH) Replace with call to SyntaxWriter::WriteCoeffLastPos?
   Bits bits = 0;

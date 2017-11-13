@@ -24,6 +24,7 @@
 
 namespace xvc {
 
+template<typename ContextModel>
 class EntropyDecoder {
 public:
   explicit EntropyDecoder(BitReader *bit_reader);
@@ -42,6 +43,9 @@ private:
   int bits_needed_;
   BitReader *bit_reader_;
 };
+
+extern template class EntropyDecoder<ContextModelDynamic>;
+extern template class EntropyDecoder<ContextModelStatic>;
 
 }   // namespace xvc
 

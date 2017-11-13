@@ -46,12 +46,9 @@ protected:
     xvc::CodingUnit *cu = pic_data.CreateCu(cu_tree, 0, 0, 0, width_, height_);
     cu->SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitWriter bit_writer;
-    xvc::EntropyEncoder entropyenc(&bit_writer);
-    xvc::SyntaxWriter writer(*qp_, pic_type, &entropyenc);
-    entropyenc.Start();
+    xvc::SyntaxWriter writer(*qp_, pic_type, &bit_writer);
     writer.WriteCoefficients(*cu, comp, &enc_coeff[0], coeff_stride);
-    entropyenc.EncodeBinTrm(1);
-    entropyenc.Finish();
+    writer.Finish();
     *bitstream = *bit_writer.GetBytes();
     pic_data.ReleaseCu(cu);
   }
@@ -61,13 +58,11 @@ protected:
     xvc::CodingUnit *cu = pic_data.CreateCu(cu_tree, 0, 0, 0, width_, height_);
     cu->SetPredMode(xvc::PredictionMode::kInter);  // for diag scan order
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
-    xvc::EntropyDecoder entropydec(&bit_reader);
-    xvc::SyntaxReader reader(*qp_, pic_type, &entropydec);
+    std::unique_ptr<xvc::SyntaxReader> syntax_reader =
+      xvc::SyntaxReader::Create(*qp_, pic_type, &bit_reader);
     dec_coeff.fill(0);  // caller responsiblility
-    entropydec.Start();
-    reader.ReadCoefficients(*cu, comp, &dec_coeff[0], coeff_stride);
-    ASSERT_EQ(1, entropydec.DecodeBinTrm());
-    entropydec.Finish();
+    syntax_reader->ReadCoefficients(*cu, comp, &dec_coeff[0], coeff_stride);
+    ASSERT_EQ(true, syntax_reader->Finish());
     pic_data.ReleaseCu(cu);
   }
 

@@ -29,8 +29,7 @@
 
 namespace xvc {
 
-struct CabacContexts {
-public:
+struct CabacCommon {
   static const int kNumSplitQuadFlagCtx = 5;
   static const int kNumSplitBinaryCtx = 6;
   static const int kNumSkipFlagCtx = 3;
@@ -82,7 +81,11 @@ public:
   static const int kNumTransformSelectEnableCtx = 6;
   static const int kNumTransformSelectIdxCtx = 4;
   static const int kNumTquantBypassFlagCtx = 1;
+};
 
+template<typename ContextModel>
+struct CabacContexts : public CabacCommon {
+public:
   CabacContexts() {}
   void ResetStates(const Qp &qp, PicturePredictionType pic_type);
 
@@ -159,6 +162,10 @@ public:
   std::array<ContextModel, kNumTransformSelectEnableCtx> transform_select_flag;
   std::array<ContextModel, kNumTransformSelectIdxCtx> transform_select_idx;
 };
+
+extern template struct CabacContexts<ContextModel>;
+extern template struct CabacContexts<ContextModelDynamic>;
+extern template struct CabacContexts<ContextModelStatic>;
 
 }   // namespace xvc
 

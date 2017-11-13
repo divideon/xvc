@@ -149,15 +149,13 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
 
   pic_data_->Init(segment, qp, true);
 
-  EntropyDecoder entropy_decoder(bit_reader);
-  entropy_decoder.Start();
-  SyntaxReader syntax_reader(qp, pic_data_->GetPredictionType(),
-                             &entropy_decoder);
+  std::unique_ptr<SyntaxReader> syntax_reader =
+    SyntaxReader::Create(qp, pic_data_->GetPredictionType(), bit_reader);
   std::unique_ptr<CuDecoder> cu_decoder(
     new CuDecoder(simd_, rec_pic_.get(), pic_data_.get()));
   int num_ctus = pic_data_->GetNumberOfCtu();
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
-    cu_decoder->DecodeCtu(rsaddr, &syntax_reader);
+    cu_decoder->DecodeCtu(rsaddr, syntax_reader.get());
   }
   if (pic_data_->GetDeblock()) {
     DeblockingFilter deblocker(pic_data_.get(), rec_pic_.get(),
@@ -165,11 +163,10 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
                                pic_data_->GetTcOffset());
     deblocker.DeblockPicture();
   }
-  if (!entropy_decoder.DecodeBinTrm()) {
+  if (!syntax_reader->Finish()) {
     assert(0);
     success = false;
   }
-  entropy_decoder.Finish();
   int pic_tid = pic_data_->GetTid();
   rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();

@@ -48,7 +48,7 @@ public:
     return kEntropyBits_[126 ^ bin];
   }
 
-private:
+protected:
   static const int kNumCtxStates = 64;
   static const std::array<uint8_t, 2 * kNumCtxStates> kNextStateMps_;
   static const std::array<uint8_t, 2 * kNumCtxStates> kNextStateLps_;
@@ -56,6 +56,28 @@ private:
   static const std::array<uint8_t, 32> kRenormTable_;
   static const std::array<std::array<uint8_t, 4>, kNumCtxStates> kRangeTable_;
   uint8_t state_ = 0;
+};
+
+// TODO(PH) Following classes gives performance boost to decoder by not having
+// to check restriction flags for every bin but are not used by encoder due to
+// adding extra code complexity together with rdo
+
+class ContextModelDynamic : public ContextModel {
+public:
+  // Override parent methods without virtual to avoid restriction check
+  void UpdateLPS() {
+    state_ = kNextStateLps_[state_];
+  }
+  void UpdateMPS() {
+    state_ = kNextStateMps_[state_];
+  }
+};
+
+class ContextModelStatic : public ContextModel {
+public:
+  // Override parent methods without virtual to avoid restriction check
+  void UpdateLPS() {}
+  void UpdateMPS() {}
 };
 
 }   // namespace xvc

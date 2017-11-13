@@ -29,24 +29,27 @@
 
 namespace xvc {
 
+using Contexts = CabacContexts<ContextModel>;
+
 class SyntaxWriter {
 public:
   SyntaxWriter(const Qp &qp, PicturePredictionType pic_type,
-               EntropyEncoder *entropyenc);
-  SyntaxWriter(const CabacContexts &contexts, EntropyEncoder *entropyenc);
-  const CabacContexts &GetContexts() const { return ctx_; }
+               BitWriter *bit_writer);
+  SyntaxWriter(const Contexts &contexts, EntropyEncoder &&entropyenc);
+  const Contexts& GetContexts() const { return ctx_; }
   Bits GetNumWrittenBits() const {
-    return entropyenc_->GetNumWrittenBits();
+    return encoder_.GetNumWrittenBits();
   }
   Bits GetFractionalBits() const {
-    return entropyenc_->GetFractionalBits();
+    return encoder_.GetFractionalBits();
   }
-  void ResetBitCounting() { entropyenc_->ResetBitCounting(); }
+  void ResetBitCounting() { encoder_.ResetBitCounting(); }
+  void Finish();
 
   void WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf);
   void WriteQp(int qp_value);
   int WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
-                         const Coeff *coeff, ptrdiff_t coeff_stride);
+                        const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteEndOfSlice(bool end_of_slice);
   void WriteInterDir(const CodingUnit &cu, InterDir inter_dir);
   void WriteInterFullpelMvFlag(const CodingUnit &cu, bool fullpel_mv_only);
@@ -74,7 +77,7 @@ public:
 private:
   template<int SubBlockShift>
   int WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
-                          const Coeff *coeff, ptrdiff_t coeff_stride);
+                         const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteCoeffLastPos(int width, int height, YuvComponent comp,
                          ScanOrder scan_order, int last_pos_x,
                          int last_pos_y);
@@ -83,8 +86,8 @@ private:
   void WriteUnaryMaxSymbol(uint32_t symbol, uint32_t max_val,
                            ContextModel *ctx_start, ContextModel *ctx_rest);
 
-  CabacContexts ctx_;
-  EntropyEncoder *entropyenc_;
+  Contexts ctx_;
+  EntropyEncoder encoder_;
   friend class RdoSyntaxWriter;
 };
 
@@ -96,8 +99,6 @@ public:
   RdoSyntaxWriter(const SyntaxWriter &writer, uint32_t bits_written,
                   uint32_t frac_bits);
   RdoSyntaxWriter& operator=(const RdoSyntaxWriter &writer);
-private:
-  EntropyEncoder entropy_instance_;
 };
 
 }   // namespace xvc

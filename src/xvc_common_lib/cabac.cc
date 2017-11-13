@@ -29,133 +29,133 @@ static const uint8_t kNotUsed = 0;
 static const uint8_t kDef = 154;  // TODO(PH) Used but value not determined
 
 static const uint8_t
-kInitCuTransquantBypassFlag[3][CabacContexts::kNumTquantBypassFlagCtx] = {
+kInitCuTransquantBypassFlag[3][CabacCommon::kNumTquantBypassFlagCtx] = {
   { 154 },
   { 154 },
   { 154 },
 };
 
 static const uint8_t
-kInitSplitQuadFlag[3][CabacContexts::kNumSplitQuadFlagCtx] = {
+kInitSplitQuadFlag[3][CabacCommon::kNumSplitQuadFlagCtx] = {
   { 107,  139,  126, 255, 0, },
   { 107,  139,  126, 255, 0, },
   { 139,  141,  157, 255, 0, },
 };
 
 static const uint8_t
-kInitSplitBinary[3][CabacContexts::kNumSplitBinaryCtx] = {
+kInitSplitBinary[3][CabacCommon::kNumSplitBinaryCtx] = {
   { 107,  139,  126, 154, 154, 154 },
   { 107,  139,  126, 154, 154, 154 },
   { 139,  141,  157, 154, 154, 154 },
 };
 
 static const uint8_t
-kInitSkipFlag[3][CabacContexts::kNumSkipFlagCtx] = {
+kInitSkipFlag[3][CabacCommon::kNumSkipFlagCtx] = {
   { 197,  185,  201, },
   { 197,  185,  201, },
   { kNotUsed,  kNotUsed,  kNotUsed, },
 };
 
 static const uint8_t
-kInitMergeFlag[3][CabacContexts::kNumMergeFlagCtx] = {
+kInitMergeFlag[3][CabacCommon::kNumMergeFlagCtx] = {
   { 154, },
   { 110, },
   { kNotUsed, },
 };
 
 static const uint8_t
-kInitMergeIdx[3][CabacContexts::kNumMergeIdxCtx] = {
+kInitMergeIdx[3][CabacCommon::kNumMergeIdxCtx] = {
   { 137, },
   { 122, },
   { kNotUsed, },
 };
 
 static const uint8_t
-kInitPartSize[3][CabacContexts::kNumPartSizeCtx] = {
+kInitPartSize[3][CabacCommon::kNumPartSizeCtx] = {
   { 154,  139,  154, 154 },
   { 154,  139,  154, 154 },
   { 184,  kNotUsed,  kNotUsed, kNotUsed },
 };
 
 static const uint8_t
-kInitPredMode[3][CabacContexts::kNumPredModeCtx] = {
+kInitPredMode[3][CabacCommon::kNumPredModeCtx] = {
   { 134, },
   { 149, },
   { kNotUsed, },
 };
 
 static const uint8_t
-kInitIntraLumaPredMode[3][CabacContexts::kNumIntraPredCtxLuma] = {
+kInitIntraLumaPredMode[3][CabacCommon::kNumIntraPredCtxLuma] = {
   { 183, kDef, kDef, kDef, kDef, kDef, kDef, kDef, kDef },
   { 154, kDef, kDef, kDef, kDef, kDef, kDef, kDef, kDef },
   { 184, kDef, kDef, kDef, kDef, kDef, kDef, kDef, kDef },
 };
 
 static const uint8_t
-kInitIntraChromaPredMode[3][CabacContexts::kNumIntraPredCtxChroma] = {
+kInitIntraChromaPredMode[3][CabacCommon::kNumIntraPredCtxChroma] = {
   { 152, 139 },
   { 152, 139 },
   { 63, 139 },
 };
 
 static const uint8_t
-kInitInterDir[3][CabacContexts::kNumInterDirCtx] = {
+kInitInterDir[3][CabacCommon::kNumInterDirCtx] = {
   { 95,   79,   63,   31,  31, },
   { 95,   79,   63,   31,  31, },
   { kNotUsed,  kNotUsed,  kNotUsed,  kNotUsed, kNotUsed, },
 };
 
 static const uint8_t
-kInitInterFullpelMv[3][CabacContexts::kNumInterFullpelMvCtx] = {
+kInitInterFullpelMv[3][CabacCommon::kNumInterFullpelMvCtx] = {
   { 197, 185, 201, },
   { 197, 185, 201, },
   { kNotUsed,  kNotUsed,  kNotUsed, },
 };
 
 static const uint8_t
-kInitLicFlag[3][CabacContexts::kNumLicFlagCtx] = {
+kInitLicFlag[3][CabacCommon::kNumLicFlagCtx] = {
   { 154 },
   { 154 },
   { kNotUsed },
 };
 
 static const uint8_t
-kInitMvd[3][CabacContexts::kNumMvdCtx] = {
+kInitMvd[3][CabacCommon::kNumMvdCtx] = {
   { 169,  198, },
   { 140,  198, },
   { kNotUsed,  kNotUsed, },
 };
 
 static const uint8_t
-kInitRefIdx[3][CabacContexts::kNumRefIdxCtx] = {
+kInitRefIdx[3][CabacCommon::kNumRefIdxCtx] = {
   { 153,  153 },
   { 153,  153 },
   { kNotUsed,  kNotUsed },
 };
 
 static const uint8_t
-kInitDqp[3][CabacContexts::kNumDeltaQpCtx] = {
+kInitDqp[3][CabacCommon::kNumDeltaQpCtx] = {
   { 154,  154,  154, },
   { 154,  154,  154, },
   { 154,  154,  154, },
 };
 
 static const uint8_t
-kInitCuCbf[3][CabacContexts::kNumCuCbfCtx] = {
+kInitCuCbf[3][CabacCommon::kNumCuCbfCtx] = {
   { 111,  149 },
   { 111,  149 },
   { 141,   94 },
 };
 
 static const uint8_t
-kInitCuRootCbf[3][CabacContexts::kNumCuRootCbfCtx] = {
+kInitCuRootCbf[3][CabacCommon::kNumCuRootCbfCtx] = {
   { 79, },
   { 79, },
   { kNotUsed, },
 };
 
 static const uint8_t
-kInitLastPos[3][CabacContexts::kNumCoeffLastPosCtx] = {
+kInitLastPos[3][CabacCommon::kNumCoeffLastPosCtx] = {
   { 125, 110, 124, 110, 95, 94, 125, 111, 111, 79, 125, 126, 111, 111, 79,
   126, 111, 111, 79, kDef, kDef, kDef, kDef, kDef, kDef,
   108, 123, 93 },
@@ -168,21 +168,21 @@ kInitLastPos[3][CabacContexts::kNumCoeffLastPosCtx] = {
 };
 
 static const uint8_t
-kInitSubblockCsbf[3][CabacContexts::kNumSubblockCsbfCtx] = {
+kInitSubblockCsbf[3][CabacCommon::kNumSubblockCsbfCtx] = {
   { 121, 140, 61, 154, },
   { 121, 140, 61, 154, },
   { 91, 171, 134, 141, },
 };
 
 static const uint8_t
-kInitExtSubblockCsbf[3][CabacContexts::kNumExtSubblockCsbfCtx] = {
+kInitExtSubblockCsbf[3][CabacCommon::kNumExtSubblockCsbfCtx] = {
   { 122, 143, 91, 141, },
   { 61, 154, 78, 111, },
   { 135, 155, 104, 139, },
 };
 
 static const uint8_t
-kInitCoeffSig[3][CabacContexts::kNumCoeffSigCtx] = {
+kInitCoeffSig[3][CabacCommon::kNumCoeffSigCtx] = {
   { 170, 154, 139, 153, 139, 123, 123, 63, 124, 166, 183, 140, 136, 153, 154,
   166, 183, 140, 136, 153, 154, 166, 183, 140, 136, 153, 154, 170, 153, 138,
   138, 122, 121, 122, 121, 167, 151, 183, 140, 151, 183, 140, },
@@ -195,7 +195,7 @@ kInitCoeffSig[3][CabacContexts::kNumCoeffSigCtx] = {
 };
 
 static const uint8_t
-kInitExtCoeffSig[3][CabacContexts::kNumExtCoeffSigCtx] = {
+kInitExtCoeffSig[3][CabacCommon::kNumExtCoeffSigCtx] = {
   { 107, 139, 154, 140, 140, 141, 108, 154, 125, 155, 126, 127, 139, 155, 155,
   141, 156, 143, 107, 139, 154, 140, 140, 141, 108, 154, 125, 155, 126, 127,
   139, 155, 155, 141, 156, 143, 107, 139, 154, 140, 140, 141, 108, 154, 125,
@@ -214,7 +214,7 @@ kInitExtCoeffSig[3][CabacContexts::kNumExtCoeffSigCtx] = {
 };
 
 static const uint8_t
-kInitCoeffGreater1[3][CabacContexts::kNumCoeffGreater1Ctx] = {
+kInitCoeffGreater1[3][CabacCommon::kNumCoeffGreater1Ctx] = {
   { 154, 196, 167, 167, 154, 152, 167, 182, 182, 134, 149, 136, 153, 121, 136,
   122, 169, 208, 166, 167, 154, 152, 167, 182, },
   { 154, 196, 196, 167, 154, 152, 167, 182, 182, 134, 149, 136, 153, 121, 136,
@@ -224,7 +224,7 @@ kInitCoeffGreater1[3][CabacContexts::kNumCoeffGreater1Ctx] = {
 };
 
 static const uint8_t
-kInitExtCoeffGreater1[3][CabacContexts::kNumExtCoeffGreater1Ctx] = {
+kInitExtCoeffGreater1[3][CabacCommon::kNumExtCoeffGreater1Ctx] = {
   { 121, 135, 123, 124, 139, 125,  92, 124, 154, 125, 155, 138, 169, 155, 170,
   156, 166, 152, 140, 170, 171, 157 },
   { 165,  75, 152, 153, 139, 154, 121, 138, 139, 154, 140, 167, 183, 169, 170,
@@ -234,74 +234,74 @@ kInitExtCoeffGreater1[3][CabacContexts::kNumExtCoeffGreater1Ctx] = {
 };
 
 static const uint8_t
-kInitCoeffGreater2[3][CabacContexts::kNumCoeffGreater2Ctx] = {
+kInitCoeffGreater2[3][CabacCommon::kNumCoeffGreater2Ctx] = {
   { 107, 167, 91, 107, 107, 167, },
   { 107, 167, 91, 122, 107, 167, },
   { 138, 153, 136, 167, 152, 152, },
 };
 
 static const uint8_t
-kInitMvpIdx[3][CabacContexts::kNumMvpIdxCtx] = {
+kInitMvpIdx[3][CabacCommon::kNumMvpIdxCtx] = {
   { 168 },
   { 168 },
   { kNotUsed },
 };
 
 static const uint8_t
-kInitSaoMergeFlag[3][CabacContexts::kNumSaoMergeFlagCtx] = {
+kInitSaoMergeFlag[3][CabacCommon::kNumSaoMergeFlagCtx] = {
   { 153, },
   { 153, },
   { 153, },
 };
 
 static const uint8_t
-InitSaoTypeIdx[3][CabacContexts::kNumSaoTypeIdxCtx] = {
+InitSaoTypeIdx[3][CabacCommon::kNumSaoTypeIdxCtx] = {
   { 160, },
   { 185, },
   { 200, },
 };
 
 static const uint8_t
-kInitTransSubdivFlag[3][CabacContexts::kNumTransSubdivFlagCtx] = {
+kInitTransSubdivFlag[3][CabacCommon::kNumTransSubdivFlagCtx] = {
   { 224,  167,  122, },
   { 124,  138,   94, },
   { 153,  138,  138, },
 };
 
 static const uint8_t
-kInitTransformSkipFlag[3][CabacContexts::kNumTransformSkipFlagCtx] = {
+kInitTransformSkipFlag[3][CabacCommon::kNumTransformSkipFlagCtx] = {
   { 139,  139 },
   { 139,  139 },
   { 139,  139 },
 };
 
 static const uint8_t
-kInitTransformSelectEnable[3][CabacContexts::kNumTransformSelectEnableCtx] = {
+kInitTransformSelectEnable[3][CabacCommon::kNumTransformSelectEnableCtx] = {
   { kDef, kDef, kDef, kDef, kDef, kDef },
   { kDef, kDef, kDef, kDef, kDef, kDef },
   { kDef, kDef, kDef, kDef, kDef, kDef },
 };
 
 static const uint8_t
-kInitTransformSelectIdx[3][CabacContexts::kNumTransformSelectIdxCtx] = {
+kInitTransformSelectIdx[3][CabacCommon::kNumTransformSelectIdxCtx] = {
   { kDef, kDef, kDef, kDef },
   { kDef, kDef, kDef, kDef },
   { kDef, kDef, kDef, kDef },
 };
 
-template <size_t N>
+template <typename Ctx, size_t N>
 inline static void Init(int qp, int slice_type,
-                        std::array<ContextModel, N> *ctx,
+                        std::array<Ctx, N> *ctx,
                         const uint8_t init_state[3][N]) {
   for (size_t i = 0; i < N; i++) {
     (*ctx)[i].Init(qp, init_state[slice_type][i]);
   }
 }
 
-template <size_t N, size_t M>
+template <typename Ctx, size_t N, size_t M>
 inline static void Init(int qp, int slice_type,
-                        std::array<ContextModel, N> *ctx_luma,
-                        std::array<ContextModel, M> *ctx_chroma,
+                        std::array<Ctx, N> *ctx_luma,
+                        std::array<Ctx, M> *ctx_chroma,
                         const uint8_t init_state[3][N + M]) {
   for (size_t i = 0; i < N; i++) {
     (*ctx_luma)[i].Init(qp, init_state[slice_type][i]);
@@ -311,7 +311,9 @@ inline static void Init(int qp, int slice_type,
   }
 }
 
-void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
+template<typename Ctx>
+void
+CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   int q = qp.GetQpRaw(YuvComponent::kY);
   if (Restrictions::Get().disable_cabac_init_per_qp) {
     q = 32;
@@ -358,7 +360,8 @@ void CabacContexts::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &transform_select_idx, kInitTransformSelectIdx);
 }
 
-ContextModel& CabacContexts::GetSkipFlagCtx(const CodingUnit &cu) {
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetSkipFlagCtx(const CodingUnit &cu) {
   int offset = 0;
   if (!Restrictions::Get().disable_cabac_skip_flag_ctx) {
     const CodingUnit *tmp;
@@ -372,7 +375,8 @@ ContextModel& CabacContexts::GetSkipFlagCtx(const CodingUnit &cu) {
   return cu_skip_flag[offset];
 }
 
-ContextModel& CabacContexts::GetSplitBinaryCtx(const CodingUnit &cu) {
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetSplitBinaryCtx(const CodingUnit &cu) {
   const CodingUnit *left = cu.GetCodingUnitLeft();
   const CodingUnit *above = cu.GetCodingUnitAbove();
   int depth = (cu.GetDepth() << 1) + cu.GetBinaryDepth();
@@ -388,8 +392,9 @@ ContextModel& CabacContexts::GetSplitBinaryCtx(const CodingUnit &cu) {
   return cu_split_binary[offset];
 }
 
-ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
-                                             int pic_max_depth) {
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetSplitFlagCtx(const CodingUnit &cu,
+                                         int pic_max_depth) {
   int offset = 0;
   const CodingUnit *left = cu.GetCodingUnitLeft();
   const CodingUnit *above = cu.GetCodingUnitAbove();
@@ -427,7 +432,8 @@ ContextModel& CabacContexts::GetSplitFlagCtx(const CodingUnit &cu,
   return cu_split_quad_flag[offset];
 }
 
-ContextModel& CabacContexts::GetIntraPredictorCtx(IntraMode intra_mode) {
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetIntraPredictorCtx(IntraMode intra_mode) {
   assert(!Restrictions::Get().disable_ext_intra_extra_predictors);
   static const std::array<uint8_t, kNbrIntraModesExt> kModeToCtxMapExt = {
     1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
@@ -444,7 +450,8 @@ ContextModel& CabacContexts::GetIntraPredictorCtx(IntraMode intra_mode) {
   return intra_pred_luma[kModeToCtxMapExt[intra_mode]];
 }
 
-ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit &cu) {
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetInterDirBiCtx(const CodingUnit &cu) {
   if (Restrictions::Get().disable_cabac_inter_dir_ctx) {
     return inter_dir[0];
   }
@@ -458,7 +465,8 @@ ContextModel& CabacContexts::GetInterDirBiCtx(const CodingUnit &cu) {
   return inter_dir[idx];
 }
 
-ContextModel& CabacContexts::GetInterFullpelMvCtx(const CodingUnit &cu) {
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetInterFullpelMvCtx(const CodingUnit &cu) {
   int offset = 0;
   const CodingUnit *tmp;
   if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetFullpelMv()) {
@@ -470,14 +478,15 @@ ContextModel& CabacContexts::GetInterFullpelMvCtx(const CodingUnit &cu) {
   return inter_fullpel_mv[offset];
 }
 
-ContextModel&
-CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
-                                  const uint8_t *sublock_csbf,
-                                  int posx, int posy, int width, int height,
-                                  int *pattern_sig_ctx) {
+template<typename Ctx>
+Ctx&
+CabacContexts<Ctx>::GetSubblockCsbfCtx(YuvComponent comp,
+                                       const uint8_t *sublock_csbf,
+                                       int posx, int posy, int width,
+                                       int height, int *pattern_sig_ctx) {
   int below = false;
   int right = false;
-  ContextModel *ctx_base;
+  Ctx *ctx_base;
   if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
     ctx_base = util::IsLuma(comp) ?
       &coeff_ext.csbf_luma[0] : &coeff_ext.csbf_chroma[0];
@@ -497,11 +506,13 @@ CabacContexts::GetSubblockCsbfCtx(YuvComponent comp,
   return ctx_base[right | below];
 }
 
-ContextModel&
-CabacContexts::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
-                              ScanOrder scan_order, int posx, int posy,
-                              const Coeff *in_coeff, ptrdiff_t in_coeff_stride,
-                              int width_log2, int height_log2) {
+template<typename Ctx>
+Ctx&
+CabacContexts<Ctx>::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
+                                   ScanOrder scan_order, int posx, int posy,
+                                   const Coeff *in_coeff,
+                                   ptrdiff_t in_coeff_stride,
+                                   int width_log2, int height_log2) {
   static const uint8_t kCtxIndexMap[16] = {
     0, 1, 4, 5, 2, 3, 4, 5, 6, 6, 8, 8, 7, 7, 8, 8
   };
@@ -538,7 +549,7 @@ CabacContexts::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
     return util::IsLuma(comp) ? coeff_ext.sig_luma[start_offset + offset] :
       coeff_ext.sig_chroma[start_offset + offset];
   } else {
-    ContextModel *ctx_base = util::IsLuma(comp) ?
+    Ctx *ctx_base = util::IsLuma(comp) ?
       &coeff.sig_luma[0] : &coeff.sig_chroma[0];
     if ((!posx && !posy) || Restrictions::Get().disable_cabac_coeff_sig_ctx) {
       return ctx_base[0];
@@ -569,12 +580,13 @@ CabacContexts::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
   }
 }
 
-ContextModel&
-CabacContexts::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
-                                   int posx, int posy, bool is_last_coeff,
-                                   const Coeff *in_coeff,
-                                   ptrdiff_t in_coeff_stride,
-                                   int width, int height) {
+template<typename Ctx>
+Ctx&
+CabacContexts<Ctx>::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
+                                        int posx, int posy, bool is_last_coeff,
+                                        const Coeff *in_coeff,
+                                        ptrdiff_t in_coeff_stride,
+                                        int width, int height) {
   if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
     const int posxy = posx + posy;
     if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
@@ -614,12 +626,13 @@ CabacContexts::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
   }
 }
 
-ContextModel&
-CabacContexts::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
-                                   int posx, int posy, bool is_last_coeff,
-                                   const Coeff *in_coeff,
-                                   ptrdiff_t in_coeff_stride,
-                                   int width, int height) {
+template<typename Ctx>
+Ctx&
+CabacContexts<Ctx>::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
+                                        int posx, int posy, bool is_last_coeff,
+                                        const Coeff *in_coeff,
+                                        ptrdiff_t in_coeff_stride,
+                                        int width, int height) {
   if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
     const int posxy = posx + posy;
     if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
@@ -655,10 +668,12 @@ CabacContexts::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
   }
 }
 
+template<typename Ctx>
 uint32_t
-CabacContexts::GetCoeffGolombRiceK(int posx, int posy, int width, int height,
-                                   const Coeff *in_coeff,
-                                   ptrdiff_t in_coeff_stride) {
+CabacContexts<Ctx>::GetCoeffGolombRiceK(int posx, int posy,
+                                        int width, int height,
+                                        const Coeff *in_coeff,
+                                        ptrdiff_t in_coeff_stride) {
   assert(!Restrictions::Get().disable_ext_cabac_alt_residual_ctx);
   in_coeff += posx + posy * in_coeff_stride;
   int offset = 0;
@@ -694,9 +709,10 @@ CabacContexts::GetCoeffGolombRiceK(int posx, int posy, int width, int height,
   return static_cast<uint32_t>(TransformHelper::kGolombRiceRangeExt.size() - 1);
 }
 
-ContextModel&
-CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
-                                  int pos, bool is_pos_x) {
+template<typename Ctx>
+Ctx&
+CabacContexts<Ctx>::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
+                                       int pos, bool is_pos_x) {
   const int size = is_pos_x ? width : height;
   if (util::IsLuma(comp)) {
     auto &ctx_base = is_pos_x ? coeff_last_pos_x_luma : coeff_last_pos_y_luma;
@@ -733,5 +749,9 @@ CabacContexts::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
     return ctx_base[offset + (pos >> shift)];
   }
 }
+
+template struct CabacContexts<ContextModel>;
+template struct CabacContexts<ContextModelDynamic>;
+template struct CabacContexts<ContextModelStatic>;
 
 }   // namespace xvc

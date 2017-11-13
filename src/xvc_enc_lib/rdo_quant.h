@@ -71,7 +71,7 @@ private:
                         int64_t *subblock_code_cost) const;
   template<int SubBlockShift>
   int EvalLastPos(const CodingUnit &cu, YuvComponent comp,
-                  ScanOrder scan_order, CabacContexts *contexts,
+                  ScanOrder scan_order, Contexts *contexts,
                   int last_pos_index, int64_t lambda,
                   int64_t comp_code_cost, int64_t comp_zero_dist,
                   const Coeff *out, ptrdiff_t out_stride,
@@ -84,7 +84,7 @@ private:
   void UpdateCodeState(YuvComponent comp, Coeff quant_level,
                        CoeffCodingState *state) const;
   Bits GetLastPosBits(int width, int height, YuvComponent comp,
-                      ScanOrder scan_order, CabacContexts *contexts,
+                      ScanOrder scan_order, Contexts *contexts,
                       int last_pos_x, int last_pos_y) const;
   std::function<Coeff(Coeff)> GetFwdQuantFunc(YuvComponent comp, const Qp &qp,
                                               int width, int height);
