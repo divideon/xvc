@@ -31,9 +31,7 @@ EntropyDecoder::EntropyDecoder(BitReader *bit_reader)
 
 uint32_t EntropyDecoder::DecodeBin(ContextModel *ctx) {
   uint32_t ctxmps = ctx->GetMps();
-  uint32_t ctxstate = ctx->GetState();
-  uint32_t qrange = (range_ >> 6) & 3;
-  uint32_t lps = Cabac::RangeTable(ctxstate, qrange);
+  uint32_t lps = ctx->GetLps(range_);
 
   range_ -= lps;
   uint32_t scaled_range = range_ << 7;
@@ -49,7 +47,7 @@ uint32_t EntropyDecoder::DecodeBin(ContextModel *ctx) {
     value_ -= scaled_range;
     range_ = lps;
     ctx->UpdateLPS();
-    num_bits = Cabac::RenormTable(lps >> 3);
+    num_bits = ctx->GetRenormBitsLps(lps);
   }
 
   value_ <<= num_bits;

@@ -88,6 +88,7 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
   int total_num_sig_coeff = 0;
   std::array<Coeff, subblock_size> subblock_coeff;
   std::array<uint16_t, subblock_size> subblock_pos;
+  subblock_pos[0] = static_cast<uint16_t>(-1);
 
   int last_nonzero_pos = -1;
   int first_nonzero_pos = subblock_size;
@@ -316,8 +317,7 @@ int SyntaxReader::ReadCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
     total_num_sig_coeff += coeff_num_non_zero;
     coeff_num_non_zero = 0;
   }
-  if (!total_num_sig_coeff) {
-    assert(Restrictions::Get().disable_transform_cbf);
+  if (!total_num_sig_coeff && subblock_pos[0] != static_cast<uint16_t>(-1)) {
     // Cleanup assumed implicit signaled last sig coeff
     const int coeff_scan_y = subblock_pos[0] >> log2size;
     const int coeff_scan_x = subblock_pos[0] - (coeff_scan_y << log2size);

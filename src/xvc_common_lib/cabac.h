@@ -29,21 +29,6 @@
 
 namespace xvc {
 
-class Cabac {
-public:
-  static inline uint8_t RenormTable(uint32_t lps) {
-    return kRenormTable_[lps];
-  }
-  static inline uint8_t RangeTable(uint32_t state, uint32_t range) {
-    return kRangeTable_[state][range];
-  }
-
-private:
-  static const uint8_t kRenormTable_[32];
-  static const std::array<std::array<const uint8_t, 4>,
-    1 << ContextModel::CONTEXT_STATE_BITS> kRangeTable_;
-};
-
 struct CabacContexts {
 public:
   static const int kNumSplitQuadFlagCtx = 5;
