@@ -25,8 +25,6 @@ namespace xvc {
 void EncoderSettings::Initialize(SpeedMode speed_mode) {
   switch (speed_mode) {
     case SpeedMode::kPlacebo:
-      fast_intra_mode_eval_level = 0;
-      fast_merge_eval = 0;
       bipred_refinement_iterations = 4;
       always_evaluate_intra_in_inter = 1;
       default_num_ref_pics = 3;
@@ -34,8 +32,6 @@ void EncoderSettings::Initialize(SpeedMode speed_mode) {
       fast_transform_select_eval = 0;
       break;
     case SpeedMode::kSlow:
-      fast_intra_mode_eval_level = 1;
-      fast_merge_eval = 1;
       bipred_refinement_iterations = 1;
       always_evaluate_intra_in_inter = 0;
       default_num_ref_pics = 2;

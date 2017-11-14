@@ -57,8 +57,6 @@ struct EncoderSettings {
   static const bool fast_inter_root_cbf_zero_bits = false;  // very small loss
 
   // Speed mode dependent settings
-  int fast_intra_mode_eval_level = -1;
-  int fast_merge_eval = -1;
   int bipred_refinement_iterations = -1;
   int always_evaluate_intra_in_inter = -1;
   int default_num_ref_pics = -1;
@@ -66,6 +64,8 @@ struct EncoderSettings {
   int fast_transform_select_eval = -1;
 
   // Setting with default values used in all speed modes
+  int fast_intra_mode_eval_level = 1;
+  int fast_merge_eval = 1;
   int fast_quad_split_based_on_binary_split = 1;
   int eval_prev_mv_search_result = 1;
   int fast_inter_pred_bits = 0;
