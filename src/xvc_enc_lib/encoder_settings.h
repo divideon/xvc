@@ -19,6 +19,8 @@
 #ifndef XVC_ENC_LIB_ENCODER_SETTINGS_H_
 #define XVC_ENC_LIB_ENCODER_SETTINGS_H_
 
+#include <string>
+
 #include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
@@ -39,6 +41,7 @@ struct EncoderSettings {
   void Initialize(SpeedMode speed_mode);
   void Initialize(RestrictedMode mode);
   void Tune(TuneMode tune_mode);
+  void ParseExplicitSettings(std::string explicit_settings);
 
   // Encoder rdo behavior
   static constexpr bool kEncoderStrictRdoBitCounting = false;

@@ -19,6 +19,7 @@
 #include "xvc_enc_lib/encoder_settings.h"
 
 #include <cassert>
+#include <sstream>
 
 namespace xvc {
 
@@ -103,6 +104,44 @@ void EncoderSettings::Tune(TuneMode tune_mode) {
     default:
       assert(0);
       break;
+  }
+}
+
+void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
+  std::string setting;
+  std::stringstream stream(explicit_settings);
+  while (stream >> setting) {
+    if (setting == "bipred_refinement_iterations") {
+      stream >> bipred_refinement_iterations;
+    } else if (setting == "always_evaluate_intra_in_inter") {
+      stream >> always_evaluate_intra_in_inter;
+    } else if (setting == "default_num_ref_pics") {
+      stream >> default_num_ref_pics;
+    } else if (setting == "max_binary_split_depth") {
+      stream >> max_binary_split_depth;
+    } else if (setting == "fast_transform_select_eval") {
+      stream >> fast_transform_select_eval;
+    } else if (setting == "fast_intra_mode_eval_level") {
+      stream >> fast_intra_mode_eval_level;
+    } else if (setting == "fast_merge_eval") {
+      stream >> fast_merge_eval;
+    } else if (setting == "fast_quad_split_based_on_binary_split") {
+      stream >> fast_quad_split_based_on_binary_split;
+    } else if (setting == "eval_prev_mv_search_result") {
+      stream >> eval_prev_mv_search_result;
+    } else if (setting == "fast_inter_pred_bits") {
+      stream >> fast_inter_pred_bits;
+    } else if (setting == "smooth_lambda_scaling") {
+      stream >> smooth_lambda_scaling;
+    } else if (setting == "adaptive_qp") {
+      stream >> adaptive_qp;
+    } else if (setting == "aqp_strength") {
+      stream >> aqp_strength;
+    } else if (setting == "structural_ssd") {
+      stream >> structural_ssd;
+    } else if (setting == "encapsulation_mode") {
+      stream >> encapsulation_mode;
+    }
   }
 }
 
