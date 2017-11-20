@@ -9,6 +9,9 @@ xvc License Agreement.
 
 Visit [xvc.io](https://xvc.io) for more information.
 
+The master branch represents the current official version of xvc. Development
+of new versions of xvc happens in the dev branch.
+
 ## Building instructions
 
 ### Prerequisites
