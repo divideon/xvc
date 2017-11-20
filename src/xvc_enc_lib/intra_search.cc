@@ -204,10 +204,10 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
   };
   const YuvComponent comp = YuvComponent::kY;
   const int num_intra_modes =
-    !Restrictions::Get().disable_ext_intra_extra_modes ?
+    !Restrictions::Get().disable_ext2_intra_67_modes ?
     kNbrIntraModesExt : kNbrIntraModes;
   const bool two_fast_search_passes =
-    !Restrictions::Get().disable_ext_intra_extra_modes;
+    !Restrictions::Get().disable_ext2_intra_67_modes;
   SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
   SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
   std::array<bool, kNbrIntraModesExt> evaluated_modes = { false };

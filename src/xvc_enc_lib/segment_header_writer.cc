@@ -111,7 +111,6 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_transform_root_cbf);
     bit_writer->WriteBit(restr.disable_transform_cbf);
     bit_writer->WriteBit(restr.disable_transform_subblock_csbf);
-    bit_writer->WriteBit(restr.disable_transform_skip);
     bit_writer->WriteBit(restr.disable_transform_sign_hiding);
     bit_writer->WriteBit(restr.disable_transform_adaptive_exp_golomb);
   } else {
@@ -168,17 +167,23 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_ext_transform_size_64);
     bit_writer->WriteBit(restr.disable_ext_intra_unrestricted_predictor);
     bit_writer->WriteBit(restr.disable_ext_deblock_subblock_size_4);
-    bit_writer->WriteBit(restr.disable_ext_transform_high_precision);
-    bit_writer->WriteBit(restr.disable_ext_transform_select);
-    bit_writer->WriteBit(restr.disable_ext_intra_extra_modes);
-    bit_writer->WriteBit(restr.disable_ext_intra_extra_predictors);
-    bit_writer->WriteBit(restr.disable_ext_intra_chroma_from_luma);
-    bit_writer->WriteBit(restr.disable_ext_inter_adaptive_fullpel_mv);
-    bit_writer->WriteBit(restr.disable_ext_local_illumination_compensation);
-    bit_writer->WriteBit(restr.disable_ext_cabac_alt_residual_ctx);
-    bit_writer->WriteBit(restr.disable_inter_bipred_l1_mvd_zero);
   } else {
     bit_writer->WriteBit(0);  // ext_restrictions
+  }
+  if (restr.GetExt2Restrictions()) {
+    bit_writer->WriteBit(1);  // ext2_restrictions
+    bit_writer->WriteBit(restr.disable_ext2_intra_67_modes);
+    bit_writer->WriteBit(restr.disable_ext2_intra_6_predictors);
+    bit_writer->WriteBit(restr.disable_ext2_intra_chroma_from_luma);
+    bit_writer->WriteBit(restr.disable_ext2_inter_bipred_l1_mvd_zero);
+    bit_writer->WriteBit(restr.disable_ext2_inter_adaptive_fullpel_mv);
+    bit_writer->WriteBit(restr.disable_ext2_inter_local_illumination_comp);
+    bit_writer->WriteBit(restr.disable_ext2_transform_skip);
+    bit_writer->WriteBit(restr.disable_ext2_transform_high_precision);
+    bit_writer->WriteBit(restr.disable_ext2_transform_select);
+    bit_writer->WriteBit(restr.disable_ext2_cabac_alt_residual_ctx);
+  } else {
+    bit_writer->WriteBit(0);  // ext2_restrictions
   }
   bit_writer->PadZeroBits();
 }

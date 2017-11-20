@@ -79,7 +79,7 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   const int height = cu.GetHeight(comp);
   const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra();
   const bool default_high_precision =
-    !Restrictions::Get().disable_ext_transform_high_precision;
+    !Restrictions::Get().disable_ext2_transform_high_precision;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool high_prec1 = default_high_precision || height >= 64 || height == 2;
   const bool high_prec2 = default_high_precision || width >= 64 || width == 2;
@@ -839,7 +839,7 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra();
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool default_high_precision =
-    !Restrictions::Get().disable_ext_transform_high_precision;
+    !Restrictions::Get().disable_ext2_transform_high_precision;
   const bool high_prec1 = default_high_precision || width >= 64 || width == 2;
   const bool high_prec2 = default_high_precision || height >= 64 || height == 2;
   const int shift1 = util::SizeToLog2(width) + bitdepth_ - 9 +
@@ -1579,7 +1579,7 @@ ScanOrder TransformHelper::DetermineScanOrder(const CodingUnit &cu,
                                               YuvComponent comp) {
   static const int kSizeThreshold = 16;
   const int angle_threshold =
-    !Restrictions::Get().disable_ext_intra_extra_modes ? 10 : 5;
+    !Restrictions::Get().disable_ext2_intra_67_modes ? 10 : 5;
   if (cu.GetPredMode() != PredictionMode::kIntra ||
       Restrictions::Get().disable_transform_adaptive_scan_order) {
     return ScanOrder::kDiagonal;

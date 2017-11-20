@@ -991,7 +991,7 @@ InterPrediction::LocalIlluminationComp(const CodingUnit &cu, YuvComponent comp,
                                        int mv_x, int mv_y,
                                        const YuvPicture &ref_pic,
                                        SampleBuffer *pred_buffer) {
-  assert(!Restrictions::Get().disable_ext_local_illumination_compensation);
+  assert(!Restrictions::Get().disable_ext2_inter_local_illumination_comp);
   const int shift_x =
     constants::kMvPrecisionShift + ref_pic.GetSizeShiftX(comp);
   const int shift_y =

@@ -339,7 +339,7 @@ CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &intra_pred_luma, kInitIntraLumaPredMode);
   Init(q, s, &intra_pred_chroma, kInitIntraChromaPredMode);
   Init(q, s, &lic_flag, kInitLicFlag);
-  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     Init(q, s, &coeff_ext.csbf_luma, &coeff_ext.csbf_chroma,
          kInitExtSubblockCsbf);
     Init(q, s, &coeff_ext.sig_luma, &coeff_ext.sig_chroma, kInitExtCoeffSig);
@@ -434,7 +434,7 @@ Ctx& CabacContexts<Ctx>::GetSplitFlagCtx(const CodingUnit &cu,
 
 template<typename Ctx>
 Ctx& CabacContexts<Ctx>::GetIntraPredictorCtx(IntraMode intra_mode) {
-  assert(!Restrictions::Get().disable_ext_intra_extra_predictors);
+  assert(!Restrictions::Get().disable_ext2_intra_6_predictors);
   static const std::array<uint8_t, kNbrIntraModesExt> kModeToCtxMapExt = {
     1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -444,7 +444,7 @@ Ctx& CabacContexts<Ctx>::GetIntraPredictorCtx(IntraMode intra_mode) {
     1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
   };
-  if (Restrictions::Get().disable_ext_intra_extra_modes) {
+  if (Restrictions::Get().disable_ext2_intra_67_modes) {
     return intra_pred_luma[kModeToCtxMap[intra_mode]];
   }
   return intra_pred_luma[kModeToCtxMapExt[intra_mode]];
@@ -487,7 +487,7 @@ CabacContexts<Ctx>::GetSubblockCsbfCtx(YuvComponent comp,
   int below = false;
   int right = false;
   Ctx *ctx_base;
-  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     ctx_base = util::IsLuma(comp) ?
       &coeff_ext.csbf_luma[0] : &coeff_ext.csbf_chroma[0];
   } else {
@@ -516,7 +516,7 @@ CabacContexts<Ctx>::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
   static const uint8_t kCtxIndexMap[16] = {
     0, 1, 4, 5, 2, 3, 4, 5, 6, 6, 8, 8, 7, 7, 8, 8
   };
-  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     const int width = 1 << width_log2;
     const int height = 1 << height_log2;
     const int size = (width_log2 + height_log2) >> 1;
@@ -587,7 +587,7 @@ CabacContexts<Ctx>::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
                                         const Coeff *in_coeff,
                                         ptrdiff_t in_coeff_stride,
                                         int width, int height) {
-  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     const int posxy = posx + posy;
     if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
       return util::IsLuma(comp) ?
@@ -633,7 +633,7 @@ CabacContexts<Ctx>::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
                                         const Coeff *in_coeff,
                                         ptrdiff_t in_coeff_stride,
                                         int width, int height) {
-  if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     const int posxy = posx + posy;
     if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
       return util::IsLuma(comp) ?
@@ -674,7 +674,7 @@ CabacContexts<Ctx>::GetCoeffGolombRiceK(int posx, int posy,
                                         int width, int height,
                                         const Coeff *in_coeff,
                                         ptrdiff_t in_coeff_stride) {
-  assert(!Restrictions::Get().disable_ext_cabac_alt_residual_ctx);
+  assert(!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx);
   in_coeff += posx + posy * in_coeff_stride;
   int offset = 0;
   int num = 0;

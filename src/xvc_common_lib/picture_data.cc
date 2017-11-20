@@ -241,7 +241,7 @@ PicturePredictionType PictureData::GetPredictionType() const {
 
 bool PictureData::DetermineForceBipredL1MvdZero() {
   if (IsIntraPic() ||
-      Restrictions::Get().disable_inter_bipred_l1_mvd_zero) {
+      Restrictions::Get().disable_ext2_inter_bipred_l1_mvd_zero) {
     return false;
   }
   return ref_pic_lists_.HasOnlyBackReferences();

@@ -312,7 +312,7 @@ int SyntaxWriter::WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
         Coeff base_level = static_cast<Coeff>(
           (i < max_num_c1_flags) ? (2 + first_coeff_greater2) : 1);
         if (subblock_coeff[i] >= base_level) {
-          if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+          if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
             golomb_rice_k =
               ctx_.GetCoeffGolombRiceK(coeff_scan_x, coeff_scan_y, width,
                                        height, src_coeff, src_coeff_stride);
@@ -353,7 +353,7 @@ void SyntaxWriter::WriteInterDir(const CodingUnit &cu, InterDir inter_dir) {
 
 void SyntaxWriter::WriteInterFullpelMvFlag(const CodingUnit &cu,
                                            bool fullpel_mv_only) {
-  if (Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+  if (Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
     assert(!fullpel_mv_only);
     return;
   }
@@ -431,7 +431,7 @@ void SyntaxWriter::WriteInterRefIdx(int ref_idx, int num_refs_available) {
 void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
                                   const IntraPredictorLuma &mpm) {
   assert(intra_mode >= 0);
-  const int num_mpm = !Restrictions::Get().disable_ext_intra_extra_predictors ?
+  const int num_mpm = !Restrictions::Get().disable_ext2_intra_6_predictors ?
     constants::kNumIntraMpmExt : constants::kNumIntraMpm;
   int mpm_index = -1;
   for (int i = 0; i < num_mpm; i++) {
@@ -442,7 +442,7 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
   ContextModel &ctx = ctx_.intra_pred_luma[0];
   encoder_.EncodeBin(mpm_index >= 0, &ctx);
   if (mpm_index >= 0) {
-    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+    if (!Restrictions::Get().disable_ext2_intra_6_predictors) {
       encoder_.EncodeBin(mpm_index > 0,
                          &ctx_.GetIntraPredictorCtx(mpm[0]));
       if (mpm_index > 0) {
@@ -465,7 +465,7 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
       encoder_.EncodeBypassBins(mpm_index + (mpm_index > 0), num_bits);
     }
   } else {
-    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+    if (!Restrictions::Get().disable_ext2_intra_6_predictors) {
       IntraPredictorLuma mpm_sorted = mpm;
       std::sort(mpm_sorted.begin(),
                 mpm_sorted.begin() + constants::kNumIntraMpmExt);
@@ -473,7 +473,7 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
       for (int i = constants::kNumIntraMpmExt - 1; i >= 0; i--) {
         mode_index -= mode_index >= mpm_sorted[i] ? 1 : 0;
       }
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+      if (!Restrictions::Get().disable_ext2_intra_67_modes) {
         if (mode_index <= kNbrIntraModesExt - 8) {
           encoder_.EncodeBypassBins(mode_index, 6);
         } else {
@@ -497,7 +497,7 @@ void SyntaxWriter::WriteIntraMode(IntraMode intra_mode,
       for (int i = constants::kNumIntraMpm - 1; i >= 0; i--) {
         mode_index -= mode_index >= mpm_sorted[i] ? 1 : 0;
       }
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+      if (!Restrictions::Get().disable_ext2_intra_67_modes) {
         encoder_.EncodeBypassBins(mode_index, 6);
       } else {
         encoder_.EncodeBypassBins(mode_index, 5);
@@ -513,7 +513,7 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
     return;
   }
   encoder_.EncodeBin(1, &ctx_.intra_pred_chroma[0]);
-  if (!Restrictions::Get().disable_ext_intra_chroma_from_luma) {
+  if (!Restrictions::Get().disable_ext2_intra_chroma_from_luma) {
     if (chroma_mode == IntraChromaMode::kLmChroma) {
       encoder_.EncodeBin(0, &ctx_.intra_pred_chroma[1]);
       return;
@@ -530,7 +530,7 @@ void SyntaxWriter::WriteIntraChromaMode(IntraChromaMode chroma_mode,
 }
 
 void SyntaxWriter::WriteLicFlag(bool use_lic) {
-  if (Restrictions::Get().disable_ext_local_illumination_compensation) {
+  if (Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
     assert(!use_lic);
     return;
   }
@@ -637,7 +637,7 @@ void SyntaxWriter::WriteSplitQuad(const CodingUnit &cu, int max_depth,
 
 void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
                                       bool transform_skip) {
-  if (Restrictions::Get().disable_transform_skip ||
+  if (Restrictions::Get().disable_ext2_transform_skip ||
       !cu.CanTransformSkip(comp)) {
     assert(!transform_skip);
     return;
@@ -648,7 +648,7 @@ void SyntaxWriter::WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
 
 void SyntaxWriter::WriteTransformSelectEnable(const CodingUnit &cu,
                                               bool enable) {
-  if (Restrictions::Get().disable_ext_transform_select) {
+  if (Restrictions::Get().disable_ext2_transform_select) {
     assert(!enable);
     return;
   }
@@ -657,7 +657,7 @@ void SyntaxWriter::WriteTransformSelectEnable(const CodingUnit &cu,
 }
 
 void SyntaxWriter::WriteTransformSelectIdx(const CodingUnit &cu, int type_idx) {
-  if (Restrictions::Get().disable_ext_transform_select) {
+  if (Restrictions::Get().disable_ext2_transform_select) {
     assert(!type_idx);
     return;
   }
@@ -725,7 +725,7 @@ void SyntaxWriter::WriteCoeffLastPos(int width, int height, YuvComponent comp,
 void SyntaxWriter::WriteCoeffRemainExpGolomb(uint32_t code_number,
                                              uint32_t golomb_rice_k) {
   const uint32_t threshold =
-    !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
+    !Restrictions::Get().disable_ext2_cabac_alt_residual_ctx ?
     TransformHelper::kGolombRiceRangeExt[golomb_rice_k] :
     constants::kCoeffRemainBinReduction;
   if (code_number < (threshold << golomb_rice_k)) {

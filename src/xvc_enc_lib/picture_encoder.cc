@@ -127,7 +127,7 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
   assert(pic_qp + constants::kQpSignalBase < (1 << 7));
   bit_writer->WriteBits(pic_qp + constants::kQpSignalBase, 7);
   const bool allow_lic = pic_data.GetUseLocalIlluminationCompensation();
-  if (!Restrictions::Get().disable_ext_local_illumination_compensation) {
+  if (!Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
     bit_writer->WriteBit(allow_lic ? 1 : 0);
   } else {
     assert(!allow_lic);
@@ -184,7 +184,7 @@ PictureEncoder::DetermineAllowLic(PicturePredictionType pic_type,
   };
 
   if (pic_type == PicturePredictionType::kIntra ||
-      Restrictions::Get().disable_ext_local_illumination_compensation) {
+      Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
     return false;
   }
 

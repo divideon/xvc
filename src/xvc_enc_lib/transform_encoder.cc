@@ -128,7 +128,7 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
   // Evaluate transform skip
   if ((search_flags & TxSearchFlags::kTransformTskip) != TxSearchFlags::kNone &&
       cu->CanTransformSkip(comp) &&
-      !Restrictions::Get().disable_transform_skip) {
+      !Restrictions::Get().disable_ext2_transform_skip) {
     if (best_is_applied) {
       best_is_applied = false;
       cu->SaveStateTo(&best_cu_state_, *rec_pic, comp);
@@ -150,7 +150,7 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
   int nbr_tx_select_idx = 0;
   if ((search_flags & TxSearchFlags::kTransformSelect) != TxSearchFlags::kNone
       && util::IsLuma(comp)
-      && !Restrictions::Get().disable_ext_transform_select) {
+      && !Restrictions::Get().disable_ext2_transform_select) {
     nbr_tx_select_idx = constants::kMaxTransformSelectIdx;
   }
   if (encoder_settings_.fast_transform_select_eval &&

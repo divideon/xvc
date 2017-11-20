@@ -477,7 +477,7 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
   }
 
   if (!fast_skip_inter && pic_data_.GetUseLocalIlluminationCompensation() &&
-      !Restrictions::Get().disable_ext_local_illumination_compensation) {
+      !Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
     RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC,
                                  best_cost.cost);
     if (cost < best_cost) {
@@ -487,7 +487,7 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
     }
   }
 
-  if (!Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+  if (!Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
     RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_FULLPEL,
                                  best_cost.cost);
     if (cost < best_cost) {
@@ -498,8 +498,8 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
   }
 
   if (pic_data_.GetUseLocalIlluminationCompensation() &&
-      !Restrictions::Get().disable_ext_local_illumination_compensation &&
-      !Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+      !Restrictions::Get().disable_ext2_inter_local_illumination_comp &&
+      !Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
     RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC_FULLPEL,
                                  best_cost.cost);
     if (cost < best_cost) {

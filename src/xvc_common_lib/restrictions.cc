@@ -101,10 +101,6 @@ Restrictions::Restrictions() {
   disable_inter_bipred = true;
 #endif
 
-#if RESTRICTION_DISABLE_INTER_BIPRED_L1_MVD_ZERO
-  disable_inter_bipred_l1_mvd_zero = true;
-#endif
-
 #if RESTRICTION_DISABLE_TRANSFORM_ADAPTIVE_SCAN_ORDER
   disable_transform_adaptive_scan_order = true;
 #endif
@@ -131,10 +127,6 @@ Restrictions::Restrictions() {
 
 #if RESTRICTION_DISABLE_TRANSFORM_SUBBLOCK_CSBF
   disable_transform_subblock_csbf = true;
-#endif
-
-#if RESTRICTION_DISABLE_TRANSFORM_SKIP
-  disable_transform_skip = true;
 #endif
 
 #if RESTRICTION_DISABLE_TRANSFORM_SIGN_HIDING
@@ -237,26 +229,6 @@ Restrictions::Restrictions() {
   disable_ext_implicit_last_ctu = true;
 #endif
 
-#if RESTRICTION_DISABLE_EXT_INTRA_EXTRA_MODES
-  disable_ext_intra_extra_modes = true;
-#endif
-
-#if RESTRICTION_DISABLE_EXT_INTRA_EXTRA_PREDICTORS
-  disable_ext_intra_extra_predictors = true;
-#endif
-
-#if RESTRICTION_DISABLE_EXT_INTRA_CHROMA_FROM_LUMA
-  disable_ext_intra_chroma_from_luma = true;
-#endif
-
-#if RESTRICTION_DISABLE_EXT_INTER_ADAPTIVE_FULLPEL_MV
-  disable_ext_inter_adaptive_fullpel_mv = true;
-#endif
-
-#if RESTRICTION_DISABLE_EXT_LOCAL_ILLUMINATION_COMPENSATION
-  disable_ext_local_illumination_compensation = true;
-#endif
-
 #if RESTRICTION_DISABLE_EXT_TMVP_FULL_RESOLUTION
   disable_ext_tmvp_full_resolution = true;
 #endif
@@ -285,10 +257,6 @@ Restrictions::Restrictions() {
   disable_ext_cabac_alt_last_pos_ctx = true;
 #endif
 
-#if RESTRICTION_DISABLE_EXT_CABAC_ALT_RESIDUAL_CTX
-  disable_ext_cabac_alt_residual_ctx = true;
-#endif
-
 #if RESTRICTION_DISABLE_EXT_TWO_CU_TREES
   disable_ext_two_cu_trees = true;
 #endif
@@ -305,12 +273,44 @@ Restrictions::Restrictions() {
   disable_ext_deblock_subblock_size_4 = true;
 #endif
 
-#if RESTRICTION_DISABLE_EXT_TRANSFORM_HIGH_PRECISION
-  disable_ext_transform_high_precision = true;
+#if RESTRICTION_DISABLE_EXT2_INTRA_67_MODES
+  disable_ext2_intra_67_modes = true;
 #endif
 
-#if RESTRICTION_DISABLE_EXT_TRANSFORM_SELECT
-  disable_ext_transform_select = true;
+#if RESTRICTION_DISABLE_EXT2_INTRA_6_PREDICTORS
+  disable_ext2_intra_6_predictors = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTRA_CHROMA_FROM_LUMA
+  disable_ext2_intra_chroma_from_luma = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_BIPRED_L1_MVD_ZERO
+  disable_ext2_inter_bipred_l1_mvd_zero = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_ADAPTIVE_FULLPEL_MV
+  disable_ext2_inter_adaptive_fullpel_mv = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_LOCAL_ILLUMINATION_COMP
+  disable_ext2_inter_local_illumination_comp = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_SKIP
+  disable_ext2_transform_skip = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_HIGH_PRECISION
+  disable_ext2_transform_high_precision = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_SELECT
+  disable_ext2_transform_select = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_CABAC_ALT_RESIDUAL_CTX
+  disable_ext2_cabac_alt_residual_ctx = true;
 #endif
 }
 
@@ -328,20 +328,20 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
   if (mode == RestrictedMode::kModeA) {
     disable_ext_sink = true;
     disable_ext_implicit_partition_type = true;
-    disable_ext_intra_extra_modes = true;
-    disable_ext_intra_extra_predictors = true;
-    disable_ext_intra_chroma_from_luma = true;
-    disable_ext_inter_adaptive_fullpel_mv = true;
-    disable_ext_local_illumination_compensation = true;
     disable_ext_cabac_alt_split_flag_ctx = true;
     disable_ext_cabac_alt_inter_dir_ctx = true;
     disable_ext_cabac_alt_last_pos_ctx = true;
-    disable_ext_cabac_alt_residual_ctx = true;
     disable_ext_two_cu_trees = true;
     disable_ext_transform_size_64 = true;
     disable_ext_deblock_subblock_size_4 = true;
-    disable_ext_transform_high_precision = true;
-    disable_ext_transform_select = true;
+    disable_ext2_intra_67_modes = true;
+    disable_ext2_intra_6_predictors = true;
+    disable_ext2_intra_chroma_from_luma = true;
+    disable_ext2_inter_adaptive_fullpel_mv = true;
+    disable_ext2_inter_local_illumination_comp = true;
+    disable_ext2_transform_high_precision = true;
+    disable_ext2_transform_select = true;
+    disable_ext2_cabac_alt_residual_ctx = true;
   }
 }
 

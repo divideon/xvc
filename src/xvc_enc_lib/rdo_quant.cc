@@ -318,7 +318,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
                                       coeff.scan_x, coeff.scan_y,
                                       coeff.index == last_pos_index,
                                       out, out_stride, width, height);
-      if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+      if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
         code_state.golomb_rice_k =
           contexts->GetCoeffGolombRiceK(coeff.scan_x, coeff.scan_y,
                                         width, height, out, out_stride);
@@ -844,7 +844,7 @@ Bits RdoQuant::GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
   const Coeff base_level = (state.c1_idx < constants::kMaxNumC1Flags) ?
     (2 + (state.c2_idx < constants::kMaxNumC2Flags)) : 1;
   const uint32_t threshold =
-    !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
+    !Restrictions::Get().disable_ext2_cabac_alt_residual_ctx ?
     TransformHelper::kGolombRiceRangeExt[state.golomb_rice_k] :
     constants::kCoeffRemainBinReduction;
   Bits bits_sum = 0;

@@ -321,7 +321,7 @@ void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
   }
   assert(select_idx < constants::kMaxTransformSelectIdx);
   tx_.transform_select_idx = select_idx;
-  if (Restrictions::Get().disable_ext_transform_select) {
+  if (Restrictions::Get().disable_ext2_transform_select) {
     tx_.transform_type[kLuma][0] = TransformType::kDefault;
     tx_.transform_type[kLuma][1] = TransformType::kDefault;
     tx_.transform_type[kChroma][0] = TransformType::kDefault;
@@ -335,7 +335,7 @@ void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
   } else {
     if (IsIntra()) {
       int intra_mode = static_cast<int>(intra_.mode_luma);
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+      if (!Restrictions::Get().disable_ext2_intra_67_modes) {
         tx_.transform_type[kLuma][0] =
           kIntraTxMap[kIntraExtVerticalMap[intra_mode]][select_idx >> 1];
         tx_.transform_type[kLuma][1] =

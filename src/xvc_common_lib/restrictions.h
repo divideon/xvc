@@ -74,7 +74,6 @@ public:
       disable_transform_root_cbf ||
       disable_transform_cbf ||
       disable_transform_subblock_csbf ||
-      disable_transform_skip ||
       disable_transform_sign_hiding ||
       disable_transform_adaptive_exp_golomb;
   }
@@ -122,16 +121,20 @@ public:
       disable_ext_two_cu_trees ||
       disable_ext_transform_size_64 ||
       disable_ext_intra_unrestricted_predictor ||
-      disable_ext_deblock_subblock_size_4 ||
-      disable_ext_transform_high_precision ||
-      disable_ext_transform_select ||
-      disable_ext_intra_extra_modes ||
-      disable_ext_intra_extra_predictors ||
-      disable_ext_intra_chroma_from_luma ||
-      disable_ext_inter_adaptive_fullpel_mv ||
-      disable_ext_local_illumination_compensation ||
-      disable_ext_cabac_alt_residual_ctx ||
-      disable_inter_bipred_l1_mvd_zero;
+      disable_ext_deblock_subblock_size_4;
+  }
+
+  bool GetExt2Restrictions() const {
+    return disable_ext2_intra_67_modes ||
+      disable_ext2_intra_6_predictors ||
+      disable_ext2_intra_chroma_from_luma ||
+      disable_ext2_inter_bipred_l1_mvd_zero ||
+      disable_ext2_inter_adaptive_fullpel_mv ||
+      disable_ext2_inter_local_illumination_comp ||
+      disable_ext2_transform_skip ||
+      disable_ext2_transform_high_precision ||
+      disable_ext2_transform_select ||
+      disable_ext2_cabac_alt_residual_ctx;
   }
 
   bool disable_intra_ref_padding = false;
@@ -153,7 +156,6 @@ public:
   bool disable_inter_chroma_subpel = false;
   bool disable_inter_mvd_greater_than_flags = false;
   bool disable_inter_bipred = false;
-  bool disable_inter_bipred_l1_mvd_zero = false;
   bool disable_transform_adaptive_scan_order = false;
   bool disable_transform_residual_greater_than_flags = false;
   bool disable_transform_residual_greater2 = false;
@@ -161,7 +163,6 @@ public:
   bool disable_transform_root_cbf = false;
   bool disable_transform_cbf = false;
   bool disable_transform_subblock_csbf = false;
-  bool disable_transform_skip = false;
   bool disable_transform_sign_hiding = false;
   bool disable_transform_adaptive_exp_golomb = false;
   bool disable_cabac_ctx_update = false;
@@ -187,11 +188,6 @@ public:
   bool disable_high_level_default_checksum_method = false;
   bool disable_ext_sink = false;
   bool disable_ext_implicit_last_ctu = false;
-  bool disable_ext_intra_extra_modes = false;
-  bool disable_ext_intra_extra_predictors = false;
-  bool disable_ext_intra_chroma_from_luma = false;
-  bool disable_ext_inter_adaptive_fullpel_mv = false;
-  bool disable_ext_local_illumination_compensation = false;
   bool disable_ext_tmvp_full_resolution = false;
   bool disable_ext_tmvp_exclude_intra_from_ref_list = false;
   bool disable_ext_ref_list_l0_trim = false;
@@ -199,13 +195,20 @@ public:
   bool disable_ext_cabac_alt_split_flag_ctx = false;
   bool disable_ext_cabac_alt_inter_dir_ctx = false;
   bool disable_ext_cabac_alt_last_pos_ctx = false;
-  bool disable_ext_cabac_alt_residual_ctx = false;
   bool disable_ext_two_cu_trees = false;
   bool disable_ext_transform_size_64 = false;
   bool disable_ext_intra_unrestricted_predictor = false;
   bool disable_ext_deblock_subblock_size_4 = false;
-  bool disable_ext_transform_high_precision = false;
-  bool disable_ext_transform_select = false;
+  bool disable_ext2_intra_67_modes = false;
+  bool disable_ext2_intra_6_predictors = false;
+  bool disable_ext2_intra_chroma_from_luma = false;
+  bool disable_ext2_inter_bipred_l1_mvd_zero = false;
+  bool disable_ext2_inter_adaptive_fullpel_mv = false;
+  bool disable_ext2_inter_local_illumination_comp = false;
+  bool disable_ext2_transform_skip = false;
+  bool disable_ext2_transform_high_precision = false;
+  bool disable_ext2_transform_select = false;
+  bool disable_ext2_cabac_alt_residual_ctx = false;
 
 private:
   // The GetRW function shall be used only when there is a need to

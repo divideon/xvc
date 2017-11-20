@@ -116,9 +116,6 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_transform_root_cbf |= !!bit_reader->ReadBit();
     restr.disable_transform_cbf |= !!bit_reader->ReadBit();
     restr.disable_transform_subblock_csbf |= !!bit_reader->ReadBit();
-    if (segment_header->major_version > 1) {
-      restr.disable_transform_skip |= !!bit_reader->ReadBit();
-    }
     restr.disable_transform_sign_hiding |= !!bit_reader->ReadBit();
     restr.disable_transform_adaptive_exp_golomb |= !!bit_reader->ReadBit();
   }
@@ -173,31 +170,36 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext_transform_size_64 |= !!bit_reader->ReadBit();
     restr.disable_ext_intra_unrestricted_predictor |= !!bit_reader->ReadBit();
     restr.disable_ext_deblock_subblock_size_4 |= !!bit_reader->ReadBit();
-    if (segment_header->major_version > 1) {
-      restr.disable_ext_transform_high_precision |= !!bit_reader->ReadBit();
-      restr.disable_ext_transform_select |= !!bit_reader->ReadBit();
-      restr.disable_ext_intra_extra_modes |= !!bit_reader->ReadBit();
-      restr.disable_ext_intra_extra_predictors |= !!bit_reader->ReadBit();
-      restr.disable_ext_intra_chroma_from_luma |= !!bit_reader->ReadBit();
-      restr.disable_ext_inter_adaptive_fullpel_mv |= !!bit_reader->ReadBit();
-      restr.disable_ext_local_illumination_compensation |=
+  }
+
+  if (segment_header->major_version > 1) {
+    int ext2_restrictions = bit_reader->ReadBit();
+    if (ext2_restrictions) {
+      restr.disable_ext2_intra_67_modes |= !!bit_reader->ReadBit();
+      restr.disable_ext2_intra_6_predictors |= !!bit_reader->ReadBit();
+      restr.disable_ext2_intra_chroma_from_luma |= !!bit_reader->ReadBit();
+      restr.disable_ext2_inter_bipred_l1_mvd_zero = !!bit_reader->ReadBit();
+      restr.disable_ext2_inter_adaptive_fullpel_mv |= !!bit_reader->ReadBit();
+      restr.disable_ext2_inter_local_illumination_comp |=
         !!bit_reader->ReadBit();
-      restr.disable_ext_cabac_alt_residual_ctx = !!bit_reader->ReadBit();
-      restr.disable_inter_bipred_l1_mvd_zero = !!bit_reader->ReadBit();
+      restr.disable_ext2_transform_skip |= !!bit_reader->ReadBit();
+      restr.disable_ext2_transform_high_precision |= !!bit_reader->ReadBit();
+      restr.disable_ext2_transform_select |= !!bit_reader->ReadBit();
+      restr.disable_ext2_cabac_alt_residual_ctx = !!bit_reader->ReadBit();
     }
   }
 
   if (segment_header->major_version <= 1) {
-    restr.disable_transform_skip = true;
-    restr.disable_ext_transform_high_precision = true;
-    restr.disable_ext_transform_select = true;
-    restr.disable_ext_intra_extra_modes = true;
-    restr.disable_ext_intra_extra_predictors = true;
-    restr.disable_ext_intra_chroma_from_luma = true;
-    restr.disable_ext_inter_adaptive_fullpel_mv = true;
-    restr.disable_ext_local_illumination_compensation = true;
-    restr.disable_ext_cabac_alt_residual_ctx = true;
-    restr.disable_inter_bipred_l1_mvd_zero = true;
+    restr.disable_ext2_intra_67_modes = true;
+    restr.disable_ext2_intra_6_predictors = true;
+    restr.disable_ext2_intra_chroma_from_luma = true;
+    restr.disable_ext2_inter_bipred_l1_mvd_zero = true;
+    restr.disable_ext2_inter_adaptive_fullpel_mv = true;
+    restr.disable_ext2_inter_local_illumination_comp = true;
+    restr.disable_ext2_transform_skip = true;
+    restr.disable_ext2_transform_high_precision = true;
+    restr.disable_ext2_transform_select = true;
+    restr.disable_ext2_cabac_alt_residual_ctx = true;
   }
 
   Restrictions::GetRW() = restr;

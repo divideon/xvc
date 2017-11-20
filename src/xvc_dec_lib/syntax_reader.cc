@@ -296,7 +296,7 @@ SyntaxReaderCabac<Ctx>::ReadCoeffSubblock(const CodingUnit &cu,
         Coeff base_level = static_cast<Coeff>(
           (i < max_num_c1_flags) ? (2 + first_coeff_greater2) : 1);
         if (subblock_coeff[i] == base_level) {
-          if (!Restrictions::Get().disable_ext_cabac_alt_residual_ctx) {
+          if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
             golomb_rice_k =
               ctx_.GetCoeffGolombRiceK(coeff_scan_x, coeff_scan_y, width,
                                        height, dst_coeff, dst_stride);
@@ -365,7 +365,7 @@ InterDir SyntaxReaderCabac<Ctx>::ReadInterDir(const CodingUnit &cu) {
 
 template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadInterFullpelMvFlag(const CodingUnit &cu) {
-  if (Restrictions::Get().disable_ext_inter_adaptive_fullpel_mv) {
+  if (Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
     return false;
   }
   Ctx &ctx = ctx_.GetInterFullpelMvCtx(cu);
@@ -450,7 +450,7 @@ IntraMode SyntaxReaderCabac<Ctx>::ReadIntraMode(const IntraPredictorLuma &mpm) {
   Ctx &ctx = ctx_.intra_pred_luma[0];
   uint32_t is_mpm_coded = decoder_.DecodeBin(&ctx);
   if (is_mpm_coded) {
-    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+    if (!Restrictions::Get().disable_ext2_intra_6_predictors) {
       int mpm_index =
         decoder_.DecodeBin(&ctx_.GetIntraPredictorCtx(mpm[0]));
       if (mpm_index > 0) {
@@ -476,9 +476,9 @@ IntraMode SyntaxReaderCabac<Ctx>::ReadIntraMode(const IntraPredictorLuma &mpm) {
       return mpm[mpm_index];
     }
   } else {
-    if (!Restrictions::Get().disable_ext_intra_extra_predictors) {
+    if (!Restrictions::Get().disable_ext2_intra_6_predictors) {
       int intra_mode;
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+      if (!Restrictions::Get().disable_ext2_intra_67_modes) {
         intra_mode = decoder_.DecodeBypassBins(4);
         intra_mode <<= 2;
         if (intra_mode <= kNbrIntraModesExt - 8) {
@@ -496,7 +496,7 @@ IntraMode SyntaxReaderCabac<Ctx>::ReadIntraMode(const IntraPredictorLuma &mpm) {
       return static_cast<IntraMode>(intra_mode);
     } else {
       int intra_mode;
-      if (!Restrictions::Get().disable_ext_intra_extra_modes) {
+      if (!Restrictions::Get().disable_ext2_intra_67_modes) {
         intra_mode = decoder_.DecodeBypassBins(6);
       } else {
         intra_mode = decoder_.DecodeBypassBins(5);
@@ -526,7 +526,7 @@ SyntaxReaderCabac<Ctx>::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
   if (!not_dm_chroma) {
     return IntraChromaMode::kDmChroma;
   }
-  if (!Restrictions::Get().disable_ext_intra_chroma_from_luma) {
+  if (!Restrictions::Get().disable_ext2_intra_chroma_from_luma) {
     uint32_t not_lm_chroma = decoder_.DecodeBin(&ctx_.intra_pred_chroma[1]);
     if (!not_lm_chroma) {
       return IntraChromaMode::kLmChroma;
@@ -538,7 +538,7 @@ SyntaxReaderCabac<Ctx>::ReadIntraChromaMode(IntraPredictorChroma chroma_preds) {
 
 template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadLicFlag() {
-  if (Restrictions::Get().disable_ext_local_illumination_compensation) {
+  if (Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
     return false;
   }
   return decoder_.DecodeBin(&ctx_.lic_flag[0]) != 0;
@@ -648,7 +648,7 @@ SplitType SyntaxReaderCabac<Ctx>::ReadSplitQuad(const CodingUnit &cu,
 template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadTransformSkip(const CodingUnit &cu,
                                                YuvComponent comp) {
-  if (Restrictions::Get().disable_transform_skip ||
+  if (Restrictions::Get().disable_ext2_transform_skip ||
       !cu.CanTransformSkip(comp)) {
     return false;
   }
@@ -658,7 +658,7 @@ bool SyntaxReaderCabac<Ctx>::ReadTransformSkip(const CodingUnit &cu,
 
 template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadTransformSelectEnable(const CodingUnit &cu) {
-  if (Restrictions::Get().disable_ext_transform_select) {
+  if (Restrictions::Get().disable_ext2_transform_select) {
     return false;
   }
   Ctx &ctx = ctx_.transform_select_flag[cu.GetDepth()];
@@ -667,7 +667,7 @@ bool SyntaxReaderCabac<Ctx>::ReadTransformSelectEnable(const CodingUnit &cu) {
 
 template<typename Ctx>
 int SyntaxReaderCabac<Ctx>::ReadTransformSelectIdx(const CodingUnit &cu) {
-  if (Restrictions::Get().disable_ext_transform_select) {
+  if (Restrictions::Get().disable_ext2_transform_select) {
     return 0;
   }
   static_assert(constants::kMaxTransformSelectIdx == 4, "2 bits signaling");
@@ -770,7 +770,7 @@ template<typename Ctx>
 uint32_t
 SyntaxReaderCabac<Ctx>::ReadCoeffRemainExpGolomb(uint32_t golomb_rice_k) {
   const uint32_t threshold =
-    !Restrictions::Get().disable_ext_cabac_alt_residual_ctx ?
+    !Restrictions::Get().disable_ext2_cabac_alt_residual_ctx ?
     TransformHelper::kGolombRiceRangeExt[golomb_rice_k] :
     constants::kCoeffRemainBinReduction;
   uint32_t prefix = 0;
