@@ -31,6 +31,14 @@ void EncoderSettings::Initialize(SpeedMode speed_mode) {
       default_num_ref_pics = 3;
       max_binary_split_depth = 3;
       fast_transform_select_eval = 0;
+      fast_intra_mode_eval_level = 1;
+      fast_intra_mpm_prediction = 0;
+      fast_transform_size_64 = 0;
+      fast_intra_6_predictors = 0;
+      fast_cabac_alt_residual_ctx = 0;
+      fast_transform_select = 0;
+      fast_inter_local_illumination_comp = 0;
+      fast_inter_adaptive_fullpel_mv = 0;
       break;
     case SpeedMode::kSlow:
       bipred_refinement_iterations = 1;
@@ -38,6 +46,29 @@ void EncoderSettings::Initialize(SpeedMode speed_mode) {
       default_num_ref_pics = 2;
       max_binary_split_depth = 2;
       fast_transform_select_eval = 1;
+      fast_intra_mode_eval_level = 1;
+      fast_intra_mpm_prediction = 0;
+      fast_transform_size_64 = 0;
+      fast_intra_6_predictors = 0;
+      fast_cabac_alt_residual_ctx = 0;
+      fast_transform_select = 0;
+      fast_inter_local_illumination_comp = 0;
+      fast_inter_adaptive_fullpel_mv = 0;
+      break;
+    case SpeedMode::kFast:
+      bipred_refinement_iterations = 1;
+      always_evaluate_intra_in_inter = 0;
+      default_num_ref_pics = 1;
+      max_binary_split_depth = 1;
+      fast_transform_select_eval = 1;
+      fast_intra_mode_eval_level = 2;
+      fast_intra_mpm_prediction = 1;
+      fast_transform_size_64 = 1;
+      fast_intra_6_predictors = 1;
+      fast_cabac_alt_residual_ctx = 1;
+      fast_transform_select = 1;
+      fast_inter_local_illumination_comp = 1;
+      fast_inter_adaptive_fullpel_mv = 1;
       break;
     default:
       assert(0);
@@ -51,6 +82,13 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
     case RestrictedMode::kModeA:
       eval_prev_mv_search_result = 1;
       fast_intra_mode_eval_level = 1;
+      fast_intra_mpm_prediction = 0;
+      fast_transform_size_64 = 0;
+      fast_intra_6_predictors = 0;
+      fast_cabac_alt_residual_ctx = 0;
+      fast_transform_select = 0;
+      fast_inter_local_illumination_comp = 0;
+      fast_inter_adaptive_fullpel_mv = 0;
       fast_inter_pred_bits = 1;
       fast_merge_eval = 0;
       bipred_refinement_iterations = 1;
@@ -69,6 +107,13 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       fast_quad_split_based_on_binary_split = 2;
       eval_prev_mv_search_result = 0;
       fast_intra_mode_eval_level = 2;
+      fast_intra_mpm_prediction = 0;
+      fast_transform_size_64 = 0;
+      fast_intra_6_predictors = 0;
+      fast_cabac_alt_residual_ctx = 0;
+      fast_transform_select = 0;
+      fast_inter_local_illumination_comp = 0;
+      fast_inter_adaptive_fullpel_mv = 0;
       fast_inter_pred_bits = 1;
       fast_merge_eval = 1;
       bipred_refinement_iterations = 1;
@@ -123,6 +168,20 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> fast_transform_select_eval;
     } else if (setting == "fast_intra_mode_eval_level") {
       stream >> fast_intra_mode_eval_level;
+    } else if (setting == "fast_intra_mpm_prediction") {
+      stream >> fast_intra_mpm_prediction;
+    } else if (setting == "fast_transform_size_64") {
+      stream >> fast_transform_size_64;
+    } else if (setting == "fast_intra_6_predictors") {
+      stream >> fast_intra_6_predictors;
+    } else if (setting == "fast_cabac_alt_residual_ctx") {
+      stream >> fast_cabac_alt_residual_ctx;
+    } else if (setting == "fast_transform_select") {
+      stream >> fast_transform_select;
+    } else if (setting == "fast_inter_local_illumination_comp") {
+      stream >> fast_inter_local_illumination_comp;
+    } else if (setting == "fast_inter_adaptive_fullpel_mv") {
+      stream >> fast_inter_adaptive_fullpel_mv;
     } else if (setting == "fast_merge_eval") {
       stream >> fast_merge_eval;
     } else if (setting == "fast_quad_split_based_on_binary_split") {

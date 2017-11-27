@@ -28,7 +28,8 @@ namespace xvc {
 enum struct SpeedMode {
   kPlacebo = 0,
   kSlow = 1,
-  kTotalNumber = 2,
+  kFast = 2,
+  kTotalNumber = 3,
 };
 
 enum struct TuneMode {
@@ -65,9 +66,16 @@ struct EncoderSettings {
   int default_num_ref_pics = -1;
   int max_binary_split_depth = -1;
   int fast_transform_select_eval = -1;
+  int fast_intra_mode_eval_level = -1;
+  int fast_intra_mpm_prediction = -1;
+  int fast_transform_size_64 = -1;
+  int fast_intra_6_predictors = -1;
+  int fast_cabac_alt_residual_ctx = -1;
+  int fast_transform_select = -1;
+  int fast_inter_local_illumination_comp = -1;
+  int fast_inter_adaptive_fullpel_mv = -1;
 
   // Setting with default values used in all speed modes
-  int fast_intra_mode_eval_level = 1;
   int fast_merge_eval = 1;
   int fast_quad_split_based_on_binary_split = 1;
   int eval_prev_mv_search_result = 1;

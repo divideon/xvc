@@ -216,6 +216,28 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   // Load restriction flags
   Restrictions restrictions = Restrictions();
   restrictions.EnableRestrictedMode(settings.restricted_mode);
+  // Apply speed settings that correspond directly to restriction flags
+  if (settings.fast_intra_mpm_prediction) {
+    restrictions.disable_intra_mpm_prediction = 1;
+  }
+  if (settings.fast_transform_size_64) {
+    restrictions.disable_ext_transform_size_64 = 1;
+  }
+  if (settings.fast_intra_6_predictors) {
+    restrictions.disable_ext2_intra_6_predictors = 1;
+  }
+  if (settings.fast_cabac_alt_residual_ctx) {
+    restrictions.disable_ext2_cabac_alt_residual_ctx = 1;
+  }
+  if (settings.fast_transform_select) {
+    restrictions.disable_ext2_transform_select = 1;
+  }
+  if (settings.fast_inter_local_illumination_comp) {
+    restrictions.disable_ext2_inter_local_illumination_comp = 1;
+  }
+  if (settings.fast_inter_adaptive_fullpel_mv) {
+    restrictions.disable_ext2_inter_adaptive_fullpel_mv = 1;
+  }
   Restrictions::GetRW() = std::move(restrictions);
 }
 
