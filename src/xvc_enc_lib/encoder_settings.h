@@ -67,10 +67,7 @@ struct EncoderSettings {
   int max_binary_split_depth = -1;
   int fast_transform_select_eval = -1;
   int fast_intra_mode_eval_level = -1;
-  int fast_intra_mpm_prediction = -1;
   int fast_transform_size_64 = -1;
-  int fast_intra_6_predictors = -1;
-  int fast_cabac_alt_residual_ctx = -1;
   int fast_transform_select = -1;
   int fast_inter_local_illumination_comp = -1;
   int fast_inter_adaptive_fullpel_mv = -1;
