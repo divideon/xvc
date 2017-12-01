@@ -128,8 +128,6 @@ void EncoderSettings::Tune(TuneMode tune_mode) {
       adaptive_qp = 0;
       structural_ssd = 0;
       chroma_qp_offset_table = 0;
-      chroma_qp_offset_u = 1;
-      chroma_qp_offset_v = 1;
       break;
     default:
       assert(0);

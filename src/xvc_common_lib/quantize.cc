@@ -88,7 +88,7 @@ double Qp::GetChromaDistWeight(int qp, ChromaFormat chroma_format,
                                int chroma_scaling_table, int offset) {
   int chroma_qp = util::Clip3(qp, 0, kChromaQpMax_);
   int chroma_qp_with_offset = util::Clip3(qp + offset, 0, kChromaQpMax_);
-  int comp_qp_offset = 0;
+  int comp_qp_offset = chroma_qp_with_offset - chroma_qp;
   if (chroma_format == ChromaFormat::k420 && chroma_scaling_table == 1) {
     comp_qp_offset = kChromaScale_[chroma_qp_with_offset] - chroma_qp;
   }
