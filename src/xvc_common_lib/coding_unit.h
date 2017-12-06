@@ -62,7 +62,7 @@ public:
     int merge_idx = -1;
     bool fullpel_mv = false;
     bool use_lic = false;
-    std::array<MotionVector, 2> mv;
+    std::array<std::array<MotionVector, 4>, 2> mv;
     std::array<MotionVector, 2> mvd;
     std::array<int8_t, 2> ref_idx;
     std::array<int8_t, 2> mvp_idx;
@@ -142,6 +142,7 @@ public:
 
   // Neighborhood
   bool IsFullyWithinPicture() const;
+  const CodingUnit *GetCodingUnit(NeighborDir dir, MvCorner *mv_corner) const;
   const CodingUnit *GetCodingUnitAbove() const;
   const CodingUnit *GetCodingUnitAboveIfSameCtu() const;
   const CodingUnit *GetCodingUnitAboveLeft() const;
@@ -152,6 +153,10 @@ public:
   const CodingUnit *GetCodingUnitLeftBelow() const;
   int GetCuSizeAboveRight(YuvComponent comp) const;
   int GetCuSizeBelowLeft(YuvComponent comp) const;
+  MvCorner GetMvCorner(int x, int y) const {
+    return static_cast<MvCorner>(2 * ((y - pos_y_) >= (height_ >> 1)) +
+      ((x - pos_x_) >= (width_ >> 1)));
+  }
 
   // Transform
   bool GetRootCbf() const { return tx_.root_cbf; }
@@ -226,10 +231,13 @@ public:
     inter_.ref_idx[static_cast<int>(list)] = static_cast<uint8_t>(ref_idx);
   }
   const MotionVector& GetMv(RefPicList list) const {
-    return inter_.mv[static_cast<int>(list)];
+    return inter_.mv[static_cast<int>(list)][0];
+  }
+  const MotionVector& GetMv(RefPicList list, MvCorner corner) const {
+    return inter_.mv[static_cast<int>(list)][static_cast<int>(corner)];
   }
   void SetMv(const MotionVector &mv, RefPicList list) {
-    inter_.mv[static_cast<int>(list)] = mv;
+    inter_.mv[static_cast<int>(list)].fill(mv);
   }
   const MotionVector& GetMvDelta(RefPicList list) const {
     return inter_.mvd[static_cast<int>(list)];
@@ -267,6 +275,7 @@ public:
   void LoadStateFrom(const ResidualState &state, YuvPicture *rec_pic);
   void LoadStateFrom(const TransformState &state);
   void LoadStateFrom(const InterState &state);
+  void LoadStateFrom(const InterState &state, RefPicList ref_list);
 
 private:
   PictureData *pic_data_ = nullptr;

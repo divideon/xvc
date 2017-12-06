@@ -102,7 +102,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
       }
 
       // Derive boundary strength.
-      int boundary_strength = GetBoundaryStrength(*cu_p, *cu_q);
+      int boundary_strength = GetBoundaryStrength(*cu_p, *cu_q, x, y, dir);
       if (!boundary_strength) {
         continue;
       }
@@ -140,7 +140,8 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
 }
 
 int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
-                                          const CodingUnit &cu_q) {
+                                          const CodingUnit &cu_q,
+                                          int pos_x, int pos_y, Direction dir) {
   static const int one_integer_step = 1 << constants::kMvPrecisionShift;
   int boundary_strength = 0;
   if (Restrictions::Get().disable_deblock_boundary_strength_zero) {
@@ -148,35 +149,49 @@ int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
   }
   YuvComponent luma = YuvComponent::kY;
 
+  MvCorner corner_p;
+  MvCorner corner_q;
+  if (dir == Direction::kVertical) {
+    corner_p = (pos_y - cu_p.GetPosY(luma)) < (cu_p.GetHeight(luma) >> 1) ?
+      MvCorner::kUpRight : MvCorner::kDownRight;
+    corner_q = (pos_y - cu_q.GetPosY(luma)) < (cu_q.GetHeight(luma) >> 1) ?
+      MvCorner::kUpLeft : MvCorner::kDownLeft;
+  } else {
+    corner_p = (pos_x - cu_p.GetPosX(luma)) < (cu_p.GetWidth(luma) >> 1) ?
+      MvCorner::kDownLeft : MvCorner::kDownRight;
+    corner_q = (pos_x - cu_q.GetPosX(luma)) < (cu_q.GetWidth(luma) >> 1) ?
+      MvCorner::kUpLeft : MvCorner::kUpRight;
+  }
+
   if (cu_p.IsIntra() || cu_q.IsIntra()) {
     boundary_strength = 2;
   } else if (cu_p.GetCbf(luma) || cu_q.GetCbf(luma)) {
     boundary_strength = 1;
   } else if (pic_data_->GetPredictionType() == PicturePredictionType::kBi) {
-    PicNum refP0 = cu_p.GetRefPoc(RefPicList::kL0);
-    PicNum refP1 = cu_p.GetRefPoc(RefPicList::kL1);
-    PicNum refQ0 = cu_q.GetRefPoc(RefPicList::kL0);
-    PicNum refQ1 = cu_q.GetRefPoc(RefPicList::kL1);
-    if ((refP0 == refQ0 && refP1 == refQ1) ||
-      (refP0 == refQ1 && refP1 == refQ0)) {
-      auto &mvP0 = cu_p.GetMv(RefPicList::kL0);
-      auto &mvP1 = cu_p.GetMv(RefPicList::kL1);
-      auto &mvQ0 = cu_q.GetMv(RefPicList::kL0);
-      auto &mvQ1 = cu_q.GetMv(RefPicList::kL1);
-      auto cond1 = [&mvP0, &mvP1, &mvQ0, &mvQ1]() {
-        return (std::abs(mvP0.x - mvQ0.x) >= one_integer_step) ||
-          (std::abs(mvP0.y - mvQ0.y) >= one_integer_step) ||
-          (std::abs(mvP1.x - mvQ1.x) >= one_integer_step) ||
-          (std::abs(mvP1.y - mvQ1.y) >= one_integer_step);
+    PicNum ref_p0 = cu_p.GetRefPoc(RefPicList::kL0);
+    PicNum ref_p1 = cu_p.GetRefPoc(RefPicList::kL1);
+    PicNum ref_q0 = cu_q.GetRefPoc(RefPicList::kL0);
+    PicNum ref_q1 = cu_q.GetRefPoc(RefPicList::kL1);
+    if ((ref_p0 == ref_q0 && ref_p1 == ref_q1) ||
+      (ref_p0 == ref_q1 && ref_p1 == ref_q0)) {
+      const MotionVector &mv_p0 = cu_p.GetMv(RefPicList::kL0, corner_p);
+      const MotionVector &mv_p1 = cu_p.GetMv(RefPicList::kL1, corner_p);
+      const MotionVector &mv_q0 = cu_q.GetMv(RefPicList::kL0, corner_q);
+      const MotionVector &mv_q1 = cu_q.GetMv(RefPicList::kL1, corner_q);
+      auto cond1 = [&mv_p0, &mv_p1, &mv_q0, &mv_q1]() {
+        return (std::abs(mv_p0.x - mv_q0.x) >= one_integer_step) ||
+          (std::abs(mv_p0.y - mv_q0.y) >= one_integer_step) ||
+          (std::abs(mv_p1.x - mv_q1.x) >= one_integer_step) ||
+          (std::abs(mv_p1.y - mv_q1.y) >= one_integer_step);
       };
-      auto cond2 = [&mvP0, &mvP1, &mvQ0, &mvQ1]() {
-        return (std::abs(mvP0.x - mvQ1.x) >= one_integer_step) ||
-          (std::abs(mvP0.y - mvQ1.y) >= one_integer_step) ||
-          (std::abs(mvP1.x - mvQ0.x) >= one_integer_step) ||
-          (std::abs(mvP1.y - mvQ0.y) >= one_integer_step);
+      auto cond2 = [&mv_p0, &mv_p1, &mv_q0, &mv_q1]() {
+        return (std::abs(mv_p0.x - mv_q1.x) >= one_integer_step) ||
+          (std::abs(mv_p0.y - mv_q1.y) >= one_integer_step) ||
+          (std::abs(mv_p1.x - mv_q0.x) >= one_integer_step) ||
+          (std::abs(mv_p1.y - mv_q0.y) >= one_integer_step);
       };
-      if (refP0 != refP1) {
-        if (refP0 == refQ0) {
+      if (ref_p0 != ref_p1) {
+        if (ref_p0 == ref_q0) {
           if (cond1()) {
             boundary_strength = 1;
           }
@@ -197,11 +212,13 @@ int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
     // For uni-prediction assumes that a POC is only referenced once
     if (cu_p.GetRefIdx(RefPicList::kL0) != cu_q.GetRefIdx(RefPicList::kL0)) {
       boundary_strength = 1;
-    } else if (std::abs(cu_p.GetMv(RefPicList::kL0).x -
-                        cu_q.GetMv(RefPicList::kL0).x) >= one_integer_step ||
-               std::abs(cu_p.GetMv(RefPicList::kL0).y -
-                        cu_q.GetMv(RefPicList::kL0).y) >= one_integer_step) {
-      boundary_strength = 1;
+    } else {
+      const MotionVector &mv_p0 = cu_p.GetMv(RefPicList::kL0, corner_p);
+      const MotionVector &mv_q0 = cu_q.GetMv(RefPicList::kL0, corner_q);
+      if (std::abs(mv_p0.x - mv_q0.x) >= one_integer_step ||
+          std::abs(mv_p0.y - mv_q0.y) >= one_integer_step) {
+        boundary_strength = 1;
+      }
     }
   }
   if (boundary_strength == 1 &&

@@ -21,6 +21,16 @@
 
 namespace xvc {
 
+enum class NeighborDir {
+  kAboveLeft,
+  kAbove,
+  kAboveCorner,
+  kAboveRight,
+  kLeft,
+  kLeftCorner,
+  kLeftBelow,
+};
+
 enum class SplitType {
   kNone,
   kQuad,
@@ -119,6 +129,13 @@ struct MotionVector {
   }
   int x = 0;
   int y = 0;
+};
+
+enum class MvCorner {
+  kUpLeft = 0,
+  kUpRight = 1,
+  kDownLeft = 2,
+  kDownRight = 3,
 };
 
 }   // namespace xvc

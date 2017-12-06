@@ -162,6 +162,54 @@ bool CodingUnit::IsFullyWithinPicture() const {
     pos_y_ + height_ <= pic_data_->GetPictureHeight(YuvComponent::kY);
 }
 
+const CodingUnit* CodingUnit::GetCodingUnit(NeighborDir dir,
+                                            MvCorner *mv_corner) const {
+  const CodingUnit *cu = nullptr;
+  int x = pos_x_;
+  int y = pos_y_;
+  switch (dir) {
+    case NeighborDir::kAboveLeft:
+      cu = GetCodingUnitAboveLeft();
+      x = pos_x_ - constants::kMinBlockSize;
+      y = pos_y_ - constants::kMinBlockSize;
+      break;
+    case NeighborDir::kAbove:
+      cu = GetCodingUnitAbove();
+      x = pos_x_;
+      y = pos_y_ - constants::kMinBlockSize;
+      break;
+    case NeighborDir::kAboveCorner:
+      cu = GetCodingUnitAboveCorner();
+      x = pos_x_ + width_ - constants::kMinBlockSize;
+      y = pos_y_ - constants::kMinBlockSize;
+      break;
+    case NeighborDir::kAboveRight:
+      cu = GetCodingUnitAboveRight();
+      x = pos_x_ + width_;
+      y = pos_y_ - constants::kMinBlockSize;
+      break;
+    case NeighborDir::kLeft:
+      cu = GetCodingUnitLeft();
+      x = pos_x_ - constants::kMinBlockSize;
+      y = pos_y_;
+      break;
+    case NeighborDir::kLeftCorner:
+      cu = GetCodingUnitLeftCorner();
+      x = pos_x_ - constants::kMinBlockSize;
+      y = pos_y_ + height_ - constants::kMinBlockSize;
+      break;
+    case NeighborDir::kLeftBelow:
+      cu = GetCodingUnitLeftBelow();
+      x = pos_x_ - constants::kMinBlockSize;
+      y = pos_y_ + height_;
+      break;
+  }
+  if (cu) {
+    *mv_corner = cu->GetMvCorner(x, y);
+  }
+  return cu;
+}
+
 const CodingUnit* CodingUnit::GetCodingUnitAbove() const {
   int posx = pos_x_;
   int posy = pos_y_;
@@ -550,6 +598,14 @@ void CodingUnit::LoadStateFrom(const TransformState &state) {
 
 void CodingUnit::LoadStateFrom(const InterState &state) {
   inter_ = state;
+}
+
+void CodingUnit::LoadStateFrom(const InterState &state, RefPicList ref_list) {
+  const int ref_list_idx = static_cast<int>(ref_list);
+  inter_.mv[ref_list_idx] = state.mv[ref_list_idx];
+  inter_.ref_idx[ref_list_idx] = state.ref_idx[ref_list_idx];
+  inter_.mvd[ref_list_idx] = state.mvd[ref_list_idx];
+  inter_.mvp_idx[ref_list_idx] = state.mvp_idx[ref_list_idx];
 }
 
 }   // namespace xvc

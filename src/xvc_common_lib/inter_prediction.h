@@ -58,8 +58,8 @@ public:
     bitdepth_(bitdepth) {
   }
 
-  InterPredictorList GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
-                                     int ref_idx);
+  InterPredictorList GetMvpList(const CodingUnit &cu, RefPicList ref_list,
+                                int ref_idx);
   InterMergeCandidateList GetMergeCandidates(const CodingUnit &cu,
                                              int merge_cand_idx = -1);
   void CalculateMV(CodingUnit *cu);
@@ -92,10 +92,12 @@ private:
                       PicNum poc_ref2, MotionVector *out);
   struct LicParams;
 
-  bool GetMvpCand(const CodingUnit *cu, RefPicList ref_list, int ref_idx,
-                  PicNum ref_poc, MotionVector *mv_out);
-  bool GetScaledMvpCand(const CodingUnit *cu, RefPicList cu_ref_list,
-                        int ref_idx, MotionVector *mv_out);
+  bool GetMvpCand(const CodingUnit *cu, NeighborDir dir,
+                  RefPicList ref_list, int ref_idx, PicNum ref_poc,
+                  MotionVector *mv_list, int index);
+  bool GetScaledMvpCand(const CodingUnit *cu, NeighborDir dir,
+                        RefPicList ref_list, int ref_idx,
+                        MotionVector *mv_list, int index);
   bool GetTemporalMvPredictor(const CodingUnit &cu, RefPicList ref_list,
                               int ref_idx, MotionVector *mv_out, bool *use_lic);
   void MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
@@ -131,7 +133,7 @@ private:
                             const MotionVector &mv_full,
                             const YuvPicture &ref_pic,
                             const SampleBufferConst &rec_buffer);
-  MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu);
+  MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu, MvCorner corner);
 
   const InterPrediction::SimdFunc &simd_;
   const YuvPicture &rec_pic_;    // current picture, used for template matching

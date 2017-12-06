@@ -60,8 +60,8 @@ InterPrediction::kMergeCandL0L1Idx = { {
 } };
 
 InterPredictorList
-InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
-                                 int ref_idx) {
+InterPrediction::GetMvpList(const CodingUnit &cu, RefPicList ref_list,
+                            int ref_idx) {
   auto round_mv = [](MotionVector *mv) {
     constexpr int scale_shift = constants::kMvPrecisionShift;
     mv->x =
@@ -71,19 +71,19 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
   };
   InterPredictorList list;
   if (Restrictions::Get().disable_inter_mvp) {
-    const CodingUnit *tmp = cu.GetCodingUnitLeft();
-    if (tmp && tmp->IsInter()) {
-      list[0] = tmp->GetMv(ref_list);
-      list[1] = tmp->GetMv(ref_list);
+    MvCorner corner;
+    const CodingUnit *tmp;
+    if ((tmp = cu.GetCodingUnit(NeighborDir::kLeft, &corner)) != nullptr &&
+        tmp->IsInter()) {
+      list[0] = tmp->GetMv(ref_list, corner);
+      list[1] = tmp->GetMv(ref_list, corner);
+    } else if ((tmp = cu.GetCodingUnit(NeighborDir::kAbove, &corner)) != nullptr
+               && tmp->IsInter()) {
+      list[0] = tmp->GetMv(ref_list, corner);
+      list[1] = tmp->GetMv(ref_list, corner);
     } else {
-      tmp = cu.GetCodingUnitAbove();
-      if (tmp && tmp->IsInter()) {
-        list[0] = tmp->GetMv(ref_list);
-        list[1] = tmp->GetMv(ref_list);
-      } else {
-        list[0] = MotionVector(0, 0);
-        list[1] = MotionVector(0, 0);
-      }
+      list[0] = MotionVector(0, 0);
+      list[1] = MotionVector(0, 0);
     }
     if (cu.GetFullpelMv()) {
       for (int i = 0; i < static_cast<int>(list.size()); i++) {
@@ -102,40 +102,40 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
   bool smvp_added = tmp && tmp->IsInter();
 
   // Left
-  if (GetMvpCand(cu.GetCodingUnitLeftBelow(),
-                 ref_list, ref_idx, ref_poc, &list[i])) {
+  if (GetMvpCand(&cu, NeighborDir::kLeftBelow,
+                 ref_list, ref_idx, ref_poc, &list[i], 0)) {
     i++;
-  } else if (GetMvpCand(cu.GetCodingUnitLeftCorner(),
-                        ref_list, ref_idx, ref_poc, &list[i])) {
+  } else if (GetMvpCand(&cu, NeighborDir::kLeftCorner,
+                        ref_list, ref_idx, ref_poc, &list[i], 0)) {
     i++;
-  } else if (GetScaledMvpCand(cu.GetCodingUnitLeftBelow(),
-                              ref_list, ref_idx, &list[i])) {
+  } else if (GetScaledMvpCand(&cu, NeighborDir::kLeftBelow,
+                              ref_list, ref_idx, &list[i], 0)) {
     i++;
-  } else if (GetScaledMvpCand(cu.GetCodingUnitLeftCorner(),
-                              ref_list, ref_idx, &list[i])) {
+  } else if (GetScaledMvpCand(&cu, NeighborDir::kLeftCorner,
+                              ref_list, ref_idx, &list[i], 0)) {
     i++;
   }
 
   // Above
-  if (GetMvpCand(cu.GetCodingUnitAboveRight(),
-                 ref_list, ref_idx, ref_poc, &list[i])) {
+  if (GetMvpCand(&cu, NeighborDir::kAboveRight,
+                 ref_list, ref_idx, ref_poc, &list[i], 0)) {
     i++;
-  } else if (GetMvpCand(cu.GetCodingUnitAboveCorner(),
-                        ref_list, ref_idx, ref_poc, &list[i])) {
+  } else if (GetMvpCand(&cu, NeighborDir::kAboveCorner,
+                        ref_list, ref_idx, ref_poc, &list[i], 0)) {
     i++;
-  } else if (GetMvpCand(cu.GetCodingUnitAboveLeft(),
-                        ref_list, ref_idx, ref_poc, &list[i])) {
+  } else if (GetMvpCand(&cu, NeighborDir::kAboveLeft,
+                        ref_list, ref_idx, ref_poc, &list[i], 0)) {
     i++;
   }
   if (!smvp_added) {
-    if (GetScaledMvpCand(cu.GetCodingUnitAboveRight(),
-                         ref_list, ref_idx, &list[i])) {
+    if (GetScaledMvpCand(&cu, NeighborDir::kAboveRight,
+                         ref_list, ref_idx, &list[i], 0)) {
       i++;
-    } else if (GetScaledMvpCand(cu.GetCodingUnitAboveCorner(),
-                                ref_list, ref_idx, &list[i])) {
+    } else if (GetScaledMvpCand(&cu, NeighborDir::kAboveCorner,
+                                ref_list, ref_idx, &list[i], 0)) {
       i++;
-    } else if (GetScaledMvpCand(cu.GetCodingUnitAboveLeft(),
-                                ref_list, ref_idx, &list[i])) {
+    } else if (GetScaledMvpCand(&cu, NeighborDir::kAboveLeft,
+                                ref_list, ref_idx, &list[i], 0)) {
       i++;
     }
   }
@@ -169,7 +169,8 @@ InterPrediction::GetMvPredictors(const CodingUnit &cu, RefPicList ref_list,
   return list;
 }
 
-static bool HasDifferentMotion(const CodingUnit &cu1, const CodingUnit &cu2) {
+static bool HasDifferentMotion(const CodingUnit &cu1, MvCorner corner1,
+                               const CodingUnit &cu2, MvCorner corner2) {
   if (cu1.GetInterDir() != cu2.GetInterDir()) {
     return true;
   }
@@ -182,7 +183,7 @@ static bool HasDifferentMotion(const CodingUnit &cu1, const CodingUnit &cu2) {
       continue;
     }
     if (cu1.GetRefIdx(ref_list) != cu2.GetRefIdx(ref_list) ||
-        cu1.GetMv(ref_list) != cu2.GetMv(ref_list)) {
+        cu1.GetMv(ref_list, corner1) != cu2.GetMv(ref_list, corner2)) {
       return true;
     }
   }
@@ -198,48 +199,65 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   InterMergeCandidateList list;
   int num = 0;
 
-  const CodingUnit *left = cu.GetCodingUnitLeftCorner();
-  bool has_a1 = left && left->IsInter();
+  MvCorner left_corner_mv;
+  const CodingUnit *left_corner =
+    cu.GetCodingUnit(NeighborDir::kLeftCorner, &left_corner_mv);
+  bool has_a1 = left_corner && left_corner->IsInter();
   if (has_a1) {
-    list[num] = GetMergeCandidateFromCu(*left);
+    list[num] = GetMergeCandidateFromCu(*left_corner, left_corner_mv);
     if (num++ == merge_cand_idx) {
       return list;
     }
   }
 
-  const CodingUnit *above = cu.GetCodingUnitAboveCorner();
-  bool has_b1 = above && above->IsInter();
-  if (has_b1 && (!has_a1 || HasDifferentMotion(*left, *above))) {
-    list[num] = GetMergeCandidateFromCu(*above);
+  MvCorner above_corner_mv;
+  const CodingUnit *above_corner =
+    cu.GetCodingUnit(NeighborDir::kAboveCorner, &above_corner_mv);
+  bool has_b1 = above_corner && above_corner->IsInter();
+  if (has_b1 &&
+    (!has_a1 || HasDifferentMotion(*left_corner, left_corner_mv,
+                                   *above_corner, above_corner_mv))) {
+    list[num] = GetMergeCandidateFromCu(*above_corner, above_corner_mv);
     if (num++ == merge_cand_idx) {
       return list;
     }
   }
 
-  const CodingUnit *above_right = cu.GetCodingUnitAboveRight();
+  MvCorner above_right_mv;
+  const CodingUnit *above_right =
+    cu.GetCodingUnit(NeighborDir::kAboveRight, &above_right_mv);
   bool has_b0 = above_right && above_right->IsInter();
-  if (has_b0 && (!has_b1 || HasDifferentMotion(*above, *above_right))) {
-    list[num] = GetMergeCandidateFromCu(*above_right);
+  if (has_b0 &&
+    (!has_b1 || HasDifferentMotion(*above_corner, above_corner_mv,
+                                   *above_right, above_right_mv))) {
+    list[num] = GetMergeCandidateFromCu(*above_right, above_right_mv);
     if (num++ == merge_cand_idx) {
       return list;
     }
   }
 
-  const CodingUnit *left_below = cu.GetCodingUnitLeftBelow();
+  MvCorner left_below_mv;
+  const CodingUnit *left_below =
+    cu.GetCodingUnit(NeighborDir::kLeftBelow, &left_below_mv);
   bool has_a0 = left_below && left_below->IsInter();
-  if (has_a0 && (!has_a1 || HasDifferentMotion(*left, *left_below))) {
-    list[num] = GetMergeCandidateFromCu(*left_below);
+  if (has_a0 && (!has_a1 || HasDifferentMotion(*left_corner, left_corner_mv,
+                                               *left_below, left_below_mv))) {
+    list[num] = GetMergeCandidateFromCu(*left_below, left_below_mv);
     if (num++ == merge_cand_idx) {
       return list;
     }
   }
 
-  const CodingUnit *above_left = cu.GetCodingUnitAboveLeft();
+  MvCorner above_left_mv;
+  const CodingUnit *above_left =
+    cu.GetCodingUnit(NeighborDir::kAboveLeft, &above_left_mv);
   bool has_b2 = above_left && above_left->IsInter();
   if (has_b2 && num < 4
-      && (!has_a1 || HasDifferentMotion(*left, *above_left))
-      && (!has_b1 || HasDifferentMotion(*above, *above_left))) {
-    list[num] = GetMergeCandidateFromCu(*above_left);
+      && (!has_a1 || HasDifferentMotion(*left_corner, left_corner_mv,
+                                        *above_left, above_left_mv))
+      && (!has_b1 || HasDifferentMotion(*above_corner, above_corner_mv,
+                                        *above_left, above_left_mv))) {
+    list[num] = GetMergeCandidateFromCu(*above_left, above_left_mv);
     if (num++ == merge_cand_idx) {
       return list;
     }
@@ -298,10 +316,11 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
     }
   }
 
-  auto ref_list = cu.GetRefPicLists();
-  int max_num_refs = !pic_bipred ? ref_list->GetNumRefPics(RefPicList::kL0) :
-    std::min(ref_list->GetNumRefPics(RefPicList::kL0),
-             ref_list->GetNumRefPics(RefPicList::kL1));
+  const ReferencePictureLists *ref_pic_list = cu.GetRefPicLists();
+  const int max_num_refs = !pic_bipred ?
+    ref_pic_list->GetNumRefPics(RefPicList::kL0) :
+    std::min(ref_pic_list->GetNumRefPics(RefPicList::kL0),
+             ref_pic_list->GetNumRefPics(RefPicList::kL1));
   int ref_idx = 0;
   for (; num < static_cast<int>(list.size()); num++) {
     list[num].inter_dir = pic_bipred ? InterDir::kBi : InterDir::kL0;
@@ -326,14 +345,14 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_list = static_cast<RefPicList>(i);
       if (cu->HasMv(ref_list)) {
+        const int ref_idx = cu->GetRefIdx(ref_list);
+        const int mvp_idx = cu->GetMvpIdx(ref_list);
         MotionVector mvd = cu->GetMvDelta(ref_list);
         if (cu->GetFullpelMv()) {
           mvd.x = mvd.x * (1 << constants::kMvPrecisionShift);
           mvd.y = mvd.y * (1 << constants::kMvPrecisionShift);
         }
-        int ref_idx = cu->GetRefIdx(ref_list);
-        int mvp_idx = cu->GetMvpIdx(ref_list);
-        InterPredictorList mvp_list = GetMvPredictors(*cu, ref_list, ref_idx);
+        InterPredictorList mvp_list = GetMvpList(*cu, ref_list, ref_idx);
         MotionVector &mvp = mvp_list[mvp_idx];
         cu->SetMv(MotionVector(mvp.x + mvd.x, mvp.y + mvd.y), ref_list);
       } else {
@@ -494,27 +513,51 @@ void InterPrediction::ScaleMv(PicNum poc_current1, PicNum poc_ref1,
     (scale_factor * mv->y < 0)) >> 8, -32768, 32767);
 }
 
-bool InterPrediction::GetMvpCand(const CodingUnit *cu, RefPicList ref_list,
-                                 int ref_idx, PicNum ref_poc,
-                                 MotionVector *mv_out) {
+bool
+InterPrediction::GetMvpCand(const CodingUnit *cu_this, NeighborDir dir,
+                            RefPicList ref_list, int ref_idx, PicNum ref_poc,
+                            MotionVector *mv_list, int index) {
+  MvCorner mv_corner;
+  const CodingUnit *cu = cu_this->GetCodingUnit(dir, &mv_corner);
   if (!cu || !cu->IsInter()) {
     return false;
   }
   if (cu->HasMv(ref_list) && cu->GetRefIdx(ref_list) == ref_idx) {
-    *mv_out = cu->GetMv(ref_list);
-    return true;
+    const MotionVector &mv = cu->GetMv(ref_list, mv_corner);
+    bool unique = true;
+    for (int i = 0; i < index; i++) {
+      if (mv_list[i] == mv) {
+        unique = false;
+      }
+    }
+    if (unique) {
+      mv_list[index] = mv;
+      return true;
+    }
   }
   RefPicList other_list = ReferencePictureLists::Inverse(ref_list);
   if (cu->HasMv(other_list) && cu->GetRefPoc(other_list) == ref_poc) {
-    *mv_out = cu->GetMv(other_list);
-    return true;
+    const MotionVector &mv = cu->GetMv(other_list, mv_corner);
+    bool unique = true;
+    for (int i = 0; i < index; i++) {
+      if (mv_list[i] == mv) {
+        unique = false;
+      }
+    }
+    if (unique) {
+      mv_list[index] = mv;
+      return true;
+    }
   }
   return false;
 }
 
-bool InterPrediction::GetScaledMvpCand(const CodingUnit *cu,
-                                       RefPicList cu_ref_list, int ref_idx,
-                                       MotionVector *out) {
+bool
+InterPrediction::GetScaledMvpCand(const CodingUnit *cu_this, NeighborDir dir,
+                                  RefPicList cu_ref_list, int ref_idx,
+                                  MotionVector *mv_list, int index) {
+  MvCorner mv_corner;
+  const CodingUnit *cu = cu_this->GetCodingUnit(dir, &mv_corner);
   if (!cu || !cu->IsInter()) {
     return false;
   }
@@ -527,16 +570,34 @@ bool InterPrediction::GetScaledMvpCand(const CodingUnit *cu,
     }
     if ((i == 0 && cu_ref_idx == ref_idx) ||
         Restrictions::Get().disable_inter_scaling_mvp) {
-      *out = cu->GetMv(ref_list);
-      return true;
+      const MotionVector &mv = cu->GetMv(ref_list, mv_corner);
+      bool unique = true;
+      for (int j = 0; j < index; j++) {
+        if (mv_list[j] == mv) {
+          unique = false;
+        }
+      }
+      if (unique) {
+        mv_list[index] = mv;
+        return true;
+      }
     }
     auto *ref_pic_list = cu->GetRefPicLists();
     PicNum poc_current = cu->GetPoc();
     PicNum poc_ref_1 = ref_pic_list->GetRefPoc(cu_ref_list, ref_idx);
     PicNum poc_ref_2 = ref_pic_list->GetRefPoc(ref_list, cu_ref_idx);
-    *out = cu->GetMv(ref_list);
-    ScaleMv(poc_current, poc_ref_1, poc_current, poc_ref_2, out);
-    return true;
+    MotionVector mv = cu->GetMv(ref_list, mv_corner);
+    ScaleMv(poc_current, poc_ref_1, poc_current, poc_ref_2, &mv);
+    bool unique = true;
+    for (int j = 0; j < index; j++) {
+      if (mv_list[j] == mv) {
+        unique = false;
+      }
+    }
+    if (unique) {
+      mv_list[index] = mv;
+      return true;
+    }
   }
   return false;
 }
@@ -548,7 +609,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   const YuvComponent comp = YuvComponent::kY;
   const PicNum cu_poc = cu.GetPoc();
   const PicNum cu_ref_poc = cu.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
-  auto ref_pic_list = cu.GetRefPicLists();
+  const ReferencePictureLists *ref_pic_list = cu.GetRefPicLists();
   int tmvp_cu_ref_idx = cu.GetPicData()->GetTmvpRefIdx();
   RefPicList tmvp_cu_ref_list = cu.GetPicData()->GetTmvpRefList();
   RefPicList tmvp_mv_ref_list = ref_pic_list->HasOnlyBackReferences() ?
@@ -556,6 +617,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
 
   auto get_temporal_mv = [&cu_poc, &cu_ref_poc](const CodingUnit *col_cu,
                                                 RefPicList col_ref_list,
+                                                int x, int y,
                                                 MotionVector *col_mv) {
     if (!col_cu->IsInter()) {
       return false;
@@ -563,11 +625,12 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
     if (!col_cu->HasMv(col_ref_list)) {
       col_ref_list = ReferencePictureLists::Inverse(col_ref_list);
     }
+    MvCorner mv_corner = col_cu->GetMvCorner(x, y);
     int col_ref_idx = col_cu->GetRefIdx(col_ref_list);
     PicNum col_poc = col_cu->GetPoc();
     PicNum col_ref_poc =
       col_cu->GetRefPicLists()->GetRefPoc(col_ref_list, col_ref_idx);
-    *col_mv = col_cu->GetMv(col_ref_list);
+    *col_mv = col_cu->GetMv(col_ref_list, mv_corner);
     ScaleMv(cu_poc, cu_ref_poc, col_poc, col_ref_poc, col_mv);
     return true;
   };
@@ -577,7 +640,10 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   int col_y = cu.GetPosY(comp) + cu.GetHeight(comp);
   if ((cu.GetPosY(comp) / constants::kMaxBlockSize) ==
     (col_y / constants::kMaxBlockSize)) {
+    bool valid = true;
     if (Restrictions::Get().disable_ext_tmvp_full_resolution) {
+      valid = col_x < cu.GetPicData()->GetPictureWidth(comp) &&
+        col_y < cu.GetPicData()->GetPictureHeight(comp);
       col_x = ((col_x >> 4) << 4);
       col_y = ((col_y >> 4) << 4);
     }
@@ -585,7 +651,8 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
     const CodingUnit *col_cu =
       ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
                                     cu.GetCuTree(), col_x, col_y);
-    if (col_cu && get_temporal_mv(col_cu, tmvp_mv_ref_list, mv_out)) {
+    if (valid && col_cu && get_temporal_mv(col_cu, tmvp_mv_ref_list,
+                                           col_x, col_y, mv_out)) {
       if (use_lic) {
         *use_lic |= col_cu->GetUseLic();
       }
@@ -603,7 +670,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   const CodingUnit *col_cu =
     ref_pic_list->GetCodingUnitAt(tmvp_cu_ref_list, tmvp_cu_ref_idx,
                                   cu.GetCuTree(), col_x, col_y);
-  if (get_temporal_mv(col_cu, tmvp_mv_ref_list, mv_out)) {
+  if (get_temporal_mv(col_cu, tmvp_mv_ref_list, col_x, col_y, mv_out)) {
     if (use_lic) {
       *use_lic |= col_cu->GetUseLic();
     }
@@ -1108,10 +1175,10 @@ InterPrediction::DeriveLicParams(const CodingUnit &cu, YuvComponent comp,
 }
 
 static void AddAvg_c(int width, int height, int offset,
-                   int shift, int bitdepth,
-                   const int16_t *src1, intptr_t stride1,
-                   const int16_t *src2, intptr_t stride2,
-                   Sample *dst, intptr_t dst_stride) {
+                     int shift, int bitdepth,
+                     const int16_t *src1, intptr_t stride1,
+                     const int16_t *src2, intptr_t stride2,
+                     Sample *dst, intptr_t dst_stride) {
   const Sample min_val = 0;
   const Sample max_val = (1 << bitdepth) - 1;
   DataBuffer<const int16_t> src1_buf(src1, stride1);
@@ -1121,13 +1188,14 @@ static void AddAvg_c(int width, int height, int offset,
                      min_val, max_val);
 }
 
-MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu) {
+MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu,
+                                                        MvCorner corner) {
   const int kL0 = static_cast<int>(RefPicList::kL0);
   const int kL1 = static_cast<int>(RefPicList::kL1);
   MergeCandidate cand;
   cand.inter_dir = cu.GetInterDir();
-  cand.mv[kL0] = cu.GetMv(RefPicList::kL0);
-  cand.mv[kL1] = cu.GetMv(RefPicList::kL1);
+  cand.mv[kL0] = cu.GetMv(RefPicList::kL0, corner);
+  cand.mv[kL1] = cu.GetMv(RefPicList::kL1, corner);
   cand.ref_idx[kL0] = cu.GetRefIdx(RefPicList::kL0);
   cand.ref_idx[kL1] = cu.GetRefIdx(RefPicList::kL1);
   cand.use_lic = cu.GetUseLic();

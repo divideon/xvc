@@ -187,10 +187,7 @@ void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
 
   // Prepare initial bi-prediction state with best from both lists
   assert(cu->GetInterDir() == InterDir::kL1);
-  cu->SetMv(state_l0.mv[0], RefPicList::kL0);
-  cu->SetRefIdx(state_l0.ref_idx[0], RefPicList::kL0);
-  cu->SetMvDelta(state_l0.mvd[0], RefPicList::kL0);
-  cu->SetMvpIdx(state_l0.mvp_idx[0], RefPicList::kL0);
+  cu->LoadStateFrom(state_l0, RefPicList::kL0);
   InterDir best_uni_dir = cost_l0 <= cost_l1 ? InterDir::kL0 : InterDir::kL1;
   Distortion cost_best_bi =
     SearchBiIterative(cu, qp, bitstream_writer, best_uni_dir, pred_buffer,
@@ -413,7 +410,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
   for (int ref_idx = 0; ref_idx < num_ref_idx; ref_idx++) {
     const bool unique_ref_pic = ref_list == RefPicList::kL1 &&
       same_poc_in_l0_mapping_[ref_idx] < 0;
-    InterPredictorList mvp_list = GetMvPredictors(*cu, ref_list, ref_idx);
+    InterPredictorList mvp_list = GetMvpList(*cu, ref_list, ref_idx);
     int mvp_idx;
     const MotionVector *mv_bootstrap = nullptr;
     if (bipred) {
