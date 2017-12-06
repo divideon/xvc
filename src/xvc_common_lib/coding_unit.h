@@ -234,8 +234,15 @@ public:
   const MotionVector& GetMv(RefPicList list, MvCorner corner) const {
     return inter_.mv[static_cast<int>(list)][static_cast<int>(corner)];
   }
-  void SetMv(const MotionVector &mv, RefPicList list) {
-    inter_.mv[static_cast<int>(list)].fill(mv);
+  void SetMv(const MotionVector &mv, RefPicList ref_list) {
+    inter_.mv[static_cast<int>(ref_list)].fill(mv);
+  }
+  void SetMv(const MotionVector3 &mv, RefPicList ref_list) {
+    inter_.mv[static_cast<int>(ref_list)][0] = mv[0];
+    inter_.mv[static_cast<int>(ref_list)][1] = mv[1];
+    inter_.mv[static_cast<int>(ref_list)][2] = mv[2];
+    inter_.mv[static_cast<int>(ref_list)][3] =
+      MotionVector(mv[1].x + mv[2].x - mv[0].x, mv[1].y + mv[2].y - mv[0].y);
   }
   MotionVector3 GetMvAffine(RefPicList list) const {
     return {
@@ -243,13 +250,6 @@ public:
       inter_.mv[static_cast<int>(list)][1],
       inter_.mv[static_cast<int>(list)][2],
     };
-  }
-  void SetMvAffine(const MotionVector3 &mv, RefPicList list) {
-    inter_.mv[static_cast<int>(list)][0] = mv[0];
-    inter_.mv[static_cast<int>(list)][1] = mv[1];
-    inter_.mv[static_cast<int>(list)][2] = mv[2];
-    inter_.mv[static_cast<int>(list)][3] =
-      MotionVector(mv[1].x + mv[2].x - mv[0].x, mv[1].y + mv[2].y - mv[0].y);
   }
   const MotionVector& GetMvDelta(RefPicList list) const {
     return inter_.mvd[static_cast<int>(list)][0];

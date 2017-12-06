@@ -499,7 +499,7 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
         mv[1].x += mvd1.x;
         mv[1].y += mvd1.y;
         mv = DeriveMvAffine(*cu, *ref_pic, mv[0], mv[1]);
-        cu->SetMvAffine(mv, ref_list);
+        cu->SetMv(mv, ref_list);
       } else {
         // Zero out for deblocking
         cu->SetMv(MotionVector(), ref_list);

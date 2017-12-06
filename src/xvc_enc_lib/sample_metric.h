@@ -53,24 +53,47 @@ public:
                            const YuvPicture &src1,
                            const Sample *src2, ptrdiff_t stride2);
   Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
-                           const YuvPicture &src1, const SampleBuffer &src2);
-  Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
-                           const SampleBuffer &src1,
-                           const SampleBuffer &src2);
+                           const YuvPicture &src1,
+                           const SampleBufferConst &src2) {
+    return CompareSample(cu, comp, src1, src2.GetDataPtr(), src2.GetStride());
+  }
+  Distortion CompareSample(YuvComponent comp, int width, int height,
+                           const SampleBufferConst &src1,
+                           const SampleBufferConst &src2) {
+    return CompareSample(comp, width, height,
+                         src1.GetDataPtr(), src1.GetStride(),
+                         src2.GetDataPtr(), src2.GetStride());
+  }
   Distortion CompareSample(YuvComponent comp, int width, int height,
                            const Sample *src1, ptrdiff_t stride1,
-                           const Sample *src2, ptrdiff_t stride2);
+                           const Sample *src2, ptrdiff_t stride2) {
+    return Compare(comp, width, height, src1, stride1, src2, stride2);
+  }
   // Sample vs Residual
   Distortion CompareSample(YuvComponent comp, int width, int height,
+                           const ResidualBufferConst &src1,
+                           const SampleBufferConst &src2) {
+    return CompareSample(comp, width, height,
+                         src1.GetDataPtr(), src1.GetStride(),
+                         src2.GetDataPtr(), src2.GetStride());
+  }
+  Distortion CompareSample(YuvComponent comp, int width, int height,
                            const Residual *src1, ptrdiff_t stride1,
-                           const Sample *src2, ptrdiff_t stride2);
+                           const Sample *src2, ptrdiff_t stride2) {
+    return Compare(comp, width, height, src1, stride1, src2, stride2);
+  }
   // Residual vs Residual
   Distortion CompareShort(YuvComponent comp, int width, int height,
-                          const DataBuffer<Residual> &src1,
-                          const DataBuffer<Residual> &src2);
+                          const ResidualBufferConst &src1,
+                          const ResidualBufferConst &src2) {
+    return Compare(comp, width, height, src1.GetDataPtr(), src1.GetStride(),
+                   src2.GetDataPtr(), src2.GetStride());
+  }
   Distortion CompareShort(YuvComponent comp, int width, int height,
                           const Residual *src1, ptrdiff_t stride1,
-                          const Residual *src2, ptrdiff_t stride2);
+                          const Residual *src2, ptrdiff_t stride2) {
+    return Compare(comp, width, height, src1, stride1, src2, stride2);
+  }
 
 private:
   template<typename SampleT1, typename SampleT2>

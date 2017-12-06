@@ -328,7 +328,6 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_tmvp_exclude_intra_from_ref_list = true;
     disable_ext_ref_list_l0_trim = true;
     disable_ext_intra_unrestricted_predictor = true;
-    disable_ext2_inter_affine = true;
   }
   if (mode == RestrictedMode::kModeA) {
     disable_ext_sink = true;

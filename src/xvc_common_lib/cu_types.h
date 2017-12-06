@@ -131,6 +131,7 @@ struct MotionVector {
   int y = 0;
 };
 
+using MotionVector2 = std::array<MotionVector, 2>;
 using MotionVector3 = std::array<MotionVector, 3>;
 
 enum class MvCorner {

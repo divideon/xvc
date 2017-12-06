@@ -43,28 +43,6 @@ SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
 
 Distortion
 SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &src1, const SampleBuffer &src2) {
-  return CompareSample(cu, comp, src1, src2.GetDataPtr(), src2.GetStride());
-}
-
-Distortion
-SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                            const SampleBuffer &src1,
-                            const SampleBuffer &src2) {
-  return CompareSample(comp, cu.GetWidth(comp), cu.GetHeight(comp),
-                       src1.GetDataPtr(), src1.GetStride(),
-                       src2.GetDataPtr(), src2.GetStride());
-}
-
-Distortion
-SampleMetric::CompareSample(YuvComponent comp, int width, int height,
-                            const Sample *src1, ptrdiff_t stride1,
-                            const Sample *src2, ptrdiff_t stride2) {
-  return Compare(comp, width, height, src1, stride1, src2, stride2);
-}
-
-Distortion
-SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &src1,
                             const Sample *src2, ptrdiff_t stride2) {
   int posx = cu.GetPosX(comp);
@@ -74,26 +52,6 @@ SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
   const Sample *src1_ptr = src1.GetSamplePtr(comp, posx, posy);
   ptrdiff_t stride1 = src1.GetStride(comp);
   return Compare(comp, width, height, src1_ptr, stride1, src2, stride2);
-}
-
-Distortion
-SampleMetric::CompareSample(YuvComponent comp, int width, int height,
-                            const Residual *src1, ptrdiff_t stride1,
-                            const Sample *src2, ptrdiff_t stride2) {
-  return Compare(comp, width, height, src1, stride1, src2, stride2);
-}
-
-Distortion SampleMetric::CompareShort(YuvComponent comp, int width, int height,
-                                      const DataBuffer<Residual> &src1,
-                                      const DataBuffer<Residual> &src2) {
-  return Compare(comp, width, height, src1.GetDataPtr(), src1.GetStride(),
-                 src2.GetDataPtr(), src2.GetStride());
-}
-
-Distortion SampleMetric::CompareShort(YuvComponent comp, int width, int height,
-                                      const Residual *src1, ptrdiff_t stride1,
-                                      const Residual *src2, ptrdiff_t stride2) {
-  return Compare(comp, width, height, src1, stride1, src2, stride2);
 }
 
 template<typename SampleT1, typename SampleT2>
@@ -582,5 +540,20 @@ SampleMetric::CalcMeanDiff(int width, int height,
   }
   return (delta_sum * (1 + SkipLines)) / (width * height);
 }
+
+template Distortion
+SampleMetric::Compare<Sample, Sample>(YuvComponent, int, int,
+                                      const Sample*, ptrdiff_t,
+                                      const Sample*, ptrdiff_t);
+
+template Distortion
+SampleMetric::Compare<Residual, Sample>(YuvComponent, int, int,
+                                        const Residual*, ptrdiff_t,
+                                        const Sample*, ptrdiff_t);
+
+template Distortion
+SampleMetric::Compare<Residual, Residual>(YuvComponent, int, int,
+                                          const Residual*, ptrdiff_t,
+                                          const Residual*, ptrdiff_t);
 
 }   // namespace xvc

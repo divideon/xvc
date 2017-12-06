@@ -40,6 +40,7 @@ enum class InterSearchFlags {
   kUniPredOnly = 1 << 0,
   kFullPelMv = 1 << 1,
   kLic = 1 << 2,
+  kAffine = 1 << 3,
 };
 
 class InterSearch : public InterPrediction {
@@ -77,11 +78,12 @@ private:
   static constexpr int kFastMergeNumCand = 4;
   static constexpr double kFastMergeCostFactor = 1.25;
   static constexpr double kFastTransformSelectCostFactor = 1.1;
+  static constexpr int kNumMvp = constants::kNumInterMvPredictors;
 
-  void SearchMotion(CodingUnit *cu, const Qp &qp,
-                    const SyntaxWriter &bitstream_writer,
-                    InterSearchFlags search_flags,
-                    SampleBuffer *pred_buffer);
+  Distortion SearchMotion(CodingUnit *cu, const Qp &qp,
+                          const SyntaxWriter &bitstream_writer,
+                          InterSearchFlags search_flags,
+                          SampleBuffer *pred_buffer);
   Distortion CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 Cost best_cu_cost, TransformEncoder *encoder,
@@ -102,15 +104,55 @@ private:
                           CodingUnit::InterState *best_state,
                           CodingUnit::InterState *best_unique = nullptr,
                           Distortion *best_unique_cost = nullptr);
+  template<bool IsAffine, typename MotionVec, typename TOrig>
+  Distortion SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
+                          const SyntaxWriter &bitstream_writer,
+                          const DataBuffer<TOrig> &orig_buffer,
+                          Distortion initial_best_cost,
+                          SampleBuffer *pred_buffer,
+                          CodingUnit::InterState *best_state,
+                          CodingUnit::InterState *best_unique = nullptr,
+                          Distortion *best_unique_cost = nullptr);
   template<typename TOrig>
   MotionVector MotionEstimation(const CodingUnit &cu, const Qp &qp,
                                 SearchMethod search_method,
                                 RefPicList ref_list, int ref_idx,
+                                bool bipred,
                                 const DataBuffer<TOrig> &orig_buffer,
                                 const MotionVector &mvp,
-                                const MotionVector *bipred_mv_start,
+                                const MotionVector *mv_bootstrap,
                                 SampleBuffer *pred_buffer,
                                 Distortion *out_dist);
+  template<typename TOrig>
+  MotionVector3 MotionEstimation(const CodingUnit &cu, const Qp &qp,
+                                 SearchMethod search_method,
+                                 RefPicList ref_list, int ref_idx,
+                                 bool bipred,
+                                 const DataBuffer<TOrig> &orig_buffer,
+                                 const MotionVector3 &mvp,
+                                 const MotionVector3 *mv_bootstrap,
+                                 SampleBuffer *pred_buffer,
+                                 Distortion *out_dist);
+  template<typename TOrig>
+  MotionVector MotionEstNormal(const CodingUnit &cu, const Qp &qp,
+                               SearchMethod search_method,
+                               RefPicList ref_list, int ref_idx, bool bipred,
+                               const DataBuffer<TOrig> &orig_buffer,
+                               const MotionVector &mvp,
+                               const MotionVector *mv_bootstrap,
+                               SampleBuffer *pred_buffer, Distortion *out_dist);
+  template<typename TOrig>
+  MotionVector3 MotionEstAffine(const CodingUnit &cu, const Qp &qp,
+                                SearchMethod search_method,
+                                RefPicList ref_list, int ref_idx, bool bipred,
+                                const DataBuffer<TOrig> &orig_buffer,
+                                const MotionVector3 &mvp,
+                                const MotionVector3 *mv_bootstrap,
+                                SampleBuffer *pred_buffer,
+                                Distortion *out_dist);
+  MotionVector2 AffineGradientSearch(int width, int height,
+                                     const SampleBuffer &pred_buffer,
+                                     const ResidualBuffer &err_buffer);
   MotionVector FullSearch(const CodingUnit &cu, const Qp &qp,
                           const MotionVector &mvp, const YuvPicture &ref_pic,
                           const MotionVector &mv_min,
@@ -127,21 +169,36 @@ private:
                            SampleMetric *metric, int mv_x, int mv_y,
                            const DataBuffer<TOrig> &orig_buffer,
                            SampleBuffer *pred_buffer);
+  template<bool IsAffine, typename MotionVec>
   int EvalStartMvp(const CodingUnit &cu, const Qp &qp,
-                   const InterPredictorList &mvp_list,
+                   const std::array<MotionVec, kNumMvp> &mvp_list,
                    const YuvPicture &ref_pic, SampleBuffer *pred_buffer,
                    Distortion *best_cost);
+  template<typename MotionVec>
   int EvalFinalMvpIdx(const CodingUnit &cu,
-                      const InterPredictorList &mvp_list,
-                      const MotionVector &mv_final, int mvp_idx_start);
-  MetricType GetFullpelMetric(const CodingUnit &cu);
-  MetricType GetSubpelMetric(const CodingUnit &cu);
+                      const std::array<MotionVec, kNumMvp> &mvp_list,
+                      const MotionVec &mv_final, int mvp_idx_start);
+  template<typename MotionVec>
+  void SetMvd(CodingUnit *cu, RefPicList ref_list, const MotionVec &mvp,
+              const MotionVec &mv);
+  MetricType GetFullpelMetric(const CodingUnit &cu) const;
+  MetricType GetSubpelMetric(const CodingUnit &cu) const;
+  MetricType GetMvpMetricType(const CodingUnit &cu) const;
   Bits GetInterPredBits(const CodingUnit &cu,
                         const SyntaxWriter &bitstream_writer);
   static Bits GetMvpBits(int mvp_idx, int num_mvp);
   static Bits GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
                          int mv_scale, int mvd_precision_shift);
   static Bits GetNumExpGolombBits(int mvd);
+  // Affine template helper functions
+  template<bool IsAffine, typename MotionVec>
+  std::array<MotionVec, kNumMvp>
+    GetMvpListHelper(const CodingUnit &cu, RefPicList ref_list, int ref_idx,
+                     int max_num_mvp);
+  template<bool IsAffine, typename MotionVec>
+  const MotionVec& GetBestUniPredMv(RefPicList ref_list, int ref_idx) const;
+  template<bool IsAffine, typename MotionVec>
+  void SetBestUniPredMv(RefPicList ref_list, int ref_idx, const MotionVec &mv);
 
   const int bitdepth_;
   const int max_components_;
@@ -155,6 +212,8 @@ private:
   // Best uni-prediction motion estimation result for a single CU
   std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> unipred_best_mv_;
+  std::array<std::array<MotionVector3, constants::kMaxNumRefPics>,
+    static_cast<int>(RefPicList::kTotalNumber)> affine_best_mv_;
   std::array<std::array<int, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> unipred_best_mvp_idx_;
   std::array<std::array<Distortion, constants::kMaxNumRefPics>,
@@ -162,6 +221,11 @@ private:
   // Best fullpel search mv per ref list, ref idx and picture
   std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> previous_fullpel_;
+  // Affine search buffers
+  std::array<std::array<float, constants::kMaxBlockSize>,
+    constants::kMaxBlockSize> affine_delta_hor_;
+  std::array<std::array<float, constants::kMaxBlockSize>,
+    constants::kMaxBlockSize> affine_delta_ver_;
   friend class TzSearch;
 };
 
