@@ -158,8 +158,6 @@ void InterSearch::SearchMotion(CodingUnit *cu, const Qp &qp,
 
   cu->ResetPredictionState();
   cu->SetPredMode(PredictionMode::kInter);
-  cu->SetMergeFlag(false);
-  cu->SetFullpelMv(false);
   if ((search_flags & InterSearchFlags::kFullPelMv) != InterSearchFlags(0)) {
     cu->SetFullpelMv(true);
   }

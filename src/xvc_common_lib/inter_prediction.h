@@ -29,6 +29,8 @@ namespace xvc {
 
 typedef std::array<MotionVector,
   constants::kNumInterMvPredictors> InterPredictorList;
+typedef std::array<MotionVector3,
+  constants::kNumInterMvPredictors> AffinePredictorList;
 
 struct MergeCandidate {
   InterDir inter_dir = InterDir::kL0;
@@ -60,12 +62,25 @@ public:
 
   InterPredictorList GetMvpList(const CodingUnit &cu, RefPicList ref_list,
                                 int ref_idx);
+  AffinePredictorList GetMvpListAffine(const CodingUnit &cu,
+                                       RefPicList ref_list, int ref_idx,
+                                       int max_num_mvp);
   InterMergeCandidateList GetMergeCandidates(const CodingUnit &cu,
                                              int merge_cand_idx = -1);
+  MotionVector3 DeriveMvAffine(const CodingUnit &cu, const YuvPicture &ref_pic,
+                               const MotionVector &mv1,
+                               const MotionVector &mv2);
   void CalculateMV(CodingUnit *cu);
   void ApplyMerge(CodingUnit *cu, const MergeCandidate &merge_cand);
   void MotionCompensation(const CodingUnit &cu, YuvComponent comp,
                           SampleBuffer *pred_buffer);
+  void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
+                            const YuvPicture &ref_pic, int mv_x, int mv_y,
+                            bool post_filter,
+                            SampleBuffer *pred_buffer);
+  void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
+                            const YuvPicture &ref_pic, const MotionVector3 &mv,
+                            SampleBuffer *pred_buffer);
   void ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
               int *mv_x, int *mv_y) const;
   void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
@@ -75,12 +90,6 @@ public:
   static int GetFilterShift(int bitdepth);
   template<typename SrcT, bool Clip>
   static int GetFilterOffset(int shift);
-
-protected:
-  void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &ref_pic, int mv_x, int mv_y,
-                            bool post_filter,
-                            SampleBuffer *pred_buffer);
 
 private:
   static const int kBufSize = constants::kMaxBlockSize *
@@ -100,9 +109,23 @@ private:
                         MotionVector *mv_list, int index);
   bool GetTemporalMvPredictor(const CodingUnit &cu, RefPicList ref_list,
                               int ref_idx, MotionVector *mv_out, bool *use_lic);
-  void MotionCompensationBi(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &ref_pic, const MotionVector &mv,
-                            DataBuffer<int16_t> *pred_buffer);
+  template<typename PredBuffer>
+  void MotionCompRefList(const CodingUnit &cu, YuvComponent comp,
+                         RefPicList ref_list, bool post_filter,
+                         PredBuffer *pred_buffer);
+  template<typename PredBuffer>
+  void MotionCompAffine(const CodingUnit &cu, YuvComponent comp,
+                        const YuvPicture &ref_pic,
+                        const MotionVector3 &mv,
+                        PredBuffer *pred_buffer);
+  void MotionCompUniPred(int width, int height, YuvComponent comp,
+                         const SampleBufferConst &ref_buffer,
+                         int frac_x, int frac_y,
+                         SampleBuffer *pred_buffer);
+  void MotionCompUniPred(int width, int height, YuvComponent comp,
+                         const SampleBufferConst &ref_buffer,
+                         int frac_x, int frac_y,
+                         DataBuffer<int16_t> *pred_buffer);
   SampleBufferConst
     GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
                   const YuvPicture &ref_pic, int mv_x, int mv_y,

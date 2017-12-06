@@ -131,6 +131,11 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
     } else {
       assert(cu.GetInterDir() == InterDir::kL0);
     }
+    if (cu.CanUseAffine()) {
+      writer->WriteAffineFlag(cu, cu.GetUseAffine());
+    } else {
+      assert(!cu.GetUseAffine());
+    }
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_pic_list = static_cast<RefPicList>(i);
       if (!ReferencePictureLists::IsRefPicListUsed(ref_pic_list,
@@ -141,17 +146,22 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
         pic_data_.GetRefPicLists()->GetNumRefPics(ref_pic_list);
       assert(num_refs_available > 0);
       writer->WriteInterRefIdx(cu.GetRefIdx(ref_pic_list), num_refs_available);
-      if (!cu.GetForceMvdZero(ref_pic_list)) {
-        writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
-      } else {
+      if (cu.GetForceMvdZero(ref_pic_list)) {
         assert(cu.GetMvDelta(ref_pic_list) == MotionVector(0, 0));
+      } else if (cu.GetUseAffine()) {
+        writer->WriteInterMvd(cu.GetMvdAffine(0, ref_pic_list));
+        writer->WriteInterMvd(cu.GetMvdAffine(1, ref_pic_list));
+      } else {
+        writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
       }
       writer->WriteInterMvpIdx(cu.GetMvpIdx(ref_pic_list));
     }
-    if (!cu.HasZeroMvd()) {
+    if (!cu.HasZeroMvd() &&
+        !cu.GetUseAffine()) {
       writer->WriteInterFullpelMvFlag(cu, cu.GetFullpelMv());
     }
-    if (pic_data_.GetUseLocalIlluminationCompensation()) {
+    if (pic_data_.GetUseLocalIlluminationCompensation() &&
+        !cu.GetUseAffine()) {
       writer->WriteLicFlag(cu.GetUseLic());
     } else {
       assert(!cu.GetUseLic());

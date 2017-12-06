@@ -48,17 +48,21 @@ bool SyntaxReaderCabac<Ctx>::Finish() {
 }
 
 template<typename Ctx>
+bool SyntaxReaderCabac<Ctx>::ReadAffineFlag(const CodingUnit &cu) {
+  if (Restrictions::Get().disable_ext2_inter_affine) {
+    return false;
+  }
+  Ctx &ctx = ctx_.GetAffineCtx(cu);
+  return decoder_.DecodeBin(&ctx) != 0;
+}
+
+template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadCbf(const CodingUnit &cu, YuvComponent comp) {
   if (util::IsLuma(comp)) {
     return decoder_.DecodeBin(&ctx_.cu_cbf_luma[0]) != 0;
   } else {
     return decoder_.DecodeBin(&ctx_.cu_cbf_chroma[0]) != 0;
   }
-}
-
-template<typename Ctx>
-int SyntaxReaderCabac<Ctx>::ReadQp() {
-  return decoder_.DecodeBypassBins(7);
 }
 
 template<typename Ctx>
@@ -594,6 +598,11 @@ template<typename Ctx>
 PredictionMode SyntaxReaderCabac<Ctx>::ReadPredMode() {
   uint32_t is_intra = decoder_.DecodeBin(&ctx_.cu_pred_mode[0]);
   return is_intra != 0 ? PredictionMode::kIntra : PredictionMode::kInter;
+}
+
+template<typename Ctx>
+int SyntaxReaderCabac<Ctx>::ReadQp() {
+  return decoder_.DecodeBypassBins(7);
 }
 
 template<typename Ctx>

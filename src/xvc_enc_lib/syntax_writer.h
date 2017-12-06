@@ -46,8 +46,8 @@ public:
   void ResetBitCounting() { encoder_.ResetBitCounting(); }
   void Finish();
 
+  void WriteAffineFlag(const CodingUnit &cu, bool use_affine);
   void WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf);
-  void WriteQp(int qp_value);
   int WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
                         const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteEndOfSlice(bool end_of_slice);
@@ -64,6 +64,7 @@ public:
   void WriteMergeIdx(int merge_idx);
   void WritePartitionType(const CodingUnit &cu, PartitionType type);
   void WritePredMode(PredictionMode pred_mode);
+  void WriteQp(int qp_value);
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
   void WriteSplitBinary(const CodingUnit &cu,

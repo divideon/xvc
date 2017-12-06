@@ -61,9 +61,10 @@ public:
     bool merge_flag = false;
     int merge_idx = -1;
     bool fullpel_mv = false;
+    bool use_affine = false;
     bool use_lic = false;
     std::array<std::array<MotionVector, 4>, 2> mv;
-    std::array<MotionVector, 2> mvd;
+    std::array<std::array<MotionVector, 2>, 2> mvd;
     std::array<int8_t, 2> ref_idx;
     std::array<int8_t, 2> mvp_idx;
   };
@@ -230,20 +231,37 @@ public:
   void SetRefIdx(int ref_idx, RefPicList list) {
     inter_.ref_idx[static_cast<int>(list)] = static_cast<uint8_t>(ref_idx);
   }
-  const MotionVector& GetMv(RefPicList list) const {
-    return inter_.mv[static_cast<int>(list)][0];
-  }
   const MotionVector& GetMv(RefPicList list, MvCorner corner) const {
     return inter_.mv[static_cast<int>(list)][static_cast<int>(corner)];
   }
   void SetMv(const MotionVector &mv, RefPicList list) {
     inter_.mv[static_cast<int>(list)].fill(mv);
   }
+  MotionVector3 GetMvAffine(RefPicList list) const {
+    return {
+      inter_.mv[static_cast<int>(list)][0],
+      inter_.mv[static_cast<int>(list)][1],
+      inter_.mv[static_cast<int>(list)][2],
+    };
+  }
+  void SetMvAffine(const MotionVector3 &mv, RefPicList list) {
+    inter_.mv[static_cast<int>(list)][0] = mv[0];
+    inter_.mv[static_cast<int>(list)][1] = mv[1];
+    inter_.mv[static_cast<int>(list)][2] = mv[2];
+    inter_.mv[static_cast<int>(list)][3] =
+      MotionVector(mv[1].x + mv[2].x - mv[0].x, mv[1].y + mv[2].y - mv[0].y);
+  }
   const MotionVector& GetMvDelta(RefPicList list) const {
-    return inter_.mvd[static_cast<int>(list)];
+    return inter_.mvd[static_cast<int>(list)][0];
   }
   void SetMvDelta(const MotionVector &mvd, RefPicList list) {
-    inter_.mvd[static_cast<int>(list)] = mvd;
+    inter_.mvd[static_cast<int>(list)][0] = mvd;
+  }
+  const MotionVector& GetMvdAffine(int idx, RefPicList list) const {
+    return inter_.mvd[static_cast<int>(list)][idx];
+  }
+  void SetMvdAffine(int idx, const MotionVector &mvd, RefPicList list) {
+    inter_.mvd[static_cast<int>(list)][idx] = mvd;
   }
   int GetMvpIdx(RefPicList list) const {
     return inter_.mvp_idx[static_cast<int>(list)];
@@ -253,6 +271,9 @@ public:
   }
   bool GetFullpelMv() const { return inter_.fullpel_mv; }
   void SetFullpelMv(bool fullpel) { inter_.fullpel_mv = fullpel; }
+  bool CanUseAffine() const { return width_ > 8 && height_ > 8; }
+  bool GetUseAffine() const { return inter_.use_affine; }
+  void SetUseAffine(bool use_affine) { inter_.use_affine = use_affine; }
   bool GetUseLic() const { return inter_.use_lic; }
   void SetUseLic(bool use_lic) { inter_.use_lic = use_lic; }
 

@@ -113,6 +113,13 @@ kInitInterFullpelMv[3][CabacCommon::kNumInterFullpelMvCtx] = {
 };
 
 static const uint8_t
+kInitAffineFlag[3][CabacCommon::kNumAffineCtx] = {
+  { 197, 185, 201, },
+  { 197, 185, 201, },
+  { kNotUsed, kNotUsed, kNotUsed, },
+};
+
+static const uint8_t
 kInitLicFlag[3][CabacCommon::kNumLicFlagCtx] = {
   { 154 },
   { 154 },
@@ -338,6 +345,7 @@ CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &inter_ref_idx, kInitRefIdx);
   Init(q, s, &intra_pred_luma, kInitIntraLumaPredMode);
   Init(q, s, &intra_pred_chroma, kInitIntraChromaPredMode);
+  Init(q, s, &affine_flag, kInitAffineFlag);
   Init(q, s, &lic_flag, kInitLicFlag);
   if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     Init(q, s, &coeff_ext.csbf_luma, &coeff_ext.csbf_chroma,
@@ -358,6 +366,19 @@ CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &transform_skip_flag, kInitTransformSkipFlag);
   Init(q, s, &transform_select_flag, kInitTransformSelectEnable);
   Init(q, s, &transform_select_idx, kInitTransformSelectIdx);
+}
+
+template<typename Ctx>
+Ctx& CabacContexts<Ctx>::GetAffineCtx(const CodingUnit &cu) {
+  int offset = 0;
+  const CodingUnit *tmp;
+  if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetUseAffine()) {
+    offset++;
+  }
+  if ((tmp = cu.GetCodingUnitAbove()) != nullptr && tmp->GetUseAffine()) {
+    offset++;
+  }
+  return affine_flag[offset];
 }
 
 template<typename Ctx>

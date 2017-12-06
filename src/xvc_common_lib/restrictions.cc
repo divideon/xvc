@@ -285,12 +285,16 @@ Restrictions::Restrictions() {
   disable_ext2_intra_chroma_from_luma = true;
 #endif
 
-#if RESTRICTION_DISABLE_EXT2_INTER_BIPRED_L1_MVD_ZERO
-  disable_ext2_inter_bipred_l1_mvd_zero = true;
-#endif
-
 #if RESTRICTION_DISABLE_EXT2_INTER_ADAPTIVE_FULLPEL_MV
   disable_ext2_inter_adaptive_fullpel_mv = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_AFFINE
+  disable_ext2_inter_affine = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_BIPRED_L1_MVD_ZERO
+  disable_ext2_inter_bipred_l1_mvd_zero = true;
 #endif
 
 #if RESTRICTION_DISABLE_EXT2_INTER_LOCAL_ILLUMINATION_COMP
@@ -324,6 +328,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_tmvp_exclude_intra_from_ref_list = true;
     disable_ext_ref_list_l0_trim = true;
     disable_ext_intra_unrestricted_predictor = true;
+    disable_ext2_inter_affine = true;
   }
   if (mode == RestrictedMode::kModeA) {
     disable_ext_sink = true;
@@ -336,8 +341,9 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_deblock_subblock_size_4 = true;
     disable_ext2_intra_67_modes = true;
     disable_ext2_intra_6_predictors = true;
-    disable_ext2_intra_chroma_from_luma = true;
     disable_ext2_inter_adaptive_fullpel_mv = true;
+    disable_ext2_inter_affine = true;
+    disable_ext2_intra_chroma_from_luma = true;
     disable_ext2_inter_local_illumination_comp = true;
     disable_ext2_transform_high_precision = true;
     disable_ext2_transform_select = true;

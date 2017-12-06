@@ -131,7 +131,10 @@ struct MotionVector {
   int y = 0;
 };
 
+using MotionVector3 = std::array<MotionVector, 3>;
+
 enum class MvCorner {
+  kDefault = 0,
   kUpLeft = 0,
   kUpRight = 1,
   kDownLeft = 2,

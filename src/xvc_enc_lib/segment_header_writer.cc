@@ -175,8 +175,9 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBit(restr.disable_ext2_intra_67_modes);
     bit_writer->WriteBit(restr.disable_ext2_intra_6_predictors);
     bit_writer->WriteBit(restr.disable_ext2_intra_chroma_from_luma);
-    bit_writer->WriteBit(restr.disable_ext2_inter_bipred_l1_mvd_zero);
     bit_writer->WriteBit(restr.disable_ext2_inter_adaptive_fullpel_mv);
+    bit_writer->WriteBit(restr.disable_ext2_inter_affine);
+    bit_writer->WriteBit(restr.disable_ext2_inter_bipred_l1_mvd_zero);
     bit_writer->WriteBit(restr.disable_ext2_inter_local_illumination_comp);
     bit_writer->WriteBit(restr.disable_ext2_transform_skip);
     bit_writer->WriteBit(restr.disable_ext2_transform_high_precision);

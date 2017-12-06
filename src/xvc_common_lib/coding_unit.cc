@@ -421,13 +421,15 @@ IntraMode CodingUnit::GetIntraMode(YuvComponent comp) const {
 }
 
 bool CodingUnit::HasZeroMvd() const {
+  auto is_zero = [](const MotionVector mv) {
+    return mv.x == 0 && mv.y == 0;
+  };
   if (inter_.inter_dir == InterDir::kBi) {
-    return inter_.mvd[0].x == 0 && inter_.mvd[0].y == 0 &&
-      inter_.mvd[1].x == 0 && inter_.mvd[1].y == 0;
+    return is_zero(inter_.mvd[0][0]) && is_zero(inter_.mvd[1][0]);
   } else if (inter_.inter_dir == InterDir::kL0) {
-    return inter_.mvd[0].x == 0 && inter_.mvd[0].y == 0;
+    return is_zero(inter_.mvd[0][0]);
   } else {
-    return inter_.mvd[1].x == 0 && inter_.mvd[1].y == 0;
+    return is_zero(inter_.mvd[1][0]);
   }
 }
 

@@ -46,16 +46,21 @@ void SyntaxWriter::Finish() {
   encoder_.Finish();
 }
 
+void SyntaxWriter::WriteAffineFlag(const CodingUnit &cu, bool use_affine) {
+  if (Restrictions::Get().disable_ext2_inter_affine) {
+    assert(!use_affine);
+    return;
+  }
+  ContextModel &ctx = ctx_.GetAffineCtx(cu);
+  encoder_.EncodeBin(use_affine ? 1 : 0, &ctx);
+}
+
 void SyntaxWriter::WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf) {
   if (util::IsLuma(comp)) {
     encoder_.EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_luma[0]);
   } else {
     encoder_.EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_chroma[0]);
   }
-}
-
-void SyntaxWriter::WriteQp(int qp_value) {
-  encoder_.EncodeBypassBins(qp_value, 7);
 }
 
 int SyntaxWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
@@ -549,6 +554,7 @@ void SyntaxWriter::WriteMergeIdx(int merge_idx) {
   if (Restrictions::Get().disable_inter_merge_candidates) {
     return;
   }
+  assert(merge_idx >= 0);
   const int max_merge_cand = constants::kNumInterMergeCandidates;
   uint32_t bin = merge_idx != 0;
   encoder_.EncodeBin(bin, &ctx_.inter_merge_idx[0]);
@@ -586,6 +592,10 @@ void SyntaxWriter::WritePartitionType(const CodingUnit &cu,
 void SyntaxWriter::WritePredMode(PredictionMode pred_mode) {
   uint32_t is_intra = pred_mode == PredictionMode::kIntra ? 1 : 0;
   encoder_.EncodeBin(is_intra, &ctx_.cu_pred_mode[0]);
+}
+
+void SyntaxWriter::WriteQp(int qp_value) {
+  encoder_.EncodeBypassBins(qp_value, 7);
 }
 
 void SyntaxWriter::WriteRootCbf(bool root_cbf) {

@@ -38,8 +38,9 @@ public:
            BitReader *bit_reader);
   virtual ~SyntaxReader() {}
   virtual bool Finish() = 0;
+
+  virtual bool ReadAffineFlag(const CodingUnit &cu) = 0;
   virtual bool ReadCbf(const CodingUnit &cu, YuvComponent comp) = 0;
-  virtual int ReadQp() = 0;
   virtual int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                                Coeff *dst_coeff,
                                ptrdiff_t dst_coeff_stride) = 0;
@@ -57,6 +58,7 @@ public:
   virtual int ReadMergeIdx() = 0;
   virtual PartitionType ReadPartitionType(const CodingUnit &cu) = 0;
   virtual PredictionMode ReadPredMode() = 0;
+  virtual int ReadQp() = 0;
   virtual bool ReadRootCbf() = 0;
   virtual bool ReadSkipFlag(const CodingUnit &cu) = 0;
   virtual SplitType ReadSplitBinary(const CodingUnit &cu,
@@ -73,8 +75,8 @@ public:
   SyntaxReaderCabac(const Qp &qp, PicturePredictionType pic_type,
                     BitReader *bit_reader);
   bool Finish();
+  bool ReadAffineFlag(const CodingUnit &cu);
   bool ReadCbf(const CodingUnit &cu, YuvComponent comp);
-  int ReadQp();
   int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                        Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
   bool ReadEndOfSlice();
@@ -90,6 +92,7 @@ public:
   int ReadMergeIdx();
   PartitionType ReadPartitionType(const CodingUnit &cu);
   PredictionMode ReadPredMode();
+  int ReadQp();
   bool ReadRootCbf();
   bool ReadSkipFlag(const CodingUnit &cu);
   SplitType ReadSplitBinary(const CodingUnit &cu,

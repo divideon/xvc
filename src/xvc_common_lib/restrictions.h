@@ -128,8 +128,9 @@ public:
     return disable_ext2_intra_67_modes ||
       disable_ext2_intra_6_predictors ||
       disable_ext2_intra_chroma_from_luma ||
-      disable_ext2_inter_bipred_l1_mvd_zero ||
       disable_ext2_inter_adaptive_fullpel_mv ||
+      disable_ext2_inter_affine ||
+      disable_ext2_inter_bipred_l1_mvd_zero ||
       disable_ext2_inter_local_illumination_comp ||
       disable_ext2_transform_skip ||
       disable_ext2_transform_high_precision ||
@@ -202,8 +203,9 @@ public:
   bool disable_ext2_intra_67_modes = false;
   bool disable_ext2_intra_6_predictors = false;
   bool disable_ext2_intra_chroma_from_luma = false;
-  bool disable_ext2_inter_bipred_l1_mvd_zero = false;
   bool disable_ext2_inter_adaptive_fullpel_mv = false;
+  bool disable_ext2_inter_affine = false;
+  bool disable_ext2_inter_bipred_l1_mvd_zero = false;
   bool disable_ext2_inter_local_illumination_comp = false;
   bool disable_ext2_transform_skip = false;
   bool disable_ext2_transform_high_precision = false;

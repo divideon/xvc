@@ -136,6 +136,11 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
     } else {
       cu->SetInterDir(InterDir::kL0);
     }
+    if (cu->CanUseAffine()) {
+      cu->SetUseAffine(reader->ReadAffineFlag(*cu));
+    } else {
+      cu->SetUseAffine(false);
+    }
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_pic_list = static_cast<RefPicList>(i);
       if (!ReferencePictureLists::IsRefPicListUsed(ref_pic_list,
@@ -146,17 +151,22 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
         pic_data_->GetRefPicLists()->GetNumRefPics(ref_pic_list);
       assert(num_refs_available > 0);
       cu->SetRefIdx(reader->ReadInterRefIdx(num_refs_available), ref_pic_list);
-      if (!cu->GetForceMvdZero(ref_pic_list)) {
-        cu->SetMvDelta(reader->ReadInterMvd(), ref_pic_list);
-      } else {
+      if (cu->GetForceMvdZero(ref_pic_list)) {
         cu->SetMvDelta(MotionVector(0, 0), ref_pic_list);
+      } else if (cu->GetUseAffine()) {
+        cu->SetMvdAffine(0, reader->ReadInterMvd(), ref_pic_list);
+        cu->SetMvdAffine(1, reader->ReadInterMvd(), ref_pic_list);
+      } else {
+        cu->SetMvDelta(reader->ReadInterMvd(), ref_pic_list);
       }
       cu->SetMvpIdx(reader->ReadInterMvpIdx(), ref_pic_list);
     }
-    if (!cu->HasZeroMvd()) {
+    if (!cu->HasZeroMvd() &&
+        !cu->GetUseAffine()) {
       cu->SetFullpelMv(reader->ReadInterFullpelMvFlag(*cu));
     }
-    if (pic_data_->GetUseLocalIlluminationCompensation()) {
+    if (pic_data_->GetUseLocalIlluminationCompensation() &&
+        !cu->GetUseAffine()) {
       cu->SetUseLic(reader->ReadLicFlag());
     }
   }

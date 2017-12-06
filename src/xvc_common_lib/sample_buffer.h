@@ -35,6 +35,9 @@ public:
   operator DataBuffer<const T>() const {
     return DataBuffer<const T>(data_, stride_);
   }
+  DataBuffer<T> Offset(int x, int y) {
+    return DataBuffer<T>(GetDataPtr() + GetStride() * y + x, GetStride());
+  }
 
   const T* GetDataPtr() const { return data_; }
   T* GetDataPtr() { return data_; }
@@ -121,11 +124,12 @@ class ResidualBuffer : public DataBuffer<Residual> {
 public:
   ResidualBuffer(Residual *data, ptrdiff_t stride) : DataBuffer(data, stride) {}
 
+  template<typename Sample1, typename Sample2>
   void Subtract(int width, int height,
-                const DataBuffer<const Sample> &src1_buffer,
-                const DataBuffer<const Sample> &src2_buffer) {
-    const Sample *src1 = src1_buffer.GetDataPtr();
-    const Sample *src2 = src2_buffer.GetDataPtr();
+                const DataBuffer<Sample1> &src1_buffer,
+                const DataBuffer<Sample2> &src2_buffer) {
+    const Sample1 *src1 = src1_buffer.GetDataPtr();
+    const Sample2 *src2 = src2_buffer.GetDataPtr();
     Residual *dst = GetDataPtr();
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
