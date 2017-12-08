@@ -117,7 +117,6 @@ private:
   MetricType type_;
   const Qp &qp_;
   int bitdepth_;
-  std::vector<double> lambdas_;
 };
 
 }   // namespace xvc

@@ -18,6 +18,7 @@
 
 #include "xvc_enc_lib/sample_metric.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -519,8 +520,10 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
   const int64_t c1 = (n * n * 26634ull >> 12) << shift;
   const int64_t c2 = (n * n * 239708ull >> 12) << shift;
   const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
-  const int w1 = 32;
-  const int w2 = 16;
+  const int z = qp_.GetQpRaw(YuvComponent::kY);
+  const int w = std::max(0, static_cast<int>(4 * z - 0.054 * z * z - 70));
+  const int w1 = 64 - (w >> 1);
+  const int w2 = 2 * w;
   int64_t ssd = 0;
   for (int y = 0; y < size; y++) {
     for (int x = 0; x < size; x++) {
@@ -540,7 +543,6 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
   double b = (2.0 * n * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
     (n * orig_orig_sum - orig_sum * orig_sum +
      n * reco_reco_sum - reco_sum * reco_sum + c2);
-
   ssd >>= shift;
   return static_cast<uint64_t>(w1 * ssd + w2 * (c4 >> ((8 - size) >> 1)) *
     (1 - a * b)) >> 6;

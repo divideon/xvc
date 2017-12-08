@@ -308,12 +308,12 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const Qp &qp,
 
 
 int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
-  const double kStrength = encoder_settings_.aqp_strength;
-  const double kOffset = 13;
-  const int kVarBlocksize = 8;
-  const int kMeanDiv = 4;
-  const int kMinQpOffset = -4;
-  const int kMaxQpOffset = 5;
+  const double kStrength = 1.0 * encoder_settings_.aqp_strength / 10;
+  const double kOffset = 15;
+  const int kVarBlocksize = 16;
+  const int kMeanDiv = 2;
+  const int kMinQpOffset = -3;
+  const int kMaxQpOffset = 7;
   const YuvComponent luma = YuvComponent::kY;
   const int x = cu->GetPosX(luma);
   const int y = cu->GetPosY(luma);
