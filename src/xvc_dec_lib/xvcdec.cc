@@ -53,6 +53,7 @@ extern "C" {
     param->max_framerate = xvc::constants::kTimeScale;
     param->threads = -1;
     param->simd_mask = static_cast<uint32_t>(-1);
+    param->dither = 1;
     return XVC_DEC_OK;
   }
 
@@ -120,6 +121,7 @@ extern "C" {
     decoder->SetOutputBitdepth(param->output_bitdepth);
     decoder->SetDecoderTicks(static_cast<int>(xvc::constants::kTimeScale
                                               / param->max_framerate + 0.5));
+    decoder->SetDithering(param->dither);
     return decoder;
   }
 

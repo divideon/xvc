@@ -58,13 +58,13 @@ public:
   void CopyToSameBitdepth(std::vector<uint8_t> *pic_bytes) const;
   void CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
               int out_height, ChromaFormat out_chroma_format,
-              int out_bitdepth, ColorMatrix out_color_matrix);
+              int out_bitdepth, ColorMatrix out_color_matrix, int dither);
   void PadBorder();
 
 private:
   uint8_t* CopyWithShift(uint8_t *out8, int width,
                          int height, ptrdiff_t stride, int out_bitdepth,
-                         const Sample *src, int bitdepth) const;
+                         const Sample *src, int bitdepth, int dither) const;
   template <typename T>
   void ConvertColorSpace(uint8_t *dst, int width, int height,
                          const uint16_t *src, int bitdepth,

@@ -355,7 +355,7 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   auto decoded_pic = pic_dec->GetRecPic();
   decoded_pic->CopyTo(&output_pic_bytes_, output_width_, output_height_,
                       output_chroma_format_, output_bitdepth_,
-                      output_color_matrix_);
+                      output_color_matrix_, dither_);
   const int sample_size = output_bitdepth_ == 8 ? 1 : 2;
   output_pic->size = output_pic_bytes_.size();
   output_pic->bytes = output_pic_bytes_.empty() ? nullptr :

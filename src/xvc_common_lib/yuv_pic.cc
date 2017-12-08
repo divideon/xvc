@@ -191,7 +191,8 @@ void YuvPicture::CopyToSameBitdepth(std::vector<uint8_t> *out_bytes) const {
 
 void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
                         int out_height, ChromaFormat out_chroma_format,
-                        int out_bitdepth, ColorMatrix out_color_matrix) {
+                        int out_bitdepth, ColorMatrix out_color_matrix,
+                        int dither) {
   int num_samples_internal =
     util::GetTotalNumSamples(width_[YuvComponent::kY],
                              height_[YuvComponent::kY], chroma_format_);
@@ -237,7 +238,7 @@ void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
         ptrdiff_t dst_stride = dst_width;
         if (dst_width == src_width && dst_height == src_height) {
           CopyWithShift(out8, width_[c], height_[c], stride_[c],
-                        dst_bitdepth, comp_pel_[c], bitdepth_);
+                        dst_bitdepth, comp_pel_[c], bitdepth_, dither);
         } else if (comp != YuvComponent::kY &&
                    dst_width == 2 * src_width &&
                    dst_height == 2 * src_height) {
@@ -288,13 +289,14 @@ void YuvPicture::CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
   for (int c = 0; c < num_components_out; c++) {
     const Sample *src = comp_pel_[c];
     out8 = CopyWithShift(out8, width_[c], height_[c], stride_[c], out_bitdepth,
-                         src, bitdepth_);
+                         src, bitdepth_, dither);
   }
 }
 
 uint8_t* YuvPicture::CopyWithShift(uint8_t *out8, int width, int height,
                                    ptrdiff_t stride, int out_bitdepth,
-                                   const Sample *src, int bitdepth) const {
+                                   const Sample *src, int bitdepth,
+                                   int dither) const {
   if (out_bitdepth > 8) {
     uint16_t *out16 = reinterpret_cast<uint16_t*>(out8);
     if (out_bitdepth == bitdepth) {
@@ -314,13 +316,27 @@ uint8_t* YuvPicture::CopyWithShift(uint8_t *out8, int width, int height,
     } else {
       int bit_shift = bitdepth - out_bitdepth;
       Sample sample_max = (1 << out_bitdepth) - 1;
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          *out16++ = static_cast<uint16_t>(util::ClipBD(
-            (src[x] + (1 << (bit_shift - 1))) >> bit_shift,
-            sample_max));
+      if (dither) {
+        int d = 0;
+        int mask = (1 << bit_shift) - 1;
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            d += src[x];
+            *out16++ = static_cast<uint16_t>(util::ClipBD(d >> bit_shift,
+              sample_max));
+            d &= mask;
+          }
+          src += stride;
         }
-        src += stride;
+      } else {
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            *out16++ = static_cast<uint16_t>(util::ClipBD(
+              (src[x] + (1 << (bit_shift - 1))) >> bit_shift,
+              sample_max));
+          }
+          src += stride;
+        }
       }
     }
     return reinterpret_cast<uint8_t*>(out16);
@@ -342,12 +358,25 @@ uint8_t* YuvPicture::CopyWithShift(uint8_t *out8, int width, int height,
       }
     } else {
       int bit_shift = bitdepth - out_bitdepth;
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          *out8++ = static_cast<uint8_t>(util::Clip3(
-            (src[x] + (1 << (bit_shift - 1))) >> bit_shift, 0, 255));
+      if (dither) {
+        int d = 0;
+        int mask = (1 << bit_shift) - 1;
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            d += src[x];
+            *out8++ = static_cast<uint8_t>(util::Clip3(d >> bit_shift, 0, 255));
+            d &= mask;
+          }
+          src += stride;
         }
-        src += stride;
+      } else {
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            *out8++ = static_cast<uint8_t>(util::Clip3(
+              (src[x] + (1 << (bit_shift - 1))) >> bit_shift, 0, 255));
+          }
+          src += stride;
+        }
       }
     }
     return out8;

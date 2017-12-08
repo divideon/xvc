@@ -106,6 +106,7 @@ extern "C" {
     double max_framerate;
     int threads;
     uint32_t simd_mask;
+    int dither;
   } xvc_decoder_parameters;
 
   // xvc decoder api

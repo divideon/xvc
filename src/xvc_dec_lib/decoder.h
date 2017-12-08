@@ -82,6 +82,7 @@ public:
   xvc_dec_chroma_format getChromaFormatApiStyle() {
     return xvc_dec_chroma_format(curr_segment_header_->chroma_format);
   }
+  void SetDithering(int dither) { dither_ = dither; }
 
 private:
   using NalUnitPtr = std::unique_ptr<std::vector<uint8_t>>;
@@ -114,6 +115,7 @@ private:
   ColorMatrix output_color_matrix_ = ColorMatrix::kUndefinedColorMatrix;
   int output_bitdepth_ = 0;
   int decoder_ticks_ = 0;
+  int dither_ = 0;
   int max_tid_ = 0;
   bool enforce_sliding_window_ = true;
   State state_ = State::kNoSegmentHeader;
