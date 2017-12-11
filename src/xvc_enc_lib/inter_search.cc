@@ -495,10 +495,10 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
           cu->SetMvpIdx(mvp_idx, ref_list);
           cu->SetMv(mvp_list[mvp_idx], ref_list);
           if (IsAffine) {
-            cu->SetMvdAffine(0, MotionVector(0, 0), ref_list);
-            cu->SetMvdAffine(1, MotionVector(0, 0), ref_list);
+            cu->SetMvdAffine(0, MvDelta(0, 0), ref_list);
+            cu->SetMvdAffine(1, MvDelta(0, 0), ref_list);
           } else {
-            cu->SetMvDelta(MotionVector(0, 0), ref_list);
+            cu->SetMvDelta(MvDelta(0, 0), ref_list);
           }
           cost_best = mvp_cost;
           cu->SaveStateTo(best_state);
@@ -599,16 +599,15 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
                              SampleBuffer *pred_buffer, Distortion *out_dist) {
   const YuvPicture *ref_pic =
     cu.GetRefPicLists()->GetRefPic(ref_list, ref_idx);
-  MotionVector clip_min, clip_max;
+  MvFullpel clip_min, clip_max;
   if (!mv_bootstrap) {
-    DetermineMinMaxMv(cu, *ref_pic, mvp.x, mvp.y, kSearchRangeUni,
-                      &clip_min, &clip_max);
+    DetermineMinMaxMv(cu, *ref_pic, mvp, kSearchRangeUni, &clip_min, &clip_max);
   } else {
-    DetermineMinMaxMv(cu, *ref_pic, mv_bootstrap->x, mv_bootstrap->y,
-                      kSearchRangeBi, &clip_min, &clip_max);
+    DetermineMinMaxMv(cu, *ref_pic, *mv_bootstrap, kSearchRangeBi,
+                      &clip_min, &clip_max);
   }
 
-  MotionVector mv_fullpel;
+  MvFullpel mv_fullpel;
   if (search_method == SearchMethod::FullSearch) {
     mv_fullpel = FullSearch(cu, qp, mvp, *ref_pic, clip_min, clip_max);
   } else if (search_method == SearchMethod::TzSearch) {
@@ -626,11 +625,9 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
   Distortion dist = std::numeric_limits<Distortion>::max();
   if (cu.GetFullpelMv()) {
     SampleMetric metric = SampleMetric(GetSubpelMetric(cu), qp, bitdepth_);
-    mv_subpel =
-      MotionVector(mv_fullpel.x * (1 << constants::kMvPrecisionShift),
-                   mv_fullpel.y * (1 << constants::kMvPrecisionShift));
-    dist = GetSubpelDist(cu, *ref_pic, &metric, mv_subpel.x,
-                         mv_subpel.y, orig_buffer, pred_buffer);
+    mv_subpel = MotionVector(mv_fullpel);
+    dist = GetSubpelDist(cu, *ref_pic, &metric, mv_subpel, orig_buffer,
+                         pred_buffer);
   } else {
     mv_subpel =
       SubpelSearch(cu, qp, *ref_pic, mvp, mv_fullpel, orig_buffer, pred_buffer,
@@ -666,22 +663,20 @@ InterSearch::MotionEstAffine(const CodingUnit &cu, const Qp &qp,
   // Start search around mvp
   // TODO(PH) Dist for mvp has already been calculated during mvp selection
   MotionVector3 best_mv = mvp;
-  MotionCompensationMv(cu, comp, *ref_pic, mvp, pred_buffer);
+  MotionCompensationMv(cu, comp, *ref_pic, mvp, false, pred_buffer);
   Distortion best_dist =
     metric_mvp.CompareSample(comp, width, height, orig_buffer, *pred_buffer);
-  Bits mvp_bits = GetMvdBits(mvp[0], best_mv[0].x, best_mv[0].y, 0, 0) +
-    GetMvdBits(mvp[1], best_mv[1].x, best_mv[1].y, 0, 0);
+  Bits mvp_bits = GetMvdBits(mvp, best_mv, 0);
   Distortion best_cost =
     (best_dist >> bi_dist_shift) + ((lambda * mvp_bits) >> 16);
 
   if (mv_bootstrap && *mv_bootstrap != best_mv) {
     // Check extra start position
     const MotionVector3 &mv = *mv_bootstrap;
-    MotionCompensationMv(cu, comp, *ref_pic, mv, pred_buffer);
+    MotionCompensationMv(cu, comp, *ref_pic, mv, false, pred_buffer);
     Distortion dist =
       metric_mvp.CompareSample(comp, width, height, orig_buffer, *pred_buffer);
-    Bits bits = GetMvdBits(mvp[0], mv[0].x, mv[0].y, 0, 0) +
-      GetMvdBits(mvp[1], mv[1].x, mv[1].y, 0, 0);
+    Bits bits = GetMvdBits(mvp, mv, 0);
     Distortion cost = (dist >> bi_dist_shift) + ((lambda * bits) >> 16);
     if (cost < best_cost || force_mv_bootstrap) {
       best_cost = cost;
@@ -689,38 +684,34 @@ InterSearch::MotionEstAffine(const CodingUnit &cu, const Qp &qp,
       best_mv = mv;
     } else {
       // TODO(PH) Maybe saving prediction samples instead of re-calculating
-      MotionCompensationMv(cu, comp, *ref_pic, best_mv, pred_buffer);
+      MotionCompensationMv(cu, comp, *ref_pic, best_mv, false, pred_buffer);
     }
   }
 
   // TODO(PH) This is redundant to use different metrics above and below
   best_dist =
     metric.CompareSample(comp, width, height, orig_buffer, *pred_buffer);
-  mvp_bits = GetMvdBits(mvp[0], best_mv[0].x, best_mv[0].y, 0, 0) +
-    GetMvdBits(mvp[1], best_mv[1].x, best_mv[1].y, 0, 0);
+  mvp_bits = GetMvdBits(mvp, best_mv, 0);
   best_cost = (best_dist >> bi_dist_shift) + ((lambda * mvp_bits) >> 16);
 
   // Gradient search
   MotionVector3 mv = best_mv;
   for (int iter = 0; iter < max_iterations; iter++) {
     err_buffer.Subtract(width, height, orig_buffer, *pred_buffer);
-    MotionVector2 mvd =
+    MvDelta2 mvd =
       AffineGradientSearch(width, height, *pred_buffer, err_buffer);
     if (mvd[0].x == 0 && mvd[0].y == 0 && mvd[1].x == 0 && mvd[1].y == 0) {
       break;
     }
     // Update mv relative to what was used in last prediction
-    mv[0].x += mvd[0].x;
-    mv[0].y += mvd[0].y;
-    mv[1].x += mvd[1].x;
-    mv[1].y += mvd[1].y;
+    mv[0] += mvd[0];
+    mv[1] += mvd[1];
     mv = DeriveMvAffine(cu, *ref_pic, mv[0], mv[1]);
 
-    MotionCompensationMv(cu, comp, *ref_pic, mv, pred_buffer);
+    MotionCompensationMv(cu, comp, *ref_pic, mv, false, pred_buffer);
     Distortion dist =
       metric.CompareSample(comp, width, height, orig_buffer, *pred_buffer);
-    Bits bits = GetMvdBits(mvp[0], mv[0].x, mv[0].y, 0, 0) +
-      GetMvdBits(mvp[1], mv[1].x, mv[1].y, 0, 0);
+    Bits bits = GetMvdBits(mvp, mv, 0);
     Distortion cost = (dist >> bi_dist_shift) + ((lambda * bits) >> 16);
 
     if (cost < best_cost) {
@@ -735,11 +726,10 @@ InterSearch::MotionEstAffine(const CodingUnit &cu, const Qp &qp,
   return best_mv;
 }
 
-MotionVector2
+MvDelta2
 InterSearch::AffineGradientSearch(int width, int height,
                                   const SampleBuffer &pred_buffer,
                                   const ResidualBuffer &err_buffer) {
-  static const int kMvScale = 1 << constants::kMvPrecisionShift;
   static const int kNbrParams = 4;
   const ptrdiff_t pred_stride = pred_buffer.GetStride();
   const Sample *pred = pred_buffer.GetDataPtr();
@@ -829,25 +819,25 @@ InterSearch::AffineGradientSearch(int width, int height,
       params[row] = (matrix[row][kNbrParams] - sum) / matrix[row][row];
     }
   }
-  MotionVector2 mvd;
-  mvd[0].x = std::lround(kMvScale * params[0]);
-  mvd[0].y = std::lround(kMvScale * params[2]);
-  mvd[1].x = std::lround(kMvScale * (params[1] * width + params[0]));
-  mvd[1].y = std::lround(kMvScale * (-params[3] * width + params[2]));
+  static const int kMvdScale = 1 << MvDelta::kPrecisionShift;
+  MvDelta2 mvd;
+  mvd[0].x = std::lround(kMvdScale * params[0]);
+  mvd[0].y = std::lround(kMvdScale * params[2]);
+  mvd[1].x = std::lround(kMvdScale * (params[1] * width + params[0]));
+  mvd[1].y = std::lround(kMvdScale * (-params[3] * width + params[2]));
   return mvd;
 }
 
-MotionVector InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
-                                     const MotionVector &mvp,
-                                     const YuvPicture &ref_pic,
-                                     const MotionVector &mv_min,
-                                     const MotionVector &mv_max) {
+MvFullpel InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
+                                  const MotionVector &mvp,
+                                  const YuvPicture &ref_pic,
+                                  const MvFullpel &mv_min,
+                                  const MvFullpel &mv_max) {
   const YuvComponent comp = YuvComponent::kY;
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  const int mv_precision = constants::kMvPrecisionShift;
   const int mvd_precision =
-    cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
+    cu.GetFullpelMv() ? MvDelta::kPrecisionShift : 0;
   const uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
   MetricType fullpel_metric = GetFullpelMetric(cu);
@@ -856,7 +846,7 @@ MotionVector InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
                                               cu.GetPosY(comp));
   intptr_t ref_stride = ref_pic.GetStride(comp);
   Distortion cost_best = std::numeric_limits<Distortion>::max();
-  MotionVector mv_best;
+  MvFullpel mv_best;
   for (int mv_y = mv_min.y; mv_y <= mv_max.y; mv_y++) {
     for (int mv_x = mv_min.x; mv_x <= mv_max.x; mv_x++) {
       const Sample *ref_mv = ref_cu + mv_y * ref_stride + mv_x;
@@ -864,7 +854,7 @@ MotionVector InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
                                              bipred_orig_buffer_.GetDataPtr(),
                                              bipred_orig_buffer_.GetStride(),
                                              ref_mv, ref_stride);
-      Bits bits = GetMvdBits(mvp, mv_x, mv_y, mv_precision, mvd_precision);
+      Bits bits = GetMvdBitsFullpel(mvp, mv_x, mv_y, mvd_precision);
       Distortion cost = dist + ((lambda * bits) >> 16);
       if (cost < cost_best) {
         cost_best = cost;
@@ -880,69 +870,65 @@ template<typename TOrig>
 MotionVector
 InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
                           const YuvPicture &ref_pic, const MotionVector &mvp,
-                          const MotionVector &mv_fullpel,
+                          const MvFullpel &mv_fullpel,
                           const DataBuffer<TOrig> &orig_buffer,
                           SampleBuffer *pred_buffer, Distortion *out_dist) {
   SampleMetric metric = SampleMetric(GetSubpelMetric(cu), qp, bitdepth_);
   uint32_t lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
-  MotionVector mv_subpel(mv_fullpel.x * (1 << constants::kMvPrecisionShift),
-                         mv_fullpel.y * (1 << constants::kMvPrecisionShift));
   Distortion best_cost = std::numeric_limits<Distortion>::max();
-  int best_idx = 0;
+  Distortion best_dist = best_cost;
+  MotionVector best_mv = MotionVector(mv_fullpel);
+  assert(!cu.GetFullpelMv());
 
   // Half-pel
+  MotionVector mv_base = best_mv;
   for (int i = 0; i < static_cast<int>(kSquareXYHalf.size()); i++) {
-    int mv_x = mv_subpel.x + kSquareXYHalf[i][0] * 2;
-    int mv_y = mv_subpel.y + kSquareXYHalf[i][1] * 2;
-    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv_x, mv_y,
+    const MvDelta mvd(kSquareXYHalf[i][0], kSquareXYHalf[i][1], 1);
+    const MotionVector mv = mv_base + mvd;
+    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv,
                                     orig_buffer, pred_buffer);
-    Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0, 0))) >> 16;
-    Distortion cost = dist + bits;
+    Bits bits = GetMvdBits(mvp, mv, 0);
+    Distortion cost = dist + ((lambda * bits) >> 16);
     if (cost < best_cost) {
       best_cost = cost;
-      best_idx = i;
-      *out_dist = dist;
+      best_dist = dist;
+      best_mv = mv;
     }
   }
-  if (best_idx > 0) {
-    mv_subpel.x += kSquareXYHalf[best_idx][0] * 2;
-    mv_subpel.y += kSquareXYHalf[best_idx][1] * 2;
-  }
-  best_idx = 0;
 
   // Qpel
+  mv_base = best_mv;
   for (int i = 1; i < static_cast<int>(kSquareXYQpel.size()); i++) {
-    int mv_x = mv_subpel.x + kSquareXYQpel[i][0];
-    int mv_y = mv_subpel.y + kSquareXYQpel[i][1];
-    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv_x, mv_y,
+    const MvDelta mvd(kSquareXYQpel[i][0], kSquareXYQpel[i][1], 2);
+    const MotionVector mv = mv_base + mvd;
+    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv,
                                     orig_buffer, pred_buffer);
-    Bits bits = ((lambda * GetMvdBits(mvp, mv_x, mv_y, 0, 0))) >> 16;
-    Distortion cost = dist + bits;
+    Bits bits = GetMvdBits(mvp, mv, 0);
+    Distortion cost = dist + ((lambda * bits) >> 16);
     if (cost < best_cost) {
       best_cost = cost;
-      best_idx = i;
-      *out_dist = dist;
+      best_dist = dist;
+      best_mv = mv;
     }
   }
-  if (best_idx > 0) {
-    mv_subpel.x += kSquareXYQpel[best_idx][0];
-    mv_subpel.y += kSquareXYQpel[best_idx][1];
+  if (out_dist) {
+    *out_dist = best_dist;
   }
-  return mv_subpel;
+  return best_mv;
 }
 
 template<typename TOrig>
 Distortion
 InterSearch::GetSubpelDist(const CodingUnit &cu,
                            const YuvPicture &ref_pic,
-                           SampleMetric *metric, int mv_x, int mv_y,
+                           SampleMetric *metric, const MotionVector &mv,
                            const DataBuffer<TOrig> &orig_buffer,
                            SampleBuffer *pred_buffer) {
   const YuvComponent comp = YuvComponent::kY;
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  MotionCompensationMv(cu, comp, ref_pic, mv_x, mv_y, false, pred_buffer);
+  MotionCompensationMv(cu, comp, ref_pic, mv, false, pred_buffer);
   return
     metric->CompareSample(comp, width, height,
                           orig_buffer.GetDataPtr(), orig_buffer.GetStride(),
@@ -960,18 +946,9 @@ int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
   int best_mvp_idx = 0;
   Distortion best_cost = std::numeric_limits<Distortion>::max();
   for (int i = 0; i < static_cast<int>(mvp_list.size()); i++) {
-    if (IsAffine) {
-      MotionVector3 mv = *reinterpret_cast<const MotionVector3*>(&mvp_list[i]);
-      ClipMV(cu, ref_pic, &mv[0].x, &mv[0].y);
-      ClipMV(cu, ref_pic, &mv[1].x, &mv[1].y);
-      ClipMV(cu, ref_pic, &mv[2].x, &mv[2].y);
-      MotionCompensationMv(cu, YuvComponent::kY, ref_pic, mv, pred_buffer);
-    } else {
-      MotionVector mv = *reinterpret_cast<const MotionVector*>(&mvp_list[i]);
-      ClipMV(cu, ref_pic, &mv.x, &mv.y);
-      MotionCompensationMv(cu, YuvComponent::kY, ref_pic, mv.x, mv.y, true,
-                           pred_buffer);
-    }
+    auto mv = mvp_list[i];
+    ClipMv(cu, ref_pic, &mv);   // TODO(PH) Is clip really needed here?
+    MotionCompensationMv(cu, YuvComponent::kY, ref_pic, mv, true, pred_buffer);
     Distortion dist = metric.CompareSample(cu, YuvComponent::kY, orig_pic_,
                                            *pred_buffer);
     Bits bits = GetMvpBits(i, static_cast<int>(mvp_list.size()));
@@ -981,7 +958,7 @@ int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
       best_mvp_idx = i;
     }
     if ((!IsAffine && Restrictions::Get().disable_inter_mvp) ||
-        (IsAffine &&  Restrictions::Get().disable_ext2_inter_affine_mvp)) {
+      (IsAffine &&  Restrictions::Get().disable_ext2_inter_affine_mvp)) {
       break;
     }
   }
@@ -991,43 +968,21 @@ int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
   return best_mvp_idx;
 }
 
-template<>
-int InterSearch::EvalFinalMvpIdx<MotionVector>(
-  const CodingUnit &cu, const std::array<MotionVector, kNumMvp> &mvp_list,
-  const MotionVector &mv, int mvp_idx_start) {
-  if (Restrictions::Get().disable_inter_mvp) {
+template<typename MotionVec>
+int InterSearch::EvalFinalMvpIdx(const CodingUnit &cu,
+                                 const std::array<MotionVec, kNumMvp> &mvp_list,
+                                 const MotionVec &mv, int mvp_idx_start) {
+  if ((!cu.GetUseAffine() && Restrictions::Get().disable_inter_mvp) ||
+    (cu.GetUseAffine() && Restrictions::Get().disable_ext2_inter_affine_mvp)) {
     return 0;
   }
   const int mvd_precision =
-    cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
+    cu.GetFullpelMv() ? MvDelta::kPrecisionShift : 0;
   int best_mvp_idx = 0;
   Bits best_cost = std::numeric_limits<Bits>::max();
   for (int i = 0; i < static_cast<int>(mvp_list.size()); i++) {
     Bits cost = GetMvpBits(i, static_cast<int>(mvp_list.size()));
-    cost += GetMvdBits(mvp_list[i], mv.x, mv.y, 0, mvd_precision);
-    if (cost < best_cost || (cost == best_cost && i == mvp_idx_start)) {
-      best_cost = cost;
-      best_mvp_idx = i;
-    }
-  }
-  return best_mvp_idx;
-}
-
-template<>
-int InterSearch::EvalFinalMvpIdx<MotionVector3>(
-  const CodingUnit &cu, const std::array<MotionVector3, kNumMvp> &mvp_list,
-  const MotionVector3 &mv, int mvp_idx_start) {
-  if (Restrictions::Get().disable_ext2_inter_affine_mvp) {
-    return 0;
-  }
-  const int mvd_precision =
-    cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
-  int best_mvp_idx = 0;
-  Bits best_cost = std::numeric_limits<Bits>::max();
-  for (int i = 0; i < static_cast<int>(mvp_list.size()); i++) {
-    Bits cost = GetMvpBits(i, static_cast<int>(mvp_list.size()));
-    cost += GetMvdBits(mvp_list[i][0], mv[0].x, mv[0].y, 0, mvd_precision) +
-      GetMvdBits(mvp_list[i][1], mv[1].x, mv[1].y, 0, mvd_precision);
+    cost += GetMvdBits(mvp_list[i], mv, mvd_precision);
     if (cost < best_cost || (cost == best_cost && i == mvp_idx_start)) {
       best_cost = cost;
       best_mvp_idx = i;
@@ -1040,10 +995,11 @@ template<>
 void InterSearch::SetMvd<MotionVector>(CodingUnit *cu, RefPicList ref_list,
                                        const MotionVector &mvp,
                                        const MotionVector &mv) {
-  const int mvd_precision =
-    cu->GetFullpelMv() ? constants::kMvPrecisionShift : 0;
-  MotionVector mvd((mv.x - mvp.x) >> mvd_precision,
-    (mv.y - mvp.y) >> mvd_precision);
+  MvDelta mvd = mv - mvp;
+  if (cu->GetFullpelMv()) {
+    mvd.x >>= MvDelta::kPrecisionShift;
+    mvd.y >>= MvDelta::kPrecisionShift;
+  }
   cu->SetMvDelta(mvd, ref_list);
 }
 
@@ -1051,12 +1007,14 @@ template<>
 void InterSearch::SetMvd<MotionVector3>(CodingUnit *cu, RefPicList ref_list,
                                         const MotionVector3 &mvp,
                                         const MotionVector3 &mv) {
-  const int mvd_precision =
-    cu->GetFullpelMv() ? constants::kMvPrecisionShift : 0;
-  MotionVector mvd0((mv[0].x - mvp[0].x) >> mvd_precision,
-    (mv[0].y - mvp[0].y) >> mvd_precision);
-  MotionVector mvd1((mv[1].x - mvp[1].x) >> mvd_precision,
-    (mv[1].y - mvp[1].y) >> mvd_precision);
+  MvDelta mvd0 = mv[0] - mvp[0];
+  MvDelta mvd1 = mv[1] - mvp[1];
+  if (cu->GetFullpelMv()) {
+    mvd0.x >>= MvDelta::kPrecisionShift;
+    mvd0.y >>= MvDelta::kPrecisionShift;
+    mvd1.x >>= MvDelta::kPrecisionShift;
+    mvd1.y >>= MvDelta::kPrecisionShift;
+  }
   cu->SetMvdAffine(0, mvd0, ref_list);
   cu->SetMvdAffine(1, mvd1, ref_list);
 }
@@ -1152,10 +1110,33 @@ Bits InterSearch::GetMvpBits(int mvp_idx, int num_mvp) {
   return 1;
 }
 
-Bits InterSearch::GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
-                             int mv_scale, int mvd_precision_shift) {
-  int mvd_x = ((mv_x * (1 << mv_scale)) - mvp.x) >> mvd_precision_shift;
-  int mvd_y = ((mv_y * (1 << mv_scale)) - mvp.y) >> mvd_precision_shift;
+Bits InterSearch::GetMvdBits(const MotionVector &mvp, const MotionVector &mv,
+                             int mvd_down_shift) {
+  // High precision down to mvd precision
+  const int mv_to_mvd_shift =
+    MotionVector::kPrecisionShift - MvDelta::kPrecisionShift;
+  static_assert(mv_to_mvd_shift >= 0, "Negative mvd precision shift");
+  int mvd_x = (mv.x - mvp.x) >> (mv_to_mvd_shift + mvd_down_shift);
+  int mvd_y = (mv.y - mvp.y) >> (mv_to_mvd_shift + mvd_down_shift);
+  return GetNumExpGolombBits(mvd_x) + GetNumExpGolombBits(mvd_y);
+}
+
+Bits InterSearch::GetMvdBits(const MotionVector3 &mvp, const MotionVector3 &mv,
+                             int mvd_down_shift) {
+  return GetMvdBits(mvp[0], mv[0], mvd_down_shift) +
+    GetMvdBits(mvp[1], mv[1], mvd_down_shift);
+}
+
+Bits InterSearch::GetMvdBitsFullpel(const MotionVector &mvp, int fullpel_x,
+                                    int fullpel_y, int mvd_down_shift) {
+  // Full-pel precision to high precision
+  const int mv_up_shift = MotionVector::kPrecisionShift;
+  // High precision down to mvd precision
+  const int mv_to_mvd_shift =
+    MotionVector::kPrecisionShift - MvDelta::kPrecisionShift;
+  mvd_down_shift += mv_to_mvd_shift;
+  int mvd_x = ((fullpel_x * (1 << mv_up_shift)) - mvp.x) >> mvd_down_shift;
+  int mvd_y = ((fullpel_y * (1 << mv_up_shift)) - mvp.y) >> mvd_down_shift;
   return GetNumExpGolombBits(mvd_x) + GetNumExpGolombBits(mvd_y);
 }
 

@@ -39,13 +39,13 @@ public:
     bitdepth_(bitdepth),
     search_range_(search_range) {
   }
-  MotionVector Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
-                      const MotionVector &mvp, const YuvPicture &ref_pic,
-                      const MotionVector &mv_min, const MotionVector &mv_max,
-                      const MotionVector &prev_search);
+  MvFullpel Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
+                   const MotionVector &mvp, const YuvPicture &ref_pic,
+                   const MvFullpel &mv_min, const MvFullpel &mv_max,
+                   const MvFullpel &prev_search);
 
 private:
-  using const_mv = const MotionVector;
+  using const_mv = const MvFullpel;
   struct Left { static const int index = -1; };
   struct Right { static const int index = 1; };
   struct Up { static const int index = -3; };
@@ -53,7 +53,7 @@ private:
   struct SearchState;
   template<typename TOrig> class DistortionWrapper;
 
-  bool FullpelDiamondSearch(SearchState *state, const MotionVector &mv_base,
+  bool FullpelDiamondSearch(SearchState *state, const MvFullpel &mv_base,
                             int range);
   void FullpelNeighborPointSearch(SearchState *state);
   Distortion GetCost(SearchState *state, int mv_x, int mv_y);

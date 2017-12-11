@@ -150,7 +150,7 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
       assert(num_refs_available > 0);
       cu->SetRefIdx(reader->ReadInterRefIdx(num_refs_available), ref_pic_list);
       if (cu->GetForceMvdZero(ref_pic_list)) {
-        cu->SetMvDelta(MotionVector(0, 0), ref_pic_list);
+        cu->SetMvDelta(MvDelta(0, 0), ref_pic_list);
       } else if (cu->GetUseAffine()) {
         cu->SetMvdAffine(0, reader->ReadInterMvd(), ref_pic_list);
         cu->SetMvdAffine(1, reader->ReadInterMvd(), ref_pic_list);

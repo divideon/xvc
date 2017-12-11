@@ -47,7 +47,7 @@ public:
   virtual bool ReadEndOfSlice() = 0;
   virtual InterDir ReadInterDir(const CodingUnit &cu) = 0;
   virtual bool ReadInterFullpelMvFlag(const CodingUnit &cu) = 0;
-  virtual MotionVector ReadInterMvd() = 0;
+  virtual MvDelta ReadInterMvd() = 0;
   virtual int ReadInterMvpIdx(const CodingUnit &cu) = 0;
   virtual int ReadInterRefIdx(int num_refs_available) = 0;
   virtual IntraMode ReadIntraMode(const IntraPredictorLuma &mpm) = 0;
@@ -82,7 +82,7 @@ public:
   bool ReadEndOfSlice();
   InterDir ReadInterDir(const CodingUnit &cu);
   bool ReadInterFullpelMvFlag(const CodingUnit &cu);
-  MotionVector ReadInterMvd();
+  MvDelta ReadInterMvd();
   int ReadInterMvpIdx(const CodingUnit &cu);
   int ReadInterRefIdx(int num_refs_available);
   IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);

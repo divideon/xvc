@@ -118,20 +118,83 @@ enum class InterDir {
   kBi = 2,
 };
 
-struct MotionVector {
-  MotionVector() = default;
-  MotionVector(int mv_x, int mv_y) : x(mv_x), y(mv_y) {}
-  bool operator==(const MotionVector &other) const {
+struct MvDelta {
+  static const int kPrecisionShift = 2;
+  MvDelta() = default;
+  MvDelta(int mvd_x, int mvd_y, int prec = kPrecisionShift)
+    : x(prec < kPrecisionShift ? mvd_x * (1 << (kPrecisionShift - prec)) :
+        mvd_x >> (prec - kPrecisionShift)),
+    y(prec < kPrecisionShift ? mvd_y * (1 << (kPrecisionShift - prec)) :
+      mvd_y >> (prec - kPrecisionShift)) {
+  }
+  bool operator==(const MvDelta &other) const {
     return x == other.x && y == other.y;
   }
-  bool operator!=(const MotionVector &other) const {
+  bool operator!=(const MvDelta &other) const {
+    return !(*this == other);
+  }
+  bool IsZero() const {
+    return x == 0 && y == 0;
+  }
+  int x = 0;
+  int y = 0;
+};
+
+using MvDelta2 = std::array<MvDelta, 2>;
+
+struct MvFullpel {
+  static const int kPrecisionShift = 0;
+  MvFullpel() = default;
+  MvFullpel(int mv_x, int mv_y) : x(mv_x), y(mv_y) {}
+  bool operator==(const MvFullpel &other) const {
+    return x == other.x && y == other.y;
+  }
+  bool operator!=(const MvFullpel &other) const {
     return !(*this == other);
   }
   int x = 0;
   int y = 0;
 };
 
-using MotionVector2 = std::array<MotionVector, 2>;
+struct MotionVector {
+  static const int kPrecisionShift = 2;
+  static const int kScale = 1 << kPrecisionShift;
+  MotionVector() = default;
+  MotionVector(int mv_x, int mv_y) : x(mv_x), y(mv_y) {}
+  explicit MotionVector(const MvFullpel mv_fullpel) :
+    x(mv_fullpel.x * kScale),
+    y(mv_fullpel.y * kScale) {
+  }
+  bool operator==(const MotionVector &other) const {
+    return x == other.x && y == other.y;
+  }
+  bool operator!=(const MotionVector &other) const {
+    return !(*this == other);
+  }
+  operator MvFullpel() const {
+    return MvFullpel(x >> kPrecisionShift, y >> kPrecisionShift);
+  }
+  MotionVector& operator+=(const MvDelta &mvd) {
+    x += mvd.x * (1 << (kPrecisionShift - MvDelta::kPrecisionShift));
+    y += mvd.y * (1 << (kPrecisionShift - MvDelta::kPrecisionShift));
+    return *this;
+  }
+  friend MotionVector operator+(const MotionVector &mv, const MvDelta &mvd) {
+    return MotionVector(
+      mv.x + mvd.x * (1 << (kPrecisionShift - MvDelta::kPrecisionShift)),
+      mv.y + mvd.y * (1 << (kPrecisionShift - MvDelta::kPrecisionShift)));
+  }
+  friend MvDelta operator-(const MotionVector &mv1, const MotionVector &mv2) {
+    return MvDelta(mv1.x - mv2.x, mv1.y - mv2.y, MotionVector::kPrecisionShift);
+  }
+  void RoundToFullpel() {
+    x = ((x + (1 << (kPrecisionShift - 1))) >> kPrecisionShift) * kScale;
+    y = ((y + (1 << (kPrecisionShift - 1))) >> kPrecisionShift) * kScale;
+  }
+  int x = 0;
+  int y = 0;
+};
+
 using MotionVector3 = std::array<MotionVector, 3>;
 
 enum class MvCorner {

@@ -142,7 +142,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
 int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
                                           const CodingUnit &cu_q,
                                           int pos_x, int pos_y, Direction dir) {
-  static const int one_integer_step = 1 << constants::kMvPrecisionShift;
+  static const int one_integer_step = MotionVector::kScale;
   int boundary_strength = 0;
   if (Restrictions::Get().disable_deblock_boundary_strength_zero) {
     boundary_strength = 1;

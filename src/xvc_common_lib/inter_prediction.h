@@ -83,17 +83,20 @@ public:
   void MotionCompensation(const CodingUnit &cu, YuvComponent comp,
                           SampleBuffer *pred_buffer);
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &ref_pic, int mv_x, int mv_y,
+                            const YuvPicture &ref_pic, const MotionVector &mv,
                             bool post_filter,
                             SampleBuffer *pred_buffer);
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &ref_pic, const MotionVector3 &mv,
+                            bool post_filter,
                             SampleBuffer *pred_buffer);
-  void ClipMV(const CodingUnit &cu, const YuvPicture &ref_pic,
-              int *mv_x, int *mv_y) const;
+  void ClipMv(const CodingUnit &cu, const YuvPicture &ref_pic,
+              MotionVector *mv) const;
+  void ClipMv(const CodingUnit &cu, const YuvPicture &ref_pic,
+              MotionVector3 *mv) const;
   void DetermineMinMaxMv(const CodingUnit &cu, const YuvPicture &ref_pic,
-                         int center_x, int center_y, int search_range,
-                         MotionVector *mv_min, MotionVector *mv_max) const;
+                         const MotionVector &center, int search_range,
+                         MvFullpel *mv_min, MvFullpel *mv_max) const;
   template<typename SrcT, bool Clip>
   static int GetFilterShift(int bitdepth);
   template<typename SrcT, bool Clip>

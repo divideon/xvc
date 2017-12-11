@@ -58,7 +58,10 @@ void SyntaxWriter::WriteAffineFlag(const CodingUnit &cu, bool is_merge,
 }
 
 void SyntaxWriter::WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf) {
-  assert(!Restrictions::Get().disable_transform_cbf);
+  if (Restrictions::Get().disable_transform_cbf) {
+    assert(cbf);
+    return;
+  }
   if (util::IsLuma(comp)) {
     encoder_.EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_luma[0]);
   } else {
@@ -369,7 +372,7 @@ void SyntaxWriter::WriteInterFullpelMvFlag(const CodingUnit &cu,
   encoder_.EncodeBin(fullpel_mv_only ? 1 : 0, &ctx);
 }
 
-void SyntaxWriter::WriteInterMvd(const MotionVector &mvd) {
+void SyntaxWriter::WriteInterMvd(const MvDelta &mvd) {
   int abs_mvd_x = std::abs(mvd.x);
   int abs_mvd_y = std::abs(mvd.y);
   if (Restrictions::Get().disable_inter_mvd_greater_than_flags) {

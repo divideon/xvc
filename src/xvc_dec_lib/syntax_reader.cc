@@ -60,6 +60,9 @@ bool SyntaxReaderCabac<Ctx>::ReadAffineFlag(const CodingUnit &cu,
 
 template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadCbf(const CodingUnit &cu, YuvComponent comp) {
+  if (Restrictions::Get().disable_transform_cbf) {
+    return true;
+  }
   if (util::IsLuma(comp)) {
     return decoder_.DecodeBin(&ctx_.cu_cbf_luma[0]) != 0;
   } else {
@@ -379,9 +382,9 @@ bool SyntaxReaderCabac<Ctx>::ReadInterFullpelMvFlag(const CodingUnit &cu) {
 }
 
 template<typename Ctx>
-MotionVector SyntaxReaderCabac<Ctx>::ReadInterMvd() {
+MvDelta SyntaxReaderCabac<Ctx>::ReadInterMvd() {
   if (Restrictions::Get().disable_inter_mvd_greater_than_flags) {
-    MotionVector mvd;
+    MvDelta mvd;
     mvd.x += ReadExpGolomb(1);
     if (mvd.x) {
       uint32_t sign = decoder_.DecodeBypass();
@@ -396,7 +399,7 @@ MotionVector SyntaxReaderCabac<Ctx>::ReadInterMvd() {
   }
   uint32_t non_zero_x = decoder_.DecodeBin(&ctx_.inter_mvd[0]);
   uint32_t non_zero_y = decoder_.DecodeBin(&ctx_.inter_mvd[0]);
-  MotionVector mvd;
+  MvDelta mvd;
   if (non_zero_x) {
     mvd.x = 1 + decoder_.DecodeBin(&ctx_.inter_mvd[1]);
   }

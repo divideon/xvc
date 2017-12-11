@@ -146,7 +146,7 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
       assert(num_refs_available > 0);
       writer->WriteInterRefIdx(cu.GetRefIdx(ref_pic_list), num_refs_available);
       if (cu.GetForceMvdZero(ref_pic_list)) {
-        assert(cu.GetMvDelta(ref_pic_list) == MotionVector(0, 0));
+        assert(cu.GetMvDelta(ref_pic_list) == MvDelta(0, 0));
       } else if (cu.GetUseAffine()) {
         writer->WriteInterMvd(cu.GetMvdAffine(0, ref_pic_list));
         writer->WriteInterMvd(cu.GetMvdAffine(1, ref_pic_list));

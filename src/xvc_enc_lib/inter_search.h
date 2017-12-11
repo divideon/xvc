@@ -156,23 +156,23 @@ private:
                                 const MotionVector3 *mv_bootstrap,
                                 SampleBuffer *pred_buffer,
                                 Distortion *out_dist);
-  MotionVector2 AffineGradientSearch(int width, int height,
-                                     const SampleBuffer &pred_buffer,
-                                     const ResidualBuffer &err_buffer);
-  MotionVector FullSearch(const CodingUnit &cu, const Qp &qp,
-                          const MotionVector &mvp, const YuvPicture &ref_pic,
-                          const MotionVector &mv_min,
-                          const MotionVector &mv_max);
+  MvDelta2 AffineGradientSearch(int width, int height,
+                                const SampleBuffer &pred_buffer,
+                                const ResidualBuffer &err_buffer);
+  MvFullpel FullSearch(const CodingUnit &cu, const Qp &qp,
+                       const MotionVector &mvp, const YuvPicture &ref_pic,
+                       const MvFullpel &mv_min,
+                       const MvFullpel &mv_max);
   template<typename TOrig>
   MotionVector SubpelSearch(const CodingUnit &cu, const Qp &qp,
                             const YuvPicture &ref_pic, const MotionVector &mvp,
-                            const MotionVector &mv_fullpel,
+                            const MvFullpel &mv_fullpel,
                             const DataBuffer<TOrig> &orig_buffer,
                             SampleBuffer *pred_buffer, Distortion *out_dist);
   template<typename TOrig>
   Distortion GetSubpelDist(const CodingUnit &cu,
                            const YuvPicture &ref_pic,
-                           SampleMetric *metric, int mv_x, int mv_y,
+                           SampleMetric *metric, const MotionVector &mv,
                            const DataBuffer<TOrig> &orig_buffer,
                            SampleBuffer *pred_buffer);
   template<bool IsAffine, typename MotionVec>
@@ -193,8 +193,12 @@ private:
   Bits GetInterPredBits(const CodingUnit &cu,
                         const SyntaxWriter &bitstream_writer);
   static Bits GetMvpBits(int mvp_idx, int num_mvp);
-  static Bits GetMvdBits(const MotionVector &mvp, int mv_x, int mv_y,
-                         int mv_scale, int mvd_precision_shift);
+  static Bits GetMvdBits(const MotionVector &mvp, const MotionVector &mv,
+                         int mvd_down_shift);
+  static Bits GetMvdBits(const MotionVector3 &mvp, const MotionVector3 &mv,
+                         int mvd_down_shift);
+  static Bits GetMvdBitsFullpel(const MotionVector &mvp, int mv_x, int mv_y,
+                                int mvd_down_shift);
   static Bits GetNumExpGolombBits(int mvd);
   // Affine template helper functions
   template<bool IsAffine, typename MotionVec>
@@ -225,7 +229,7 @@ private:
   std::array<std::array<Distortion, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> unipred_best_dist_;
   // Best fullpel search mv per ref list, ref idx and picture
-  std::array<std::array<MotionVector, constants::kMaxNumRefPics>,
+  std::array<std::array<MvFullpel, constants::kMaxNumRefPics>,
     static_cast<int>(RefPicList::kTotalNumber)> previous_fullpel_;
   // Affine search buffers
   std::array<std::array<float, constants::kMaxBlockSize>,

@@ -64,7 +64,7 @@ public:
     bool use_affine = false;
     bool use_lic = false;
     std::array<std::array<MotionVector, 4>, 2> mv;
-    std::array<std::array<MotionVector, 2>, 2> mvd;
+    std::array<std::array<MvDelta, 2>, 2> mvd;
     std::array<int8_t, 2> ref_idx;
     std::array<int8_t, 2> mvp_idx;
   };
@@ -251,16 +251,16 @@ public:
       inter_.mv[static_cast<int>(list)][2],
     };
   }
-  const MotionVector& GetMvDelta(RefPicList list) const {
+  const MvDelta& GetMvDelta(RefPicList list) const {
     return inter_.mvd[static_cast<int>(list)][0];
   }
-  void SetMvDelta(const MotionVector &mvd, RefPicList list) {
+  void SetMvDelta(const MvDelta &mvd, RefPicList list) {
     inter_.mvd[static_cast<int>(list)][0] = mvd;
   }
-  const MotionVector& GetMvdAffine(int idx, RefPicList list) const {
+  const MvDelta& GetMvdAffine(int idx, RefPicList list) const {
     return inter_.mvd[static_cast<int>(list)][idx];
   }
-  void SetMvdAffine(int idx, const MotionVector &mvd, RefPicList list) {
+  void SetMvdAffine(int idx, const MvDelta &mvd, RefPicList list) {
     inter_.mvd[static_cast<int>(list)][idx] = mvd;
   }
   int GetMvpIdx(RefPicList list) const {

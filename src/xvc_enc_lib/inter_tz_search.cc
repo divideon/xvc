@@ -60,14 +60,14 @@ private:
 
 struct TzSearch::SearchState {
   SearchState(DistortionWrapper<Sample> *dist_wrap, const MotionVector &mvpred,
-              const MotionVector &mvmin, const MotionVector &mvmax)
+              const MvFullpel &mvmin, const MvFullpel &mvmax)
     : dist(dist_wrap), mvp(mvpred), mv_min(mvmin), mv_max(mvmax) {
   }
   DistortionWrapper<Sample> *dist;
   const MotionVector &mvp;
-  const MotionVector &mv_min;
-  const MotionVector &mv_max;
-  MotionVector mv_best = MotionVector(0, 0);
+  const MvFullpel &mv_min;
+  const MvFullpel &mv_max;
+  MvFullpel mv_best = MvFullpel(0, 0);
   Distortion cost_best = 0;
   int last_position = 0;
   int last_range_ = 0;
@@ -75,11 +75,11 @@ struct TzSearch::SearchState {
   uint32_t lambda = 0;
 };
 
-MotionVector
+MvFullpel
 TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
                  const MotionVector &mvp, const YuvPicture &ref_pic,
-                 const MotionVector &mv_min, const MotionVector &mv_max,
-                 const MotionVector &prev_search) {
+                 const MvFullpel &mv_min, const MvFullpel &mv_max,
+                 const MvFullpel &prev_search) {
   static const int kDiamondSearchThreshold = 3;
   static const int kFullSearchGranularity = 5;
   const YuvComponent comp = YuvComponent::kY;
@@ -88,17 +88,16 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
   DistortionWrapper<Sample> dist_wrap(metric, YuvComponent::kY, cu, qp,
                                       bitdepth_, orig_buffer, ref_pic);
   SearchState state(&dist_wrap, mvp, mv_min, mv_max);
-  state.mvd_downshift = cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
+  state.mvd_downshift = cu.GetFullpelMv() ? MvDelta::kPrecisionShift : 0;
   state.lambda =
     static_cast<uint32_t>(std::floor(65536.0 * qp.GetLambdaSqrt()));
-  MotionVector fullsearch_min = mv_min;
-  MotionVector fullsearch_max = mv_max;
+  MvFullpel fullsearch_min = mv_min;
+  MvFullpel fullsearch_max = mv_max;
 
   // Initial cost of predictor at fullpel resolution
-  MotionVector mvp_fullpel = mvp;
-  inter_pred_.ClipMV(cu, ref_pic, &mvp_fullpel.x, &mvp_fullpel.y);
-  mvp_fullpel.x >>= constants::kMvPrecisionShift;
-  mvp_fullpel.y >>= constants::kMvPrecisionShift;
+  MotionVector mvp_clip = mvp;
+  inter_pred_.ClipMv(cu, ref_pic, &mvp_clip);
+  MvFullpel mvp_fullpel(mvp_clip);
   state.cost_best = GetCost(&state, mvp_fullpel.x, mvp_fullpel.y);
   state.mv_best = mvp_fullpel;
 
@@ -109,23 +108,19 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
   // Check MV from previous CU search (can be either same or a different size)
   if (cu.GetDepth() != 0 &&
       encoder_settings_.eval_prev_mv_search_result) {
-    int prev_subpel_x = prev_search.x * (1 << constants::kMvPrecisionShift);
-    int prev_subpel_y = prev_search.y * (1 << constants::kMvPrecisionShift);
-    inter_pred_.ClipMV(cu, ref_pic, &prev_subpel_x, &prev_subpel_y);
-    MotionVector prev_fullpel(prev_subpel_x >> constants::kMvPrecisionShift,
-                              prev_subpel_y >> constants::kMvPrecisionShift);
+    MotionVector prev_clip = MotionVector(prev_search);
+    inter_pred_.ClipMv(cu, ref_pic, &prev_clip);
+    MvFullpel prev_fullpel = prev_clip;
     change_min_max |= CheckCostBest(&state, prev_fullpel.x, prev_fullpel.y);
     if (change_min_max) {
-      int best_subpel_x = state.mv_best.x * (1 << constants::kMvPrecisionShift);
-      int best_subpel_y = state.mv_best.y * (1 << constants::kMvPrecisionShift);
-      inter_pred_.DetermineMinMaxMv(cu, ref_pic, best_subpel_x, best_subpel_y,
-                                    search_range_, &fullsearch_min,
-                                    &fullsearch_max);
+      MotionVector best_subpel = MotionVector(state.mv_best);
+      inter_pred_.DetermineMinMaxMv(cu, ref_pic, best_subpel, search_range_,
+                                    &fullsearch_min, &fullsearch_max);
     }
   }
 
   // Initial search around mvp
-  MotionVector mv_base = state.mv_best;
+  MvFullpel mv_base = state.mv_best;
   int rounds_with_no_match = 0;
   for (int range = 1; range <= search_range_; range *= 2) {
     bool changed = FullpelDiamondSearch(&state, mv_base, range);
@@ -153,7 +148,7 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
 
   // Iterative refinement of start position
   while (state.last_range_ > 0) {
-    MotionVector mv_start = state.mv_best;
+    MvFullpel mv_start = state.mv_best;
     state.last_range_ = 0;
     for (int range = 1; range <= search_range_; range *= 2) {
       FullpelDiamondSearch(&state, mv_start, range);
@@ -168,7 +163,7 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
 }
 
 bool TzSearch::FullpelDiamondSearch(SearchState *state,
-                                    const MotionVector &mv_base, int range) {
+                                    const MvFullpel &mv_base, int range) {
   bool mod = false;
   if (range == 1) {
     mod |= CheckCost1<Up>(state, mv_base.x, mv_base.y - range, range);
@@ -208,7 +203,7 @@ bool TzSearch::FullpelDiamondSearch(SearchState *state,
 
 void TzSearch::FullpelNeighborPointSearch(SearchState *state) {
   const int r = 1;
-  MotionVector mv_base = state->mv_best;
+  MvFullpel mv_base = state->mv_best;
   switch (state->last_position) {
     case Up::index + Left::index:
       CheckCost1<Left>(state, mv_base.x - r, mv_base.y, r);
@@ -257,9 +252,8 @@ void TzSearch::FullpelNeighborPointSearch(SearchState *state) {
 
 Distortion TzSearch::GetCost(SearchState *state, int mv_x, int mv_y) {
   Distortion dist = state->dist->GetDist(mv_x, mv_y);
-  Bits bits = InterSearch::GetMvdBits(state->mvp, mv_x, mv_y,
-                                      constants::kMvPrecisionShift,
-                                      state->mvd_downshift);
+  Bits bits = InterSearch::GetMvdBitsFullpel(state->mvp, mv_x, mv_y,
+                                             state->mvd_downshift);
   return dist + ((state->lambda * bits) >> 16);
 }
 
