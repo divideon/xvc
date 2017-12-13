@@ -274,6 +274,7 @@ public:
   bool CanUseAffine() const { return width_ > 8 && height_ > 8; }
   bool GetUseAffine() const { return inter_.use_affine; }
   void SetUseAffine(bool use_affine) { inter_.use_affine = use_affine; }
+  bool CanAffineMerge() const;
   bool GetUseLic() const { return inter_.use_lic; }
   void SetUseLic(bool use_lic) { inter_.use_lic = use_lic; }
 

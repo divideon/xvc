@@ -65,6 +65,12 @@ public:
                                int merge_idx, bool force_skip,
                                Cost best_cu_cost, TransformEncoder *encoder,
                                YuvPicture *rec_pic);
+  Distortion CompressAffineMerge(CodingUnit *cu, const Qp &qp,
+                                 const SyntaxWriter &bitstream_writer,
+                                 const AffineMergeCandidate &merge_cand,
+                                 bool force_skip,
+                                 Cost best_cu_cost, TransformEncoder *encoder,
+                                 YuvPicture *rec_pic);
   int SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
                             const SyntaxWriter &bitstream_writer,
                             const InterMergeCandidateList &merge_list,

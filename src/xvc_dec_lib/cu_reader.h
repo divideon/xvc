@@ -47,6 +47,8 @@ private:
                            SyntaxReader *reader);
   void ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
                            SyntaxReader *reader);
+  void ReadMergePrediction(CodingUnit *cu, YuvComponent comp,
+                           SyntaxReader *reader);
   void ReadResidualData(CodingUnit *cu, YuvComponent comp,
                         SyntaxReader *reader);
   void ReadResidualDataInternal(CodingUnit *cu, YuvComponent comp,

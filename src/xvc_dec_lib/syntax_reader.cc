@@ -48,8 +48,10 @@ bool SyntaxReaderCabac<Ctx>::Finish() {
 }
 
 template<typename Ctx>
-bool SyntaxReaderCabac<Ctx>::ReadAffineFlag(const CodingUnit &cu) {
-  if (Restrictions::Get().disable_ext2_inter_affine) {
+bool SyntaxReaderCabac<Ctx>::ReadAffineFlag(const CodingUnit &cu,
+                                            bool is_merge) {
+  if (Restrictions::Get().disable_ext2_inter_affine ||
+    (is_merge && Restrictions::Get().disable_ext2_inter_affine_merge)) {
     return false;
   }
   Ctx &ctx = ctx_.GetAffineCtx(cu);
@@ -419,8 +421,9 @@ MotionVector SyntaxReaderCabac<Ctx>::ReadInterMvd() {
 }
 
 template<typename Ctx>
-int SyntaxReaderCabac<Ctx>::ReadInterMvpIdx() {
-  if (Restrictions::Get().disable_inter_mvp) {
+int SyntaxReaderCabac<Ctx>::ReadInterMvpIdx(const CodingUnit &cu) {
+  if ((!cu.GetUseAffine() && Restrictions::Get().disable_inter_mvp) ||
+    (cu.GetUseAffine() && Restrictions::Get().disable_ext2_inter_affine_mvp)) {
     return 0;
   }
   return ReadUnaryMaxSymbol(constants::kNumInterMvPredictors - 1,

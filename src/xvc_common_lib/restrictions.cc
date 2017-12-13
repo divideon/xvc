@@ -293,6 +293,14 @@ Restrictions::Restrictions() {
   disable_ext2_inter_affine = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT2_INTER_AFFINE_MERGE
+  disable_ext2_inter_affine_merge = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_AFFINE_MVP
+  disable_ext2_inter_affine_mvp = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT2_INTER_BIPRED_L1_MVD_ZERO
   disable_ext2_inter_bipred_l1_mvd_zero = true;
 #endif
@@ -342,6 +350,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext2_intra_6_predictors = true;
     disable_ext2_inter_adaptive_fullpel_mv = true;
     disable_ext2_inter_affine = true;
+    disable_ext2_inter_affine_merge = true;
     disable_ext2_intra_chroma_from_luma = true;
     disable_ext2_inter_local_illumination_comp = true;
     disable_ext2_transform_high_precision = true;

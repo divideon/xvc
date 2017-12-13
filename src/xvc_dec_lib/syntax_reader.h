@@ -39,7 +39,7 @@ public:
   virtual ~SyntaxReader() {}
   virtual bool Finish() = 0;
 
-  virtual bool ReadAffineFlag(const CodingUnit &cu) = 0;
+  virtual bool ReadAffineFlag(const CodingUnit &cu, bool is_merge) = 0;
   virtual bool ReadCbf(const CodingUnit &cu, YuvComponent comp) = 0;
   virtual int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                                Coeff *dst_coeff,
@@ -48,7 +48,7 @@ public:
   virtual InterDir ReadInterDir(const CodingUnit &cu) = 0;
   virtual bool ReadInterFullpelMvFlag(const CodingUnit &cu) = 0;
   virtual MotionVector ReadInterMvd() = 0;
-  virtual int ReadInterMvpIdx() = 0;
+  virtual int ReadInterMvpIdx(const CodingUnit &cu) = 0;
   virtual int ReadInterRefIdx(int num_refs_available) = 0;
   virtual IntraMode ReadIntraMode(const IntraPredictorLuma &mpm) = 0;
   virtual IntraChromaMode ReadIntraChromaMode(
@@ -75,7 +75,7 @@ public:
   SyntaxReaderCabac(const Qp &qp, PicturePredictionType pic_type,
                     BitReader *bit_reader);
   bool Finish();
-  bool ReadAffineFlag(const CodingUnit &cu);
+  bool ReadAffineFlag(const CodingUnit &cu, bool is_merge);
   bool ReadCbf(const CodingUnit &cu, YuvComponent comp);
   int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
                        Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
@@ -83,7 +83,7 @@ public:
   InterDir ReadInterDir(const CodingUnit &cu);
   bool ReadInterFullpelMvFlag(const CodingUnit &cu);
   MotionVector ReadInterMvd();
-  int ReadInterMvpIdx();
+  int ReadInterMvpIdx(const CodingUnit &cu);
   int ReadInterRefIdx(int num_refs_available);
   IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);
   IntraChromaMode ReadIntraChromaMode(IntraPredictorChroma chroma_preds);

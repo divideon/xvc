@@ -461,6 +461,14 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
     }
   };
 
+  if (cu->CanAffineMerge() &&
+      !Restrictions::Get().disable_ext2_inter_affine_merge &&
+      !Restrictions::Get().disable_inter_merge_mode &&
+      !Restrictions::Get().disable_ext2_inter_affine) {
+    RdoCost cost = CompressAffineMerge(cu, qp, writer, best_cost.cost);
+    save_if_best_cost(cost);
+  }
+
   if (!Restrictions::Get().disable_inter_merge_mode) {
     const bool fast_merge_skip =
       encoder_settings_.fast_merge_eval && cache_result.any_skip;
@@ -629,9 +637,42 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
     }
   }
   cu->SetMergeIdx(best_merge_idx);
-  inter_search_.ApplyMerge(cu, merge_list[best_merge_idx]);
+  inter_search_.ApplyMergeCand(cu, merge_list[best_merge_idx]);
   cu->LoadStateFrom(best_transform_state, &rec_pic_);
   cu->SetSkipFlag(!cu->GetRootCbf());
+  return best_cost;
+}
+
+CuEncoder::RdoCost
+CuEncoder::CompressAffineMerge(CodingUnit *cu, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               Cost best_cu_cost) {
+  cu->ResetPredictionState();
+  cu->SetPredMode(PredictionMode::kInter);
+  cu->SetMergeFlag(true);
+  cu->SetUseAffine(true);
+  cu->SetMergeIdx(0);
+
+  CodingUnit::ResidualState &best_transform_state = rd_transform_state_;
+  AffineMergeCandidate merge_cand = inter_search_.GetAffineMergeCand(*cu);
+  cu->SetSkipFlag(false);
+  Distortion dist =
+    inter_search_.CompressAffineMerge(cu, qp, bitstream_writer, merge_cand,
+                                      false, best_cu_cost, this, &rec_pic_);
+  RdoCost best_cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
+  if (cu->GetHasAnyCbf()) {
+    cu->SaveStateTo(&best_transform_state, rec_pic_);
+    cu->SetSkipFlag(true);
+    Distortion dist_skip =
+      inter_search_.CompressAffineMerge(cu, qp, bitstream_writer, merge_cand,
+                                        true, best_cu_cost, this, &rec_pic_);
+    RdoCost cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist_skip);
+    if (cost < best_cost) {
+      return cost;
+    }
+    cu->SetSkipFlag(false);
+    cu->LoadStateFrom(best_transform_state, &rec_pic_);
+  }
   return best_cost;
 }
 

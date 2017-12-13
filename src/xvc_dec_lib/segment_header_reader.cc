@@ -180,6 +180,8 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
       restr.disable_ext2_intra_chroma_from_luma |= !!bit_reader->ReadBit();
       restr.disable_ext2_inter_adaptive_fullpel_mv |= !!bit_reader->ReadBit();
       restr.disable_ext2_inter_affine = !!bit_reader->ReadBit();
+      restr.disable_ext2_inter_affine_merge = !!bit_reader->ReadBit();
+      restr.disable_ext2_inter_affine_mvp = !!bit_reader->ReadBit();
       restr.disable_ext2_inter_bipred_l1_mvd_zero = !!bit_reader->ReadBit();
       restr.disable_ext2_inter_local_illumination_comp |=
         !!bit_reader->ReadBit();
@@ -194,6 +196,8 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext2_intra_chroma_from_luma = true;
     restr.disable_ext2_inter_adaptive_fullpel_mv = true;
     restr.disable_ext2_inter_affine = true;
+    restr.disable_ext2_inter_affine_merge = true;
+    restr.disable_ext2_inter_affine_mvp = true;
     restr.disable_ext2_inter_bipred_l1_mvd_zero = true;
     restr.disable_ext2_inter_local_illumination_comp = true;
     restr.disable_ext2_transform_skip = true;

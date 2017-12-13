@@ -116,7 +116,27 @@ InterSearch::CompressMergeCand(CodingUnit *cu, const Qp &qp,
                                YuvPicture *rec_pic) {
   cu->SetSkipFlag(!force_skip ? false : true);
   cu->SetMergeIdx(merge_idx);
-  ApplyMerge(cu, merge_list[merge_idx]);
+  ApplyMergeCand(cu, merge_list[merge_idx]);
+  Distortion dist;
+  if (!force_skip) {
+    dist = CompressAndEvalCbf(cu, qp, bitstream_writer, best_cu_cost,
+                              encoder, rec_pic);
+  } else {
+    dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
+  }
+  return dist;
+}
+
+Distortion
+InterSearch::CompressAffineMerge(CodingUnit *cu, const Qp &qp,
+                                 const SyntaxWriter &bitstream_writer,
+                                 const AffineMergeCandidate &merge_cand,
+                                 bool force_skip,
+                                 Cost best_cu_cost, TransformEncoder *encoder,
+                                 YuvPicture *rec_pic) {
+  cu->SetSkipFlag(false);
+  cu->SetMergeIdx(0);
+  ApplyMergeCand(cu, merge_cand);
   Distortion dist;
   if (!force_skip) {
     dist = CompressAndEvalCbf(cu, qp, bitstream_writer, best_cu_cost,
@@ -138,7 +158,7 @@ InterSearch::SearchMergeCandidates(CodingUnit *cu, const Qp &qp,
   SampleBuffer pred_buffer = encoder->GetPredBuffer(YuvComponent::kY);
   std::array<std::pair<int, double>, max_merge_cand> cand_cost;
   for (int merge_idx = 0; merge_idx < max_merge_cand; merge_idx++) {
-    ApplyMerge(cu, merge_list[merge_idx]);
+    ApplyMergeCand(cu, merge_list[merge_idx]);
     MotionCompensation(*cu, YuvComponent::kY, &pred_buffer);
     Distortion dist =
       metric.CompareSample(*cu, YuvComponent::kY, orig_pic_, pred_buffer);
@@ -960,6 +980,10 @@ int InterSearch::EvalStartMvp(const CodingUnit &cu, const Qp &qp,
       best_cost = cost;
       best_mvp_idx = i;
     }
+    if ((!IsAffine && Restrictions::Get().disable_inter_mvp) ||
+        (IsAffine &&  Restrictions::Get().disable_ext2_inter_affine_mvp)) {
+      break;
+    }
   }
   if (out_cost) {
     *out_cost = best_cost;
@@ -971,6 +995,9 @@ template<>
 int InterSearch::EvalFinalMvpIdx<MotionVector>(
   const CodingUnit &cu, const std::array<MotionVector, kNumMvp> &mvp_list,
   const MotionVector &mv, int mvp_idx_start) {
+  if (Restrictions::Get().disable_inter_mvp) {
+    return 0;
+  }
   const int mvd_precision =
     cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
   int best_mvp_idx = 0;
@@ -990,6 +1017,9 @@ template<>
 int InterSearch::EvalFinalMvpIdx<MotionVector3>(
   const CodingUnit &cu, const std::array<MotionVector3, kNumMvp> &mvp_list,
   const MotionVector3 &mv, int mvp_idx_start) {
+  if (Restrictions::Get().disable_ext2_inter_affine_mvp) {
+    return 0;
+  }
   const int mvd_precision =
     cu.GetFullpelMv() ? constants::kMvPrecisionShift : 0;
   int best_mvp_idx = 0;

@@ -39,6 +39,12 @@ struct MergeCandidate {
   bool use_lic = false;
 };
 
+struct AffineMergeCandidate {
+  InterDir inter_dir = InterDir::kL0;
+  std::array<MotionVector3, static_cast<int>(RefPicList::kTotalNumber)> mv;
+  std::array<int, static_cast<int>(RefPicList::kTotalNumber)> ref_idx = { {0} };
+};
+
 struct InterMergeCandidateList
   : public std::array<MergeCandidate, constants::kNumInterMergeCandidates> {
   int num = 0;
@@ -67,11 +73,13 @@ public:
                                        int max_num_mvp);
   InterMergeCandidateList GetMergeCandidates(const CodingUnit &cu,
                                              int merge_cand_idx = -1);
+  AffineMergeCandidate GetAffineMergeCand(const CodingUnit &cu);
   MotionVector3 DeriveMvAffine(const CodingUnit &cu, const YuvPicture &ref_pic,
                                const MotionVector &mv1,
                                const MotionVector &mv2);
   void CalculateMV(CodingUnit *cu);
-  void ApplyMerge(CodingUnit *cu, const MergeCandidate &merge_cand);
+  void ApplyMergeCand(CodingUnit *cu, const MergeCandidate &merge_cand);
+  void ApplyMergeCand(CodingUnit *cu, const AffineMergeCandidate &merge_cand);
   void MotionCompensation(const CodingUnit &cu, YuvComponent comp,
                           SampleBuffer *pred_buffer);
   void MotionCompensationMv(const CodingUnit &cu, YuvComponent comp,

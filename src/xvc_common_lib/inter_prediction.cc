@@ -29,6 +29,9 @@
 
 namespace xvc {
 
+static const int kL0 = static_cast<int>(RefPicList::kL0);
+static const int kL1 = static_cast<int>(RefPicList::kL1);
+
 struct InterPrediction::LicParams {
   int scale;
   int offset;
@@ -71,30 +74,28 @@ InterPrediction::GetMvpList(const CodingUnit &cu, RefPicList ref_list,
     mv->y =
       ((mv->y + (1 << (scale_shift - 1))) >> scale_shift) * (1 << scale_shift);
   };
-  InterPredictorList list;
   if (Restrictions::Get().disable_inter_mvp) {
+    MotionVector mvp(0, 0);
     MvCorner corner;
     const CodingUnit *tmp;
     if ((tmp = cu.GetCodingUnit(NeighborDir::kLeft, &corner)) != nullptr &&
-        tmp->IsInter()) {
-      list[0] = tmp->GetMv(ref_list, corner);
-      list[1] = tmp->GetMv(ref_list, corner);
+        tmp->IsInter() && tmp->HasMv(ref_list)) {
+      mvp = tmp->GetMv(ref_list, corner);
     } else if ((tmp = cu.GetCodingUnit(NeighborDir::kAbove, &corner)) != nullptr
-               && tmp->IsInter()) {
-      list[0] = tmp->GetMv(ref_list, corner);
-      list[1] = tmp->GetMv(ref_list, corner);
-    } else {
-      list[0] = MotionVector(0, 0);
-      list[1] = MotionVector(0, 0);
+               && tmp->IsInter() && tmp->HasMv(ref_list)) {
+      mvp = tmp->GetMv(ref_list, corner);
     }
     if (cu.GetFullpelMv()) {
-      for (int i = 0; i < static_cast<int>(list.size()); i++) {
-        round_mv(&list[i]);
-      }
+      round_mv(&mvp);
+    }
+    InterPredictorList list;
+    for (int i = 0; i < static_cast<int>(list.size()); i++) {
+      list[i] = mvp;
     }
     return list;
   }
-  PicNum ref_poc = cu.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
+  const PicNum ref_poc = cu.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
+  InterPredictorList list;
   int i = 0;
 
   const CodingUnit *tmp = cu.GetCodingUnitLeftBelow();
@@ -182,6 +183,21 @@ InterPrediction::GetMvpListAffine(const CodingUnit &cu, RefPicList ref_list,
   std::array<MotionVector, 2> list1;
   std::array<MotionVector, 2> list2;
   AffinePredictorList list;
+  if (Restrictions::Get().disable_ext2_inter_affine_mvp) {
+    MotionVector3 mvp = {};
+    const CodingUnit *tmp;
+    if ((tmp = cu.GetCodingUnitLeft()) != nullptr &&
+        tmp->GetUseAffine() && tmp->HasMv(ref_list)) {
+      mvp = tmp->GetMvAffine(ref_list);
+    } else if ((tmp = cu.GetCodingUnitAbove()) != nullptr &&
+               tmp->GetUseAffine() && tmp->HasMv(ref_list)) {
+      mvp = tmp->GetMvAffine(ref_list);
+    }
+    for (int i = 0; i < static_cast<int>(list.size()); i++) {
+      list[i] = mvp;
+    }
+    return list;
+  }
 
   int i0 = 0;
   i0 += GetMvpCand(&cu, NeighborDir::kAboveLeft,
@@ -317,8 +333,6 @@ InterMergeCandidateList
 InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   const bool can_lic = cu.GetPicData()->GetUseLocalIlluminationCompensation();
   const bool pic_bipred = cu.GetPicType() == PicturePredictionType::kBi;
-  const int kL0 = static_cast<int>(RefPicList::kL0);
-  const int kL1 = static_cast<int>(RefPicList::kL1);
   InterMergeCandidateList list;
   int num = 0;
 
@@ -459,6 +473,64 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   return list;
 }
 
+AffineMergeCandidate
+InterPrediction::GetAffineMergeCand(const CodingUnit &cu) {
+  const YuvComponent comp = YuvComponent::kY;
+  const CodingUnit *neigh = cu.GetCodingUnitLeftCorner();
+  if (!neigh || !neigh->GetUseAffine()) {
+    neigh = cu.GetCodingUnitAboveCorner();
+  }
+  if (!neigh || !neigh->GetUseAffine()) {
+    neigh = cu.GetCodingUnitAboveRight();
+  }
+  if (!neigh || !neigh->GetUseAffine()) {
+    neigh = cu.GetCodingUnitLeftBelow();
+  }
+  if (!neigh || !neigh->GetUseAffine()) {
+    neigh = cu.GetCodingUnitAboveLeft();
+  }
+  assert(neigh && neigh->GetUseAffine());
+  const float scale_x =
+    1.0f * (cu.GetPosX(comp) - neigh->GetPosX(comp)) / neigh->GetWidth(comp);
+  const float scale_y =
+    1.0f * (cu.GetPosY(comp) - neigh->GetPosY(comp)) / neigh->GetHeight(comp);
+  const float scale_len_x = 1.0f * cu.GetWidth(comp) / neigh->GetWidth(comp);
+  const float scale_len_y = 1.0f * cu.GetHeight(comp) / neigh->GetHeight(comp);
+  auto scale_mv = [&](const MotionVector3 &ref) {
+    const int mv_x = static_cast<int>(ref[0].x +
+      (ref[2].x - ref[0].x) * scale_y + (ref[1].x - ref[0].x) * scale_x);
+    const int mv_y = static_cast<int>(ref[0].y +
+      (ref[2].y - ref[0].y) * scale_y + (ref[1].y - ref[0].y) * scale_x);
+    return MotionVector3{
+      MotionVector(mv_x, mv_y),
+      MotionVector(static_cast<int>(mv_x + (ref[1].x - ref[0].x) * scale_len_x),
+      static_cast<int>(mv_y + (ref[1].y - ref[0].y) * scale_len_x)),
+      MotionVector(static_cast<int>(mv_x + (ref[2].x - ref[0].x) * scale_len_y),
+      static_cast<int>(mv_y + (ref[2].y - ref[0].y) * scale_len_y))
+    };
+  };
+  AffineMergeCandidate merge_cand;
+  merge_cand.inter_dir = neigh->GetInterDir();
+  if (neigh->HasMv(RefPicList::kL0)) {
+    merge_cand.mv[kL0] = scale_mv(neigh->GetMvAffine(RefPicList::kL0));
+    merge_cand.ref_idx[kL0] = neigh->GetRefIdx(RefPicList::kL0);
+  }
+  if (neigh->HasMv(RefPicList::kL1)) {
+    merge_cand.mv[kL1] = scale_mv(neigh->GetMvAffine(RefPicList::kL1));
+    merge_cand.ref_idx[kL1] = neigh->GetRefIdx(RefPicList::kL1);
+  }
+  // TODO(PH) Consider removing these, only needed to mimic a true mv field
+  if (cu.GetWidth(comp) <= constants::kMinBlockSize) {
+    merge_cand.mv[kL0][1] = merge_cand.mv[kL0][0];
+    merge_cand.mv[kL1][1] = merge_cand.mv[kL1][0];
+  }
+  if (cu.GetHeight(comp) <= constants::kMinBlockSize) {
+    merge_cand.mv[kL0][2] = merge_cand.mv[kL0][0];
+    merge_cand.mv[kL1][2] = merge_cand.mv[kL1][0];
+  }
+  return merge_cand;
+}
+
 MotionVector3
 InterPrediction::DeriveMvAffine(const CodingUnit &cu, const YuvPicture &ref_pic,
                                 const MotionVector &mv1,
@@ -477,10 +549,16 @@ InterPrediction::DeriveMvAffine(const CodingUnit &cu, const YuvPicture &ref_pic,
 }
 
 void InterPrediction::CalculateMV(CodingUnit *cu) {
-  if (cu->GetMergeFlag() || cu->GetSkipFlag()) {
+  if (cu->GetMergeFlag()) {
     int merge_idx = cu->GetMergeIdx();
-    InterMergeCandidateList merge_list = GetMergeCandidates(*cu, merge_idx);
-    ApplyMerge(cu, merge_list[merge_idx]);
+    if (cu->GetUseAffine()) {
+      assert(merge_idx == 0);
+      AffineMergeCandidate merge_cand = GetAffineMergeCand(*cu);
+      ApplyMergeCand(cu, merge_cand);
+    } else {
+      InterMergeCandidateList merge_list = GetMergeCandidates(*cu, merge_idx);
+      ApplyMergeCand(cu, merge_list[merge_idx]);
+    }
   } else if (cu->GetUseAffine()) {
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_list = static_cast<RefPicList>(i);
@@ -529,10 +607,20 @@ void InterPrediction::CalculateMV(CodingUnit *cu) {
   }
 }
 
-void InterPrediction::ApplyMerge(CodingUnit *cu,
-                                 const MergeCandidate &merge_cand) {
+void InterPrediction::ApplyMergeCand(CodingUnit *cu,
+                                     const MergeCandidate &merge_cand) {
   cu->SetInterDir(merge_cand.inter_dir);
   cu->SetUseLic(merge_cand.use_lic);
+  for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
+    RefPicList ref_list = static_cast<RefPicList>(i);
+    cu->SetMv(merge_cand.mv[i], ref_list);
+    cu->SetRefIdx(merge_cand.ref_idx[i], ref_list);
+  }
+}
+
+void InterPrediction::ApplyMergeCand(CodingUnit *cu,
+                                     const AffineMergeCandidate &merge_cand) {
+  cu->SetInterDir(merge_cand.inter_dir);
   for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
     RefPicList ref_list = static_cast<RefPicList>(i);
     cu->SetMv(merge_cand.mv[i], ref_list);
@@ -895,10 +983,15 @@ void InterPrediction::MotionCompAffine(const CodingUnit &cu, YuvComponent comp,
     get_subblock_size(mv[0], mv[1], width, ref_pic.GetSizeShiftX(comp));
   const int subblock_height =
     get_subblock_size(mv[0], mv[2], height, ref_pic.GetSizeShiftY(comp));
-  const int mv_max_x = (rec_pic_.GetWidth(luma) - pos_x + 8 - 1) * mv_scale;
-  const int mv_min_x = (-constants::kMaxBlockSize - pos_x - 8 + 1) * mv_scale;
-  const int mv_max_y = (rec_pic_.GetHeight(luma) - pos_y + 8 - 1) * mv_scale;
-  const int mv_min_y = (-constants::kMaxBlockSize - pos_y - 8 + 1) * mv_scale;
+  // TODO(PH) ClipMv inlined for performance, consider using lambda instead?
+  const int mv_max_x =
+    (rec_pic_.GetWidth(luma) - cu.GetPosX(luma) + 8 - 1) * mv_scale;
+  const int mv_min_x =
+    (-constants::kMaxBlockSize - cu.GetPosX(luma) - 8 + 1) * mv_scale;
+  const int mv_max_y =
+    (rec_pic_.GetHeight(luma) - cu.GetPosY(luma) + 8 - 1) * mv_scale;
+  const int mv_min_y =
+    (-constants::kMaxBlockSize - cu.GetPosY(luma) - 8 + 1) * mv_scale;
   const int delta_mv_hor_x = ((mv[1].x - mv[0].x) * (1 << kAffinePrec)) / width;
   const int delta_mv_hor_y = ((mv[1].y - mv[0].y) * (1 << kAffinePrec)) / width;
   const int delta_mv_ver_x = -delta_mv_hor_y;
@@ -1461,8 +1554,6 @@ static void AddAvg_c(int width, int height, int offset,
 
 MergeCandidate InterPrediction::GetMergeCandidateFromCu(const CodingUnit &cu,
                                                         MvCorner corner) {
-  const int kL0 = static_cast<int>(RefPicList::kL0);
-  const int kL1 = static_cast<int>(RefPicList::kL1);
   MergeCandidate cand;
   cand.inter_dir = cu.GetInterDir();
   cand.mv[kL0] = cu.GetMv(RefPicList::kL0, corner);

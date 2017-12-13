@@ -46,7 +46,7 @@ public:
   void ResetBitCounting() { encoder_.ResetBitCounting(); }
   void Finish();
 
-  void WriteAffineFlag(const CodingUnit &cu, bool use_affine);
+  void WriteAffineFlag(const CodingUnit &cu, bool is_merge, bool use_affine);
   void WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf);
   int WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
                         const Coeff *coeff, ptrdiff_t coeff_stride);
@@ -54,7 +54,7 @@ public:
   void WriteInterDir(const CodingUnit &cu, InterDir inter_dir);
   void WriteInterFullpelMvFlag(const CodingUnit &cu, bool fullpel_mv_only);
   void WriteInterMvd(const MotionVector &mvd);
-  void WriteInterMvpIdx(int mvp_idx);
+  void WriteInterMvpIdx(const CodingUnit &cu, int mvp_idx);
   void WriteInterRefIdx(int ref_idx, int num_refs_available);
   void WriteIntraMode(IntraMode intra_mode, const IntraPredictorLuma &mpm);
   void WriteIntraChromaMode(IntraChromaMode chroma_mode,

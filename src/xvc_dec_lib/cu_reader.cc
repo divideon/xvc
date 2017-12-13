@@ -75,9 +75,7 @@ void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,
       if (skip_flag) {
         cu->SetPredMode(PredictionMode::kInter);
         cu->SetMergeFlag(true);
-        int merge_idx = reader->ReadMergeIdx();
-        cu->SetMergeIdx(merge_idx);
-        cu->SetCbf(comp, false);
+        ReadMergePrediction(cu, comp, reader);
         return;
       }
       PredictionMode pred_mode = reader->ReadPredMode();
@@ -128,7 +126,7 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
     bool merge = reader->ReadMergeFlag();
     cu->SetMergeFlag(merge);
     if (merge) {
-      cu->SetMergeIdx(reader->ReadMergeIdx());
+      ReadMergePrediction(cu, comp, reader);
       return;
     }
     if (pic_data_->GetPredictionType() == PicturePredictionType::kBi) {
@@ -137,7 +135,7 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
       cu->SetInterDir(InterDir::kL0);
     }
     if (cu->CanUseAffine()) {
-      cu->SetUseAffine(reader->ReadAffineFlag(*cu));
+      cu->SetUseAffine(reader->ReadAffineFlag(*cu, false));
     } else {
       cu->SetUseAffine(false);
     }
@@ -159,7 +157,7 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
       } else {
         cu->SetMvDelta(reader->ReadInterMvd(), ref_pic_list);
       }
-      cu->SetMvpIdx(reader->ReadInterMvpIdx(), ref_pic_list);
+      cu->SetMvpIdx(reader->ReadInterMvpIdx(*cu), ref_pic_list);
     }
     if (!cu->HasZeroMvd() &&
         !cu->GetUseAffine()) {
@@ -169,6 +167,18 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
         !cu->GetUseAffine()) {
       cu->SetUseLic(reader->ReadLicFlag());
     }
+  }
+}
+
+void CuReader::ReadMergePrediction(CodingUnit *cu, YuvComponent comp,
+                                   SyntaxReader *reader) {
+  if (cu->CanAffineMerge()) {
+    cu->SetUseAffine(reader->ReadAffineFlag(*cu, true));
+  }
+  if (cu->GetUseAffine()) {
+    cu->SetMergeIdx(0);
+  } else {
+    cu->SetMergeIdx(reader->ReadMergeIdx());
   }
 }
 

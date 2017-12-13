@@ -46,8 +46,10 @@ void SyntaxWriter::Finish() {
   encoder_.Finish();
 }
 
-void SyntaxWriter::WriteAffineFlag(const CodingUnit &cu, bool use_affine) {
-  if (Restrictions::Get().disable_ext2_inter_affine) {
+void SyntaxWriter::WriteAffineFlag(const CodingUnit &cu, bool is_merge,
+                                   bool use_affine) {
+  if (Restrictions::Get().disable_ext2_inter_affine ||
+    (is_merge && Restrictions::Get().disable_ext2_inter_affine_merge)) {
     assert(!use_affine);
     return;
   }
@@ -56,6 +58,7 @@ void SyntaxWriter::WriteAffineFlag(const CodingUnit &cu, bool use_affine) {
 }
 
 void SyntaxWriter::WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf) {
+  assert(!Restrictions::Get().disable_transform_cbf);
   if (util::IsLuma(comp)) {
     encoder_.EncodeBin(cbf ? 1 : 0, &ctx_.cu_cbf_luma[0]);
   } else {
@@ -402,8 +405,10 @@ void SyntaxWriter::WriteInterMvd(const MotionVector &mvd) {
   }
 }
 
-void SyntaxWriter::WriteInterMvpIdx(int mvp_idx) {
-  if (Restrictions::Get().disable_inter_mvp) {
+void SyntaxWriter::WriteInterMvpIdx(const CodingUnit &cu, int mvp_idx) {
+  if ((!cu.GetUseAffine() && Restrictions::Get().disable_inter_mvp) ||
+    (cu.GetUseAffine() && Restrictions::Get().disable_ext2_inter_affine_mvp)) {
+    assert(mvp_idx == 0);
     return;
   }
   WriteUnaryMaxSymbol(mvp_idx, constants::kNumInterMvPredictors - 1,
@@ -552,6 +557,7 @@ void SyntaxWriter::WriteMergeFlag(bool merge) {
 
 void SyntaxWriter::WriteMergeIdx(int merge_idx) {
   if (Restrictions::Get().disable_inter_merge_candidates) {
+    assert(merge_idx == 0);
     return;
   }
   assert(merge_idx >= 0);
@@ -599,12 +605,14 @@ void SyntaxWriter::WriteQp(int qp_value) {
 }
 
 void SyntaxWriter::WriteRootCbf(bool root_cbf) {
+  assert(!Restrictions::Get().disable_transform_root_cbf);
   encoder_.EncodeBin(root_cbf != 0, &ctx_.cu_root_cbf[0]);
 }
 
 void SyntaxWriter::WriteSkipFlag(const CodingUnit &cu, bool skip_flag) {
   if (Restrictions::Get().disable_inter_skip_mode ||
       Restrictions::Get().disable_inter_merge_mode) {
+    assert(!skip_flag);
     return;
   }
   ContextModel &ctx = ctx_.GetSkipFlagCtx(cu);

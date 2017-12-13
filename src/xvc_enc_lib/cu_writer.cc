@@ -77,9 +77,8 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
   if (util::IsLuma(comp)) {
     if (!pic_data_.IsIntraPic()) {
       writer->WriteSkipFlag(cu, cu.GetSkipFlag());
-      if (cu.GetSkipFlag() && !Restrictions::Get().disable_inter_skip_mode) {
-        assert(cu.GetMergeIdx() >= 0);
-        writer->WriteMergeIdx(cu.GetMergeIdx());
+      if (cu.GetSkipFlag()) {
+        WriteMergePrediction(cu, comp, writer);
         return;
       }
       writer->WritePredMode(cu.GetPredMode());
@@ -123,7 +122,7 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
     writer->WriteMergeFlag(cu.GetMergeFlag());
     if (cu.GetMergeFlag()) {
       assert(cu.GetHasAnyCbf() || Restrictions::Get().disable_inter_skip_mode);
-      writer->WriteMergeIdx(cu.GetMergeIdx());
+      WriteMergePrediction(cu, comp, writer);
       return;
     }
     if (pic_data_.GetPredictionType() == PicturePredictionType::kBi) {
@@ -132,7 +131,7 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
       assert(cu.GetInterDir() == InterDir::kL0);
     }
     if (cu.CanUseAffine()) {
-      writer->WriteAffineFlag(cu, cu.GetUseAffine());
+      writer->WriteAffineFlag(cu, false, cu.GetUseAffine());
     } else {
       assert(!cu.GetUseAffine());
     }
@@ -154,7 +153,7 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
       } else {
         writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
       }
-      writer->WriteInterMvpIdx(cu.GetMvpIdx(ref_pic_list));
+      writer->WriteInterMvpIdx(cu, cu.GetMvpIdx(ref_pic_list));
     }
     if (!cu.HasZeroMvd() &&
         !cu.GetUseAffine()) {
@@ -166,6 +165,20 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
     } else {
       assert(!cu.GetUseLic());
     }
+  }
+}
+
+void CuWriter::WriteMergePrediction(const CodingUnit &cu, YuvComponent comp,
+                                   SyntaxWriter * writer) {
+  if (cu.CanAffineMerge()) {
+    writer->WriteAffineFlag(cu, true, cu.GetUseAffine());
+  } else {
+    assert(!cu.GetUseAffine());
+  }
+  if (cu.GetUseAffine()) {
+    assert(cu.GetMergeIdx() == 0);
+  } else {
+    writer->WriteMergeIdx(cu.GetMergeIdx());
   }
 }
 

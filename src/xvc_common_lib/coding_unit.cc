@@ -433,6 +433,19 @@ bool CodingUnit::HasZeroMvd() const {
   }
 }
 
+bool CodingUnit::CanAffineMerge() const {
+  if (width_ * height_ < 64) {
+    return false;
+  }
+  const CodingUnit *tmp;
+  return
+    ((tmp = GetCodingUnitLeftCorner()) != nullptr && tmp->GetUseAffine()) ||
+    ((tmp = GetCodingUnitAboveCorner()) != nullptr && tmp->GetUseAffine()) ||
+    ((tmp = GetCodingUnitAboveRight()) != nullptr && tmp->GetUseAffine()) ||
+    ((tmp = GetCodingUnitLeftBelow()) != nullptr && tmp->GetUseAffine()) ||
+    ((tmp = GetCodingUnitAboveLeft()) != nullptr && tmp->GetUseAffine());
+}
+
 void CodingUnit::Split(SplitType split_type) {
   assert(split_type != SplitType::kNone);
   assert(split_state_ == SplitType::kNone);

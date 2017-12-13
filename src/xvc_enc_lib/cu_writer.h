@@ -43,6 +43,8 @@ public:
                             SyntaxWriter *writer);
   void WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
                             SyntaxWriter *writer);
+  void WriteMergePrediction(const CodingUnit &cu, YuvComponent comp,
+                           SyntaxWriter *writer);
   void WriteResidualData(const CodingUnit &cu, YuvComponent comp,
                          SyntaxWriter *writer);
   // Encoder only method with simplified cbf rdo signaling
