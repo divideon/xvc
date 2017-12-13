@@ -603,7 +603,7 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
     assert(0);
   }
   MotionVector mv_subpel;
-  Distortion dist;
+  Distortion dist = std::numeric_limits<Distortion>::max();
   if (cu.GetFullpelMv()) {
     SampleMetric metric = SampleMetric(GetSubpelMetric(cu), qp, bitdepth_);
     mv_subpel =
