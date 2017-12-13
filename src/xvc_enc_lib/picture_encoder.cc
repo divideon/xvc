@@ -54,7 +54,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
     !flat_lambda ? static_cast<int>(segment.max_sub_gop_length) : 1;
   int lambda_max_tid = SegmentHeader::GetMaxTid(lambda_sub_gop_length);
   int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
-  int pic_qp = DerivePictureQp(*pic_data_, segment_qp);
+  int pic_qp = DerivePictureQp(*pic_data_, segment_qp, encoder_settings);
   double lambda =
     Qp::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
                         lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
@@ -153,9 +153,12 @@ void PictureEncoder::WriteChecksum(const SegmentHeader &segment,
 }
 
 int PictureEncoder::DerivePictureQp(const PictureData &pic_data,
-                                    int segment_qp) const {
-  int pic_qp = segment_qp;
-  if (pic_data.GetPredictionType() != PicturePredictionType::kIntra) {
+                                    int segment_qp, const EncoderSettings
+                                    &encoder_settings) const {
+  int pic_qp;
+  if (pic_data.GetPredictionType() == PicturePredictionType::kIntra) {
+    pic_qp = segment_qp + encoder_settings.intra_qp_offset;
+  } else {
     pic_qp = segment_qp + pic_data.GetTid() + 1;
   }
   return util::Clip3(pic_qp, constants::kMinAllowedQp,

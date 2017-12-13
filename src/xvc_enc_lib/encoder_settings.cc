@@ -167,6 +167,8 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> eval_prev_mv_search_result;
     } else if (setting == "fast_inter_pred_bits") {
       stream >> fast_inter_pred_bits;
+    } else if (setting == "intra_qp_offset") {
+      stream >> intra_qp_offset;
     } else if (setting == "smooth_lambda_scaling") {
       stream >> smooth_lambda_scaling;
     } else if (setting == "adaptive_qp") {

@@ -46,7 +46,7 @@ public:
 private:
   static const int kTransformExtendedPrecision = 2;
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
-  void InvPartialDST4(int shift, bool high_prec, const Coeff *in,
+  void InvPartialDst4(int shift, bool high_prec, const Coeff *in,
                       ptrdiff_t in_stride, Coeff *out, ptrdiff_t out_stride);
   void InvDct2(int size, int shift, int lines, bool high_prec, bool zero_out,
                const Coeff *in, ptrdiff_t in_stride,

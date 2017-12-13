@@ -125,7 +125,7 @@ double Qp::CalculateLambda(int qp, PicturePredictionType pic_type,
           0.14, 0.2, 0.33, 0.33, 0.4
         } };
       hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
-    return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+      return temporal_factor[temporal_id] * hierarchical_factor * lambda;
     }
   }
   return pic_type_factor * subgop_factor * hierarchical_factor * lambda;

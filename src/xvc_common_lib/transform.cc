@@ -97,30 +97,30 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   switch (cu.GetTransformType(comp, 0)) {
     case TransformType::kDefault:
       if (can_dst_4x4 && width == 4 && height == 4) {
-        InvPartialDST4(shift1, high_prec1, coeff, coeff_stride,
+        InvPartialDst4(shift1, high_prec1, coeff, coeff_stride,
                        temp_ptr, temp_stride);
       } else {
         InvDct2(height, shift1, width, high_prec1, true,
                 coeff, coeff_stride, temp_ptr, temp_stride);
       }
       break;
-    case TransformType::kDCT2:
+    case TransformType::kDct2:
       InvDct2(height, shift1, width, high_prec1, true,
               coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDCT5:
+    case TransformType::kDct5:
       InvDct5(height, shift1, width, high_prec1, true,
               coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDCT8:
+    case TransformType::kDct8:
       InvDct8(height, shift1, width, high_prec1, true,
               coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDST1:
+    case TransformType::kDst1:
       InvDst1(height, shift1, width, high_prec1, true,
               coeff, coeff_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDST7:
+    case TransformType::kDst7:
       InvDst7(height, shift1, width, high_prec1, true,
               coeff, coeff_stride, temp_ptr, temp_stride);
       break;
@@ -132,30 +132,30 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   switch (cu.GetTransformType(comp, 1)) {
     case TransformType::kDefault:
       if (can_dst_4x4 && width == 4 && height == 4) {
-        InvPartialDST4(shift2, high_prec2, temp_ptr, temp_stride,
+        InvPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
                        resi, resi_stride);
       } else {
         InvDct2(width, shift2, height, high_prec2, false,
                 temp_ptr, temp_stride, resi, resi_stride);
       }
       break;
-    case TransformType::kDCT2:
+    case TransformType::kDct2:
       InvDct2(width, shift2, height, high_prec2, false,
               temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case TransformType::kDCT5:
+    case TransformType::kDct5:
       InvDct5(width, shift2, height, high_prec2, false,
               temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case TransformType::kDCT8:
+    case TransformType::kDct8:
       InvDct8(width, shift2, height, high_prec2, false,
               temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case TransformType::kDST1:
+    case TransformType::kDst1:
       InvDst1(width, shift2, height, high_prec2, false,
               temp_ptr, temp_stride, resi, resi_stride);
       break;
-    case TransformType::kDST7:
+    case TransformType::kDst7:
       InvDst7(width, shift2, height, high_prec2, false,
               temp_ptr, temp_stride, resi, resi_stride);
       break;
@@ -198,7 +198,7 @@ void InverseTransform::TransformSkip(int width, int height,
   }
 }
 
-void InverseTransform::InvPartialDST4(int shift, bool high_prec,
+void InverseTransform::InvPartialDst4(int shift, bool high_prec,
                                       const Coeff *in, ptrdiff_t in_stride,
                                       Coeff *out, ptrdiff_t out_stride) {
   // No support for high precision for DST 4x4
@@ -863,23 +863,23 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                 resi_ptr, resi_stride, temp_ptr, temp_stride);
       }
       break;
-    case TransformType::kDCT2:
+    case TransformType::kDct2:
       FwdDct2(width, shift1, height, high_prec1, false,
               resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDCT5:
+    case TransformType::kDct5:
       FwdDct5(width, shift1, height, high_prec1, false,
               resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDCT8:
+    case TransformType::kDct8:
       FwdDct8(width, shift1, height, high_prec1, false,
               resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDST1:
+    case TransformType::kDst1:
       FwdDst1(width, shift1, height, high_prec1, false,
               resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
-    case TransformType::kDST7:
+    case TransformType::kDst7:
       FwdDst7(width, shift1, height, high_prec1, false,
               resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
@@ -898,23 +898,23 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                 temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       }
       break;
-    case TransformType::kDCT2:
+    case TransformType::kDct2:
       FwdDct2(height, shift2, width, high_prec2, true,
               temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case TransformType::kDCT5:
+    case TransformType::kDct5:
       FwdDct5(height, shift2, width, high_prec2, true,
               temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case TransformType::kDCT8:
+    case TransformType::kDct8:
       FwdDct8(height, shift2, width, high_prec2, true,
               temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case TransformType::kDST1:
+    case TransformType::kDst1:
       FwdDst1(height, shift2, width, high_prec2, true,
               temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
-    case TransformType::kDST7:
+    case TransformType::kDst7:
       FwdDst7(height, shift2, width, high_prec2, true,
               temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;

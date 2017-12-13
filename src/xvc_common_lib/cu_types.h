@@ -63,11 +63,11 @@ enum class PartitionType {
 
 enum class TransformType {
   kDefault,
-  kDCT2,
-  kDCT5,
-  kDCT8,
-  kDST1,
-  kDST7,
+  kDct2,
+  kDct5,
+  kDct8,
+  kDst1,
+  kDst7,
   kTotalNumber,
 };
 static const int kNbrTransformTypes =

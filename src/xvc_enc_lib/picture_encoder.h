@@ -62,7 +62,8 @@ private:
                    int buffer_flag, BitWriter *bit_writer);
   void WriteChecksum(const SegmentHeader &segment, BitWriter *bit_writer,
                      Checksum::Mode checksum_mode);
-  int DerivePictureQp(const PictureData &pic_data, int segment_qp) const;
+  int DerivePictureQp(const PictureData &pic_data, int segment_qp,
+                      const EncoderSettings &encoder_settings) const;
   bool DetermineAllowLic(PicturePredictionType pic_type,
                          const ReferencePictureLists &ref_list) const;
 

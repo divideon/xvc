@@ -77,6 +77,7 @@ struct EncoderSettings {
   int fast_quad_split_based_on_binary_split = 1;
   int eval_prev_mv_search_result = 1;
   int fast_inter_pred_bits = 0;
+  int intra_qp_offset = 0;
   int smooth_lambda_scaling = 1;
   int adaptive_qp = 1;
   int aqp_strength = 13;

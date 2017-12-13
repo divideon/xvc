@@ -336,12 +336,12 @@ void CodingUnit::SetTransformType(YuvComponent comp, TransformType tx1,
 
 void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
   static const std::array<std::array<TransformType, 2>, 3> kIntraTxMap = { {
-    { TransformType::kDST7, TransformType::kDCT8 },
-    { TransformType::kDST7, TransformType::kDST1 },
-    { TransformType::kDST7, TransformType::kDCT5 },
+    { TransformType::kDst7, TransformType::kDct8 },
+    { TransformType::kDst7, TransformType::kDst1 },
+    { TransformType::kDst7, TransformType::kDct5 },
   } };
   static const std::array<TransformType, 2> kInterTxMap = { {
-    TransformType::kDCT8, TransformType::kDST7
+    TransformType::kDct8, TransformType::kDst7
   } };
   static const std::array<int8_t, kNbrIntraModes> kIntraVerticalMap = { {
     2, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2,
@@ -376,10 +376,10 @@ void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
     tx_.transform_type[kChroma][1] = TransformType::kDefault;
   } else if (select_idx < 0) {
     // No adaptive transform type used
-    tx_.transform_type[kLuma][0] = TransformType::kDCT2;
-    tx_.transform_type[kLuma][1] = TransformType::kDCT2;
-    tx_.transform_type[kChroma][0] = TransformType::kDCT2;
-    tx_.transform_type[kChroma][1] = TransformType::kDCT2;
+    tx_.transform_type[kLuma][0] = TransformType::kDct2;
+    tx_.transform_type[kLuma][1] = TransformType::kDct2;
+    tx_.transform_type[kChroma][0] = TransformType::kDct2;
+    tx_.transform_type[kChroma][1] = TransformType::kDct2;
   } else {
     if (IsIntra()) {
       int intra_mode = static_cast<int>(intra_.mode_luma);
@@ -398,8 +398,8 @@ void CodingUnit::SetTransformFromSelectIdx(YuvComponent comp, int select_idx) {
       tx_.transform_type[kLuma][0] = kInterTxMap[select_idx >> 1];
       tx_.transform_type[kLuma][1] = kInterTxMap[select_idx & 1];
     }
-    tx_.transform_type[kChroma][0] = TransformType::kDCT2;
-    tx_.transform_type[kChroma][1] = TransformType::kDCT2;
+    tx_.transform_type[kChroma][0] = TransformType::kDct2;
+    tx_.transform_type[kChroma][1] = TransformType::kDct2;
   }
 }
 
