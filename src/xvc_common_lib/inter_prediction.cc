@@ -38,16 +38,40 @@ struct InterPrediction::LicParams {
   static const int shift = 5;
 };
 
-const std::array<std::array<int16_t, InterPrediction::kNumTapsLuma>, 4>
-InterPrediction::kLumaFilter = { {
+static const std::array<std::array<int16_t, InterPrediction::kNumTapsLuma>, 4>
+kLumaFilter = { {
   { 0, 0, 0, 64, 0, 0, 0, 0 },
   { -1, 4, -10, 58, 17, -5, 1, 0 },
   { -1, 4, -11, 40, 40, -11, 4, -1 },
   { 0, 1, -5, 17, 58, -10, 4, -1 }
 } };
+static_assert(kLumaFilter.size() == 1 << MotionVector::kNormalPrecision,
+              "1/4 mv precision");
 
-const std::array<std::array<int16_t, InterPrediction::kNumTapsChroma>, 8>
-InterPrediction::kChromaFilter = { {
+static const std::array<std::array<int16_t, InterPrediction::kNumTapsLuma>, 16>
+kLumaFilterHighPrec = { {
+  { 0, 0, 0, 64, 0, 0, 0, 0 },
+  { 0, 1, -3, 63, 4, -2, 1, 0 },
+  { -1, 2, -5, 62, 8, -3, 1, 0 },
+  { -1, 3, -8, 60, 13, -4, 1, 0 },
+  { -1, 4, -10, 58, 17, -5, 1, 0 },
+  { -1, 4, -11, 52, 26, -8, 3, -1 },
+  { -1, 3, -9, 47, 31, -10, 4, -1 },
+  { -1, 4, -11, 45, 34, -10, 4, -1 },
+  { -1, 4, -11, 40, 40, -11, 4, -1 },
+  { -1, 4, -10, 34, 45, -11, 4, -1 },
+  { -1, 4, -10, 31, 47, -9, 3, -1 },
+  { -1, 3, -8, 26, 52, -11, 4, -1 },
+  { 0, 1, -5, 17, 58, -10, 4, -1 },
+  { 0, 1, -4, 13, 60, -8, 3, -1 },
+  { 0, 1, -3, 8, 62, -5, 2, -1 },
+  { 0, 1, -2, 4, 63, -3, 1, 0 }
+} };
+static_assert(kLumaFilterHighPrec.size() == 1 << MotionVector::kPrecisionShift,
+              "1/16 mv precision filter");
+
+static const std::array<std::array<int16_t, InterPrediction::kNumTapsChroma>, 8>
+kChromaFilter = { {
   { 0, 64, 0, 0 },
   { -2, 58, 10, -2 },
   { -4, 54, 16, -2 },
@@ -57,9 +81,50 @@ InterPrediction::kChromaFilter = { {
   { -2, 16, 54, -4 },
   { -2, 10, 58, -2 }
 } };
+static_assert(kChromaFilter.size() == 2 << MotionVector::kNormalPrecision,
+              "1/4 mv precision chroma filter");
 
-const std::array<std::array<uint8_t, 2>, 12>
-InterPrediction::kMergeCandL0L1Idx = { {
+static
+const std::array<std::array<int16_t, InterPrediction::kNumTapsChroma>, 32>
+kChromaFilterHighPrec = { {
+  { 0, 64, 0, 0 },
+  { -1, 63, 2, 0 },
+  { -2, 62, 4, 0 },
+  { -2, 60, 7, -1 },
+  { -2, 58, 10, -2 },
+  { -3, 57, 12, -2 },
+  { -4, 56, 14, -2 },
+  { -4, 55, 15, -2 },
+  { -4, 54, 16, -2 },
+  { -5, 53, 18, -2 },
+  { -6, 52, 20, -2 },
+  { -6, 49, 24, -3 },
+  { -6, 46, 28, -4 },
+  { -5, 44, 29, -4 },
+  { -4, 42, 30, -4 },
+  { -4, 39, 33, -4 },
+  { -4, 36, 36, -4 },
+  { -4, 33, 39, -4 },
+  { -4, 30, 42, -4 },
+  { -4, 29, 44, -5 },
+  { -4, 28, 46, -6 },
+  { -3, 24, 49, -6 },
+  { -2, 20, 52, -6 },
+  { -2, 18, 53, -5 },
+  { -2, 16, 54, -4 },
+  { -2, 15, 55, -4 },
+  { -2, 14, 56, -4 },
+  { -2, 12, 57, -3 },
+  { -2, 10, 58, -2 },
+  { -1, 7, 60, -2 },
+  { 0, 4, 62, -2 },
+  { 0, 2, 63, -1 },
+} };
+static_assert(kChromaFilterHighPrec.size() ==
+              2 << MotionVector::kPrecisionShift,
+              "1/16 mv precision chroma filter");
+
+static const std::array<std::array<uint8_t, 2>, 12> kMergeCandL0L1Idx = { {
   { 0, 1 }, { 1, 0 }, { 0, 2 }, { 2, 0 }, { 1, 2 }, { 2, 1 },
   { 0, 3 }, { 3, 0 }, { 1, 3 }, { 3, 1 }, { 2, 3 }, { 3, 2 },
 } };
@@ -81,6 +146,7 @@ InterPrediction::GetMvpList(const CodingUnit &cu, RefPicList ref_list,
     if (cu.GetFullpelMv()) {
       mvp.RoundToFullpel();
     }
+    mvp.RoundToNormalPrecision();
     InterPredictorList list;
     for (int i = 0; i < static_cast<int>(list.size()); i++) {
       list[i] = mvp;
@@ -156,11 +222,16 @@ InterPrediction::GetMvpList(const CodingUnit &cu, RefPicList ref_list,
     }
   }
 
-  if (i == 0) {
-    list[i++] = MotionVector(0, 0);
-  }
-  if (i == 1) {
-    list[i++] = MotionVector(0, 0);
+  static_assert(constants::kNumInterMvPredictors == 2, "Assumes only 2 mvp");
+  if (i == 2) {
+    list[0].RoundToNormalPrecision();
+    list[1].RoundToNormalPrecision();
+  } else if (i == 1) {
+    list[0].RoundToNormalPrecision();
+    list[1] = MotionVector(0, 0);
+  } else {
+    list[0] = MotionVector(0, 0);
+    list[1] = MotionVector(0, 0);
   }
   return list;
 }
@@ -186,6 +257,9 @@ InterPrediction::GetMvpListAffine(const CodingUnit &cu, RefPicList ref_list,
                tmp->GetUseAffine() && tmp->HasMv(ref_list)) {
       mvp = tmp->GetMvAffine(ref_list);
     }
+    mvp[0].RoundToNormalPrecision();
+    mvp[1].RoundToNormalPrecision();
+    mvp = DeriveMvAffine(cu, *ref_pic, mvp[0], mvp[1]);
     for (int i = 0; i < static_cast<int>(list.size()); i++) {
       list[i] = mvp;
     }
@@ -283,6 +357,8 @@ InterPrediction::GetMvpListAffine(const CodingUnit &cu, RefPicList ref_list,
       best_i = comb_cost[i] < comb_cost[best_i] ? i : best_i;
     }
     comb_cost[best_i] = std::numeric_limits<int>::max();
+    list0[comb_list[best_i][0]].RoundToNormalPrecision();
+    list1[comb_list[best_i][1]].RoundToNormalPrecision();
     list[out] = DeriveMvAffine(cu, *ref_pic, list0[comb_list[best_i][0]],
                                list1[comb_list[best_i][1]]);
     if (out >= max_num_mvp) {
@@ -740,10 +816,18 @@ void InterPrediction::ScaleMv(PicNum poc_current1, PicNum poc_ref1,
     util::Clip3(static_cast<int>(poc_current2 - poc_ref2), -128, 127);
   int iX = (16384 + abs(diff2 / 2)) / diff2;
   int scale_factor = util::Clip3((diff1 * iX + 32) >> 6, -4096, 4095);
+  if (Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    mv->x >>= MotionVector::kHighToNormalShiftDelta;
+    mv->y >>= MotionVector::kHighToNormalShiftDelta;
+  }
   mv->x = util::Clip3((scale_factor * mv->x + 127 +
     (scale_factor * mv->x < 0)) >> 8, -32768, 32767);
   mv->y = util::Clip3((scale_factor * mv->y + 127 +
     (scale_factor * mv->y < 0)) >> 8, -32768, 32767);
+  if (Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    mv->x = mv->x * (1 << MotionVector::kHighToNormalShiftDelta);
+    mv->y = mv->y * (1 << MotionVector::kHighToNormalShiftDelta);
+  }
 }
 
 bool
@@ -1078,28 +1162,30 @@ SampleBufferConst
 InterPrediction::GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
                                const YuvPicture &ref_pic, int mv_x, int mv_y,
                                int *frac_x, int *frac_y) {
-  const int shift_x = ref_pic.GetSizeShiftX(comp);
-  const int shift_y = ref_pic.GetSizeShiftY(comp);
-  int pel_x = mv_x >> (MotionVector::kPrecisionShift + shift_x);
-  int pel_y = mv_y >> (MotionVector::kPrecisionShift + shift_y);
+  int shift_x = MotionVector::kPrecisionShift + ref_pic.GetSizeShiftX(comp);
+  int shift_y = MotionVector::kPrecisionShift + ref_pic.GetSizeShiftY(comp);
+  int pel_x = mv_x >> shift_x;
+  int pel_y = mv_y >> shift_y;
   if (util::IsLuma(comp)) {
-    *frac_x = mv_x & ((1 << MotionVector::kPrecisionShift) - 1);
-    *frac_y = mv_y & ((1 << MotionVector::kPrecisionShift) - 1);
+    *frac_x = mv_x & ((1 << shift_x) - 1);
+    *frac_y = mv_y & ((1 << shift_y) - 1);
   } else  if (Restrictions::Get().disable_inter_chroma_subpel) {
-    int s_x = MotionVector::kPrecisionShift + shift_x;
-    int s_y = MotionVector::kPrecisionShift + shift_y;
-    pel_x = (mv_x + (1 << (s_x - 1))) >> s_x;
-    pel_y = (mv_y + (1 << (s_y - 1))) >> s_y;
+    pel_x = (mv_x + (1 << (shift_x - 1))) >> shift_x;
+    pel_y = (mv_y + (1 << (shift_y - 1))) >> shift_y;
     *frac_x = 0;
     *frac_y = 0;
   } else {
-    *frac_x = mv_x & ((1 << (MotionVector::kPrecisionShift + shift_x)) - 1);
-    *frac_y = mv_y & ((1 << (MotionVector::kPrecisionShift + shift_y)) - 1);
-    *frac_x <<= (1 - shift_x);
-    *frac_y <<= (1 - shift_y);
+    *frac_x =
+      (mv_x & ((1 << (shift_x)) - 1)) << (1 - ref_pic.GetSizeShiftX(comp));
+    *frac_y =
+      (mv_y & ((1 << (shift_y)) - 1)) << (1 - ref_pic.GetSizeShiftY(comp));
   }
-  int posx = cu.GetPosX(comp);
-  int posy = cu.GetPosY(comp);
+  if (Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    *frac_x >>= MotionVector::kHighToNormalShiftDelta;
+    *frac_y >>= MotionVector::kHighToNormalShiftDelta;
+  }
+  const int posx = cu.GetPosX(comp);
+  const int posy = cu.GetPosY(comp);
   const Sample *sample_ptr =
     ref_pic.GetSamplePtr(comp, posx + pel_x, posy + pel_y);;
   return SampleBufferConst(sample_ptr, ref_pic.GetStride(comp));
@@ -1289,8 +1375,15 @@ void InterPrediction::FilterLuma(int width, int height, int frac_x, int frac_y,
                                  const Sample *ref, ptrdiff_t ref_stride,
                                  Sample *pred, ptrdiff_t pred_stride) {
   const int N = kNumTapsLuma;
-  const int16_t *filter_hor = &kLumaFilter[frac_x][0];
-  const int16_t *filter_ver = &kLumaFilter[frac_y][0];
+  const int16_t *filter_hor;
+  const int16_t *filter_ver;
+  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    filter_hor = &kLumaFilterHighPrec[frac_x][0];
+    filter_ver = &kLumaFilterHighPrec[frac_y][0];
+  } else {
+    filter_hor = &kLumaFilter[frac_x][0];
+    filter_ver = &kLumaFilter[frac_y][0];
+  }
   if (frac_y == 0) {
     simd_.filter_h_sample_sample[0](width, height, bitdepth_, filter_hor,
                                     ref, ref_stride, pred, pred_stride);
@@ -1314,8 +1407,15 @@ void InterPrediction::FilterChroma(int width, int height,
                                    const Sample *ref, ptrdiff_t ref_stride,
                                    Sample *pred, ptrdiff_t pred_stride) {
   const int N = kNumTapsChroma;
-  const int16_t *filter_hor = &kChromaFilter[frac_x][0];
-  const int16_t *filter_ver = &kChromaFilter[frac_y][0];
+  const int16_t *filter_hor;
+  const int16_t *filter_ver;
+  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    filter_hor = &kChromaFilterHighPrec[frac_x][0];
+    filter_ver = &kChromaFilterHighPrec[frac_y][0];
+  } else {
+    filter_hor = &kChromaFilter[frac_x][0];
+    filter_ver = &kChromaFilter[frac_y][0];
+  }
   if (frac_y == 0) {
     simd_.filter_h_sample_sample[1](width, height, bitdepth_, filter_hor,
                                     ref, ref_stride, pred, pred_stride);
@@ -1364,8 +1464,15 @@ InterPrediction::FilterLumaBipred(int width, int height, int frac_x, int frac_y,
                                   const Sample *ref, ptrdiff_t ref_stride,
                                   int16_t *pred, ptrdiff_t pred_stride) {
   const int N = kNumTapsLuma;
-  const int16_t *filter_hor = &kLumaFilter[frac_x][0];
-  const int16_t *filter_ver = &kLumaFilter[frac_y][0];
+  const int16_t *filter_hor;
+  const int16_t *filter_ver;
+  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    filter_hor = &kLumaFilterHighPrec[frac_x][0];
+    filter_ver = &kLumaFilterHighPrec[frac_y][0];
+  } else {
+    filter_hor = &kLumaFilter[frac_x][0];
+    filter_ver = &kLumaFilter[frac_y][0];
+  }
   if (frac_y == 0) {
     simd_.filter_h_sample_short[0](width, height, bitdepth_, filter_hor,
                                    ref, ref_stride, pred, pred_stride);
@@ -1390,8 +1497,15 @@ InterPrediction::FilterChromaBipred(int width, int height,
                                     const Sample *ref, ptrdiff_t ref_stride,
                                     int16_t *pred, ptrdiff_t pred_stride) {
   const int N = kNumTapsChroma;
-  const int16_t *filter_hor = &kChromaFilter[frac_x][0];
-  const int16_t *filter_ver = &kChromaFilter[frac_y][0];
+  const int16_t *filter_hor;
+  const int16_t *filter_ver;
+  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+    filter_hor = &kChromaFilterHighPrec[frac_x][0];
+    filter_ver = &kChromaFilterHighPrec[frac_y][0];
+  } else {
+    filter_hor = &kChromaFilter[frac_x][0];
+    filter_ver = &kChromaFilter[frac_y][0];
+  }
   if (frac_y == 0) {
     simd_.filter_h_sample_short[1](width, height, bitdepth_, filter_hor,
                                    ref, ref_stride, pred, pred_stride);

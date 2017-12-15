@@ -124,6 +124,9 @@ InterSearch::CompressMergeCand(CodingUnit *cu, const Qp &qp,
   } else {
     dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
   }
+  if (Restrictions::Get().disable_inter_skip_mode) {
+    cu->SetSkipFlag(false);
+  }
   return dist;
 }
 
@@ -134,7 +137,7 @@ InterSearch::CompressAffineMerge(CodingUnit *cu, const Qp &qp,
                                  bool force_skip,
                                  Cost best_cu_cost, TransformEncoder *encoder,
                                  YuvPicture *rec_pic) {
-  cu->SetSkipFlag(false);
+  cu->SetSkipFlag(!force_skip ? false : true);
   cu->SetMergeIdx(0);
   ApplyMergeCand(cu, merge_cand);
   Distortion dist;
@@ -143,6 +146,9 @@ InterSearch::CompressAffineMerge(CodingUnit *cu, const Qp &qp,
                               encoder, rec_pic);
   } else {
     dist = CompressSkipOnly(cu, qp, bitstream_writer, encoder, rec_pic);
+  }
+  if (Restrictions::Get().disable_inter_skip_mode) {
+    cu->SetSkipFlag(false);
   }
   return dist;
 }
@@ -354,7 +360,9 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const Qp &qp,
                               const SyntaxWriter &bitstream_writer,
                               TransformEncoder *encoder, YuvPicture *rec_pic) {
   assert(cu->GetPredMode() == PredictionMode::kInter);
-  cu->SetSkipFlag(true);
+  if (!Restrictions::Get().disable_inter_skip_mode) {
+    cu->SetSkipFlag(true);
+  }
   cu->SetRootCbf(false);
 
   Distortion sum_dist = 0;

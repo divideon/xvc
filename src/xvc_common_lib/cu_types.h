@@ -157,7 +157,9 @@ struct MvFullpel {
 };
 
 struct MotionVector {
-  static const int kPrecisionShift = 2;
+  static const int kPrecisionShift = 4;
+  static const int kNormalPrecision = 2;
+  static const int kHighToNormalShiftDelta = kPrecisionShift - kNormalPrecision;
   static const int kScale = 1 << kPrecisionShift;
   MotionVector() = default;
   MotionVector(int mv_x, int mv_y) : x(mv_x), y(mv_y) {}
@@ -190,6 +192,15 @@ struct MotionVector {
   void RoundToFullpel() {
     x = ((x + (1 << (kPrecisionShift - 1))) >> kPrecisionShift) * kScale;
     y = ((y + (1 << (kPrecisionShift - 1))) >> kPrecisionShift) * kScale;
+  }
+  void RoundToNormalPrecision() {
+    const int down_shift = kHighToNormalShiftDelta;
+    const int up_scale = 1 << kHighToNormalShiftDelta;
+    const int offset = 1 << (down_shift - 1);
+    x = (x < 0) ? -(((-x + offset) >> down_shift) * up_scale) :
+      ((x + offset) >> down_shift) * up_scale;
+    y = (y < 0) ? -(((-y + offset) >> down_shift) * up_scale) :
+      ((y + offset) >> down_shift) * up_scale;
   }
   int x = 0;
   int y = 0;

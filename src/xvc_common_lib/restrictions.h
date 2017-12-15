@@ -133,6 +133,7 @@ public:
       disable_ext2_inter_affine_merge ||
       disable_ext2_inter_affine_mvp ||
       disable_ext2_inter_bipred_l1_mvd_zero ||
+      disable_ext2_inter_high_precision_mv ||
       disable_ext2_inter_local_illumination_comp ||
       disable_ext2_transform_skip ||
       disable_ext2_transform_high_precision ||
@@ -210,6 +211,7 @@ public:
   bool disable_ext2_inter_affine_merge = false;
   bool disable_ext2_inter_affine_mvp = false;
   bool disable_ext2_inter_bipred_l1_mvd_zero = false;
+  bool disable_ext2_inter_high_precision_mv = false;
   bool disable_ext2_inter_local_illumination_comp = false;
   bool disable_ext2_transform_skip = false;
   bool disable_ext2_transform_high_precision = false;

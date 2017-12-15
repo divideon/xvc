@@ -639,7 +639,8 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
   cu->SetMergeIdx(best_merge_idx);
   inter_search_.ApplyMergeCand(cu, merge_list[best_merge_idx]);
   cu->LoadStateFrom(best_transform_state, &rec_pic_);
-  cu->SetSkipFlag(!cu->GetRootCbf());
+  cu->SetSkipFlag(!cu->GetRootCbf() &&
+                  !Restrictions::Get().disable_inter_skip_mode);
   return best_cost;
 }
 
@@ -655,14 +656,12 @@ CuEncoder::CompressAffineMerge(CodingUnit *cu, const Qp &qp,
 
   CodingUnit::ResidualState &best_transform_state = rd_transform_state_;
   AffineMergeCandidate merge_cand = inter_search_.GetAffineMergeCand(*cu);
-  cu->SetSkipFlag(false);
   Distortion dist =
     inter_search_.CompressAffineMerge(cu, qp, bitstream_writer, merge_cand,
                                       false, best_cu_cost, this, &rec_pic_);
   RdoCost best_cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
   if (cu->GetHasAnyCbf()) {
     cu->SaveStateTo(&best_transform_state, rec_pic_);
-    cu->SetSkipFlag(true);
     Distortion dist_skip =
       inter_search_.CompressAffineMerge(cu, qp, bitstream_writer, merge_cand,
                                         true, best_cu_cost, this, &rec_pic_);
