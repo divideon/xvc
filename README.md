@@ -73,6 +73,17 @@ For decoding an xvc bitstream use the xvcdec application:
 
     $ xvcdec -bitstream-file mybitstream.xvc -output-file decoded.yuv
 
+Both xvcenc and xvcdec supports reading and writing y4m output.
+
+Pipes can be used together with e.g. ffmpeg to stream y4m input to encoder:
+
+    $ ffmpeg -i movie.mkv -f yuv4mpegpipe - | xvcenc -input-file - \
+        -qp 30 -output-file mybitstream.xvc
+
+On the decoder, pipes can also be used to stream decoded output fo ffplay:
+
+    $ xvcdec -bitstream-file mybitstream.xvc -output-file - | ffplay -i -
+
 ### Command line syntax
 
 To show all available encoder arguments run:

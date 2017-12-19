@@ -26,9 +26,19 @@ namespace xvc_app {
 bool Y4mReader::Read(int &width, int &height, double &framerate,
                      int &input_bitdepth, std::streamoff &start_skip,
                      std::streamoff *picture_skip) {
-  char buf[256];
-  ifs_.read(buf, sizeof(buf) - 1);
-  std::streamsize len = ifs_.gcount();
+  char buf[80];
+
+  std::streamsize len;
+  for (len = 0; len < sizeof(buf) - 1; len++) {
+    int ret = ifs_->get();
+    if (ret == std::istream::traits_type::eof()) {
+      return false;
+    }
+    buf[len] = static_cast<char>(ret);
+    if (buf[len] == '\n') {
+      break;
+    }
+  }
   buf[len] = 0;
 
   if (strncmp(buf, "YUV4MPEG2 ", 10)) {
@@ -92,9 +102,8 @@ bool Y4mReader::Read(int &width, int &height, double &framerate,
     }
   }
 
-  assert(!strncmp(buf + pos, "\nFRAME\n", 7));
   start_skip = pos + 1;
-  *picture_skip = 6;
+  *picture_skip = 6;  // Skip "FRAME\n" before each picture
   return true;
 }
 
