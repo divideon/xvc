@@ -25,12 +25,12 @@ namespace xvc_app {
 
 class Y4mReader {
 public:
-  explicit Y4mReader(std::ifstream &ifs) : ifs_(ifs) {}
+  explicit Y4mReader(std::istream *ifs) : ifs_(ifs) {}
   bool Read(int &width, int &height, double &framerate,
             int &input_bitdepth, std::streamoff &start_skip,
             std::streamoff *picture_skip);
 private:
-  std::ifstream &ifs_;
+  std::istream *ifs_;
 };
 
 }  // namespace xvc_app

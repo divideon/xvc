@@ -18,6 +18,11 @@
 
 #include "xvc_enc_app/encoder_app.h"
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 #include <cassert>
 #include <cstdlib>
 #include <iomanip>
@@ -144,11 +149,21 @@ bool EncoderApp::CheckParameters() {
     std::exit(1);
   }
 
-  input_stream_.open(cli_.input_filename, std::ios_base::binary);
-  if (!input_stream_) {
-    std::cerr << "Failed to open input file: " << cli_.input_filename
-      << std::endl;
-    std::exit(1);
+  if (cli_.input_filename == "-") {
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
+    input_seekable_ = false;
+    input_stream_ = &std::cin;
+  } else {
+    file_input_stream_.open(cli_.input_filename, std::ios_base::binary);
+    if (!file_input_stream_) {
+      std::cerr << "Failed to open input file: " << cli_.input_filename
+        << std::endl;
+      std::exit(1);
+    }
+    input_seekable_ = true;
+    input_stream_ = &file_input_stream_;
   }
 
   Y4mReader y4m_reader(input_stream_);
@@ -156,6 +171,10 @@ bool EncoderApp::CheckParameters() {
                        cli_.input_bitdepth, start_skip_, &picture_skip_)) {
     start_skip_ = 0;
     picture_skip_ = 0;
+    if (input_stream_ == &std::cin) {
+      std::cerr << "Error: Failed to parse y4m from stdin" << std::endl;
+      std::exit(1);
+    }
   }
 
   if (cli_.width <= 0 || cli_.height <= 0) {
@@ -347,17 +366,21 @@ void EncoderApp::MainEncoderLoop() {
 
   xvc_enc_nal_unit *nal_units;
   int num_nal_units;
-  input_stream_.seekg(0, input_stream_.end);
-  auto input_length = input_stream_.tellg();
-  std::streamoff start_pos =
-    start_skip_ + (picture_skip_ + picture_bytes.size()) * cli_.skip_pictures;
-  if (start_pos < input_length) {
-    input_stream_.seekg(start_pos, std::ifstream::beg);
-  } else {
-    std::cerr << "Error: The value of skip-pictures is larger than the "
-      << "number of pictures in the input file.";
-    std::exit(1);
+  if (input_seekable_) {
+    // Skip input pictures (if supported by stream)
+    input_stream_->seekg(0, std::ifstream::end);
+    std::streampos input_length = input_stream_->tellg();
+    std::streamoff start_pos =
+      start_skip_ + (picture_skip_ + picture_bytes.size()) * cli_.skip_pictures;
+    if (start_pos < input_length) {
+      input_stream_->seekg(start_pos, std::ifstream::beg);
+    } else {
+      std::cerr << "Error: The value of skip-pictures is larger than the "
+        << "number of pictures in the input file.";
+      std::exit(1);
+    }
   }
+
   char nal_size[4];
   size_t current_segment_bytes = 0;
   int current_segment_pics = 0;
@@ -366,10 +389,17 @@ void EncoderApp::MainEncoderLoop() {
   // loop_check will become false when the entire file has been encoded
   // or when max_num_pics have been encoded.
   while (loop_check) {
-    input_stream_.seekg(picture_skip_, std::ifstream::cur);
-    input_stream_.read(reinterpret_cast<char *>(&picture_bytes.front()),
-                       picture_bytes.size());
-    if (input_stream_.gcount() < static_cast<int>(picture_bytes.size()) ||
+    if (input_seekable_) {
+      input_stream_->seekg(picture_skip_, std::ifstream::cur);
+    } else {
+      assert(picture_skip_ < picture_bytes.size());
+      // Read dummy frame header
+      input_stream_->read(reinterpret_cast<char *>(&picture_bytes.front()),
+                          picture_skip_);
+    }
+    input_stream_->read(reinterpret_cast<char *>(&picture_bytes.front()),
+                        picture_bytes.size());
+    if (input_stream_->gcount() < static_cast<int>(picture_bytes.size()) ||
       (max_num_pics >= 0 && picture_index_ >= max_num_pics)) {
       // Flush the encoder for remaining nal_units and reconstructed pictures.
       xvc_api_->encoder_flush(encoder_, &nal_units, &num_nal_units,
@@ -424,10 +454,10 @@ void EncoderApp::MainEncoderLoop() {
     }
 
     // Jump forward in the input file if temporal subsampling is applied.
-    if (cli_.temporal_subsample > 1) {
+    if (input_seekable_ && cli_.temporal_subsample > 1) {
       std::streamoff skip_picture = picture_bytes.size() + picture_skip_;
-      input_stream_.seekg((cli_.temporal_subsample - 1) * skip_picture,
-                          std::ifstream::cur);
+      input_stream_->seekg((cli_.temporal_subsample - 1) * skip_picture,
+                           std::ifstream::cur);
     }
   }
 
@@ -444,7 +474,7 @@ void EncoderApp::CloseStream() {
     rec_stream_.close();
   }
   file_output_stream_.close();
-  input_stream_.close();
+  file_input_stream_.close();
 }
 
 void EncoderApp::PrintStatistics() {

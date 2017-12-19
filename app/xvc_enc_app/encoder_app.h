@@ -48,7 +48,9 @@ private:
   void PrintUsage();
   void PrintNalInfo(xvc_enc_nal_unit nal_unit);
 
-  std::ifstream input_stream_;
+  std::istream *input_stream_ = nullptr;
+  bool input_seekable_ = true;
+  std::ifstream file_input_stream_;
   std::ofstream file_output_stream_;
   std::ofstream rec_stream_;
   std::streamoff start_skip_;
