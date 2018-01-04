@@ -23,13 +23,17 @@
 
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_enc_lib/encoder_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
 namespace xvc {
 
 class RdoQuant {
 public:
-  explicit RdoQuant(int bitdepth) : bitdepth_(bitdepth) {}
+  RdoQuant(int bitdepth, const EncoderSettings &encoder_settings)
+    : bitdepth_(bitdepth),
+    encoder_settings_(encoder_settings) {
+  }
   int QuantFast(const CodingUnit &cu, YuvComponent comp, const Qp &qp,
                 PicturePredictionType pic_type,
                 const Coeff *in, ptrdiff_t in_stride,
@@ -94,7 +98,8 @@ private:
     return (bits * lambda) >> kLambdaPrecision;
   }
 
-  int bitdepth_;
+  const int bitdepth_;
+  const EncoderSettings &encoder_settings_;
   // Last position eval state
   std::array<int64_t, kStorageSize> coeff_cost_to_zero_;
   std::array<Bits, kStorageSize> coeff_sig_bits_;

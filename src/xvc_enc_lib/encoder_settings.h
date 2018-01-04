@@ -53,7 +53,6 @@ struct EncoderSettings {
 
   // Fast encoder decisions (always used)
   static const bool rdo_quant = true;
-  static const bool rdo_quant_size_2 = false;
   static const bool fast_cu_split_based_on_full_cu = true;
   static const bool fast_mode_selection_for_cached_cu = true;
   static const bool skip_mode_decision_for_identical_cu = false;
@@ -77,6 +76,7 @@ struct EncoderSettings {
   int fast_quad_split_based_on_binary_split = 1;
   int eval_prev_mv_search_result = 1;
   int fast_inter_pred_bits = 0;
+  int rdo_quant_2x2 = 1;
   int intra_qp_offset = 0;
   int smooth_lambda_scaling = 1;
   int adaptive_qp = 1;

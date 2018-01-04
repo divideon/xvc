@@ -116,6 +116,10 @@ private:
   int ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
                      const SampleT2 *sample2, ptrdiff_t stride2,
                      int offset);
+  template<bool RemoveAvg, typename SampleT1, typename SampleT2>
+  int ComputeSatd2x2(const SampleT1 *sample1, ptrdiff_t stride1,
+                     const SampleT2 *sample2, ptrdiff_t stride2,
+                     int offset);
   template<int SkipLines, typename SampleT1, typename SampleT2>
   uint64_t ComputeSad(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,

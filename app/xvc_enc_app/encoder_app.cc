@@ -392,7 +392,7 @@ void EncoderApp::MainEncoderLoop() {
     if (input_seekable_) {
       input_stream_->seekg(picture_skip_, std::ifstream::cur);
     } else {
-      assert(picture_skip_ < picture_bytes.size());
+      assert(picture_skip_ < static_cast<int>(picture_bytes.size()));
       // Read dummy frame header
       input_stream_->read(reinterpret_cast<char *>(&picture_bytes.front()),
                           picture_skip_);

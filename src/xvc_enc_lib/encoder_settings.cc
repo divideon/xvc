@@ -78,6 +78,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       fast_inter_local_illumination_comp = 0;
       fast_inter_adaptive_fullpel_mv = 0;
       fast_inter_pred_bits = 1;
+      rdo_quant_2x2 = 0;
       fast_merge_eval = 0;
       bipred_refinement_iterations = 1;
       always_evaluate_intra_in_inter = 0;
@@ -100,6 +101,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       fast_inter_local_illumination_comp = 0;
       fast_inter_adaptive_fullpel_mv = 0;
       fast_inter_pred_bits = 1;
+      rdo_quant_2x2 = 0;
       fast_merge_eval = 1;
       bipred_refinement_iterations = 1;
       always_evaluate_intra_in_inter = 0;
@@ -167,6 +169,8 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> eval_prev_mv_search_result;
     } else if (setting == "fast_inter_pred_bits") {
       stream >> fast_inter_pred_bits;
+    } else if (setting == "rdo_quant_2x2") {
+      stream >> rdo_quant_2x2;
     } else if (setting == "intra_qp_offset") {
       stream >> intra_qp_offset;
     } else if (setting == "smooth_lambda_scaling") {

@@ -203,7 +203,7 @@ int RdoQuant::QuantRdo(const CodingUnit &cu, YuvComponent comp,
                        const Coeff *src, ptrdiff_t src_stride,
                        Coeff *out, ptrdiff_t out_stride) {
   if (cu.GetWidth(comp) == 2 || cu.GetHeight(comp) == 2) {
-    if (EncoderSettings::rdo_quant_size_2) {
+    if (encoder_settings_.rdo_quant_2x2) {
       return QuantRdo<1>(cu, comp, qp, pic_type, writer, src, src_stride,
                          out, out_stride);
     } else {

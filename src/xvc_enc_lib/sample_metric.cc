@@ -116,9 +116,17 @@ template<bool RemoveAvg, typename SampleT1, typename SampleT2>
 uint64_t SampleMetric::ComputeSatd(int width, int height, int offset,
                                    const SampleT1 *sample1, ptrdiff_t stride1,
                                    const SampleT2 *sample2, ptrdiff_t stride2) {
-  static_assert(constants::kMinBlockSize >= 4, "SATD only implemented for 4x4");
   uint64_t sad = 0;
-  if (width == 4 && height == 4) {
+  if (width == 2 || height == 2) {
+    for (int y = 0; y < height; y += 2) {
+      for (int x = 0; x < width; x += 2) {
+        sad += ComputeSatd2x2<RemoveAvg>(sample1 + x, stride1,
+                                         sample2 + x, stride2, offset);
+      }
+      sample1 += stride1 * 2;
+      sample2 += stride2 * 2;
+    }
+  } else if (width == 4 && height == 4) {
     for (int y = 0; y < height; y += 4) {
       for (int x = 0; x < width; x += 4) {
         sad += ComputeSatdNxM<RemoveAvg, 4, 4>(sample1 + x, stride1,
@@ -426,6 +434,33 @@ int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
   } else {
     sum = static_cast<int>(2.0 * sum / std::sqrt(W*H));
   }
+  return sum;
+}
+
+template<bool RemoveAvg, typename SampleT1, typename SampleT2>
+int SampleMetric::ComputeSatd2x2(const SampleT1 *sample1, ptrdiff_t stride1,
+                                 const SampleT2 *sample2, ptrdiff_t stride2,
+                                 int offset) {
+  int diff[2 * 2], m[2 * 2];
+  diff[0] = sample1[0 + 0 * stride1] - sample2[0 + 0 * stride2];
+  diff[1] = sample1[1 + 0 * stride1] - sample2[1 + 0 * stride2];
+  diff[2] = sample1[0 + 1 * stride1] - sample2[0 + 1 * stride2];
+  diff[3] = sample1[1 + 1 * stride1] - sample2[1 + 1 * stride2];
+  if (RemoveAvg) {
+    diff[0] -= offset;
+    diff[1] -= offset;
+    diff[2] -= offset;
+    diff[3] -= offset;
+  }
+  m[0] = diff[0] + diff[2];
+  m[1] = diff[1] + diff[3];
+  m[2] = diff[0] - diff[2];
+  m[3] = diff[1] - diff[3];
+  int sum = 0;
+  sum += std::abs(m[0] + m[1]);
+  sum += std::abs(m[0] - m[1]);
+  sum += std::abs(m[2] + m[3]);
+  sum += std::abs(m[2] - m[3]);
   return sum;
 }
 
