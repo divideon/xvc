@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <utility>
 
 #include "xvc_common_lib/restrictions.h"

@@ -19,6 +19,7 @@
 #include "xvc_common_lib/cabac.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/utils.h"

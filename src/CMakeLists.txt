@@ -122,11 +122,11 @@ endif()
 
 if(ENABLE_ASSEMBLY)
   # Arch define is only used by SIMD code otherwise add new define for assembly
-  message("-- xvc target architecture: ${XVC_TARGET_ARCH}")
+  message(STATUS "xvc target architecture: ${XVC_TARGET_ARCH}")
   string(TOUPPER "XVC_ARCH_${XVC_TARGET_ARCH}" XVC_ARCH_DEFINE)
   add_definitions("-D${XVC_ARCH_DEFINE}=1")
   if(XVC_HAVE_NEON)
-    message("-- xvc with NEON support")
+    message(STATUS "xvc with NEON support")
     add_definitions("-DXVC_HAVE_NEON=1")
   endif()
 else()

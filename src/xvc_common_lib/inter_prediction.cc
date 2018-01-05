@@ -19,6 +19,7 @@
 #include "xvc_common_lib/inter_prediction.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <limits>
 #include <type_traits>
 

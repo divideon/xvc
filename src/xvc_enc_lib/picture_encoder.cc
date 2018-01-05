@@ -19,6 +19,7 @@
 #include "xvc_enc_lib/picture_encoder.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <numeric>
