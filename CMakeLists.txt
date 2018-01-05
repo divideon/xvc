@@ -76,7 +76,17 @@ if(BUILD_TESTS OR BUILD_TESTS_LIBS)
   add_subdirectory(test)
 endif()
 
+# pkg-config support
+set(PKG_CONFIG_LINK_LIBS "")
+foreach(LIB ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
+  if(IS_ABSOLUTE ${LIB} AND EXISTS ${LIB})
+    set(PKG_CONFIG_LINK_LIBS "${PKG_CONFIG_LINK_LIBS} ${LIB}")
+  else()
+    set(PKG_CONFIG_LINK_LIBS "${PKG_CONFIG_LINK_LIBS} -l${LIB}")
+  endif()
+endforeach()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/xvc.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/xvc.pc" @ONLY)
+
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xvc.pc"
         DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
 

@@ -945,9 +945,9 @@ RdoQuant::GetInvQuantFunc(YuvComponent comp, const Qp &qp, int width,
   const int shift = Quantize::kIQuantShift - transform_shift +
     (size_rounding_bias ? 8 : 0);
   const int scale = qp.GetInvScale(comp) * (size_rounding_bias ? 181 : 1);
-  const int offset = (1 << (shift - 1));
-  return [scale, shift, offset](Coeff in) {
+  return [scale, shift](Coeff in) {
     if (shift > 0) {
+      const int offset = (1 << (shift - 1));
       int coeff = ((in * scale) + offset) >> shift;
       return util::Clip3(coeff, constants::kInt16Min, constants::kInt16Max);
     } else {

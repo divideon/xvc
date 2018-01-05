@@ -19,6 +19,7 @@
 #include "xvc_common_lib/inter_prediction.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "xvc_common_lib/utils.h"
 #include "xvc_common_lib/reference_picture_lists.h"

@@ -7,5 +7,5 @@ Name: @CMAKE_PROJECT_NAME@
 Description: xvc video codec library.
 Version: 1.0
 Libs: -L${libdir} -lxvcenc -lxvcdec
-Libs.private: -lstdc++ @CMAKE_THREAD_LIBS_INIT@
+Libs.private: @PKG_CONFIG_LINK_LIBS@ @CMAKE_THREAD_LIBS_INIT@
 Cflags: -I${includedir}
