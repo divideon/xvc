@@ -26,6 +26,8 @@ namespace xvc {
 void EncoderSettings::Initialize(SpeedMode speed_mode) {
   switch (speed_mode) {
     case SpeedMode::kPlacebo:
+      inter_search_range_uni_max = 384;
+      inter_search_range_uni_min = 96;
       bipred_refinement_iterations = 4;
       always_evaluate_intra_in_inter = 1;
       default_num_ref_pics = 3;
@@ -38,6 +40,8 @@ void EncoderSettings::Initialize(SpeedMode speed_mode) {
       fast_inter_adaptive_fullpel_mv = 0;
       break;
     case SpeedMode::kSlow:
+      inter_search_range_uni_max = 384;
+      inter_search_range_uni_min = 96;
       bipred_refinement_iterations = 1;
       always_evaluate_intra_in_inter = 0;
       default_num_ref_pics = 2;
@@ -141,7 +145,11 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
   std::string setting;
   std::stringstream stream(explicit_settings);
   while (stream >> setting) {
-    if (setting == "bipred_refinement_iterations") {
+    if (setting == "inter_search_range_uni_max") {
+      stream >> inter_search_range_uni_max;
+    } else if (setting == "inter_search_range_uni_min") {
+      stream >> inter_search_range_uni_min;
+    } else if (setting == "bipred_refinement_iterations") {
       stream >> bipred_refinement_iterations;
     } else if (setting == "always_evaluate_intra_in_inter") {
       stream >> always_evaluate_intra_in_inter;

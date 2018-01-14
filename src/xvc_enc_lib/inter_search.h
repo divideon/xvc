@@ -79,7 +79,6 @@ public:
 
 private:
   enum class SearchMethod { TzSearch, FullSearch };
-  static const int kSearchRangeUni = 64;
   static const int kSearchRangeBi = 4;
   static constexpr int kFastMergeNumCand = 4;
   static constexpr double kFastMergeCostFactor = 1.25;
@@ -187,6 +186,7 @@ private:
   template<typename MotionVec>
   void SetMvd(CodingUnit *cu, RefPicList ref_list, const MotionVec &mvp,
               const MotionVec &mv);
+  int GetSearchRangeUniPred(PicNum ref_poc) const;
   MetricType GetFullpelMetric(const CodingUnit &cu) const;
   MetricType GetSubpelMetric(const CodingUnit &cu) const;
   MetricType GetMvpMetricType(const CodingUnit &cu) const;
@@ -212,6 +212,8 @@ private:
 
   const int bitdepth_;
   const int max_components_;
+  const PicNum poc_;
+  const int sub_gop_length_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
   CuWriter cu_writer_;

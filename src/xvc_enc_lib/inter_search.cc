@@ -46,6 +46,8 @@ InterSearch::InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
   : InterPrediction(simd.inter_prediction, rec_pic, pic_data.GetBitdepth()),
   bitdepth_(pic_data.GetBitdepth()),
   max_components_(pic_data.GetMaxNumComponents()),
+  poc_(pic_data.GetPoc()),
+  sub_gop_length_(static_cast<int>(pic_data.GetSubGopLength())),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
   cu_writer_(pic_data, nullptr),
@@ -607,11 +609,15 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
                              SampleBuffer *pred_buffer, Distortion *out_dist) {
   const YuvPicture *ref_pic =
     cu.GetRefPicLists()->GetRefPic(ref_list, ref_idx);
+  const PicNum ref_poc =
+    cu.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
+  const int search_range = search_method == SearchMethod::FullSearch ?
+    encoder_settings_.inter_search_range_bi : GetSearchRangeUniPred(ref_poc);
   MvFullpel clip_min, clip_max;
   if (!mv_bootstrap) {
-    DetermineMinMaxMv(cu, *ref_pic, mvp, kSearchRangeUni, &clip_min, &clip_max);
+    DetermineMinMaxMv(cu, *ref_pic, mvp, search_range, &clip_min, &clip_max);
   } else {
-    DetermineMinMaxMv(cu, *ref_pic, *mv_bootstrap, kSearchRangeBi,
+    DetermineMinMaxMv(cu, *ref_pic, *mv_bootstrap, search_range,
                       &clip_min, &clip_max);
   }
 
@@ -621,7 +627,7 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
   } else if (search_method == SearchMethod::TzSearch) {
     MetricType metric_type = GetFullpelMetric(cu);
     TzSearch tz_search(bitdepth_, orig_pic_, *this, encoder_settings_,
-                       kSearchRangeUni);
+                       search_range);
     mv_fullpel =
       tz_search.Search(cu, qp, metric_type, mvp, *ref_pic, clip_min, clip_max,
                        previous_fullpel_[static_cast<int>(ref_list)][ref_idx]);
@@ -1025,6 +1031,15 @@ void InterSearch::SetMvd<MotionVector3>(CodingUnit *cu, RefPicList ref_list,
   }
   cu->SetMvdAffine(0, mvd0, ref_list);
   cu->SetMvdAffine(1, mvd1, ref_list);
+}
+
+int InterSearch::GetSearchRangeUniPred(PicNum ref_poc) const {
+  const int max = encoder_settings_.inter_search_range_uni_max;
+  const int min = encoder_settings_.inter_search_range_uni_min;
+  const int delta_poc = static_cast<int>(poc_ - ref_poc);
+  const int search_range =
+    (max * std::abs(delta_poc) + (sub_gop_length_ / 2)) / sub_gop_length_;
+  return util::Clip3(search_range, min, max);
 }
 
 MetricType InterSearch::GetFullpelMetric(const CodingUnit &cu) const {

@@ -122,6 +122,10 @@ public:
   SegmentNum GetSoc() const { return soc_; }
   void SetTid(int tid) { tid_ = tid; }
   int GetTid() const { return tid_; }
+  void SetSubGopLength(PicNum sub_gop_length) {
+    sub_gop_length_ = sub_gop_length;
+  }
+  PicNum GetSubGopLength() const { return sub_gop_length_; }
   bool IsHighestLayer() const { return highest_layer_; }
   void SetHighestLayer(bool highest_layer) { highest_layer_ = highest_layer; }
 
@@ -182,6 +186,7 @@ private:
   PicNum doc_ = static_cast<PicNum>(-1);
   SegmentNum soc_ = static_cast<SegmentNum>(-1);
   int tid_ = -1;
+  PicNum sub_gop_length_ = 0;
   bool highest_layer_ = false;
   int max_binary_split_depth_ = 0;
   std::unique_ptr<Qp> pic_qp_;

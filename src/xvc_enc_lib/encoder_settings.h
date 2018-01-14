@@ -58,8 +58,11 @@ struct EncoderSettings {
   static const bool skip_mode_decision_for_identical_cu = false;
   static const bool fast_inter_transform_dist = true;  // not really any impact
   static const bool fast_inter_root_cbf_zero_bits = false;  // very small loss
+  static const int inter_search_range_bi = 4;
 
   // Speed mode dependent settings
+  int inter_search_range_uni_max = 256;
+  int inter_search_range_uni_min = 96;
   int bipred_refinement_iterations = -1;
   int always_evaluate_intra_in_inter = -1;
   int default_num_ref_pics = -1;

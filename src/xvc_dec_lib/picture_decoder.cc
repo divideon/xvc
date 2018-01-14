@@ -130,6 +130,7 @@ void PictureDecoder::Init(const SegmentHeader &segment,
   pic_data_->SetPoc(header.poc);
   pic_data_->SetDoc(header.doc);
   pic_data_->SetTid(header.tid);
+  pic_data_->SetSubGopLength(segment.max_sub_gop_length);
   pic_data_->SetHighestLayer(header.highest_layer);
   pic_data_->SetAdaptiveQp(segment.adaptive_qp > 0);
   pic_data_->SetDeblock(segment.deblock > 0);
