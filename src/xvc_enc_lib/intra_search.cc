@@ -25,14 +25,15 @@
 
 namespace xvc {
 
-IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
+IntraSearch::IntraSearch(const EncoderSimdFunctions &simd, int bitdepth,
+                         const PictureData &pic_data,
                          const YuvPicture &orig_pic,
                          const EncoderSettings &encoder_settings)
   : IntraPrediction(bitdepth),
   pic_data_(pic_data),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
-  satd_metric_(bitdepth, MetricType::kSatd),
+  satd_metric_(simd.sample_metric, bitdepth, MetricType::kSatd),
   cu_writer_(pic_data, this) {
 }
 

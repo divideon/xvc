@@ -34,7 +34,7 @@
 
 namespace xvc {
 
-PictureEncoder::PictureEncoder(const SimdFunctions &simd,
+PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
                                ChromaFormat chroma_format, int width,
                                int height, int bitdepth)
   : simd_(simd),

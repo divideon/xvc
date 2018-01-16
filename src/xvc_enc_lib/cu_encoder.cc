@@ -40,11 +40,12 @@ struct CuEncoder::RdoCost {
   Distortion dist;
 };
 
-CuEncoder::CuEncoder(const SimdFunctions &simd,
+CuEncoder::CuEncoder(const EncoderSimdFunctions &simd,
                      const YuvPicture &orig_pic, YuvPicture *rec_pic,
                      PictureData *pic_data,
                      const EncoderSettings &encoder_settings)
-  : TransformEncoder(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
+  : TransformEncoder(simd, rec_pic->GetBitdepth(),
+                     pic_data->GetMaxNumComponents(),
                      orig_pic, encoder_settings),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
@@ -52,7 +53,8 @@ CuEncoder::CuEncoder(const SimdFunctions &simd,
   pic_data_(*pic_data),
   inter_search_(simd, *pic_data, orig_pic, *rec_pic,
                 *pic_data->GetRefPicLists(), encoder_settings),
-  intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
+  intra_search_(simd, rec_pic->GetBitdepth(), *pic_data, orig_pic,
+                encoder_settings),
   cu_writer_(pic_data_, &intra_search_),
   cu_cache_(pic_data) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {

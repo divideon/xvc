@@ -25,10 +25,10 @@
 #include "xvc_common_lib/inter_prediction.h"
 #include "xvc_common_lib/reference_picture_lists.h"
 #include "xvc_common_lib/sample_buffer.h"
-#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/encoder_simd_functions.h"
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
@@ -47,7 +47,7 @@ class InterSearch : public InterPrediction {
 public:
   using MergeCandLookup = std::array<int, constants::kNumInterMergeCandidates>;
 
-  InterSearch(const SimdFunctions &simd, const PictureData &pic_data,
+  InterSearch(const EncoderSimdFunctions &simd, const PictureData &pic_data,
               const YuvPicture &orig_pic,
               const YuvPicture &rec_pic,
               const ReferencePictureLists &ref_pic_list,
@@ -159,9 +159,8 @@ private:
                                 const SampleBuffer &pred_buffer,
                                 const ResidualBuffer &err_buffer);
   MvFullpel FullSearch(const CodingUnit &cu, const Qp &qp,
-                       const SampleMetric &metric,
-                       const MotionVector &mvp, const YuvPicture &ref_pic,
-                       const MvFullpel &mv_min,
+                       const SampleMetric &metric, const MotionVector &mvp,
+                       const YuvPicture &ref_pic, const MvFullpel &mv_min,
                        const MvFullpel &mv_max);
   template<typename TOrig>
   MotionVector SubpelSearch(const CodingUnit &cu, const Qp &qp,
@@ -218,6 +217,7 @@ private:
   const int sub_gop_length_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
+  const EncoderSimdFunctions &simd_;
   const SampleMetric cu_metric_;    // TODO(PH) Get this from TransformEncocder
   const SampleMetric satd_metric_;
   CuWriter cu_writer_;

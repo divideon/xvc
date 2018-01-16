@@ -27,7 +27,6 @@
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
 
-
 namespace xvc {
 
 enum class MetricType {
@@ -43,7 +42,8 @@ enum class MetricType {
 
 class SampleMetric {
 public:
-  SampleMetric(int bitdepth, MetricType type)
+  struct SimdFunc;
+  SampleMetric(const SimdFunc &simd_func, int bitdepth, MetricType type)
     : bitdepth_(bitdepth), type_(type) {
   }
   SampleMetric(const SampleMetric&) = delete;
@@ -153,6 +153,10 @@ private:
 
   const int bitdepth_;
   const MetricType type_;
+};
+
+struct SampleMetric::SimdFunc {
+  SimdFunc();
 };
 
 }   // namespace xvc

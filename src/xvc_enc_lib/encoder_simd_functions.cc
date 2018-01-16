@@ -16,34 +16,20 @@
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
 
-#ifndef XVC_COMMON_LIB_SIMD_CPU_H_
-#define XVC_COMMON_LIB_SIMD_CPU_H_
+#include "xvc_enc_lib/encoder_simd_functions.h"
 
-#include <stdint.h>
-#include <set>
+#if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
+#include "xvc_enc_lib/simd/sample_metric_simd.h"
+#endif
 
 namespace xvc {
 
-enum class CpuCapability {
-  kNeon = 1,
-  kMmx,
-  kSse,
-  kSse2,
-  kSse3,
-  kSsse3,
-  kSse4_1,
-  kSse4_2,
-  kAvx,
-  kAvx2,
-
-  kTotalNumber
-};
-
-struct SimdCpu {
-  static std::set<CpuCapability> GetMaskedCaps(uint32_t mask);
-  static std::set<CpuCapability> GetRuntimeCapabilities();
-};
+EncoderSimdFunctions::EncoderSimdFunctions(const std::set<CpuCapability> &caps)
+  : SimdFunctions(caps),
+  sample_metric() {
+#if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
+  simd::SampleMetricSimd::Register(caps, this);
+#endif
+}
 
 }   // namespace xvc
-
-#endif  // XVC_COMMON_LIB_SIMD_CPU_H_

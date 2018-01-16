@@ -89,6 +89,8 @@ set(XVC_ENC_LIB_SOURCES
     "xvc_enc_lib/encoder.h"
     "xvc_enc_lib/encoder_settings.cc"
     "xvc_enc_lib/encoder_settings.h"
+    "xvc_enc_lib/encoder_simd_functions.cc"
+    "xvc_enc_lib/encoder_simd_functions.h"
     "xvc_enc_lib/entropy_encoder.cc"
     "xvc_enc_lib/entropy_encoder.h"
     "xvc_enc_lib/inter_search.cc"
@@ -111,6 +113,10 @@ set(XVC_ENC_LIB_SOURCES
     "xvc_enc_lib/transform_encoder.h"
     "xvc_enc_lib/xvcenc.cc"
     "xvc_enc_lib/xvcenc.h")
+
+set(XVC_ENC_LIB_SIMD_SOURCES
+    "xvc_enc_lib/simd/sample_metric_simd.cc"
+    "xvc_enc_lib/simd/sample_metric_simd.h")
 
 # Restrictions control (internal)
 set(RESTRICTION_DEFINES "" CACHE INTERNAL "Restriction flag control (internal use only)")
@@ -178,29 +184,39 @@ if(SANITIZE_BUILD)
   set(linker_flags ${linker_flags} "-fsanitize=${SANITIZE_BUILD}")
 endif()
 
-# xvc_common_lib
-add_library (xvc_common_lib OBJECT ${XVC_COMMON_LIB_SOURCES})
-target_compile_options(xvc_common_lib PRIVATE ${cxx_default} ${cxx_strict})
-target_include_directories(xvc_common_lib PUBLIC .)
-set(xvc_common_lib_extra "")
-
+set(xvc_dec_src_extra "")
+set(xvc_enc_src_extra "")
 if(ENABLE_ASSEMBLY)
   # xvc_common_lib_simd
   add_library (xvc_common_lib_simd OBJECT ${XVC_COMMON_LIB_SIMD_SOURCES})
   target_compile_options(xvc_common_lib_simd PRIVATE ${cxx_default} ${cxx_strict} ${cxx_simd_flags})
   target_include_directories (xvc_common_lib_simd PUBLIC .)
-  set(xvc_common_lib_extra ${xvc_common_lib_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
+  set(xvc_dec_src_extra ${xvc_dec_src_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
+  set(xvc_enc_src_extra ${xvc_enc_src_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
+endif()
+
+# xvc_common_lib
+add_library (xvc_common_lib OBJECT ${XVC_COMMON_LIB_SOURCES})
+target_compile_options(xvc_common_lib PRIVATE ${cxx_default} ${cxx_strict})
+target_include_directories(xvc_common_lib PUBLIC .)
+
+if(ENABLE_ASSEMBLY)
+  # xvc_enc_lib_simd
+  add_library (xvc_enc_lib_simd OBJECT ${XVC_ENC_LIB_SIMD_SOURCES})
+  target_compile_options(xvc_enc_lib_simd PRIVATE ${cxx_default} ${cxx_strict} ${cxx_simd_flags})
+  target_include_directories (xvc_enc_lib_simd PUBLIC .)
+  set(xvc_enc_src_extra ${xvc_enc_src_extra} $<TARGET_OBJECTS:xvc_enc_lib_simd>)
 endif()
 
 # xvc_enc_lib
-add_library(xvc_enc_lib ${XVC_ENC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_enc_lib ${XVC_ENC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_enc_src_extra})
 set_target_properties(xvc_enc_lib PROPERTIES OUTPUT_NAME "xvcenc")
 target_compile_options(xvc_enc_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_enc_lib PUBLIC .)
 target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags})
 
 # xvc_dec_lib
-add_library(xvc_dec_lib ${XVC_DEC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_dec_lib ${XVC_DEC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_dec_src_extra})
 set_target_properties(xvc_dec_lib PROPERTIES OUTPUT_NAME "xvcdec")
 target_compile_options(xvc_dec_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_dec_lib PUBLIC .)

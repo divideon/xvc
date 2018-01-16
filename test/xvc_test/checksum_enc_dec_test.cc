@@ -71,7 +71,7 @@ protected:
     for (int i = 0; i < static_cast<int>(input_pic_.size()); i++) {
       input_pic_[i] = i & mask;  // random yuv file
     }
-    xvc::SimdFunctions simd(xvc::SimdCpu::GetRuntimeCapabilities());
+    xvc::EncoderSimdFunctions simd(xvc::SimdCpu::GetRuntimeCapabilities());
     pic_encoder_ =
       std::make_shared<xvc::PictureEncoder>(simd, segment_.chroma_format,
                                             segment_.GetInternalWidth(),

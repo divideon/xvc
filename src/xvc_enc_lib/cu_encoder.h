@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "xvc_common_lib/picture_data.h"
-#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/cu_cache.h"
@@ -31,6 +30,7 @@
 #include "xvc_enc_lib/inter_search.h"
 #include "xvc_enc_lib/intra_search.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/encoder_simd_functions.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
 
@@ -38,7 +38,7 @@ namespace xvc {
 
 class CuEncoder : public TransformEncoder {
 public:
-  CuEncoder(const SimdFunctions &simd, const YuvPicture &orig_pic,
+  CuEncoder(const EncoderSimdFunctions &simd, const YuvPicture &orig_pic,
             YuvPicture *rec_pic, PictureData *pic_data,
             const EncoderSettings &encoder_settings);
   ~CuEncoder();

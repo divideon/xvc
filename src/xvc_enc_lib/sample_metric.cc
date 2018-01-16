@@ -605,4 +605,7 @@ SampleMetric::Compare<Residual, Residual>(const Qp&, YuvComponent, int, int,
                                           const Residual*, ptrdiff_t,
                                           const Residual*, ptrdiff_t) const;
 
+SampleMetric::SimdFunc::SimdFunc() {
+}
+
 }   // namespace xvc

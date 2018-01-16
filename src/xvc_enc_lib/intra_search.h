@@ -26,14 +26,15 @@
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/cu_writer.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/encoder_simd_functions.h"
 #include "xvc_enc_lib/transform_encoder.h"
 
 namespace xvc {
 
 class IntraSearch : public IntraPrediction {
 public:
-  IntraSearch(int bitdepth, const PictureData &pic_data,
-              const YuvPicture &orig_pic,
+  IntraSearch(const EncoderSimdFunctions &simd, int bitdepth,
+              const PictureData &pic_data, const YuvPicture &orig_pic,
               const EncoderSettings &encoder_settings);
 
   Distortion CompressIntraLuma(CodingUnit *cu, const Qp &qp,

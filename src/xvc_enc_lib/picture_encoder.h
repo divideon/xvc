@@ -27,10 +27,10 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
 #include "xvc_common_lib/segment_header.h"
-#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/bit_writer.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/encoder_simd_functions.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/xvcenc.h"
 
@@ -38,7 +38,7 @@ namespace xvc {
 
 class PictureEncoder {
 public:
-  PictureEncoder(const SimdFunctions &simd, ChromaFormat chroma_format,
+  PictureEncoder(const EncoderSimdFunctions &simd, ChromaFormat chroma_format,
                  int width, int height, int bitdepth);
   std::shared_ptr<const YuvPicture> GetOrigPic() const { return orig_pic_; }
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
@@ -67,7 +67,7 @@ private:
   bool DetermineAllowLic(PicturePredictionType pic_type,
                          const ReferencePictureLists &ref_list) const;
 
-  const SimdFunctions &simd_;
+  const EncoderSimdFunctions &simd_;
   BitWriter bit_writer_;
   std::shared_ptr<YuvPicture> orig_pic_;
   std::shared_ptr<PictureData> pic_data_;

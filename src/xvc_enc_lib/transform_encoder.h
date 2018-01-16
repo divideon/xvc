@@ -26,6 +26,7 @@
 #include "xvc_common_lib/transform.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/encoder_simd_functions.h"
 #include "xvc_enc_lib/rdo_quant.h"
 #include "xvc_enc_lib/sample_metric.h"
 #include "xvc_enc_lib/syntax_writer.h"
@@ -51,8 +52,8 @@ public:
     Distortion dist_reco;
     Distortion dist_resi;
   };
-  TransformEncoder(int bitdepth, int num_components,
-                   const YuvPicture &orig_pic,
+  TransformEncoder(const EncoderSimdFunctions &simd, int bitdepth,
+                   int num_components, const YuvPicture &orig_pic,
                    const EncoderSettings &encoder_settings);
 
   SampleBuffer& GetPredBuffer(YuvComponent comp) {

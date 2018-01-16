@@ -24,14 +24,15 @@
 
 namespace xvc {
 
-TransformEncoder::TransformEncoder(int bitdepth, int num_components,
+TransformEncoder::TransformEncoder(const EncoderSimdFunctions &simd,
+                                   int bitdepth, int num_components,
                                    const YuvPicture &orig_pic,
                                    const EncoderSettings &encoder_settings)
   : encoder_settings_(encoder_settings),
   min_pel_(0),
   max_pel_((1 << bitdepth) - 1),
   num_components_(num_components),
-  cu_metric_(bitdepth, encoder_settings_.structural_ssd ?
+  cu_metric_(simd.sample_metric, bitdepth, encoder_settings_.structural_ssd ?
              MetricType::kStructuralSsd : MetricType::kSsd),
   inv_transform_(bitdepth),
   fwd_transform_(bitdepth),
