@@ -40,7 +40,7 @@ void EncoderSettings::Initialize(SpeedMode speed_mode) {
       fast_inter_adaptive_fullpel_mv = 0;
       break;
     case SpeedMode::kSlow:
-      inter_search_range_uni_max = 384;
+      inter_search_range_uni_max = 256;
       inter_search_range_uni_min = 96;
       bipred_refinement_iterations = 1;
       always_evaluate_intra_in_inter = 0;

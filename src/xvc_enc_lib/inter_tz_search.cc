@@ -19,6 +19,7 @@
 #include "xvc_enc_lib/inter_tz_search.h"
 
 #include <cmath>
+#include <limits>
 
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_enc_lib/inter_search.h"
@@ -68,7 +69,7 @@ struct TzSearch::SearchState {
   const MvFullpel &mv_min;
   const MvFullpel &mv_max;
   MvFullpel mv_best = MvFullpel(0, 0);
-  Distortion cost_best = 0;
+  Distortion cost_best = std::numeric_limits<Distortion>::max();
   int last_position = 0;
   int last_range_ = 0;
   int mvd_downshift = 0;
@@ -98,11 +99,13 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
   MotionVector mvp_clip = mvp;
   inter_pred_.ClipMv(cu, ref_pic, &mvp_clip);
   MvFullpel mvp_fullpel(mvp_clip);
-  state.cost_best = GetCost(&state, mvp_fullpel.x, mvp_fullpel.y);
-  state.mv_best = mvp_fullpel;
+  CheckCostBest(&state, mvp_fullpel.x, mvp_fullpel.y);
 
   // Compare with zero mv
-  bool change_min_max = CheckCostBest(&state, 0, 0);
+  bool change_min_max = false;
+  if (state.mv_best.x != 0 || state.mv_best.y != 0) {
+    change_min_max = CheckCostBest(&state, 0, 0);
+  }
   state.last_range_ = 0;
 
   // Check MV from previous CU search (can be either same or a different size)
@@ -250,15 +253,14 @@ void TzSearch::FullpelNeighborPointSearch(SearchState *state) {
   }
 }
 
-Distortion TzSearch::GetCost(SearchState *state, int mv_x, int mv_y) {
+bool TzSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
   Distortion dist = state->dist->GetDist(mv_x, mv_y);
+  if (dist >= state->cost_best) {
+    return false;
+  }
   Bits bits = InterSearch::GetMvdBitsFullpel(state->mvp, mv_x, mv_y,
                                              state->mvd_downshift);
-  return dist + ((state->lambda * bits) >> 16);
-}
-
-bool TzSearch::CheckCostBest(SearchState *state, int mv_x, int mv_y) {
-  Distortion cost = GetCost(state, mv_x, mv_y);
+  Distortion cost = dist + ((state->lambda * bits) >> 16);
   if (cost < state->cost_best) {
     state->cost_best = cost;
     state->mv_best.x = mv_x;

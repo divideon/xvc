@@ -868,6 +868,9 @@ MvFullpel InterSearch::FullSearch(const CodingUnit &cu, const Qp &qp,
                                              bipred_orig_buffer_.GetDataPtr(),
                                              bipred_orig_buffer_.GetStride(),
                                              ref_mv, ref_stride);
+      if (dist >= cost_best) {
+        continue;
+      }
       Bits bits = GetMvdBitsFullpel(mvp, mv_x, mv_y, mvd_precision);
       Distortion cost = dist + ((lambda * bits) >> 16);
       if (cost < cost_best) {
@@ -900,8 +903,11 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
   for (int i = 0; i < static_cast<int>(kSquareXYHalf.size()); i++) {
     const MvDelta mvd(kSquareXYHalf[i][0], kSquareXYHalf[i][1], 1);
     const MotionVector mv = mv_base + mvd;
-    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv,
-                                    orig_buffer, pred_buffer);
+    Distortion dist =
+      GetSubpelDist(cu, ref_pic, &metric, mv, orig_buffer, pred_buffer);
+    if (dist >= best_cost) {
+      continue;
+    }
     Bits bits = GetMvdBits(mvp, mv, 0);
     Distortion cost = dist + ((lambda * bits) >> 16);
     if (cost < best_cost) {
@@ -916,8 +922,11 @@ InterSearch::SubpelSearch(const CodingUnit &cu, const Qp &qp,
   for (int i = 1; i < static_cast<int>(kSquareXYQpel.size()); i++) {
     const MvDelta mvd(kSquareXYQpel[i][0], kSquareXYQpel[i][1], 2);
     const MotionVector mv = mv_base + mvd;
-    Distortion dist = GetSubpelDist(cu, ref_pic, &metric, mv,
-                                    orig_buffer, pred_buffer);
+    Distortion dist =
+      GetSubpelDist(cu, ref_pic, &metric, mv, orig_buffer, pred_buffer);
+    if (dist >= best_cost) {
+      continue;
+    }
     Bits bits = GetMvdBits(mvp, mv, 0);
     Distortion cost = dist + ((lambda * bits) >> 16);
     if (cost < best_cost) {

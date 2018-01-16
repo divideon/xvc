@@ -56,7 +56,6 @@ private:
   bool FullpelDiamondSearch(SearchState *state, const MvFullpel &mv_base,
                             int range);
   void FullpelNeighborPointSearch(SearchState *state);
-  Distortion GetCost(SearchState *state, int mv_x, int mv_y);
   bool CheckCostBest(SearchState *state, int mv_x, int mv_y);
   template<class Dir>
   bool CheckCost1(SearchState *state, int mv_x, int mv_y, int range);
