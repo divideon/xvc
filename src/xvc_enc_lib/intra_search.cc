@@ -32,6 +32,7 @@ IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
   pic_data_(pic_data),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
+  satd_metric_(bitdepth, MetricType::kSatd),
   cu_writer_(pic_data, this) {
 }
 
@@ -209,7 +210,6 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
   const bool two_fast_search_passes =
     !Restrictions::Get().disable_ext2_intra_67_modes;
   SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
-  SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
   std::array<bool, kNbrIntraModesExt> evaluated_modes = { false };
 
   IntraPredictorLuma mpm = GetPredictorLuma(*cu);
@@ -228,8 +228,8 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
     Bits bits = rdo_writer.GetNumWrittenBits();
 
     uint64_t dist =
-      metric.CompareSample(*cu, comp, orig_pic_,
-                           pred_buf.GetDataPtr(), pred_buf.GetStride());
+      satd_metric_.CompareSample(*cu, comp, orig_pic_,
+                                 pred_buf.GetDataPtr(), pred_buf.GetStride());
     double cost = dist + bits * qp.GetLambdaSqrt();
     (*modes_cost)[i] = std::make_pair(intra_mode, cost);
     evaluated_modes[intra_mode] = true;
@@ -269,8 +269,7 @@ IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
         rdo_writer.WriteIntraMode(intra_mode, mpm);
         Bits bits = rdo_writer.GetNumWrittenBits();
         uint64_t dist =
-          metric.CompareSample(*cu, comp, orig_pic_,
-                               pred_buf.GetDataPtr(), pred_buf.GetStride());
+          satd_metric_.CompareSample(*cu, comp, orig_pic_, pred_buf);
         double cost = dist + bits * qp.GetLambdaSqrt();
         (*modes_cost)[modes_added++] = std::make_pair(intra_mode, cost);
         evaluated_modes[intra_mode] = true;

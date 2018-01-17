@@ -159,19 +159,21 @@ private:
                                 const SampleBuffer &pred_buffer,
                                 const ResidualBuffer &err_buffer);
   MvFullpel FullSearch(const CodingUnit &cu, const Qp &qp,
+                       const SampleMetric &metric,
                        const MotionVector &mvp, const YuvPicture &ref_pic,
                        const MvFullpel &mv_min,
                        const MvFullpel &mv_max);
   template<typename TOrig>
   MotionVector SubpelSearch(const CodingUnit &cu, const Qp &qp,
+                            const SampleMetric &metric,
                             const YuvPicture &ref_pic, const MotionVector &mvp,
                             const MvFullpel &mv_fullpel,
                             const DataBuffer<TOrig> &orig_buffer,
                             SampleBuffer *pred_buffer, Distortion *out_dist);
   template<typename TOrig>
-  Distortion GetSubpelDist(const CodingUnit &cu,
+  Distortion GetSubpelDist(const CodingUnit &cu, const Qp &qp,
                            const YuvPicture &ref_pic,
-                           SampleMetric *metric, const MotionVector &mv,
+                           const SampleMetric &metric, const MotionVector &mv,
                            const DataBuffer<TOrig> &orig_buffer,
                            SampleBuffer *pred_buffer);
   template<bool IsAffine, typename MotionVec>
@@ -216,6 +218,8 @@ private:
   const int sub_gop_length_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
+  const SampleMetric cu_metric_;    // TODO(PH) Get this from TransformEncocder
+  const SampleMetric satd_metric_;
   CuWriter cu_writer_;
   ResidualBufferStorage bipred_orig_buffer_;
   SampleBufferStorage bipred_pred_buffer_;

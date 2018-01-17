@@ -73,22 +73,17 @@ public:
                          CuWriter *cu_writer);
   Bits GetCuBitsFull(const CodingUnit &cu, const SyntaxWriter &writer,
                      CuWriter *cu_writer);
-  Distortion GetResidualDist(const CodingUnit &cu, YuvComponent comp,
-                             SampleMetric *metric);
 
 private:
   void ReconstructZeroCbf(CodingUnit *cu, YuvComponent comp,
                           const YuvPicture &orig_pic, YuvPicture *rec_pic);
-  MetricType GetTransformMetric(YuvComponent comp) const {
-    return encoder_settings_.structural_ssd > 0 && comp == YuvComponent::kY ?
-      MetricType::kStructuralSsd : MetricType::kSsd;
-  }
 
   static const ptrdiff_t kBufferStride_ = constants::kMaxBlockSize;
   const EncoderSettings &encoder_settings_;
   const Sample min_pel_;
   const Sample max_pel_;
   const int num_components_;
+  SampleMetric cu_metric_;
   InverseTransform inv_transform_;
   ForwardTransform fwd_transform_;
   Quantize inv_quant_;

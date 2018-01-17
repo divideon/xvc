@@ -31,6 +31,8 @@ TransformEncoder::TransformEncoder(int bitdepth, int num_components,
   min_pel_(0),
   max_pel_((1 << bitdepth) - 1),
   num_components_(num_components),
+  cu_metric_(bitdepth, encoder_settings_.structural_ssd ?
+             MetricType::kStructuralSsd : MetricType::kSsd),
   inv_transform_(bitdepth),
   fwd_transform_(bitdepth),
   inv_quant_(),
@@ -53,7 +55,6 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
                                            Distortion *out_dist_zero,
                                            CuWriter *cu_writer,
                                            YuvPicture *rec_pic) {
-  SampleMetric metric(GetTransformMetric(comp), qp, rec_pic->GetBitdepth());
   const auto get_transform_cost = [&](Distortion dist) {
     if (dist == std::numeric_limits<Distortion>::max()) {
       return RdCost{ std::numeric_limits<Cost>::max(), dist, dist };
@@ -64,7 +65,10 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
         cu->IsInter() && cu->GetCbf(comp)) {
       // Set new distortion based on residual instead of reconstructed samples
       // TODO(PH) Consider removing this case (it only adds extra complexity)
-      dist_resi = GetResidualDist(*cu, comp, &metric);
+      const int width = cu->GetWidth(comp);
+      const int height = cu->GetHeight(comp);
+      dist_resi = cu_metric_.CompareShort(qp, comp, width, height,
+                                          temp_resi_orig_, temp_resi_);
     }
     RdoSyntaxWriter rdo_writer(writer, 0);
     if (cu->IsIntra() && util::IsLuma(comp)) {
@@ -106,7 +110,7 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
   if ((search_flags & TxSearchFlags::kCbfZero) != TxSearchFlags::kNone &&
       !Restrictions::Get().disable_transform_cbf) {
     Distortion dist_zero =
-      metric.CompareSample(*cu, comp, orig_pic, GetPredBuffer(comp));
+      cu_metric_.CompareSample(*cu, comp, orig_pic, GetPredBuffer(comp));
     if (out_dist_zero) {
       *out_dist_zero = dist_zero;
     }
@@ -260,8 +264,7 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     reco_buffer.CopyFrom(width, height, pred_buffer);
   }
 
-  SampleMetric metric(GetTransformMetric(comp), qp, rec_pic->GetBitdepth());
-  return metric.CompareSample(*cu, comp, orig_pic, reco_buffer);
+  return cu_metric_.CompareSample(*cu, comp, orig_pic, reco_buffer);
 }
 
 Bits TransformEncoder::GetCuBitsResidual(const CodingUnit &cu,
@@ -284,13 +287,6 @@ Bits TransformEncoder::GetCuBitsFull(const CodingUnit &cu,
     cu_writer->WriteComponent(cu, comp, &rdo_writer);
   }
   return rdo_writer.GetNumWrittenBits();
-}
-
-Distortion
-TransformEncoder::GetResidualDist(const CodingUnit &cu, YuvComponent comp,
-                                  SampleMetric *metric) {
-  return metric->CompareShort(comp, cu.GetWidth(comp), cu.GetHeight(comp),
-                              temp_resi_orig_, temp_resi_);
 }
 
 void TransformEncoder::ReconstructZeroCbf(CodingUnit *cu, YuvComponent comp,

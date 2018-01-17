@@ -64,6 +64,7 @@ private:
   const PictureData &pic_data_;
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
+  const SampleMetric satd_metric_;
   CodingUnit::ResidualState best_cu_state_;
   CuWriter cu_writer_;
 };

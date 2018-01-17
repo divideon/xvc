@@ -43,107 +43,116 @@ enum class MetricType {
 
 class SampleMetric {
 public:
-  SampleMetric(MetricType type, const Qp &qp, int bitdepth)
-    : type_(type), qp_(qp), bitdepth_(bitdepth) {
+  SampleMetric(int bitdepth, MetricType type)
+    : bitdepth_(bitdepth), type_(type) {
   }
+  SampleMetric(const SampleMetric&) = delete;
   // Sample vs Sample
   Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
-                           const YuvPicture &src1, const YuvPicture &src2);
+                           const YuvPicture &src1,
+                           const YuvPicture &src2) const;
   Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
                            const YuvPicture &src1,
-                           const Sample *src2, ptrdiff_t stride2);
+                           const Sample *src2, ptrdiff_t stride2) const;
   Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
                            const YuvPicture &src1,
-                           const SampleBufferConst &src2) {
+                           const SampleBufferConst &src2) const {
     return CompareSample(cu, comp, src1, src2.GetDataPtr(), src2.GetStride());
   }
-  Distortion CompareSample(YuvComponent comp, int width, int height,
+  Distortion CompareSample(const Qp &qp, YuvComponent comp,
+                           int width, int height,
                            const SampleBufferConst &src1,
-                           const SampleBufferConst &src2) {
-    return CompareSample(comp, width, height,
+                           const SampleBufferConst &src2) const {
+    return CompareSample(qp, comp, width, height,
                          src1.GetDataPtr(), src1.GetStride(),
                          src2.GetDataPtr(), src2.GetStride());
   }
-  Distortion CompareSample(YuvComponent comp, int width, int height,
+  Distortion CompareSample(const Qp &qp, YuvComponent comp,
+                           int width, int height,
                            const Sample *src1, ptrdiff_t stride1,
-                           const Sample *src2, ptrdiff_t stride2) {
-    return Compare(comp, width, height, src1, stride1, src2, stride2);
+                           const Sample *src2, ptrdiff_t stride2) const {
+    return Compare(qp, comp, width, height, src1, stride1, src2, stride2);
   }
   // Sample vs Residual
-  Distortion CompareSample(YuvComponent comp, int width, int height,
+  Distortion CompareSample(const Qp &qp, YuvComponent comp,
+                           int width, int height,
                            const ResidualBufferConst &src1,
-                           const SampleBufferConst &src2) {
-    return CompareSample(comp, width, height,
+                           const SampleBufferConst &src2) const {
+    return CompareSample(qp, comp, width, height,
                          src1.GetDataPtr(), src1.GetStride(),
                          src2.GetDataPtr(), src2.GetStride());
   }
-  Distortion CompareSample(YuvComponent comp, int width, int height,
+  Distortion CompareSample(const Qp &qp, YuvComponent comp,
+                           int width, int height,
                            const Residual *src1, ptrdiff_t stride1,
-                           const Sample *src2, ptrdiff_t stride2) {
-    return Compare(comp, width, height, src1, stride1, src2, stride2);
+                           const Sample *src2, ptrdiff_t stride2) const {
+    return Compare(qp, comp, width, height, src1, stride1, src2, stride2);
   }
   // Residual vs Residual
-  Distortion CompareShort(YuvComponent comp, int width, int height,
+  Distortion CompareShort(const Qp &qp, YuvComponent comp,
+                          int width, int height,
                           const ResidualBufferConst &src1,
-                          const ResidualBufferConst &src2) {
-    return Compare(comp, width, height, src1.GetDataPtr(), src1.GetStride(),
+                          const ResidualBufferConst &src2) const {
+    return Compare(qp, comp, width, height, src1.GetDataPtr(), src1.GetStride(),
                    src2.GetDataPtr(), src2.GetStride());
   }
-  Distortion CompareShort(YuvComponent comp, int width, int height,
+  Distortion CompareShort(const Qp &qp, YuvComponent comp,
+                          int width, int height,
                           const Residual *src1, ptrdiff_t stride1,
-                          const Residual *src2, ptrdiff_t stride2) {
-    return Compare(comp, width, height, src1, stride1, src2, stride2);
+                          const Residual *src2, ptrdiff_t stride2) const {
+    return Compare(qp, comp, width, height, src1, stride1, src2, stride2);
   }
 
 private:
   template<typename SampleT1, typename SampleT2>
-  Distortion Compare(YuvComponent comp, int width, int height,
+  Distortion Compare(const Qp &qp, YuvComponent comp, int width, int height,
                      const SampleT1 *src1, ptrdiff_t stride1,
-                     const SampleT2 *src2, ptrdiff_t stride2);
+                     const SampleT2 *src2, ptrdiff_t stride2) const;
   template<typename SampleT1, typename SampleT2>
   uint64_t ComputeSsd(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
-                      const SampleT2 *sample2, ptrdiff_t stride2);
+                      const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<bool RemoveAvg, typename SampleT1, typename SampleT2>
   uint64_t ComputeSatd(int width, int height, int offset,
                        const SampleT1 *sample1, ptrdiff_t stride1,
-                       const SampleT2 *sample2, ptrdiff_t stride2);
+                       const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<typename SampleT1, typename SampleT2>
   uint64_t ComputeSatdAcOnly(int width, int height,
                              const SampleT1 *sample1, ptrdiff_t stride1,
-                             const SampleT2 *sample2, ptrdiff_t stride2);
+                             const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<bool RemoveAvg, int W, int H, typename SampleT1, typename SampleT2>
   int ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
                      const SampleT2 *sample2, ptrdiff_t stride2,
-                     int offset);
+                     int offset) const;
   template<bool RemoveAvg, typename SampleT1, typename SampleT2>
   int ComputeSatd2x2(const SampleT1 *sample1, ptrdiff_t stride1,
                      const SampleT2 *sample2, ptrdiff_t stride2,
-                     int offset);
+                     int offset) const;
   template<int SkipLines, typename SampleT1, typename SampleT2>
   uint64_t ComputeSad(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
-                      const SampleT2 *sample2, ptrdiff_t stride2);
+                      const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<int SkipLines, typename SampleT1, typename SampleT2>
   uint64_t ComputeSadAcOnly(int width, int height,
                             const SampleT1 *sample1, ptrdiff_t stride1,
-                            const SampleT2 *sample2, ptrdiff_t stride2);
+                            const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeStructuralSsdBlock(const SampleT1 *sample1, ptrdiff_t stride1,
-                                     const SampleT2 *sample2, ptrdiff_t stride2,
-                                     int N);
+  uint64_t
+    ComputeStructuralSsdBlock(const Qp &qp, int N,
+                              const SampleT1 *sample1, ptrdiff_t stride1,
+                              const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeStructuralSsd(int width, int height,
-                                const SampleT1 *sample1, ptrdiff_t stride1,
-                                const SampleT2 *sample2, ptrdiff_t stride2);
+  uint64_t
+    ComputeStructuralSsd(const Qp &qp, int width, int height,
+                         const SampleT1 *sample1, ptrdiff_t stride1,
+                         const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<int SkipLines, typename SampleT1, typename SampleT2>
   int CalcMeanDiff(int width, int height,
                    const SampleT1 *sample1, ptrdiff_t stride1,
-                   const SampleT2 *sample2, ptrdiff_t stride2);
+                   const SampleT2 *sample2, ptrdiff_t stride2) const;
 
-  MetricType type_;
-  const Qp &qp_;
-  int bitdepth_;
+  const int bitdepth_;
+  const MetricType type_;
 };
 
 }   // namespace xvc

@@ -30,19 +30,17 @@ namespace xvc {
 
 class TzSearch {
 public:
-  TzSearch(int bitdepth, const YuvPicture &orig_pic,
-           const InterPrediction &inter_pred,
+  TzSearch(const YuvPicture &orig_pic, const InterPrediction &inter_pred,
            const EncoderSettings &encoder_settings, int search_range)
     : orig_pic_(orig_pic),
     inter_pred_(inter_pred),
     encoder_settings_(encoder_settings),
-    bitdepth_(bitdepth),
     search_range_(search_range) {
   }
-  MvFullpel Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
-                   const MotionVector &mvp, const YuvPicture &ref_pic,
-                   const MvFullpel &mv_min, const MvFullpel &mv_max,
-                   const MvFullpel &prev_search);
+  MvFullpel Search(const CodingUnit &cu, const Qp &qp,
+                   const SampleMetric &metric, const MotionVector &mvp,
+                   const YuvPicture &ref_pic, const MvFullpel &mv_min,
+                   const MvFullpel &mv_max, const MvFullpel &prev_search);
 
 private:
   using const_mv = const MvFullpel;
@@ -67,7 +65,6 @@ private:
   const YuvPicture &orig_pic_;
   const InterPrediction &inter_pred_;
   const EncoderSettings &encoder_settings_;
-  int bitdepth_;
   int search_range_;
 };
 

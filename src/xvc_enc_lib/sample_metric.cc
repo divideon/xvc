@@ -24,6 +24,8 @@
 #include <cstdlib>
 #include <limits>
 
+#include "xvc_common_lib/utils.h"
+
 #if _MSC_VER
 // Disable warning C6201: buffer overrun detection, which causes a lot of false
 // positives due to bad static bounds checking
@@ -32,9 +34,9 @@
 
 namespace xvc {
 
-Distortion
-SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &src1, const YuvPicture &src2) {
+Distortion SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
+                                       const YuvPicture &src1,
+                                       const YuvPicture &src2) const {
   const Sample *src2_ptr =
     src2.GetSamplePtr(comp, cu.GetPosX(comp), cu.GetPosY(comp));
   ptrdiff_t stride2 = src2.GetStride(comp);
@@ -44,22 +46,22 @@ SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
 Distortion
 SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &src1,
-                            const Sample *src2, ptrdiff_t stride2) {
+                            const Sample *src2, ptrdiff_t stride2) const {
   int posx = cu.GetPosX(comp);
   int posy = cu.GetPosY(comp);
   int width = cu.GetWidth(comp);
   int height = cu.GetHeight(comp);
   const Sample *src1_ptr = src1.GetSamplePtr(comp, posx, posy);
   ptrdiff_t stride1 = src1.GetStride(comp);
-  return Compare(comp, width, height, src1_ptr, stride1, src2, stride2);
+  return Compare(cu.GetQp(), comp, width, height, src1_ptr, stride1,
+                 src2, stride2);
 }
 
 template<typename SampleT1, typename SampleT2>
 Distortion
-SampleMetric::Compare(YuvComponent comp, int width, int height,
+SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
                       const SampleT1 *src1, ptrdiff_t stride1,
-                      const SampleT2 *src2, ptrdiff_t stride2) {
-  double weight = qp_.GetDistortionWeight(comp);
+                      const SampleT2 *src2, ptrdiff_t stride2) const {
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
@@ -84,20 +86,27 @@ SampleMetric::Compare(YuvComponent comp, int width, int height,
       dist = ComputeSadAcOnly<1>(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kStructuralSsd:
-      dist = ComputeStructuralSsd(width, height, src1, stride1, src2, stride2);
+      if (util::IsLuma(comp)) {
+        dist =
+          ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
+      } else {
+        dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      }
       break;
     default:
       assert(0);
       return std::numeric_limits<Distortion>::max();
       break;
   }
+  const double weight = qp.GetDistortionWeight(comp);
   return static_cast<Distortion>(dist * weight);
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSsd(int width, int height,
-                                  const SampleT1 *sample1, ptrdiff_t stride1,
-                                  const SampleT2 *sample2, ptrdiff_t stride2) {
+uint64_t
+SampleMetric::ComputeSsd(int width, int height,
+                         const SampleT1 *sample1, ptrdiff_t stride1,
+                         const SampleT2 *sample2, ptrdiff_t stride2) const {
   int shift = (2 * (bitdepth_ - 8));
   uint64_t ssd = 0;
   for (int y = 0; y < height; y++) {
@@ -113,9 +122,10 @@ uint64_t SampleMetric::ComputeSsd(int width, int height,
 }
 
 template<bool RemoveAvg, typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSatd(int width, int height, int offset,
-                                   const SampleT1 *sample1, ptrdiff_t stride1,
-                                   const SampleT2 *sample2, ptrdiff_t stride2) {
+uint64_t
+SampleMetric::ComputeSatd(int width, int height, int offset,
+                          const SampleT1 *sample1, ptrdiff_t stride1,
+                          const SampleT2 *sample2, ptrdiff_t stride2) const {
   uint64_t sad = 0;
   if (width == 2 || height == 2) {
     for (int y = 0; y < height; y += 2) {
@@ -190,7 +200,8 @@ template<typename SampleT1, typename SampleT2>
 uint64_t
 SampleMetric::ComputeSatdAcOnly(int width, int height,
                                 const SampleT1 *sample1, ptrdiff_t stride1,
-                                const SampleT2 *sample2, ptrdiff_t stride2) {
+                                const SampleT2 *sample2,
+                                ptrdiff_t stride2) const {
   const int avg =
     CalcMeanDiff<0>(width, height, sample1, stride1, sample2, stride2);
   return
@@ -200,7 +211,7 @@ SampleMetric::ComputeSatdAcOnly(int width, int height,
 template<bool RemoveAvg, int W, int H, typename SampleT1, typename SampleT2>
 int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
                                  const SampleT2 *sample2, ptrdiff_t stride2,
-                                 int offset) {
+                                 int offset) const {
   int diff[W*H], m1[H][W], m2[H][W];
   static_assert(W == 4 || W == 8 || W == 16, "Only W = 4, 8 and 16 supported");
   static_assert(H == 4 || H == 8 || H == 16, "Only H = 4, 8 and 16 supported");
@@ -440,7 +451,7 @@ int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
 template<bool RemoveAvg, typename SampleT1, typename SampleT2>
 int SampleMetric::ComputeSatd2x2(const SampleT1 *sample1, ptrdiff_t stride1,
                                  const SampleT2 *sample2, ptrdiff_t stride2,
-                                 int offset) {
+                                 int offset) const {
   int diff[2 * 2], m[2 * 2];
   diff[0] = sample1[0 + 0 * stride1] - sample2[0 + 0 * stride2];
   diff[1] = sample1[1 + 0 * stride1] - sample2[1 + 0 * stride2];
@@ -465,9 +476,10 @@ int SampleMetric::ComputeSatd2x2(const SampleT1 *sample1, ptrdiff_t stride1,
 }
 
 template<int SkipLines, typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSad(int width, int height,
-                                  const SampleT1 *sample1, ptrdiff_t stride1,
-                                  const SampleT2 *sample2, ptrdiff_t stride2) {
+uint64_t
+SampleMetric::ComputeSad(int width, int height,
+                         const SampleT1 *sample1, ptrdiff_t stride1,
+                         const SampleT2 *sample2, ptrdiff_t stride2) const {
   uint64_t sum = 0;
   for (int y = 0; y < height; y += (1 + SkipLines)) {
     for (int x = 0; x < width; x++) {
@@ -484,7 +496,8 @@ template<int SkipLines, typename SampleT1, typename SampleT2>
 uint64_t
 SampleMetric::ComputeSadAcOnly(int width, int height,
                                const SampleT1 *sample1, ptrdiff_t stride1,
-                               const SampleT2 *sample2, ptrdiff_t stride2) {
+                               const SampleT2 *sample2,
+                               ptrdiff_t stride2) const {
   const int avg =
     CalcMeanDiff<SkipLines>(width, height, sample1, stride1, sample2, stride2);
   int sum = 0;
@@ -499,10 +512,11 @@ SampleMetric::ComputeSadAcOnly(int width, int height,
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
+uint64_t SampleMetric::ComputeStructuralSsdBlock(const Qp &qp, int size,
+                                                 const SampleT1 *sample1,
                                                  ptrdiff_t stride1,
                                                  const SampleT2 *sample2,
-                                                 ptrdiff_t stride2, int size) {
+                                                 ptrdiff_t stride2) const {
   int64_t orig_sum = 0;
   int64_t reco_sum = 0;
   int64_t orig_orig_sum = 0;
@@ -513,7 +527,7 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
   const int64_t c1 = (n * n * 26634ull >> 12) << shift;
   const int64_t c2 = (n * n * 239708ull >> 12) << shift;
   const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
-  const int z = qp_.GetQpRaw(YuvComponent::kY);
+  const int z = qp.GetQpRaw(YuvComponent::kY);
   const int w = std::max(0, static_cast<int>(4 * z - 0.054 * z * z - 70));
   const int w1 = 64 - (w >> 1);
   const int w2 = 2 * w;
@@ -542,17 +556,17 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const SampleT1 *sample1,
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsd(int width, int height,
+uint64_t SampleMetric::ComputeStructuralSsd(const Qp &qp, int width, int height,
                                             const SampleT1 *sample1,
                                             ptrdiff_t stride1,
                                             const SampleT2 *sample2,
-                                            ptrdiff_t stride2) {
+                                            ptrdiff_t stride2) const {
   int size = (height < 8 || width < 8) ? 4 : 8;
   uint64_t ssim = 0;
   for (int i = 0; i < height / size; i++) {
     for (int j = 0; j < width / size; j++) {
-      ssim += ComputeStructuralSsdBlock(sample1 + size * j, stride1,
-                                        sample2 + size * j, stride2, size);
+      ssim += ComputeStructuralSsdBlock(qp, size, sample1 + size * j, stride1,
+                                        sample2 + size * j, stride2);
     }
     sample1 += size * stride1;
     sample2 += size * stride2;
@@ -564,7 +578,7 @@ template<int SkipLines, typename SampleT1, typename SampleT2>
 int
 SampleMetric::CalcMeanDiff(int width, int height,
                            const SampleT1 *sample1, ptrdiff_t stride1,
-                           const SampleT2 * sample2, ptrdiff_t stride2) {
+                           const SampleT2 * sample2, ptrdiff_t stride2) const {
   int delta_sum = 0;
   for (int y = 0; y < height; y += (1 + SkipLines)) {
     for (int x = 0; x < width; x++) {
@@ -577,18 +591,18 @@ SampleMetric::CalcMeanDiff(int width, int height,
 }
 
 template Distortion
-SampleMetric::Compare<Sample, Sample>(YuvComponent, int, int,
+SampleMetric::Compare<Sample, Sample>(const Qp&, YuvComponent, int, int,
                                       const Sample*, ptrdiff_t,
-                                      const Sample*, ptrdiff_t);
+                                      const Sample*, ptrdiff_t) const;
 
 template Distortion
-SampleMetric::Compare<Residual, Sample>(YuvComponent, int, int,
+SampleMetric::Compare<Residual, Sample>(const Qp&, YuvComponent, int, int,
                                         const Residual*, ptrdiff_t,
-                                        const Sample*, ptrdiff_t);
+                                        const Sample*, ptrdiff_t) const;
 
 template Distortion
-SampleMetric::Compare<Residual, Residual>(YuvComponent, int, int,
+SampleMetric::Compare<Residual, Residual>(const Qp&, YuvComponent, int, int,
                                           const Residual*, ptrdiff_t,
-                                          const Residual*, ptrdiff_t);
+                                          const Residual*, ptrdiff_t) const;
 
 }   // namespace xvc

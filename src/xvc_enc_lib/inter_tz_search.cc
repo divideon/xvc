@@ -29,34 +29,36 @@ namespace xvc {
 template<typename TOrig>
 class TzSearch::DistortionWrapper {
 public:
-  DistortionWrapper(MetricType metric, YuvComponent comp, const CodingUnit &cu,
-                    const Qp &qp, int bitdepth,
+  DistortionWrapper(const SampleMetric &metric, YuvComponent comp,
+                    const CodingUnit &cu, const Qp &qp,
                     const DataBuffer<const TOrig> &src1, const YuvPicture &src2)
-    : comp_(comp),
+    : metric_(metric),
+    comp_(comp),
+    qp_(qp),
     width_(cu.GetWidth(comp)),
     height_(cu.GetHeight(comp)),
     src1_(src1.GetDataPtr()),
     stride1_(src1.GetStride()),
     src2_(src2.GetSamplePtr(comp, cu.GetPosX(comp), cu.GetPosY(comp))),
-    stride2_(src2.GetStride(comp)),
-    metric_(metric, qp, bitdepth) {
+    stride2_(src2.GetStride(comp)) {
   }
 
-  Distortion GetDist(int mv_x, int mv_y) {
+  Distortion GetDist(int mv_x, int mv_y) const {
     const Sample *src2_ptr = src2_ + mv_y * stride2_ + mv_x;
-    return metric_.CompareSample(comp_, width_, height_, src1_, stride1_,
+    return metric_.CompareSample(qp_, comp_, width_, height_, src1_, stride1_,
                                  src2_ptr, stride2_);
   }
 
 private:
-  YuvComponent comp_;
-  int width_;
-  int height_;
+  const SampleMetric &metric_;
+  const YuvComponent comp_;
+  const Qp &qp_;
+  const int width_;
+  const int height_;
   const TOrig *src1_;
   const ptrdiff_t stride1_;
   const Sample *src2_;
   const ptrdiff_t stride2_;
-  SampleMetric metric_;
 };
 
 struct TzSearch::SearchState {
@@ -77,7 +79,7 @@ struct TzSearch::SearchState {
 };
 
 MvFullpel
-TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
+TzSearch::Search(const CodingUnit &cu, const Qp &qp, const SampleMetric &metric,
                  const MotionVector &mvp, const YuvPicture &ref_pic,
                  const MvFullpel &mv_min, const MvFullpel &mv_max,
                  const MvFullpel &prev_search) {
@@ -87,7 +89,7 @@ TzSearch::Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
   auto orig_buffer =
     orig_pic_.GetSampleBuffer(comp, cu.GetPosX(comp), cu.GetPosY(comp));
   DistortionWrapper<Sample> dist_wrap(metric, YuvComponent::kY, cu, qp,
-                                      bitdepth_, orig_buffer, ref_pic);
+                                      orig_buffer, ref_pic);
   SearchState state(&dist_wrap, mvp, mv_min, mv_max);
   state.mvd_downshift = cu.GetFullpelMv() ? MvDelta::kPrecisionShift : 0;
   state.lambda =
