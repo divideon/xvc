@@ -82,7 +82,8 @@ const int kMaxNumPlanes = 2;  // luma and chroma
 const int kMaxNumCuTrees = 2;
 
 // CU limits
-const int kCtuSize = 64;
+const int kCtuSizeLog2 = 6;
+const int kCtuSize = 1 << kCtuSizeLog2;
 // CU size and depth for luma
 const int kMaxCuDepth = 3;
 const int kMaxCuDepthChroma = kMaxCuDepth + 1;

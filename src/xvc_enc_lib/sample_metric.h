@@ -44,7 +44,7 @@ class SampleMetric {
 public:
   struct SimdFunc;
   SampleMetric(const SimdFunc &simd_func, int bitdepth, MetricType type)
-    : bitdepth_(bitdepth), type_(type) {
+    : simd_func_(simd_func), bitdepth_(bitdepth), type_(type) {
   }
   SampleMetric(const SampleMetric&) = delete;
   // Sample vs Sample
@@ -104,10 +104,15 @@ public:
   }
 
 private:
-  template<typename SampleT1, typename SampleT2>
   Distortion Compare(const Qp &qp, YuvComponent comp, int width, int height,
-                     const SampleT1 *src1, ptrdiff_t stride1,
-                     const SampleT2 *src2, ptrdiff_t stride2) const;
+                     const Sample *src1, ptrdiff_t stride1,
+                     const Sample *src2, ptrdiff_t stride2) const;
+  Distortion Compare(const Qp &qp, YuvComponent comp, int width, int height,
+                     const Residual *src1, ptrdiff_t stride1,
+                     const Sample *src2, ptrdiff_t stride2) const;
+  Distortion Compare(const Qp &qp, YuvComponent comp, int width, int height,
+                     const Residual *src1, ptrdiff_t stride1,
+                     const Residual *src2, ptrdiff_t stride2) const;
   template<typename SampleT1, typename SampleT2>
   uint64_t ComputeSsd(int width, int height,
                       const SampleT1 *sample1, ptrdiff_t stride1,
@@ -129,10 +134,6 @@ private:
                      const SampleT2 *sample2, ptrdiff_t stride2,
                      int offset) const;
   template<int SkipLines, typename SampleT1, typename SampleT2>
-  uint64_t ComputeSad(int width, int height,
-                      const SampleT1 *sample1, ptrdiff_t stride1,
-                      const SampleT2 *sample2, ptrdiff_t stride2) const;
-  template<int SkipLines, typename SampleT1, typename SampleT2>
   uint64_t ComputeSadAcOnly(int width, int height,
                             const SampleT1 *sample1, ptrdiff_t stride1,
                             const SampleT2 *sample2, ptrdiff_t stride2) const;
@@ -151,12 +152,21 @@ private:
                    const SampleT1 *sample1, ptrdiff_t stride1,
                    const SampleT2 *sample2, ptrdiff_t stride2) const;
 
+  const SimdFunc &simd_func_;
   const int bitdepth_;
   const MetricType type_;
 };
 
 struct SampleMetric::SimdFunc {
+  static const int kMaxSize = constants::kCtuSizeLog2 + 1;
   SimdFunc();
+
+  int(*sad_sample_sample[kMaxSize])(int width, int height,
+                                    const Sample *sample1, ptrdiff_t stride1,
+                                    const Sample *sample2, ptrdiff_t stride2);
+  int(*sad_short_sample[kMaxSize])(int width, int height,
+                                   const int16_t *sample1, ptrdiff_t stride1,
+                                   const Sample *sample2, ptrdiff_t stride2);
 };
 
 }   // namespace xvc
