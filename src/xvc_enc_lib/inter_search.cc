@@ -839,10 +839,10 @@ InterSearch::AffineGradientSearch(int width, int height,
   }
   static const int kMvdScale = 1 << MvDelta::kPrecisionShift;
   MvDelta2 mvd;
-  mvd[0].x = std::lround(kMvdScale * params[0]);
-  mvd[0].y = std::lround(kMvdScale * params[2]);
-  mvd[1].x = std::lround(kMvdScale * (params[1] * width + params[0]));
-  mvd[1].y = std::lround(kMvdScale * (-params[3] * width + params[2]));
+  mvd[0].x = ::lround(kMvdScale * params[0]);
+  mvd[0].y = ::lround(kMvdScale * params[2]);
+  mvd[1].x = ::lround(kMvdScale * (params[1] * width + params[0]));
+  mvd[1].y = ::lround(kMvdScale * (-params[3] * width + params[2]));
   return mvd;
 }
 

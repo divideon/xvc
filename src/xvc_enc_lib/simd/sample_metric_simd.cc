@@ -139,10 +139,10 @@ void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
 #if XVC_ARCH_X86
 void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
                                 xvc::EncoderSimdFunctions *simd_functions) {
+#if XVC_HIGH_BITDEPTH
   SampleMetric::SimdFunc &sm = simd_functions->sample_metric;
   // TODO(PH) Check for 16-bit samples and bitdepth <= 12
   if (caps.find(CpuCapability::kSse2) != caps.end()) {
-#if XVC_HIGH_BITDEPTH
     sm.sad_sample_sample[3] = &ComputeSad_8x2_sse2<Sample>;   // 8
     sm.sad_sample_sample[4] = &ComputeSad_8x2_sse2<Sample>;   // 16
     sm.sad_sample_sample[5] = &ComputeSad_8x2_sse2<Sample>;   // 32
@@ -151,15 +151,13 @@ void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
     sm.sad_short_sample[4] = &ComputeSad_8x2_sse2<int16_t>;   // 16
     sm.sad_short_sample[5] = &ComputeSad_8x2_sse2<int16_t>;   // 32
     sm.sad_short_sample[6] = &ComputeSad_8x2_sse2<int16_t>;   // 64
-#endif
   }
   if (caps.find(CpuCapability::kAvx2) != caps.end()) {
-#if XVC_HIGH_BITDEPTH
     sm.sad_sample_sample[4] = &ComputeSad_16x2_avx2<Sample>;   // 16
     sm.sad_sample_sample[5] = &ComputeSad_16x2_avx2<Sample>;   // 32
     sm.sad_sample_sample[6] = &ComputeSad_16x2_avx2<Sample>;   // 64
-#endif
   }
+#endif  // XVC_HIGH_BITDEPTH
 }
 #endif  // XVC_ARCH_X86
 
