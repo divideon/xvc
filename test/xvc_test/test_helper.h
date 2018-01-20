@@ -35,27 +35,27 @@ class EncoderHelper {
 protected:
   static const int kDefaultQp = 27;
 
-  void Init() {
-    encoder_ = CreateEncoder(0, 0, 8, kDefaultQp);
+  void Init(int internal_bitdepth = 8) {
+    encoder_ = CreateEncoder(0, 0, internal_bitdepth, kDefaultQp);
   }
 
   std::unique_ptr<xvc::Encoder>
-    CreateEncoder(int width, int height, int bitdepth, int qp) {
+    CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder_settings.Tune(xvc::TuneMode::kPsnr);
-    return CreateEncoder(encoder_settings, width, height, bitdepth, qp);
+    return
+      CreateEncoder(encoder_settings, width, height, internal_bitdepth, qp);
   }
 
   std::unique_ptr<xvc::Encoder>
     CreateEncoder(const xvc::EncoderSettings &encoder_settings,
-                  int width, int height, int bitdepth, int qp) {
-    std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder());
+                  int width, int height, int internal_bitdepth, int qp) {
+    std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder(internal_bitdepth));
     encoder->SetEncoderSettings(encoder_settings);
     encoder->SetResolution(width, height);
     encoder->SetChromaFormat(xvc::ChromaFormat::k420);
     encoder->SetInputBitdepth(8);
-    encoder->SetInternalBitdepth(bitdepth);
     encoder->SetSegmentLength(64);
     encoder->SetSubGopLength(1);
     encoder->SetFramerate(30);

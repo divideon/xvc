@@ -71,13 +71,14 @@ protected:
     for (int i = 0; i < static_cast<int>(input_pic_.size()); i++) {
       input_pic_[i] = i & mask;  // random yuv file
     }
-    xvc::EncoderSimdFunctions simd(xvc::SimdCpu::GetRuntimeCapabilities());
     xvc::PictureFormat internal_pic_format = segment_.GetInternalPicFormat();
     xvc::PictureFormat output_pic_format = internal_pic_format;
+    std::set<xvc::CpuCapability> caps = xvc::SimdCpu::GetRuntimeCapabilities();
+    simd_.reset(new xvc::EncoderSimdFunctions(caps, internal_bitdepth));
     pic_encoder_ =
-      std::make_shared<xvc::PictureEncoder>(simd, internal_pic_format);
+      std::make_shared<xvc::PictureEncoder>(*simd_, internal_pic_format);
     pic_decoder_ =
-      std::make_shared<xvc::PictureDecoder>(simd, internal_pic_format,
+      std::make_shared<xvc::PictureDecoder>(*simd_, internal_pic_format,
                                             output_pic_format);
   }
 
@@ -122,6 +123,7 @@ protected:
   int input_bitdepth_ = 8;
   xvc::SegmentHeader segment_;
   std::array<xvc::Sample, kPicWidth * kPicHeight * 3> input_pic_;
+  std::unique_ptr<xvc::EncoderSimdFunctions> simd_;
   std::shared_ptr<xvc::PictureEncoder> pic_encoder_;
   std::shared_ptr<xvc::PictureDecoder> pic_decoder_;
 };

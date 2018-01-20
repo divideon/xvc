@@ -225,7 +225,7 @@ extern "C" {
     if (xvc_enc_parameters_check(param) != XVC_ENC_OK) {
       return nullptr;
     }
-    xvc::Encoder *encoder = new xvc::Encoder();
+    xvc::Encoder *encoder = new xvc::Encoder(param->internal_bitdepth);
     xvc_enc_set_encoder_settings(encoder, param);
 
     encoder->SetCpuCapabilities(xvc::SimdCpu::GetMaskedCaps(param->simd_mask));
@@ -233,7 +233,6 @@ extern "C" {
     encoder->SetChromaFormat(xvc::ChromaFormat(param->chroma_format));
     encoder->SetColorMatrix(xvc::ColorMatrix(param->color_matrix));
     encoder->SetInputBitdepth(param->input_bitdepth);
-    encoder->SetInternalBitdepth(param->internal_bitdepth);
     encoder->SetFramerate(param->framerate);
     if (param->chroma_qp_offset_table >= 0) {
       encoder->SetChromaQpOffsetTable(param->chroma_qp_offset_table);

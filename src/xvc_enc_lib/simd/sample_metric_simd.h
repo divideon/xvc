@@ -32,6 +32,7 @@ namespace simd {
 
 struct SampleMetricSimd {
   static void Register(const std::set<CpuCapability> &caps,
+                       int internal_bitdepth,
                        xvc::EncoderSimdFunctions *simd);
 };
 

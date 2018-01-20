@@ -24,11 +24,12 @@
 
 namespace xvc {
 
-EncoderSimdFunctions::EncoderSimdFunctions(const std::set<CpuCapability> &caps)
+EncoderSimdFunctions::EncoderSimdFunctions(const std::set<CpuCapability> &caps,
+                                           int internal_bitdepth)
   : SimdFunctions(caps),
   sample_metric() {
 #if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
-  simd::SampleMetricSimd::Register(caps, this);
+  simd::SampleMetricSimd::Register(caps, internal_bitdepth, this);
 #endif
 }
 

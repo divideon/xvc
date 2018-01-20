@@ -35,8 +35,7 @@ class SimdTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void Encode(int width, int height, int frames, bool use_simd) {
-    EncoderHelper::Init();
-    encoder_->SetInternalBitdepth(GetParam());
+    EncoderHelper::Init(GetParam());
     encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSegmentLength);
     encoder_->SetQp(kQp);

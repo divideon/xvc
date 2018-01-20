@@ -28,7 +28,8 @@
 namespace xvc {
 
 struct EncoderSimdFunctions : public SimdFunctions {
-  explicit EncoderSimdFunctions(const std::set<CpuCapability> &capabilities);
+  explicit EncoderSimdFunctions(const std::set<CpuCapability> &capabilities,
+                                int internal_bitdepth);
 
   SampleMetric::SimdFunc sample_metric;
 };

@@ -40,7 +40,7 @@ namespace xvc {
 
 class Encoder : public xvc_encoder {
 public:
-  Encoder();
+  explicit Encoder(int internal_bitdepth);
   int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
              bool output_rec, xvc_enc_pic_buffer *rec_pic);
   int Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
@@ -50,7 +50,8 @@ public:
   }
 
   void SetCpuCapabilities(std::set<CpuCapability> capabilities) {
-    simd_ = EncoderSimdFunctions(capabilities);
+    simd_ = EncoderSimdFunctions(capabilities,
+                                 segment_header_->internal_bitdepth);
   }
   void SetResolution(int width, int height) {
     segment_header_->SetWidth(width);
@@ -67,9 +68,6 @@ public:
     segment_header_->num_ref_pics = num;
   }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
-  void SetInternalBitdepth(int bitdepth) {
-    segment_header_->internal_bitdepth = bitdepth;
-  }
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
     segment_header_->max_sub_gop_length = sub_gop_length;

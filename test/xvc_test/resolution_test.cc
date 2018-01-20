@@ -33,9 +33,8 @@ class ResolutionTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void SetUp() override {
-    EncoderHelper::Init();
+    EncoderHelper::Init(GetParam());
     DecoderHelper::Init();
-    encoder_->SetInternalBitdepth(GetParam());
     encoder_->SetSubGopLength(1);
     encoder_->SetQp(kQp);
   }

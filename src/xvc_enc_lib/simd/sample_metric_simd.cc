@@ -135,16 +135,9 @@ static int ComputeSad_16x2_avx2(int width, int height,
 #endif
 #endif  // XVC_ARCH_X86
 
-#ifdef XVC_ARCH_ARM
-void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
-                                xvc::EncoderSimdFunctions *simd_functions) {
-#ifdef XVC_HAVE_NEON
-#endif  // XVC_HAVE_NEON
-}
-#endif  // XVC_ARCH_ARM
-
 #ifdef XVC_ARCH_X86
 void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
+                                int internal_bitdepth,
                                 xvc::EncoderSimdFunctions *simd_functions) {
 #if XVC_HIGH_BITDEPTH
   SampleMetric::SimdFunc &sm = simd_functions->sample_metric;
@@ -170,8 +163,18 @@ void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
 }
 #endif  // XVC_ARCH_X86
 
+#ifdef XVC_ARCH_ARM
+void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
+                                int internal_bitdepth,
+                                xvc::EncoderSimdFunctions *simd_functions) {
+#ifdef XVC_HAVE_NEON
+#endif  // XVC_HAVE_NEON
+}
+#endif  // XVC_ARCH_ARM
+
 #ifdef XVC_ARCH_MIPS
 void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
+                                int internal_bitdepth,
                                 xvc::EncoderSimdFunctions *simd_functions) {
 }
 #endif  // XVC_ARCH_MIPS

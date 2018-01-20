@@ -37,8 +37,7 @@ protected:
 
   void Encode(const xvc::EncoderSettings &settings, int width, int height,
               int frames) {
-    encoder_ = CreateEncoder(settings, width, height, 8, kDefaultQp);
-    encoder_->SetInternalBitdepth(GetParam());
+    encoder_ = CreateEncoder(settings, width, height, GetParam(), kDefaultQp);
     encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSubGopLength * 2 + 1);
     encoder_->SetQp(kDefaultQp);
