@@ -161,6 +161,17 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
   set(cxx_strict_flags -Werror -Wextra -Wunused -Wold-style-cast -Wlogical-op -Wpointer-arith
         -Wno-unused-parameter -Wno-missing-field-initializers)
   list(APPEND simd_cxx_flags "-Wno-psabi")
+  if(ENABLE_ASSEMBLY AND XVC_TARGET_ARCH STREQUAL "x86" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    # gcc 4.8 and earlier will not define x86 intrinsics without corresponding -msse2 specified
+    if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+      # Force minimum SSE2 for 32-bit (if assembly is enabled) in order to define __m128i
+      # this is safe for the SIMD code since we still have runtime code that check for CPU support
+      list(APPEND simd_cxx_flags "-msse" "-msse2")
+    endif()
+    if(NOT CMAKE_CXX_FLAGS MATCHES "mavx2" AND NOT CMAKE_CXX_FLAGS MATCHES "-march=core-avx2")
+      message(WARNING "Building without any AVX2 support, force enable by adding \"-DCMAKE_CXX_FLAGS=-mavx2\" to cmake")
+    endif()
+  endif()
   if(XVC_HAVE_NEON)
     list(APPEND simd_cxx_flags "-mfpu=neon")
   endif()

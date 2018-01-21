@@ -18,12 +18,12 @@
 
 #include "xvc_common_lib/simd/inter_prediction_simd.h"
 
-#if XVC_ARCH_X86
-#include <emmintrin.h>
-#endif
-#if XVC_HAVE_NEON
+#ifdef XVC_ARCH_X86
+#include <emmintrin.h>  // SSE2
+#endif  // XVC_ARCH_X86
+#ifdef XVC_HAVE_NEON
 #include <arm_neon.h>
-#endif
+#endif  // XVC_HAVE_NEON
 
 #include <type_traits>
 
@@ -32,12 +32,12 @@
 
 #ifdef _MSC_VER
 #define __attribute__(SPEC)
-#endif
+#endif  // _MSC_VER
 
 #ifdef XVC_ARCH_X86
 // Formatting helper
 #define CAST_M128_CONST(VAL) reinterpret_cast<const __m128i*>((VAL))
-#endif
+#endif  // XVC_ARCH_X86
 
 namespace xvc {
 namespace simd {
@@ -46,12 +46,59 @@ constexpr int kBin8_01_00_11_10 = (1 << 6) | (0 << 4) | (3 << 2) | (2 << 0);
 constexpr int kBin8_10_11_00_01 = (2 << 6) | (3 << 4) | (0 << 2) | (1 << 0);
 constexpr int kBin8_11_01_10_00 = (3 << 6) | (1 << 4) | (2 << 2) | (0 << 0);
 
-#if XVC_ARCH_X86 || XVC_HAVE_NEON
+#if defined(XVC_ARCH_X86) || defined(XVC_HAVE_NEON)
 constexpr int Width8(int width) { return width & ~7; }
 constexpr int Width4(int width) { return width & 7; }
 #endif
 
-#if XVC_ARCH_X86
+#if !XVC_HIGH_BITDEPTH
+template<bool Clip, typename SrcT, typename DstT>
+static inline void
+FilterHorChroma2Pel_c(int pos_x, int offset, const int16_t *filter,
+                      int shift, int bitdepth, const SrcT *src, DstT *dst) {
+  // Non-vector code for handling of non 4-byte aligned stores
+  // This only occurs for non high bitdepth builds and when width is 2
+  for (int x = 0; x < 2; x++) {
+    int sum = 0;
+    sum += src[pos_x + x + 0] * filter[0];
+    sum += src[pos_x + x + 1] * filter[1];
+    sum += src[pos_x + x + 2] * filter[2];
+    sum += src[pos_x + x + 3] * filter[3];
+    const int val = (sum + offset) >> shift;
+    if (Clip) {
+      dst[pos_x + x] = util::ClipBD(val, (1 << bitdepth) - 1);
+    } else {
+      dst[pos_x + x] = static_cast<DstT>(val);
+    }
+  }
+}
+#endif  // !XVC_HIGH_BITDEPTH
+
+#if !XVC_HIGH_BITDEPTH
+template<bool Clip, typename SrcT, typename DstT>
+static inline
+void FilterVerChroma2Pel_c(int offset, const int16_t *filter, int shift,
+                           int bitdepth, const SrcT *src, intptr_t src_stride,
+                           DstT *dst) {
+  // Non-vector code for handling of non 4-byte aligned stores
+  // This only occurs for non high bitdepth builds and when width is 2
+  for (int x = 0; x < 2; x++) {
+    int sum = 0;
+    sum += src[x + 0 * src_stride] * filter[0];
+    sum += src[x + 1 * src_stride] * filter[1];
+    sum += src[x + 2 * src_stride] * filter[2];
+    sum += src[x + 3 * src_stride] * filter[3];
+    const int val = (sum + offset) >> shift;
+    if (Clip) {
+      dst[x] = util::ClipBD(val, (1 << bitdepth) - 1);
+    } else {
+      dst[x] = static_cast<DstT>(val);
+    }
+  }
+}
+#endif  // !XVC_HIGH_BITDEPTH
+
+#ifdef XVC_ARCH_X86
 __attribute__((target("sse2")))
 static void AddAvgSse2(int width, int height,
                        int offset, int shift, int bitdepth,
@@ -98,7 +145,7 @@ static void AddAvgSse2(int width, int height,
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 static void AddAvgNeon(int width, int height,
                        int offset, int shift, int bitdepth,
                        const int16_t *src1, intptr_t stride1,
@@ -147,7 +194,7 @@ static void AddAvgNeon(int width, int height,
 }
 #endif  // XVC_HAVE_NEON
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 __attribute__((target("sse2")))
 static void FilterCopyBipredSse2(int width, int height,
                                  int16_t offset, int shift,
@@ -181,9 +228,9 @@ static void FilterCopyBipredSse2(int width, int height,
     dst += dst_stride;
   }
 }
-#endif  // #if XVC_ARCH_X86
+#endif  // XVC_ARCH_X86
 
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 static void FilterCopyBipredNeon(int width, int height,
                                  int16_t offset, int shift,
                                  const Sample *ref, ptrdiff_t ref_stride,
@@ -220,7 +267,7 @@ static void FilterCopyBipredNeon(int width, int height,
 }
 #endif
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 template<typename DstT, bool Clip>
 __attribute__((target("sse2")))
 static
@@ -313,7 +360,7 @@ void FilterHorSampleTLumaSse2(int width, int height, int bitdepth,
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 template<typename DstT, bool Clip>
 static
 void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
@@ -430,7 +477,7 @@ void FilterHorSampleTLumaNeon(int width, int height, int bitdepth,
 }
 #endif  // XVC_HAVE_NEON
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 template<typename DstT, bool Clip>
 __attribute__((target("sse2")))
 static
@@ -496,40 +543,31 @@ void FilterHorSampleTChromaSse2(int width, int height, int bitdepth,
     }
 #if XVC_HIGH_BITDEPTH
     if (Width4(width)) {
-#else
-    if (width & 4) {
-#endif
       __m128i sum_abcd = fir_4samples_epi32(src + width8);
       __m128i sum = _mm_packs_epi32(sum_abcd, sum_abcd);
       if (Clip) {
-#if XVC_HIGH_BITDEPTH
         __m128i out = _mm_max_epi16(min, _mm_min_epi16(sum, max));
         _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + width8), out);
-#else
-        __m128i out = _mm_packus_epi16(sum, sum);
-        *reinterpret_cast<int32_t*>(dst + width8) = _mm_cvtsi128_si32(out);
-#endif
       } else {
         _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + width8), sum);
       }
     }
-#if !XVC_HIGH_BITDEPTH
-    // Special handling of non 4-byte aligned stores
-    // This happens for non high bitdepth builds and when CU width is 2
-    if (width & 2) {
-      const int width2 = width & ~2;
-      for (int x = 0; x < 2; x++) {
-        int sum = src[width2 + x + 0] * filter[0];
-        sum += src[width2 + x + 1] * filter[1];
-        sum += src[width2 + x + 2] * filter[2];
-        sum += src[width2 + x + 3] * filter[3];
-        if (Clip) {
-          dst[width2 + x] =
-            util::ClipBD((sum + offset) >> shift, (1 << bitdepth) - 1);
-        } else {
-          dst[width2 + x] = static_cast<DstT>((sum + offset) >> shift);
-        }
+#else
+    if (width & 4) {
+      __m128i sum_abcd = fir_4samples_epi32(src + width8);
+      __m128i sum = _mm_packs_epi32(sum_abcd, sum_abcd);
+      if (Clip) {
+        // 4 * 8-bits
+        __m128i out = _mm_packus_epi16(sum, sum);
+        *reinterpret_cast<int32_t*>(dst + width8) = _mm_cvtsi128_si32(out);
+      } else {
+        // 4 * 16-bits
+        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + width8), sum);
       }
+    }
+    if (width & 2) {
+      FilterHorChroma2Pel_c<Clip>(width & ~2, offset, filter, shift,
+                                  bitdepth, src, dst);
     }
 #endif
     src += src_stride;
@@ -538,7 +576,7 @@ void FilterHorSampleTChromaSse2(int width, int height, int bitdepth,
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 template<typename DstT, bool Clip>
 static
 void FilterHorSampleTChromaNeon(int width, int height, int bitdepth,
@@ -603,7 +641,11 @@ void FilterHorSampleTChromaNeon(int width, int height, int bitdepth,
         vst1q_s16(reinterpret_cast<int16_t*>(dst + x), sum);
       }
     }
+#if XVC_HIGH_BITDEPTH
     if (Width4(width)) {
+#else
+    if (width & 4) {
+#endif
       auto fir_2samples_s32 = [&vfilter](int16x4_t vref_a, int16x4_t vref_b) {
         int32x4_t prod_a = vmull_s16(vref_a, vfilter);
         int32x4_t prod_b = vmull_s16(vref_b, vfilter);
@@ -642,13 +684,21 @@ void FilterHorSampleTChromaNeon(int width, int height, int bitdepth,
         vst1_s16(reinterpret_cast<int16_t*>(dst + width8), sum);
       }
     }
+#if !XVC_HIGH_BITDEPTH
+    // Special handling of non 4-byte aligned stores
+    // This happens for non high bitdepth builds and when CU width is 2
+    if (width & 2) {
+      FilterHorChroma2Pel_c<Clip>(width & ~2, offset, filter, shift,
+                                  bitdepth, src, dst);
+    }
+#endif
     src += src_stride;
     dst += dst_stride;
   }
 }
 #endif  // XVC_HAVE_NEON
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 template<typename SrcT, typename DstT, bool Clip>
 __attribute__((target("sse2")))
 static
@@ -767,7 +817,7 @@ void FilterVerLumaSse2(int width, int height, int bitdepth,
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 template<typename SrcT, typename DstT, bool Clip>
 static
 void FilterVerLumaNeon(int width, int height, int bitdepth,
@@ -878,7 +928,7 @@ void FilterVerLumaNeon(int width, int height, int bitdepth,
 }
 #endif  // XVC_HAVE_NEON
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 template<typename SrcT, typename DstT, bool Clip>
 __attribute__((target("sse2")))
 static
@@ -980,24 +1030,11 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
     }
 #if !XVC_HIGH_BITDEPTH
     if (width & 2) {
-      // Special handling of non 4-byte aligned stores
-      // This happens for non high bitdepth builds and when CU width is 2
       for (int y2 = 0; y2 < 4; y2++) {
-        for (int x2 = 0; x2 < 2; x2++) {
-          int sum = 0;
-          sum += src[width_reduced + x2 + (y2 + 0) * src_stride] * filter[0];
-          sum += src[width_reduced + x2 + (y2 + 1) * src_stride] * filter[1];
-          sum += src[width_reduced + x2 + (y2 + 2) * src_stride] * filter[2];
-          sum += src[width_reduced + x2 + (y2 + 3) * src_stride] * filter[3];
-          int val = (sum + offset) >> shift;
-          if (Clip) {
-            dst[y2 * dst_stride + width_reduced + x2] =
-              util::ClipBD(val, (1 << bitdepth) - 1);
-          } else {
-            dst[y2 * dst_stride + width_reduced + x2] =
-              static_cast<DstT>(val);
-          }
-        }
+        FilterVerChroma2Pel_c<Clip>(offset, filter, shift, bitdepth,
+                                    src + width_reduced + y2 * src_stride,
+                                    src_stride,
+                                    dst + width_reduced + y2 * dst_stride);
       }
     }
 #endif
@@ -1038,24 +1075,11 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
     }
 #if !XVC_HIGH_BITDEPTH
     if (width & 2) {
-      // Special handling of non 4-byte aligned stores
-      // This happens for non high bitdepth builds and when CU width is 2
       for (int y2 = 0; y2 < 2; y2++) {
-        for (int x2 = 0; x2 < 2; x2++) {
-          int sum = 0;
-          sum += src[width_reduced + x2 + (y2 + 0) * src_stride] * filter[0];
-          sum += src[width_reduced + x2 + (y2 + 1) * src_stride] * filter[1];
-          sum += src[width_reduced + x2 + (y2 + 2) * src_stride] * filter[2];
-          sum += src[width_reduced + x2 + (y2 + 3) * src_stride] * filter[3];
-          int val = (sum + offset) >> shift;
-          if (Clip) {
-            dst[y2 * dst_stride + width_reduced + x2] =
-              util::ClipBD(val, (1 << bitdepth) - 1);
-          } else {
-            dst[y2 * dst_stride + width_reduced + x2] =
-              static_cast<DstT>(val);
-          }
-        }
+        FilterVerChroma2Pel_c<Clip>(offset, filter, shift, bitdepth,
+                                    src + width_reduced + y2 * src_stride,
+                                    src_stride,
+                                    dst + width_reduced + y2 * dst_stride);
       }
     }
 #endif
@@ -1063,7 +1087,7 @@ void FilterVerChromaSse2(int width, int height, int bitdepth,
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 template<typename SrcT, typename DstT, bool Clip>
 static
 void FilterVerChromaNeon(int width, int height, int bitdepth,
@@ -1104,11 +1128,16 @@ void FilterVerChromaNeon(int width, int height, int bitdepth,
     int32x4_t sum0 = vshlq_s32(sum0_offset, vshift);
     return vqmovn_s32(sum0);
   };
+#if XVC_HIGH_BITDEPTH
+  const int width_reduced = width;
+#else
+  const int width_reduced = width & ~3;
+#endif
 
   src -= (InterPrediction::kNumTapsChroma / 2 - 1) * src_stride;
 
   for (int y = 0; y < height4; y += 4) {
-    for (int x = 0; x < width; x += 4) {
+    for (int x = 0; x < width_reduced; x += 4) {
       int16x4_t row0 = load_row_int16x4(src + x + 0 * src_stride);
       int16x4_t row1 = load_row_int16x4(src + x + 1 * src_stride);
       int16x4_t row2 = load_row_int16x4(src + x + 2 * src_stride);
@@ -1155,11 +1184,21 @@ void FilterVerChromaNeon(int width, int height, int bitdepth,
                       out23, 1);
       }
     }
+#if !XVC_HIGH_BITDEPTH
+    if (width & 2) {
+      for (int y2 = 0; y2 < 4; y2++) {
+        FilterVerChroma2Pel_c<Clip>(offset, filter, shift, bitdepth,
+                                    src + width_reduced + y2 * src_stride,
+                                    src_stride,
+                                    dst + width_reduced + y2 * dst_stride);
+      }
+    }
+#endif
     src += src_stride * 4;
     dst += dst_stride * 4;
   }
-  if (height & 3) {
-    for (int x = 0; x < width; x += 4) {
+  if (height & 2) {
+    for (int x = 0; x < width_reduced; x += 4) {
       int16x4_t row0 = load_row_int16x4(src + x + 0 * src_stride);
       int16x4_t row1 = load_row_int16x4(src + x + 1 * src_stride);
       int16x4_t row2 = load_row_int16x4(src + x + 2 * src_stride);
@@ -1188,14 +1227,24 @@ void FilterVerChromaNeon(int width, int height, int bitdepth,
                       out01, 1);
       }
     }
+#if !XVC_HIGH_BITDEPTH
+    if (width & 2) {
+      for (int y2 = 0; y2 < 2; y2++) {
+        FilterVerChroma2Pel_c<Clip>(offset, filter, shift, bitdepth,
+                                    src + width_reduced + y2 * src_stride,
+                                    src_stride,
+                                    dst + width_reduced + y2 * dst_stride);
+      }
+    }
+#endif
   }
 }
 #endif  // XVC_HAVE_NEON
 
-#if XVC_ARCH_ARM
+#ifdef XVC_ARCH_ARM
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd_functions) {
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
   auto &ip = simd_functions->inter_prediction;
   if (caps.find(CpuCapability::kNeon) != caps.end()) {
     ip.add_avg[1] = &AddAvgNeon;
@@ -1217,7 +1266,7 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
 }
 #endif  // XVC_ARCH_ARM
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd_functions) {
   auto &ip = simd_functions->inter_prediction;
@@ -1240,7 +1289,7 @@ void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_ARCH_MIPS
+#ifdef XVC_ARCH_MIPS
 void InterPredictionSimd::Register(const std::set<CpuCapability> &caps,
                                    xvc::SimdFunctions *simd_functions) {
 }

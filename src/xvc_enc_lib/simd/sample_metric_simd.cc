@@ -18,10 +18,17 @@
 
 #include "xvc_enc_lib/simd/sample_metric_simd.h"
 
-#if XVC_ARCH_X86
-#include <emmintrin.h>    // SSE2
-#include <immintrin.h>    // AVX2
+#ifdef XVC_ARCH_X86
+#if __GNUC__  == 4 && __GNUC_MINOR__  <= 8 && not defined(__AVX2__)
+#define USE_AVX2 0  // gcc 4.8 requires -mavx2 before defining __m256i
+#else
+#define USE_AVX2 1
 #endif
+#endif  // XVC_ARCH_X86
+
+#ifdef XVC_ARCH_X86
+#include <immintrin.h>    // AVX2
+#endif  // XVC_ARCH_X86
 
 #include <type_traits>
 
@@ -30,12 +37,12 @@
 
 #ifdef _MSC_VER
 #define __attribute__(SPEC)
-#endif
+#endif  // _MSC_VER
 
 #ifdef XVC_ARCH_X86
 #define CAST_M128i_CONST(VAL) reinterpret_cast<const __m128i*>((VAL))
 #define CAST_M256i_CONST(VAL) reinterpret_cast<const __m256i*>((VAL))
-#endif
+#endif  // XVC_ARCH_X86
 
 static const std::array<int16_t, 16> kOnes16bit = { {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
@@ -44,7 +51,7 @@ static const std::array<int16_t, 16> kOnes16bit = { {
 namespace xvc {
 namespace simd {
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 #if XVC_HIGH_BITDEPTH
 template<typename SampleT1>
 __attribute__((target("sse2")))
@@ -84,10 +91,10 @@ static int ComputeSad_8x2_sse2(int width, int height,
   return _mm_cvtsi128_si32(out);
 }
 #endif
-#endif
+#endif  // XVC_ARCH_X86
 
-#if XVC_ARCH_X86
-#if XVC_HIGH_BITDEPTH
+#ifdef XVC_ARCH_X86
+#if USE_AVX2 && XVC_HIGH_BITDEPTH
 template<typename SampleT1>
 __attribute__((target("avx2")))
 static int ComputeSad_16x2_avx2(int width, int height,
@@ -126,17 +133,17 @@ static int ComputeSad_16x2_avx2(int width, int height,
     _mm_cvtsi128_si32(_mm256_castsi256_si128(sum_hi));
 }
 #endif
-#endif
+#endif  // XVC_ARCH_X86
 
-#if XVC_ARCH_ARM
+#ifdef XVC_ARCH_ARM
 void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
                                 xvc::EncoderSimdFunctions *simd_functions) {
-#if XVC_HAVE_NEON
+#ifdef XVC_HAVE_NEON
 #endif  // XVC_HAVE_NEON
 }
 #endif  // XVC_ARCH_ARM
 
-#if XVC_ARCH_X86
+#ifdef XVC_ARCH_X86
 void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
                                 xvc::EncoderSimdFunctions *simd_functions) {
 #if XVC_HIGH_BITDEPTH
@@ -152,16 +159,18 @@ void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
     sm.sad_short_sample[5] = &ComputeSad_8x2_sse2<int16_t>;   // 32
     sm.sad_short_sample[6] = &ComputeSad_8x2_sse2<int16_t>;   // 64
   }
+#if USE_AVX2
   if (caps.find(CpuCapability::kAvx2) != caps.end()) {
     sm.sad_sample_sample[4] = &ComputeSad_16x2_avx2<Sample>;   // 16
     sm.sad_sample_sample[5] = &ComputeSad_16x2_avx2<Sample>;   // 32
     sm.sad_sample_sample[6] = &ComputeSad_16x2_avx2<Sample>;   // 64
   }
-#endif  // XVC_HIGH_BITDEPTH
+#endif
+#endif
 }
 #endif  // XVC_ARCH_X86
 
-#if XVC_ARCH_MIPS
+#ifdef XVC_ARCH_MIPS
 void SampleMetricSimd::Register(const std::set<CpuCapability> &caps,
                                 xvc::EncoderSimdFunctions *simd_functions) {
 }
