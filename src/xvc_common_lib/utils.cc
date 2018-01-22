@@ -63,7 +63,7 @@ int GetChromaShiftX(ChromaFormat chroma_format) {
     case ChromaFormat::k444:
       return 0;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;
@@ -85,7 +85,7 @@ int GetChromaShiftY(ChromaFormat chroma_format) {
     case ChromaFormat::k444:
       return 0;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;
@@ -110,7 +110,7 @@ int ScaleChromaX(int size, ChromaFormat chroma_format) {
     case ChromaFormat::kArgb:
       return size;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;
@@ -135,7 +135,7 @@ int ScaleChromaY(int size, ChromaFormat chroma_format) {
     case ChromaFormat::kArgb:
       return size;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;

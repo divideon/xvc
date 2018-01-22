@@ -26,6 +26,293 @@
 
 namespace xvc {
 
+void Resampler::Convert(const YuvPicture &src_pic,
+                        std::vector<uint8_t> *out_bytes) {
+  const int src_pic_width = src_pic.GetWidth(YuvComponent::kY);
+  const int src_pic_height = src_pic.GetWidth(YuvComponent::kY);
+  const int src_bitdepth = src_pic.GetBitdepth();
+  const ChromaFormat src_chroma_fmt = src_pic.GetChromaFormat();
+  if (src_pic_width == 0 || src_pic_height == 0) {
+    out_bytes->clear();
+    return;
+  }
+  int num_samples_out =
+    util::GetTotalNumSamples(out_fmt_.width, out_fmt_.height,
+                             out_fmt_.chroma_format);
+  int num_components_out = util::GetNumComponents(out_fmt_.chroma_format);
+  int dst_bitdepth = out_fmt_.bitdepth;
+  size_t pic_bytes = num_samples_out * (dst_bitdepth > 8 ? 2 : 1);
+  out_bytes->resize(pic_bytes);
+  if (out_fmt_.chroma_format == ChromaFormat::kArgb) {
+    dst_bitdepth = kColorConversionBitdepth;
+    pic_bytes = num_samples_out * (dst_bitdepth > 8 ? 2 : 1);
+  }
+
+  uint8_t *out8 = &(*out_bytes)[0];
+  uint16_t *out16 = reinterpret_cast<uint16_t*>(out8);
+  if (out_fmt_.chroma_format == ChromaFormat::kArgb) {
+    if (tmp_bytes_.size() < pic_bytes) {
+      tmp_bytes_.resize(pic_bytes);
+    }
+    out8 = &tmp_bytes_[0];
+    out16 = reinterpret_cast<uint16_t*>(&tmp_bytes_[0]);
+  }
+
+  if (out_fmt_.width != src_pic_width ||
+      out_fmt_.height != src_pic_height ||
+      (out_fmt_.chroma_format != src_chroma_fmt &&
+       out_fmt_.chroma_format != ChromaFormat::kMonochrome)) {
+    // Resampling is performed if resolution or chroma format is different
+    const int sample_size = (dst_bitdepth > 8 ? 2 : 1);
+    for (int c = 0; c < num_components_out; c++) {
+      const YuvComponent comp = YuvComponent(c);
+      const Sample *src_sample = src_pic.GetSamplePtr(comp, 0, 0);
+      const uint8_t *src8 = reinterpret_cast<const uint8_t*>(src_sample);
+      const int dst_width =
+        util::ScaleSizeX(out_fmt_.width, out_fmt_.chroma_format, comp);
+      const int dst_height =
+        util::ScaleSizeY(out_fmt_.height, out_fmt_.chroma_format, comp);
+      if (c < util::GetNumComponents(src_chroma_fmt)) {
+        const int src_width = src_pic.GetWidth(comp);
+        const int src_height = src_pic.GetHeight(comp);
+        const ptrdiff_t src_stride = src_pic.GetStride(comp);
+        const ptrdiff_t dst_stride = dst_width;
+        if (dst_width == src_width && dst_height == src_height) {
+          CopyWithShift(out8, src_width, src_height, src_stride,
+                        dst_bitdepth, src_sample, src_bitdepth,
+                        out_fmt_.dither);
+        } else if (comp != YuvComponent::kY &&
+                   dst_width == 2 * src_width &&
+                   dst_height == 2 * src_height) {
+          if (dst_bitdepth > 8) {
+            resample::BilinearResample<Sample, uint16_t>
+              (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
+               src8, src_width, src_height, src_stride, src_bitdepth);
+          } else {
+            resample::BilinearResample<Sample, uint8_t>
+              (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
+               src8, src_width, src_height, src_stride, src_bitdepth);
+          }
+        } else if (dst_bitdepth > 8) {
+          resample::Resample<Sample, uint16_t>
+            (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
+             src8, src_width, src_height, src_stride, src_bitdepth);
+        } else {
+          resample::Resample<Sample, uint8_t>
+            (out8, dst_width, dst_height, dst_stride, dst_bitdepth,
+             src8, src_width, src_height, src_stride, src_bitdepth);
+        }
+      } else {
+        // When monochrome is converted to a chroma format with chroma
+        // components, all chroma samples are set to same value
+        std::memset(out8, 1 << (out_fmt_.bitdepth - 1),
+                    dst_width * dst_height * sample_size);
+      }
+      out8 += dst_width * dst_height * sample_size;
+    }
+    if (out_fmt_.chroma_format == ChromaFormat::kArgb) {
+      if (out_fmt_.bitdepth > 8) {
+        ConvertColorSpace<uint16_t>(&(*out_bytes)[0], out_fmt_.width,
+                                    out_fmt_.height, out16, out_fmt_.bitdepth,
+                                    out_fmt_.color_matrix);
+      } else {
+        if (out_fmt_.color_matrix == ColorMatrix::kUndefined ||
+            out_fmt_.color_matrix == ColorMatrix::k709) {
+          ConvertColorSpace8bit709(&(*out_bytes)[0], out_fmt_.width,
+                                   out_fmt_.height, out16);
+        } else {
+          ConvertColorSpace<uint8_t>(&(*out_bytes)[0], out_fmt_.width,
+                                     out_fmt_.height, out16, out_fmt_.bitdepth,
+                                     out_fmt_.color_matrix);
+        }
+      }
+    }
+  } else {
+    // Basic conversion or copy without resolution or color space change
+    for (int c = 0; c < num_components_out; c++) {
+      const YuvComponent comp = YuvComponent(c);
+      const int src_width = src_pic.GetWidth(comp);
+      const int src_height = src_pic.GetHeight(comp);
+      const Sample *src = src_pic.GetSamplePtr(comp, 0, 0);
+      const ptrdiff_t src_stride = src_pic.GetStride(comp);
+      out8 = CopyWithShift(out8, src_width, src_height, src_stride,
+                           out_fmt_.bitdepth, src, src_bitdepth,
+                           out_fmt_.dither);
+    }
+  }
+}
+
+uint8_t* Resampler::CopyWithShift(uint8_t *out8, int width, int height,
+                                  ptrdiff_t stride, int out_bitdepth,
+                                  const Sample *src, int bitdepth,
+                                  int dither) const {
+  if (out_bitdepth > 8) {
+    uint16_t *out16 = reinterpret_cast<uint16_t*>(out8);
+    if (out_bitdepth == bitdepth) {
+      for (int y = 0; y < height; y++) {
+        memcpy(out16, src, width * sizeof(Sample));
+        out16 += width;
+        src += stride;
+      }
+    } else if (out_bitdepth > bitdepth) {
+      int bit_shift = out_bitdepth - bitdepth;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          *out16++ = src[x] << bit_shift;
+        }
+        src += stride;
+      }
+    } else {
+      int bit_shift = bitdepth - out_bitdepth;
+      Sample sample_max = (1 << out_bitdepth) - 1;
+      if (dither) {
+        int d = 0;
+        int mask = (1 << bit_shift) - 1;
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            d += src[x];
+            *out16++ = static_cast<uint16_t>(util::ClipBD(d >> bit_shift,
+                                                          sample_max));
+            d &= mask;
+          }
+          src += stride;
+        }
+      } else {
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            *out16++ = static_cast<uint16_t>(util::ClipBD(
+              (src[x] + (1 << (bit_shift - 1))) >> bit_shift,
+              sample_max));
+          }
+          src += stride;
+        }
+      }
+    }
+    return reinterpret_cast<uint8_t*>(out16);
+  } else {
+    if (bitdepth <= 8) {
+      if (sizeof(Sample) == 1) {
+        for (int y = 0; y < height; y++) {
+          memcpy(out8, src, width * sizeof(Sample));
+          out8 += width;
+          src += stride;
+        }
+      } else {
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            *out8++ = static_cast<uint8_t>(src[x]);
+          }
+          src += stride;
+        }
+      }
+    } else {
+      int bit_shift = bitdepth - out_bitdepth;
+      if (dither) {
+        int d = 0;
+        int mask = (1 << bit_shift) - 1;
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            d += src[x];
+            *out8++ = static_cast<uint8_t>(util::Clip3(d >> bit_shift, 0, 255));
+            d &= mask;
+          }
+          src += stride;
+        }
+      } else {
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            *out8++ = static_cast<uint8_t>(util::Clip3(
+              (src[x] + (1 << (bit_shift - 1))) >> bit_shift, 0, 255));
+          }
+          src += stride;
+        }
+      }
+    }
+    return out8;
+  }
+}
+
+template <typename T>
+void Resampler::ConvertColorSpace(uint8_t *out, int width, int height,
+                                   const uint16_t *src, int bitdepth,
+                                   ColorMatrix color_matrix) const {
+  const int size = width * height;
+  const uint16_t *s0 = src;
+  const uint16_t *s1 = src + size;
+  const uint16_t *s2 = src + 2 * size;
+  const Sample sample_max = (1 << bitdepth) - 1;
+  const int shift = 10 + kColorConversionBitdepth - bitdepth;
+  T *dst = reinterpret_cast<T*>(out);
+
+  static const std::array<std::array<std::array<int, 3>, 3>, 4> kM = { {
+    { {  // Default, same as BT.709
+      { 1192, 0, 1877 },
+  { 1192, -223, -558 },
+  { 1192, 2212, 0 }
+      } },
+  { {  // BT.601
+    { 1192, 0, 1671 },
+  { 1192, -410, -851 },
+  { 1192, 2112, 0 }
+    } },
+  { {  // BT.709
+    { 1192, 0, 1877 },
+  { 1192, -223, -558 },
+  { 1192, 2212, 0 }
+    } },
+  { {  // BT.2020
+    { 1192, 0, 1758 },
+  { 1192, -196, -681 },
+  { 1192, 2243, 0 }
+    } },
+    } };
+  const unsigned int k = static_cast<int>(color_matrix);
+  assert(k < kM.size());
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      int c = *s0++ - (16 << (kColorConversionBitdepth - 8));
+      int d = *s1++ - (128 << (kColorConversionBitdepth - 8));
+      int e = *s2++ - (128 << (kColorConversionBitdepth - 8));
+      dst[0] = static_cast<T>(
+        util::ClipBD((kM[k][0][0] * c + kM[k][0][2] * e) >> shift, sample_max));
+      dst[1] = static_cast<T>(
+        util::ClipBD((kM[k][1][0] * c + kM[k][1][1] * d + kM[k][1][2] * e)
+                     >> shift, sample_max));
+      dst[2] = static_cast<T>(
+        util::ClipBD((kM[k][2][0] * c + kM[k][2][1] * d) >> shift, sample_max));
+      dst[3] = static_cast<T>(sample_max);
+      dst += 4;
+    }
+  }
+}
+
+void Resampler::ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
+                                          const uint16_t *src) const {
+  const int size = width * height;
+  const uint16_t *s0 = src;
+  const uint16_t *s1 = src + size;
+  const uint16_t *s2 = src + 2 * size;
+  const Sample sample_max = 255;
+  const int shift = kColorConversionBitdepth + 2;
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      const int c = 1192 * (*s0++ - (16 << (kColorConversionBitdepth - 8)));
+      const int d = *s1++ - (128 << (kColorConversionBitdepth - 8));
+      const int e = *s2++ - (128 << (kColorConversionBitdepth - 8));
+      dst[0] = static_cast<uint8_t>(
+        util::ClipBD((c + 1877 * e) >> shift, sample_max));
+      dst[1] = static_cast<uint8_t>(
+        util::ClipBD((c - 223 * d - 558 * e) >> shift, sample_max));
+      dst[2] = static_cast<uint8_t>(
+        util::ClipBD((c + 2212 * d) >> shift, sample_max));
+      dst[3] = static_cast<uint8_t>(sample_max);
+      dst += 4;
+    }
+  }
+}
+
 namespace resample {
 
 static const int kFilterPrecision = 6;
@@ -219,7 +506,8 @@ static int GetFilterFromScale(int scale) {
 }
 
 template <typename T>
-uint16_t FilterHor(const T* src, int sub_pel, int shift, int scale_factor) {
+static uint16_t FilterHor(const T* src, int sub_pel, int shift,
+                          int scale_factor) {
   int sum = 0;
   if (scale_factor < 65536) {
     // Upsampling.
@@ -242,8 +530,8 @@ uint16_t FilterHor(const T* src, int sub_pel, int shift, int scale_factor) {
 }
 
 template <typename T>
-T FilterVer(const uint16_t* src, int sub_pel, int shift, int stride, T max,
-            int scale_factor) {
+static T FilterVer(const uint16_t* src, int sub_pel, int shift, int stride,
+                   T max, int scale_factor) {
   int sum = 0;
   if (scale_factor < 65536) {
     // Upsampling.

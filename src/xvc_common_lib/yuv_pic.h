@@ -26,6 +26,26 @@
 
 namespace xvc {
 
+struct PictureFormat {
+  PictureFormat() = default;
+  PictureFormat(int _width, int _height, int _bitdepth,
+               ChromaFormat _chroma_format, ColorMatrix _color_matrix,
+               bool _dither)
+    : width(_width),
+    height(_height),
+    bitdepth(_bitdepth),
+    chroma_format(_chroma_format),
+    color_matrix(_color_matrix),
+    dither(_dither) {
+  }
+  int width = 0;
+  int height = 0;
+  int bitdepth = 0;
+  ChromaFormat chroma_format = ChromaFormat::kUndefined;
+  ColorMatrix color_matrix = ColorMatrix::kUndefined;
+  bool dither = false;
+};
+
 class YuvPicture {
 public:
   YuvPicture(ChromaFormat chroma_format, int width, int height, int bitdepth,
@@ -56,22 +76,9 @@ public:
   void CopyFromWithResampling(const uint8_t *picture_bytes, int input_bitdepth,
                               int orig_width, int orig_height);
   void CopyToSameBitdepth(std::vector<uint8_t> *pic_bytes) const;
-  void CopyTo(std::vector<uint8_t> *out_bytes, int out_width,
-              int out_height, ChromaFormat out_chroma_format,
-              int out_bitdepth, ColorMatrix out_color_matrix, int dither);
   void PadBorder();
 
 private:
-  uint8_t* CopyWithShift(uint8_t *out8, int width,
-                         int height, ptrdiff_t stride, int out_bitdepth,
-                         const Sample *src, int bitdepth, int dither) const;
-  template <typename T>
-  void ConvertColorSpace(uint8_t *dst, int width, int height,
-                         const uint16_t *src, int bitdepth,
-                         ColorMatrix color_matrix) const;
-  void ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
-                                const uint16_t *src) const;
-
   ChromaFormat chroma_format_;
   int width_[constants::kMaxYuvComponents];
   int height_[constants::kMaxYuvComponents];
@@ -81,7 +88,6 @@ private:
   int shifty_[constants::kMaxYuvComponents];
   int bitdepth_;
   std::vector<Sample> sample_buffer_;
-  std::vector<uint8_t> tmp_bytes_;
   Sample *comp_pel_[constants::kMaxYuvComponents];
 };
 

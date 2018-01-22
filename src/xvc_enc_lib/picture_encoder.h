@@ -38,8 +38,8 @@ namespace xvc {
 
 class PictureEncoder {
 public:
-  PictureEncoder(const EncoderSimdFunctions &simd, ChromaFormat chroma_format,
-                 int width, int height, int bitdepth);
+  PictureEncoder(const EncoderSimdFunctions &simd,
+                 const PictureFormat &pic_fmt);
   std::shared_ptr<const YuvPicture> GetOrigPic() const { return orig_pic_; }
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }

@@ -72,16 +72,13 @@ protected:
       input_pic_[i] = i & mask;  // random yuv file
     }
     xvc::EncoderSimdFunctions simd(xvc::SimdCpu::GetRuntimeCapabilities());
+    xvc::PictureFormat internal_pic_format = segment_.GetInternalPicFormat();
+    xvc::PictureFormat output_pic_format = internal_pic_format;
     pic_encoder_ =
-      std::make_shared<xvc::PictureEncoder>(simd, segment_.chroma_format,
-                                            segment_.GetInternalWidth(),
-                                            segment_.GetInternalHeight(),
-                                            segment_.internal_bitdepth);
+      std::make_shared<xvc::PictureEncoder>(simd, internal_pic_format);
     pic_decoder_ =
-      std::make_shared<xvc::PictureDecoder>(simd, segment_.chroma_format,
-                                            segment_.GetInternalWidth(),
-                                            segment_.GetInternalHeight(),
-                                            segment_.internal_bitdepth);
+      std::make_shared<xvc::PictureDecoder>(simd, internal_pic_format,
+                                            output_pic_format);
   }
 
   std::vector<uint8_t>* EncodePicture(xvc::Sample *orig) {

@@ -121,7 +121,7 @@ extern "C" {
     decoder->SetOutputBitdepth(param->output_bitdepth);
     decoder->SetDecoderTicks(static_cast<int>(xvc::constants::kTimeScale
                                               / param->max_framerate + 0.5));
-    decoder->SetDithering(param->dither);
+    decoder->SetDithering(param->dither != 0);
     return decoder;
   }
 

@@ -22,6 +22,7 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/checksum.h"
 #include "xvc_common_lib/restrictions.h"
+#include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc {
 
@@ -47,13 +48,17 @@ struct SegmentHeader {
   int GetInternalHeight() const {
     return pic_height - (pic_height % constants::kMinCuSize);
   }
+  PictureFormat GetInternalPicFormat() const {
+    return PictureFormat(GetInternalWidth(), GetInternalHeight(),
+                         internal_bitdepth, chroma_format, color_matrix, false);
+  }
 
   uint32_t codec_identifier = static_cast<uint32_t>(-1);
   uint32_t major_version = static_cast<uint32_t>(-1);
   uint32_t minor_version = static_cast<uint32_t>(-1);
   SegmentNum soc = static_cast<SegmentNum>(-1);
-  ChromaFormat chroma_format = ChromaFormat::kUndefinedChromaFormat;
-  ColorMatrix color_matrix = ColorMatrix::kUndefinedColorMatrix;
+  ChromaFormat chroma_format = ChromaFormat::kUndefined;
+  ColorMatrix color_matrix = ColorMatrix::kUndefined;
   int internal_bitdepth = -1;
   int bitstream_ticks = 0;
   PicNum max_sub_gop_length = 0;

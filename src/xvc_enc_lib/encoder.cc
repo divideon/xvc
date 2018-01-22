@@ -302,10 +302,7 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   if (pic_encoders_.size() < pic_buffering_num_) {
     auto pic =
       std::make_shared<PictureEncoder>(simd_,
-                                       segment_header_->chroma_format,
-                                       segment_header_->GetInternalWidth(),
-                                       segment_header_->GetInternalHeight(),
-                                       segment_header_->internal_bitdepth);
+                                       segment_header_->GetInternalPicFormat());
     pic_encoders_.push_back(pic);
     return pic;
   }

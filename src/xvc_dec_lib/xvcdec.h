@@ -82,13 +82,14 @@ extern "C" {
 
   // Represents a decoded picture
   // Lifecycle managed by api->picture_create & api->picture_destory
+  // Populated using api->decoder_get_picture
   typedef struct xvc_decoded_picture {
-    char* bytes;      // Adress of first picture sample
-    size_t size;      // Number of picture bytes for all planes (incl. padding)
-    char *planes[3];  // Adress of first sample for each plane
-    int stride[3];    // Width in bytes for each plane (including padding)
+    const char* bytes;  // Address of first picture sample
+    size_t size;        // Number of pic bytes for all planes (incl. padding)
+    const char *planes[3];  // Address of first sample for each plane
+    int stride[3];          // Width in bytes for each plane (including padding)
     xvc_dec_pic_stats stats;
-    int64_t user_data;  //
+    int64_t user_data;
   } xvc_decoded_picture;
 
   // xvc decoder instance

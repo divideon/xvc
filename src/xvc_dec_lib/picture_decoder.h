@@ -26,6 +26,7 @@
 #include "xvc_common_lib/checksum.h"
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/resample.h"
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
@@ -48,8 +49,8 @@ public:
     bool allow_lic;
   };
 
-  PictureDecoder(const SimdFunctions &simd, ChromaFormat chroma_format,
-                 int width, int height, int bitdepth);
+  PictureDecoder(const SimdFunctions &simd, const PictureFormat &pic_format,
+                 const PictureFormat &output_format);
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
             ReferencePictureLists &&ref_pic_list, int64_t user_data);
   bool Decode(const SegmentHeader &segment, BitReader *bit_reader);
@@ -61,6 +62,9 @@ public:
   int64_t GetNalUserData() const { return user_data_; }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() const { return output_status_; }
+  const std::vector<uint8_t>& GetOutputPictureBytes() const {
+    return output_pic_bytes_;
+  }
   void SetIsConforming(bool conforming) { conforming_ = conforming; }
   bool GetIsConforming() const { return conforming_; }
   bool IsReferenced() const { return ref_count > 0; }
@@ -80,10 +84,12 @@ private:
                         BitReader *bit_reader, Checksum::Mode checksum_mode);
 
   const SimdFunctions &simd_;
+  Resampler output_resampler_;
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;
   std::vector<uint8_t> pic_hash_;
+  std::vector<uint8_t> output_pic_bytes_;
   bool conforming_ = false;
   int pic_qp_ = -1;
   int64_t user_data_ = 0;

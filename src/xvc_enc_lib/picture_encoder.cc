@@ -35,15 +35,16 @@
 namespace xvc {
 
 PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
-                               ChromaFormat chroma_format, int width,
-                               int height, int bitdepth)
+                               const PictureFormat &pic_fmt)
   : simd_(simd),
-  orig_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
-                                         bitdepth, false)),
-  pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
-                                          bitdepth)),
-  rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
-                                        bitdepth, true)) {
+  orig_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
+                                         pic_fmt.height, pic_fmt.bitdepth,
+                                         false)),
+  pic_data_(std::make_shared<PictureData>(pic_fmt.chroma_format, pic_fmt.width,
+                                          pic_fmt.height, pic_fmt.bitdepth)),
+  rec_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
+                                        pic_fmt.height, pic_fmt.bitdepth,
+                                        true)) {
 }
 
 std::vector<uint8_t>*

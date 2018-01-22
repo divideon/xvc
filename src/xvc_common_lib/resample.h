@@ -19,9 +19,37 @@
 #ifndef XVC_COMMON_LIB_RESAMPLE_H_
 #define XVC_COMMON_LIB_RESAMPLE_H_
 
+#include <vector>
+
 #include "xvc_common_lib/common.h"
+#include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc {
+
+class Resampler {
+public:
+  explicit Resampler(PictureFormat output_format) : out_fmt_(output_format) {
+  }
+  void Convert(const YuvPicture &src_pic,
+               std::vector<uint8_t> *out_bytes);
+
+private:
+  static const int kColorConversionBitdepth = 12;
+  uint8_t* CopyWithShift(uint8_t *out8, int width,
+                         int height, ptrdiff_t stride, int out_bitdepth,
+                         const Sample *src, int bitdepth, int dither) const;
+  template <typename T>
+  void ConvertColorSpace(uint8_t *dst, int width, int height,
+                         const uint16_t *src, int bitdepth,
+                         ColorMatrix color_matrix) const;
+  void ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
+                                const uint16_t *src) const;
+
+  PictureFormat out_fmt_;
+  std::vector<uint8_t> tmp_bytes_;
+};
+
+// TODO(PH) Refactor into class above
 
 namespace resample {
 
