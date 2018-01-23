@@ -275,7 +275,7 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
     }
   } else {
     // Synchronous decode
-    bool success = pic_dec->Decode(*segment_header, &pic_bit_reader);
+    bool success = pic_dec->Decode(*segment_header, &pic_bit_reader, true);
     OnPictureDecoded(pic_dec, success, inter_dependencies);
   }
 }
@@ -353,6 +353,9 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
   pic_dec->SetOutputStatus(OutputStatus::kHasBeenOutput);
   SetOutputStats(pic_dec, output_pic);
   const int sample_size = output_pic_format_.bitdepth == 8 ? 1 : 2;
+  // TODO(PH) Potential dangerous race-condition, the output_pic->bytes will
+  // be modified concurrently when pic_dec is assigned a new nal to decode,
+  // so we don't do that until next call to 'decoder_decode_nal'
   const std::vector<uint8_t> &output_pic_bytes =
     pic_dec->GetOutputPictureBytes();
   output_pic->size = output_pic_bytes.size();
@@ -372,13 +375,6 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
 
   // Decrease counter for how many decoded pictures are buffered.
   num_pics_in_buffer_--;
-
-  if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_) &&
-      num_pics_in_buffer_ - nal_buffer_.size() < pic_buffering_num_) {
-    auto &&nal = nal_buffer_.front();
-    DecodeOneBufferedNal(std::move(nal.first), nal.second);
-    nal_buffer_.pop_front();
-  }
   return true;
 }
 

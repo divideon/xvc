@@ -151,6 +151,7 @@ if(MSVC)
     /we4706 # error: assignment within conditional expression
     /wd4100 # disabled: unreferenced formal parameter
     /wd4127 # disabled: conditional expression is constant
+    /wd4752 # disabled: found Intel(R) Advanced Vector Extensions; consider using /arch:AVX
   )
   if(CODE_ANALYZE)
     set(cxx_base_flags ${cxx_base_flags} /analyze /wd6240 /wd6326)

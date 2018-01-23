@@ -19,6 +19,7 @@
 #ifndef XVC_DEC_LIB_PICTURE_DECODER_H_
 #define XVC_DEC_LIB_PICTURE_DECODER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -53,15 +54,21 @@ public:
                  const PictureFormat &output_format);
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
             ReferencePictureLists &&ref_pic_list, int64_t user_data);
-  bool Decode(const SegmentHeader &segment, BitReader *bit_reader);
+  bool Decode(const SegmentHeader &segment, BitReader *bit_reader,
+              bool post_process);
+  bool Postprocess(const SegmentHeader &segment, BitReader *bit_reader);
   std::shared_ptr<const YuvPicture> GetOrigPic() const { return nullptr; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   int64_t GetNalUserData() const { return user_data_; }
-  void SetOutputStatus(OutputStatus status) { output_status_ = status; }
-  OutputStatus GetOutputStatus() const { return output_status_; }
+  void SetOutputStatus(OutputStatus status) {
+    output_status_.store(status, std::memory_order_release);
+  }
+  OutputStatus GetOutputStatus() const {
+    return output_status_.load(std::memory_order_acquire);
+  }
   const std::vector<uint8_t>& GetOutputPictureBytes() const {
     return output_pic_bytes_;
   }
@@ -93,8 +100,7 @@ private:
   bool conforming_ = false;
   int pic_qp_ = -1;
   int64_t user_data_ = 0;
-  // TODO(PH) Consider using memory barrier and relax global mutex requirement
-  OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
+  std::atomic<OutputStatus> output_status_ = { OutputStatus::kHasBeenOutput };
   // TODO(PH) Mutable isn't really needed if const handling is relaxed...
   // Note that ref_count should only be modified on "main thread"
   mutable int ref_count = 0;

@@ -143,7 +143,7 @@ void PictureDecoder::Init(const SegmentHeader &segment,
 }
 
 bool PictureDecoder::Decode(const SegmentHeader &segment,
-                            BitReader *bit_reader) {
+                            BitReader *bit_reader, bool post_process) {
   assert(output_status_ == OutputStatus::kProcessing);
   bool success = true;
   double lambda = 0;
@@ -170,9 +170,18 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
     assert(0);
     success = false;
   }
-  int pic_tid = pic_data_->GetTid();
   rec_pic_->PadBorder();
   pic_data_->GetRefPicLists()->ZeroOutReferences();
+  if (post_process) {
+    success &= Postprocess(segment, bit_reader);
+  }
+  return success;
+}
+
+bool PictureDecoder::Postprocess(const SegmentHeader &segment,
+                                 BitReader *bit_reader) {
+  const int pic_tid = pic_data_->GetTid();
+  bool success = true;
   if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
     success &= ValidateChecksum(segment, bit_reader, segment.checksum_mode);
   } else {

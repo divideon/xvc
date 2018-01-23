@@ -113,7 +113,7 @@ protected:
     // TODO(PH) Also verify inter pictures?
     xvc::ReferencePictureLists ref_pic_list;
     pic_decoder_->Init(segment_, pic_header, std::move(ref_pic_list), 0);
-    return pic_decoder_->Decode(segment_, &bit_reader);
+    return pic_decoder_->Decode(segment_, &bit_reader, true);
   }
 
   static const int kPicWidth = 16;

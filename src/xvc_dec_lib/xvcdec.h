@@ -136,6 +136,8 @@ extern "C" {
                                              const uint8_t *nal_unit,
                                              size_t nal_unit_size,
                                              int64_t user_data);
+    // Get next output picture that is available in display order.
+    // Pointers to picture sample data are only valid until next API call.
     xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder,
                                               xvc_decoded_picture *out_pic);
     xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder);
