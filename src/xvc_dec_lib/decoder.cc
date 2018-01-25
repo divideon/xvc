@@ -289,16 +289,19 @@ void Decoder::FlushBufferedNalUnits() {
   prev_segment_header_ = curr_segment_header_;
   // Check if there are buffered nal units.
   if (nal_buffer_.size() > 0) {
-    if (curr_segment_header_->open_gop) {
-      // Throw away buffered Nal Units.
+    if (curr_segment_header_->open_gop &&
+        curr_segment_header_->max_sub_gop_length > 1) {
+      // throw away buffered nals that are impossible to decode without the
+      // next random acess picture available as reference
       num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());
       nal_buffer_.clear();
     } else {
-      // Step over the missing key picture and then decode the buffered
-      // Nal Units.
-      doc_++;
-      sub_gop_start_poc_ = sub_gop_end_poc_;
-      sub_gop_end_poc_ += sub_gop_length_;
+      // Step over the missing key picture and then decode the buffered nals
+      if (sub_gop_length_ > 1) {
+        doc_++;
+        sub_gop_start_poc_ = sub_gop_end_poc_;
+        sub_gop_end_poc_ += sub_gop_length_;
+      }
       DecodeAllBufferedNals();
     }
   }
