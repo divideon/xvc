@@ -501,38 +501,43 @@ void EncoderApp::PrintUsage() {
     " <string> [Optional parameters]" << std::endl;
   std::cout << std::endl << "Optional parameters:" << std::endl;
   std::cout << "  -rec-file <string>" << std::endl;
-  std::cout << "  -input-width <int>" << std::endl;
-  std::cout << "  -input-height <int>" << std::endl;
-  std::cout << "  -input-chroma-format <int>" << std::endl;
+  std::cout << "  -input-width <16..65535>" << std::endl;
+  std::cout << "  -input-height <16..65535>" << std::endl;
+  std::cout << "  -input-chroma-format <0..3>" << std::endl;
   std::cout << "      0: Monochrome" << std::endl;
   std::cout << "      1: 4:2:0 (default)" << std::endl;
   std::cout << "      2: 4:2:2" << std::endl;
   std::cout << "      3: 4:4:4" << std::endl;
-  std::cout << "  -input-bitdepth <int>" << std::endl;
-  std::cout << "  -internal-bitdepth <int>" << std::endl;
-  std::cout << "  -framerate <float>" << std::endl;
+#if XVC_HIGH_BITDEPTH
+  std::cout << "  -input-bitdepth <8..14>" << std::endl;
+  std::cout << "  -internal-bitdepth <8..14>" << std::endl;
+#else
+  std::cout << "  -input-bitdepth <8>" << std::endl;
+  std::cout << "  -internal-bitdepth <8>" << std::endl;
+#endif
+  std::cout << "  -framerate <0.0054..90000>" << std::endl;
   std::cout << "  -skip-pictures <int>" << std::endl;
   std::cout << "  -temporal-subsample <int>" << std::endl;
   std::cout << "  -max-pictures <int>" << std::endl;
-  std::cout << "  -sub-gop-length <int>" << std::endl;
-  std::cout << "  -max-keypic-distance <int>" << std::endl;
-  std::cout << "  -closed-gop <int>" << std::endl;
-  std::cout << "  -num-ref-pics <int>" << std::endl;
-  std::cout << "  -checksum-mode <int>" << std::endl;
+  std::cout << "  -sub-gop-length <1..64> (default: 16)" << std::endl;
+  std::cout << "  -max-keypic-distance <int> (default: 640)" << std::endl;
+  std::cout << "  -closed-gop <int> (default: 0)" << std::endl;
+  std::cout << "  -num-ref-pics <0..5> (default: 2)" << std::endl;
+  std::cout << "  -checksum-mode <0..1>" << std::endl;
   std::cout << "      0: Reduced checksum verification (default)" << std::endl;
   std::cout << "      1: Maximum checksum robustness" << std::endl;
-  std::cout << "  -deblock <0/1>" << std::endl;
-  std::cout << "  -beta-offset <int>" << std::endl;
-  std::cout << "  -tc-offset <int>" << std::endl;
-  std::cout << "  -qp <int>" << std::endl;
-  std::cout << "  -speed-mode <int>" << std::endl;
+  std::cout << "  -deblock <0..1> (default: 1)" << std::endl;
+  std::cout << "  -beta-offset <-32..31>" << std::endl;
+  std::cout << "  -tc-offset <-32..31>" << std::endl;
+  std::cout << "  -qp <-64..63> (default: 32)" << std::endl;
+  std::cout << "  -speed-mode <0..2>" << std::endl;
   std::cout << "      0: Placebo" << std::endl;
   std::cout << "      1: Slow (default)" << std::endl;
   std::cout << "      2: Fast" << std::endl;
-  std::cout << "  -tune <int>" << std::endl;
+  std::cout << "  -tune <0..1>" << std::endl;
   std::cout << "      0: Visual quality (default)" << std::endl;
   std::cout << "      1: PSNR" << std::endl;
-  std::cout << "  -verbose <0/1>" << std::endl;
+  std::cout << "  -verbose <0..1>" << std::endl;
 }
 
 

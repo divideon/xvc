@@ -28,7 +28,8 @@ namespace xvc {
 
 class Resampler {
 public:
-  explicit Resampler(PictureFormat output_format) : out_fmt_(output_format) {
+  explicit Resampler(const PictureFormat &output_format)
+    : out_fmt_(output_format) {
   }
   void Convert(const YuvPicture &src_pic,
                std::vector<uint8_t> *out_bytes);

@@ -42,6 +42,11 @@ TEST(EncoderAPI, ParamCheck) {
   params->height = 0;
   EXPECT_EQ(XVC_ENC_SIZE_TOO_SMALL, api->parameters_check(params));
 
+  EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
+  params->width = 65536;
+  params->height = 64;
+  EXPECT_EQ(XVC_ENC_SIZE_TOO_LARGE, api->parameters_check(params));
+
   // Width and height is set and remain valid for the remaining tests.
   params->width = 176;
   params->height = 144;
