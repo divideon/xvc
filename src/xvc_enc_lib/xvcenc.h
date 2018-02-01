@@ -41,6 +41,7 @@ extern "C" {
     XVC_ENC_SUB_GOP_LENGTH_TOO_LARGE,
     XVC_ENC_DEBLOCKING_SETTINGS_INVALID,
     XVC_ENC_TOO_MANY_REF_PICS,
+    XVC_ENC_SIZE_TOO_LARGE,
   } xvc_enc_return_code;
 
   typedef enum {

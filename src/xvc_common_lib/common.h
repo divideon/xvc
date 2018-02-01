@@ -140,6 +140,7 @@ const int kMaxNumRefPics = 5;
 const int kTimeScale = 90000;
 const int kMaxTid = 8;
 const int kFrameRateBitDepth = 24;
+const int kPicSizeBits = 16;
 const PicNum kMaxSubGopLength = 64;
 const int kEncapsulationCode1 = 182;
 const int kEncapsulationCode2 = 214;

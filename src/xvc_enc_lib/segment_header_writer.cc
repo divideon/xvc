@@ -32,8 +32,10 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   bit_writer->WriteBits(segment_header->codec_identifier, 24);
   bit_writer->WriteBits(segment_header->major_version, 16);
   bit_writer->WriteBits(segment_header->minor_version, 16);
-  bit_writer->WriteBits(segment_header->GetOutputWidth(), 16);
-  bit_writer->WriteBits(segment_header->GetOutputHeight(), 16);
+  bit_writer->WriteBits(segment_header->GetOutputWidth(),
+                        constants::kPicSizeBits);
+  bit_writer->WriteBits(segment_header->GetOutputHeight(),
+                        constants::kPicSizeBits);
   bit_writer->WriteBits(static_cast<uint8_t>(segment_header->chroma_format), 4);
   bit_writer->WriteBits(segment_header->internal_bitdepth - 8, 4);
   bit_writer->WriteBits(static_cast<uint32_t>(constants::kTimeScale

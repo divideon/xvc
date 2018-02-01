@@ -30,7 +30,7 @@ namespace resample {
 
 static const int kFilterPrecision = 6;
 static const int kInternalPrecision = 16;
-static const int kPositionPrecision = 16;
+static const int kPositionPrecision = 15;
 
 static const int16_t kUpsampleFilter[16][8] = {
   { 0,  0,   0, 64,  0,   0,  0,  0 },
