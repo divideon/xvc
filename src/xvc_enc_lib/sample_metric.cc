@@ -91,8 +91,12 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
       dist = ComputeSadAcOnly<1>(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kStructuralSsd:
-      dist =
-        ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
+      if (util::IsLuma(comp)) {
+        dist =
+          ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
+      } else {
+        dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      }
       break;
     default:
       assert(0);
