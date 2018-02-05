@@ -227,6 +227,11 @@ CuWriter::WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
 
 bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
                                  SyntaxWriter *writer) const {
+  if (Restrictions::Get().disable_transform_root_cbf &&
+      Restrictions::Get().disable_transform_cbf) {
+    return true;
+  }
+
   bool signal_root_cbf = cu.IsInter() &&
     !Restrictions::Get().disable_transform_root_cbf &&
     (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
