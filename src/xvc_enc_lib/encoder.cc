@@ -47,7 +47,7 @@ Encoder::Encoder(int internal_bitdepth)
 }
 
 int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
-                    bool output_rec, xvc_enc_pic_buffer *rec_pic) {
+                    xvc_enc_pic_buffer *rec_pic) {
   nal_units_.clear();
 
   // Set picture parameters and get bytes for original picture
@@ -159,7 +159,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   // If enough pictures have been encoded, the reconstructed picture
   // with lowest poc can be output.
   if (poc_ >= segment_header_->max_sub_gop_length) {
-    ReconstructOnePicture(output_rec, rec_pic);
+    ReconstructOnePicture(rec_pic);
   }
   if (nal_units_.size() > 0) {
     *nal_units = &nal_units_[0];
@@ -167,8 +167,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   return static_cast<int>(nal_units_.size());
 }
 
-int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
-                   xvc_enc_pic_buffer *rec_pic) {
+int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
   nal_units_.clear();
   // Since poc is increased at the end of each call to Encode
   // it is reduced by one here to get the poc of the last picture.
@@ -205,7 +204,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
     rec_pic->size = 0;
   }
   // Check if reconstruction should be performed.
-  ReconstructOnePicture(output_rec, rec_pic);
+  ReconstructOnePicture(rec_pic);
   if (nal_units_.size() > 0) {
     *nal_units = &nal_units_[0];
   }
@@ -276,8 +275,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
   doc_++;
 }
 
-void Encoder::ReconstructOnePicture(bool output_rec,
-                                    xvc_enc_pic_buffer *rec_pic) {
+void Encoder::ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic) {
   // Find the picture with the lowest poc that has not been output.
   std::shared_ptr<PictureEncoder> pic_enc;
   PicNum lowest_poc = std::numeric_limits<PicNum>::max();
@@ -296,10 +294,10 @@ void Encoder::ReconstructOnePicture(bool output_rec,
   auto rec_pic_out = pic_enc->GetRecPic();
 
   // Only perform reconstruction if it is requested and a picture was found.
-  if (output_rec && rec_pic_out && rec_pic) {
+  if (rec_pic_out && rec_pic) {
     rec_pic_out->CopyToSameBitdepth(&output_pic_bytes_);
     rec_pic->size = output_pic_bytes_.size();
-    rec_pic->pic = &output_pic_bytes_[0];
+    rec_pic->pic = output_pic_bytes_.empty() ? nullptr : &output_pic_bytes_[0];
   }
 }
 

@@ -22,7 +22,8 @@
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_test/test_helper.h"
+#include "xvc_test/decoder_helper.h"
+#include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
 namespace {
@@ -93,7 +94,7 @@ TEST_F(DecoderScalabilityTest, ReferencePicDownscaling) {
   int expected_corrupted_pics = kSubGopLength / 2;
   EXPECT_EQ(decoded_pics, expected_decoded_pics);
   // Number of corrupted pictures varies depending on qp and rdoq
-  EXPECT_LE(decoder_->GetNumCorruptedPics(), expected_corrupted_pics);
+  EXPECT_LE(decoder_->GetNumCorruptedPics(), expected_corrupted_pics + 1);
   EXPECT_GT(decoder_->GetNumCorruptedPics(), 0);
 }
 

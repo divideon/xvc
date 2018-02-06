@@ -288,12 +288,7 @@ extern "C" {
       return XVC_ENC_INVALID_ARGUMENT;
     }
     xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
-    xvc_enc_pic_buffer rec_pic_buffer;
-    *num_nal_units = lib_encoder->Encode(input_picture, nal_units,
-      (rec_pic != nullptr), &rec_pic_buffer);
-    if (rec_pic) {
-      *rec_pic = rec_pic_buffer;
-    }
+    *num_nal_units = lib_encoder->Encode(input_picture, nal_units, rec_pic);
     return XVC_ENC_OK;
   }
 
@@ -304,12 +299,7 @@ extern "C" {
       return XVC_ENC_INVALID_ARGUMENT;
     }
     xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
-    xvc_enc_pic_buffer rec_pic_buffer;
-    *num_nal_units = lib_encoder->Flush(nal_units, (rec_pic != nullptr),
-                                        &rec_pic_buffer);
-    if (rec_pic) {
-      *rec_pic = rec_pic_buffer;
-    }
+    *num_nal_units = lib_encoder->Flush(nal_units, rec_pic);
     return XVC_ENC_OK;
   }
 

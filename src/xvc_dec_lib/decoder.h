@@ -91,6 +91,8 @@ private:
   using PicDecList = std::vector<std::shared_ptr<const PictureDecoder>>;
   void DecodeAllBufferedNals();
   bool DecodeSegmentHeaderNal(BitReader *bit_reader);
+  bool DecodePictureNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                        int64_t user_data, BitReader *bit_reader);
   void DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data);
   std::shared_ptr<PictureDecoder>
     GetFreePictureDecoder(const SegmentHeader &segment_header);

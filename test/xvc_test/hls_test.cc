@@ -18,7 +18,8 @@
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_test/test_helper.h"
+#include "xvc_test/decoder_helper.h"
+#include "xvc_test/encoder_helper.h"
 
 namespace {
 

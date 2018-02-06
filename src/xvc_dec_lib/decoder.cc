@@ -79,51 +79,11 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
     // bitstream bitdepth is too high.
     return false;
   }
-
   if (nal_unit_type >= NalUnitType::kIntraPicture &&
       nal_unit_type <= NalUnitType::kReservedPictureType10) {
-    // All picture types are decoded using the same process.
-    // First, the buffer flag is checked to see if the picture
-    // should be decoded or buffered.
-    int buffer_flag = bit_reader.ReadBit();
-    int tid = bit_reader.ReadBits(3);
-    int new_desired_max_tid = SegmentHeader::GetFramerateMaxTid(
-      decoder_ticks_, curr_segment_header_->bitstream_ticks,
-      curr_segment_header_->max_sub_gop_length);
-    if (new_desired_max_tid < max_tid_ || tid == 0) {
-      // Number of temporal layers can always be decreased,
-      // but only increased at temporal layer 0 pictures.
-      max_tid_ = new_desired_max_tid;
-    }
-    if (tid > max_tid_) {
-      // Ignore (drop) picture if it belongs to a temporal layer that
-      // should not be decoded.
-      return true;
-    }
-    enforce_sliding_window_ = true;
-    num_pics_in_buffer_++;
-    bit_reader.Rewind(4);
-
-    NalUnitPtr nal_element(new std::vector<uint8_t>(&nal_unit[0], &nal_unit[0]
-                                                    + nal_unit_size));
-    if (buffer_flag == 0 && num_tail_pics_ > 0) {
-      nal_buffer_.push_front({ std::move(nal_element), user_data });
-    } else {
-      nal_buffer_.push_back({ std::move(nal_element), user_data });
-    }
-    if (buffer_flag) {
-      num_tail_pics_++;
-      return true;
-    }
-    while (nal_buffer_.size() > 0 &&
-           num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
-      auto &&nal = nal_buffer_.front();
-      DecodeOneBufferedNal(std::move(nal.first), nal.second);
-      nal_buffer_.pop_front();
-    }
-    return true;
+    return DecodePictureNal(nal_unit, nal_unit_size, user_data, &bit_reader);
   }
-  return false;
+  return false;   // unknown nal type
 }
 
 void Decoder::DecodeAllBufferedNals() {
@@ -143,6 +103,12 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   // If there are old nal units buffered that are not tail pictures,
   // they are discarded before decoding the new segment.
   if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
+    // When all intra we may have some buffered nals that can be decoded
+    while (!nal_buffer_.empty() && num_pics_in_buffer_ < pic_buffering_num_) {
+      auto &&nal = nal_buffer_.front();
+      DecodeOneBufferedNal(std::move(nal.first), nal.second);
+      nal_buffer_.pop_front();
+    }
     num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());
     nal_buffer_.clear();
     num_tail_pics_ = 0;
@@ -179,6 +145,53 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   }
   max_tid_ = SegmentHeader::GetFramerateMaxTid(
     decoder_ticks_, curr_segment_header_->bitstream_ticks, sub_gop_length_);
+  return true;
+}
+
+bool Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
+                               int64_t user_data, BitReader *bit_reader) {
+  // All picture types are decoded using the same process.
+  // First, the buffer flag is checked to see if the picture
+  // should be decoded or buffered.
+  int buffer_flag = bit_reader->ReadBit();
+  int tid = bit_reader->ReadBits(3);
+  int new_desired_max_tid = SegmentHeader::GetFramerateMaxTid(
+    decoder_ticks_, curr_segment_header_->bitstream_ticks,
+    curr_segment_header_->max_sub_gop_length);
+  if (new_desired_max_tid < max_tid_ || tid == 0) {
+    // Number of temporal layers can always be decreased,
+    // but only increased at temporal layer 0 pictures.
+    max_tid_ = new_desired_max_tid;
+  }
+  if (tid > max_tid_) {
+    // Ignore (drop) picture if it belongs to a temporal layer that
+    // should not be decoded.
+    return true;
+  }
+
+  enforce_sliding_window_ = true;
+  num_pics_in_buffer_++;
+
+  NalUnitPtr nal_element(new std::vector<uint8_t>(&nal_unit[0], &nal_unit[0]
+                                                  + nal_unit_size));
+  if (buffer_flag == 0 && num_tail_pics_ > 0) {
+    nal_buffer_.push_front({ std::move(nal_element), user_data });
+  } else {
+    nal_buffer_.push_back({ std::move(nal_element), user_data });
+  }
+  if (state_ == State::kSegmentHeaderDecoded) {
+    state_ = State::kPicDecoded;
+  }
+  if (buffer_flag) {
+    num_tail_pics_++;
+    return true;
+  }
+  while (nal_buffer_.size() > 0 &&
+         num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
+    auto &&nal = nal_buffer_.front();
+    DecodeOneBufferedNal(std::move(nal.first), nal.second);
+    nal_buffer_.pop_front();
+  }
   return true;
 }
 
@@ -290,7 +303,7 @@ void Decoder::FlushBufferedNalUnits() {
   // Check if there are buffered nal units.
   if (nal_buffer_.size() > 0) {
     if (curr_segment_header_->open_gop &&
-        curr_segment_header_->max_sub_gop_length > 1) {
+        curr_segment_header_->num_ref_pics > 0) {
       // throw away buffered nals that are impossible to decode without the
       // next random acess picture available as reference
       num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());

@@ -21,7 +21,8 @@
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_test/test_helper.h"
+#include "xvc_test/decoder_helper.h"
+#include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
 namespace {
@@ -52,15 +53,18 @@ protected:
   void Encode(int width, int height, int frames) {
     encoder_->SetResolution(width, height);
     for (int i = 0; i < frames; i++) {
-      auto orig_pic = xvc_test::TestYuvPic(width, height, GetParam(), i, i);
-      auto nals = EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
-      orig_pics_.push_back(orig_pic);
+      xvc_test::TestYuvPic orig_pic{ width, height, GetParam(), i, i };
+      std::vector<xvc_enc_nal_stats> nal_stats =
+        EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
+      orig_pics_.emplace_back(std::move(orig_pic));
       verified_.push_back(false);
-      for (auto nal : nals) {
-        encoded_pocs_.push_back(nal.stats.poc);
+      for (auto stats : nal_stats) {
+        encoded_pocs_.push_back(stats.poc);
       }
     }
-    EncoderFlush();
+    for (xvc_enc_nal_stats stats : EncoderFlush()) {
+      encoded_pocs_.push_back(stats.poc);
+    }
   }
 
   void Decode(int width, int height, int frames, bool do_flush = true) {
@@ -81,22 +85,19 @@ protected:
   void VerifyPicture(int width, int height,
                      const xvc_decoded_picture &decoded_picture) {
     int poc = decoded_picture.stats.poc;
-    int byte_width = width * (decoded_picture.stats.bitdepth == 8 ? 1 : 2);
-    EXPECT_EQ(kPocOffset + poc, decoded_picture.user_data);
-    EXPECT_EQ(width, decoded_picture.stats.width);
-    EXPECT_EQ(height, decoded_picture.stats.height);
-    EXPECT_EQ(decoded_picture.planes[0], decoded_picture.bytes);
-    EXPECT_EQ(decoded_picture.planes[1], decoded_picture.planes[0] +
-              decoded_picture.stride[0] * height);
-    EXPECT_EQ(decoded_picture.planes[2], decoded_picture.planes[1] +
-              decoded_picture.stride[1] * height / 2);
-    EXPECT_EQ(byte_width, decoded_picture.stride[0]);
-    EXPECT_EQ(byte_width / 2, decoded_picture.stride[1]);
-    EXPECT_EQ(byte_width / 2, decoded_picture.stride[2]);
+    ASSERT_EQ(poc, decoded_picture.user_data - kPocOffset);
+    ASSERT_NO_FATAL_FAILURE(AssertValidPicture420(width, height,
+                                                  decoded_picture));
     EXPECT_FALSE(verified_[poc]);
+    verified_[poc] = true;
     double psnr = orig_pics_[poc].CalcPsnr(decoded_picture.bytes);
     EXPECT_GE(psnr, kPsnrThreshold) << "Picture poc " << poc;
-    verified_[poc] = true;
+    if (decoded_picture.size > 0) {
+      EXPECT_TRUE(xvc_test::TestYuvPic::SamePictureBytes(
+        &rec_pics_[poc][0], rec_pics_[poc].size(),
+        reinterpret_cast<const uint8_t*>(decoded_picture.bytes),
+        decoded_picture.size));
+    }
   }
 
   std::vector<xvc_test::TestYuvPic> orig_pics_;

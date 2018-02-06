@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <numeric>
 
@@ -113,16 +114,16 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
   samples_.resize(total_samples);
   const float fx = GetRndFracX(dx);
   const float fy = GetRndFracY(dy);
-  const float w[3] = { (1 + std::abs(1 - fx - dx) + std::abs(1 - fy - dy)) / 3,
-    (std::abs(fx - dx)) / 3, (std::abs(fy - dy)) / 3 };
+  const float total_w = 2 + fx + fy;
+  const float w[3] = { 2 / total_w, fx / total_w, fy / total_w };
 
   const ptrdiff_t strideY = kInternalPicSize;
   const uint16_t *srcY = &kTestSamples[dy * strideY + dx];
   int i = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
-      int16_t tmp = static_cast<int16_t>(
-        srcY[x] * w[0] + srcY[x + 1] * w[1] + srcY[strideY] * w[2]);
+      int tmp = static_cast<int>(srcY[x] * w[0] + srcY[x + 1] * w[1] +
+                                 srcY[strideY] * w[2] + 0.5);
       samples_[i++] =
         xvc::util::ClipBD((tmp >> down_shift) << up_shift, max_val);
     }
@@ -216,6 +217,18 @@ void TestYuvPic::FillLargerBuffer(int out_width, int out_height,
                   out_width * sizeof(Sample));
     }
   }
+}
+
+::testing::AssertionResult TestYuvPic::SamePictureBytes(
+  const uint8_t *pic1, size_t size1, const uint8_t *pic2, size_t size2) {
+  EXPECT_EQ(size1, size2);
+  for (size_t i = 0; i < size1; i++) {
+    if (pic1[i] != pic2[i]) {
+      return ::testing::AssertionFailure() <<
+        (unsigned)pic1[i] << " vs " << (unsigned)pic2[i] << " at i=" << i;
+    }
+  }
+  return ::testing::AssertionSuccess();
 }
 
 ::testing::AssertionResult

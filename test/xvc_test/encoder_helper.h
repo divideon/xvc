@@ -16,23 +16,23 @@
 * The xvc License Agreement is available at https://xvc.io/license/.
 ******************************************************************************/
 
-#ifndef XVC_TEST_TEST_HELPER_H_
-#define XVC_TEST_TEST_HELPER_H_
+#ifndef XVC_TEST_ENCODER_HELPER_H_
+#define XVC_TEST_ENCODER_HELPER_H_
 
 #include <memory>
 #include <vector>
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_dec_lib/decoder.h"
 #include "xvc_enc_lib/encoder.h"
 
 namespace xvc_test {
 
 using NalUnit = std::vector<uint8_t>;
+using OutputPic = std::vector<uint8_t>;
 
 class EncoderHelper {
-protected:
+public:
   static const int kDefaultQp = 27;
 
   void Init(int internal_bitdepth = 8) {
@@ -87,9 +87,9 @@ protected:
   void EncodeFirstFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
     const uint8_t *in_pic = pic_bytes.empty() ? nullptr : &pic_bytes[0];
     xvc_enc_nal_unit *nal_units = nullptr;
-    xvc_enc_pic_buffer rec;
+    xvc_enc_pic_buffer rec_pic;
     encoder_->SetInputBitdepth(bitdepth);
-    int num_nals = encoder_->Encode(in_pic, &nal_units, false, &rec);
+    int num_nals = encoder_->Encode(in_pic, &nal_units, &rec_pic);
     ASSERT_EQ(2, num_nals);
     EXPECT_EQ(static_cast<uint32_t>(xvc::NalUnitType::kSegmentHeader),
               nal_units[0].stats.nal_unit_type);
@@ -99,28 +99,47 @@ protected:
       encoded_nal_units_.push_back(
         NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
     }
+    if (rec_pic.size > 0) {
+      rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);
+    }
   }
 
-  std::vector<xvc_enc_nal_unit>
+  std::vector<xvc_enc_nal_stats>
     EncodeOneFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
+    std::vector<xvc_enc_nal_stats> encoded_nal_stats;
     const uint8_t *in_pic = pic_bytes.empty() ? nullptr : &pic_bytes[0];
     xvc_enc_nal_unit *nal_units = nullptr;
     encoder_->SetInputBitdepth(bitdepth);
-    int num_nals = encoder_->Encode(in_pic, &nal_units, false, nullptr);
+    xvc_enc_pic_buffer rec_pic;
+    int num_nals = encoder_->Encode(in_pic, &nal_units, &rec_pic);
     for (int i = 0; i < num_nals; i++) {
       encoded_nal_units_.push_back(
         NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
+      encoded_nal_stats.push_back(nal_units[i].stats);
     }
-    return std::vector<xvc_enc_nal_unit>(nal_units, nal_units + num_nals);
+    if (rec_pic.size > 0) {
+      rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);
+    }
+    return encoded_nal_stats;
   }
 
-  void EncoderFlush() {
+  std::vector<xvc_enc_nal_stats> EncoderFlush() {
+    std::vector<xvc_enc_nal_stats> encoded_nal_stats;
     xvc_enc_nal_unit *nal_units = nullptr;
-    int num_nals = encoder_->Flush(&nal_units, false, nullptr);
-    for (int i = 0; i < num_nals; i++) {
-      encoded_nal_units_.push_back(
-        NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
+    xvc_enc_pic_buffer rec_pic;
+    while (true) {
+      int num_nals = encoder_->Flush(&nal_units, &rec_pic);
+      for (int i = 0; i < num_nals; i++) {
+        encoded_nal_units_.push_back(
+          NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
+        encoded_nal_stats.push_back(nal_units[i].stats);
+      }
+      if (rec_pic.size == 0) {
+        break;
+      }
+      rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);
     }
+    return encoded_nal_stats;
   }
 
   void ResetBitstreamPosition() {
@@ -135,76 +154,13 @@ protected:
     return decoded_nals_units < static_cast<int>(encoded_nal_units_.size());
   }
 
+protected:
   std::unique_ptr<xvc::Encoder> encoder_;
   std::vector<NalUnit> encoded_nal_units_;
+  std::vector<OutputPic> rec_pics_;
   int decoded_nals_units = 0;
-};
-
-
-class DecoderHelper {
-public:
-  void Init(bool use_threads = false) {
-    const int num_threads = use_threads ? -1 : 0;
-    decoder_ = std::unique_ptr<xvc::Decoder>(new ::xvc::Decoder(num_threads));
-  }
-
-  void DecodeSegmentHeaderSuccess(const NalUnit &nal) {
-    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
-    EXPECT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded,
-              decoder_->GetState());
-    EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
-    EXPECT_EQ(0, decoder_->GetNumCorruptedPics());
-    EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
-    EXPECT_EQ(nullptr, last_decoded_picture_.bytes);
-    EXPECT_EQ(0, last_decoded_picture_.size);
-  }
-
-  void DecodeSegmentHeaderFailed(const NalUnit &nal) {
-    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
-    EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
-    EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
-    EXPECT_EQ(nullptr, last_decoded_picture_.bytes);
-    EXPECT_EQ(0, last_decoded_picture_.size);
-  }
-
-  bool DecodePictureSuccess(const NalUnit &nal, int64_t user_data = 0) {
-    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size(), user_data));
-    EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
-    EXPECT_EQ(before_num_decoded_pics + 1, decoder_->GetNumDecodedPics());
-    EXPECT_EQ(0, decoder_->GetNumCorruptedPics());
-    return decoder_->GetDecodedPicture(&last_decoded_picture_);
-  }
-
-  void DecodePictureFailed(const NalUnit &nal) {
-    xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
-    EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
-    EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
-    EXPECT_EQ(0, last_decoded_picture_.size);
-  }
-
-  bool DecoderFlushAndGet() {
-    decoder_->FlushBufferedNalUnits();
-    return decoder_->GetDecodedPicture(&last_decoded_picture_);
-  }
-
-  xvc_decoded_picture* DecodeAndFlush(const NalUnit &nal) {
-    if (DecodePictureSuccess(nal)) {
-      return &last_decoded_picture_;
-    }
-    if (DecoderFlushAndGet()) {
-      return &last_decoded_picture_;
-    }
-    return nullptr;
-  }
-
-  std::unique_ptr<xvc::Decoder> decoder_;
-  xvc_decoded_picture last_decoded_picture_;
 };
 
 }   // namespace xvc_test
 
-#endif  // XVC_TEST_TEST_HELPER_H_
+#endif  // XVC_TEST_ENCODER_HELPER_H_

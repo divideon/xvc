@@ -48,6 +48,9 @@ public:
   void FillLargerBuffer(int out_width, int out_height, xvc::SampleBuffer *out);
 
   static ::testing::AssertionResult
+    SamePictureBytes(const uint8_t *pic1, size_t size1,
+                     const uint8_t *pic2, size_t size2);
+  static ::testing::AssertionResult
     AllSampleEqualTo(int width, int height, int bitdepth,
                      const char* pic_bytes, size_t size,
                      xvc::Sample expected_sample);

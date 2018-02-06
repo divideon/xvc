@@ -42,9 +42,8 @@ class Encoder : public xvc_encoder {
 public:
   explicit Encoder(int internal_bitdepth);
   int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
-             bool output_rec, xvc_enc_pic_buffer *rec_pic);
-  int Flush(xvc_enc_nal_unit **nal_units, bool output_rec,
-            xvc_enc_pic_buffer *rec_pic);
+             xvc_enc_pic_buffer *rec_pic);
+  int Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic);
   const SegmentHeader* GetCurrentSegment() const {
     return segment_header_.get();
   }
@@ -75,6 +74,7 @@ public:
   }
   void SetSegmentLength(PicNum length) { segment_length_ = length; }
   void SetClosedGopInterval(PicNum interval) {
+    assert(interval > 0);
     closed_gop_interval_ = interval;
   }
   void SetChromaQpOffsetTable(int table) {
@@ -104,8 +104,7 @@ public:
 private:
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
                         PicNum sub_gop_length);
-  void ReconstructOnePicture(bool output_rec,
-                             xvc_enc_pic_buffer *rec_pic);
+  void ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
 
   void SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal);
