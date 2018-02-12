@@ -86,11 +86,9 @@ private:
   int CalcDeltaQpFromVariance(const CodingUnit *cu);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
   void SetQpForAllCusInCtu(CodingUnit *ctu, int qp);
-
-  static bool CanSkipAnySplitForCu(const PictureData &pic_data,
-                                   const CodingUnit &cu);
-  static bool CanSkipQuadSplitForCu(const PictureData &pic_data,
-                                    const CodingUnit &cu);
+  bool CanSkipAnySplitForCu(const CodingUnit &cu) const;
+  bool CanSkipQuadSplitForCu(const CodingUnit &cu,
+                             bool binary_depth_greater_than_one) const;
 
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;

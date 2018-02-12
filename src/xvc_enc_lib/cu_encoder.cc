@@ -170,9 +170,9 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     cu->SaveStateTo(best_state, rec_pic_);
   }
 
-  // Encoder split speed-up
+  // Skip split eval speed-up
   if (encoder_settings_.fast_cu_split_based_on_full_cu &&
-      do_full && CanSkipAnySplitForCu(pic_data_, *cu)) {
+      do_full && CanSkipAnySplitForCu(*cu)) {
     *writer = best_writer;
     return best_cost.dist;
   }
@@ -187,9 +187,8 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                       split_restiction, &splitcu_writer);
     hor_cost = split_cost.cost;
     for (auto &sub_cu : (*temp_cu)->GetSubCu()) {
-      if (sub_cu && sub_cu->GetSplit() != SplitType::kNone) {
-        best_binary_depth_greater_than_one = true;
-      }
+      best_binary_depth_greater_than_one |=
+        sub_cu && sub_cu->GetSplit() != SplitType::kNone;
     }
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
@@ -218,9 +217,8 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     if (split_cost.cost < hor_cost) {
       best_binary_depth_greater_than_one = false;
       for (auto &sub_cu : (*temp_cu)->GetSubCu()) {
-        if (sub_cu && sub_cu->GetSplit() != SplitType::kNone) {
-          best_binary_depth_greater_than_one = true;
-        }
+        best_binary_depth_greater_than_one |=
+          sub_cu && sub_cu->GetSplit() != SplitType::kNone;
       }
     }
     if (split_cost.cost < best_cost.cost) {
@@ -241,15 +239,10 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     }
   }
 
-  bool can_skip_quad_split =
-    do_quad_split && do_hor_split && do_ver_split &&
-    CanSkipQuadSplitForCu(pic_data_, *cu) &&
-    (encoder_settings_.fast_quad_split_based_on_binary_split == 2 ||
-    (encoder_settings_.fast_quad_split_based_on_binary_split == 1 &&
-     !best_binary_depth_greater_than_one));
-
-  // Encoder quad split speed-up
-  if (can_skip_quad_split) {
+  // Quad split speed-up
+  if (encoder_settings_.fast_quad_split_based_on_binary_split &&
+      do_quad_split && do_hor_split && do_ver_split &&
+      CanSkipQuadSplitForCu(*cu, best_binary_depth_greater_than_one)) {
     *writer = best_writer;
     return best_cost.dist;
   }
@@ -736,27 +729,42 @@ void CuEncoder::SetQpForAllCusInCtu(CodingUnit *ctu, int qp) {
 }
 
 
-bool CuEncoder::CanSkipAnySplitForCu(const PictureData &pic_data,
-                                     const CodingUnit &cu) {
-  const int binary_depth_threshold = pic_data.IsHighestLayer() ? 2 : 3;
+bool CuEncoder::CanSkipAnySplitForCu(const CodingUnit &cu) const {
+  const int binary_depth_threshold = pic_data_.IsHighestLayer() ? 2 : 3;
   return cu.GetSkipFlag() && cu.GetBinaryDepth() >= binary_depth_threshold;
 }
 
-bool CuEncoder::CanSkipQuadSplitForCu(const PictureData &pic_data,
-                                      const CodingUnit &cu) {
+bool
+CuEncoder::CanSkipQuadSplitForCu(const CodingUnit &cu,
+                                 bool binary_depth_greater_than_one) const {
   const YuvComponent comp = YuvComponent::kY;
-  const int max_binary_depth =
-    pic_data.GetMaxBinarySplitDepth(cu.GetCuTree());
-  const CodingUnit *best_sub_cu =
-    pic_data.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp), cu.GetPosY(comp));
-  const CodingUnit *bottom_right =
-    pic_data.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp) + cu.GetWidth(comp) - 1,
-                     cu.GetPosY(comp) + cu.GetHeight(comp) - 1);
-  return ((best_sub_cu->GetBinaryDepth() == 0 &&
-           max_binary_depth >= (pic_data.IsIntraPic() ? 3 : 2)) ||
-           (best_sub_cu->GetBinaryDepth() == 1 &&
-            bottom_right->GetBinaryDepth() == 1 &&
-            max_binary_depth >= (pic_data.IsIntraPic() ? 4 : 3)));
+  const CodingUnit *cu_top_left =
+    pic_data_.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp), cu.GetPosY(comp));
+  const CodingUnit *cu_bottom_right =
+    pic_data_.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp) + cu.GetWidth(comp) - 1,
+                      cu.GetPosY(comp) + cu.GetHeight(comp) - 1);
+  if (encoder_settings_.fast_quad_split_based_on_binary_split == 1 &&
+      binary_depth_greater_than_one) {
+    return false;   // always evaluate quad split if binary spliting twice
+  }
+  const bool best_is_no_split = cu_top_left->GetBinaryDepth() == 0;
+  const bool best_is_single_bt_split = cu_top_left->GetBinaryDepth() == 1 &&
+    cu_bottom_right->GetBinaryDepth() == 1;
+  switch (pic_data_.GetMaxBinarySplitDepth(cu.GetCuTree())) {
+    case 1:
+      return best_is_no_split && !pic_data_.IsIntraPic();
+
+    case 2:
+      return best_is_no_split && !pic_data_.IsIntraPic();
+
+    case 3:
+      return best_is_no_split ||
+        (best_is_single_bt_split && !pic_data_.IsIntraPic());
+
+    case 4:
+      return best_is_no_split || best_is_single_bt_split;
+  }
+  return false;
 }
 
 }   // namespace xvc
