@@ -27,6 +27,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/resample.h"
 #include "xvc_common_lib/restrictions.h"
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_enc_lib/bit_writer.h"
@@ -63,9 +64,7 @@ public:
     segment_header_->color_matrix = color_matrix;
   }
   int GetNumRefPics() const { return segment_header_->num_ref_pics; }
-  void SetNumRefPics(int num) {
-    segment_header_->num_ref_pics = num;
-  }
+  void SetNumRefPics(int num) { segment_header_->num_ref_pics = num; }
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
@@ -106,7 +105,6 @@ private:
                         PicNum sub_gop_length);
   void ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
-
   void SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal);
 
   int input_bitdepth_ = 8;
@@ -127,6 +125,7 @@ private:
   bool flat_lambda_ = false;
   EncoderSimdFunctions simd_;
   EncoderSettings encoder_settings_;
+  Resampler input_resampler_;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter bit_writer_;

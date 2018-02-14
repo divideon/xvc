@@ -103,7 +103,8 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
                        xvc::ChromaFormat chroma_fmt)
   : width_(width),
   height_(height),
-  bitdepth_(bitdepth) {
+  bitdepth_(bitdepth),
+  chroma_fmt_(chroma_fmt) {
   assert(dx + width <= kInternalPicSize);
   assert(dy + height <= kInternalPicSize);
   const int down_shift = std::max(0, kInternalBitdepth - bitdepth);
@@ -129,6 +130,7 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
     }
     srcY += strideY;
   }
+  stride_[0] = width;
 
   if (chroma_fmt == xvc::ChromaFormat::k420) {
     const ptrdiff_t strideUV = kInternalPicSize >> 1;
@@ -144,6 +146,8 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
         srcUV += strideUV;
       }
     }
+    stride_[1] = width >> 1;
+    stride_[2] = width >> 1;
   } else {
     assert(0);
   }
@@ -161,6 +165,17 @@ TestYuvPic::TestYuvPic(int width, int height, int bitdepth, int dx, int dy,
 #endif
     }
   }
+}
+
+const xvc::Sample* TestYuvPic::GetSamplePtr(xvc::YuvComponent comp) const {
+  assert(chroma_fmt_ == xvc::ChromaFormat::k420);
+  const Sample *sample_ptr = &samples_[0];
+  if (comp == xvc::YuvComponent::kU) {
+    sample_ptr += height_ * stride_[0];
+  } else if (comp == xvc::YuvComponent::kV) {
+    sample_ptr += height_ * stride_[0] + (height_ >> 1) * stride_[1];
+  }
+  return sample_ptr;
 }
 
 xvc::Sample TestYuvPic::GetAverageSample() {
@@ -184,6 +199,44 @@ double TestYuvPic::CalcPsnr(const char *pic_bytes) const {
     }
   }
   const int64_t max_val = (1 << bitdepth_) - 1;
+  const int64_t max_sum = max_val * max_val * width_ * height_;
+  return ssd > 0 ? 10.0 * std::log10(max_sum / ssd) : 1000;
+}
+
+double TestYuvPic::CalcPsnr(xvc::YuvComponent comp,
+                            const xvc::YuvPicture &ref_pic) {
+  const int ref_width = ref_pic.GetWidth(comp);
+  const int ref_height = ref_pic.GetHeight(comp);
+  const int orig_width =
+    xvc::util::ScaleSizeX(width_, ref_pic.GetChromaFormat(), comp);
+  const int orig_height =
+    xvc::util::ScaleSizeX(height_, ref_pic.GetChromaFormat(), comp);
+  EXPECT_LE(orig_width, ref_width);
+  EXPECT_LE(orig_height, ref_height);
+  const int max_bitdepth = std::max(bitdepth_, ref_pic.GetBitdepth());
+  const int orig_upshift = max_bitdepth - bitdepth_;
+  const int ref_upshift = max_bitdepth - ref_pic.GetBitdepth();
+  const xvc::SampleBufferConst ref_buffer = ref_pic.GetSampleBuffer(comp, 0, 0);
+  const Sample *ref_ptr = ref_buffer.GetDataPtr();
+  const Sample *orig_ptr = GetSamplePtr(comp);
+  const ptrdiff_t orig_stride = stride_[static_cast<int>(comp)];
+  // TODO(PH) Hack to scale orig image if smaller than reference
+  const double orig_scale_x = 1.0 * orig_width / ref_width;
+  const double orig_scale_y = 1.0 * orig_height / ref_height;
+  // If orig is smaller size than ref picture clip to closest sample
+  int ssd = 0;
+  for (int y = 0; y < ref_height; y++) {
+    for (int x = 0; x < ref_width; x++) {
+      auto orig_x = std::min(::lround(orig_scale_x * x), orig_width - 1l);
+      auto orig_y = std::min(::lround(orig_scale_y * y), orig_height - 1l);
+      Sample orig = orig_ptr[orig_y * orig_stride + orig_x] << orig_upshift;
+      Sample ref = ref_ptr[x] << ref_upshift;
+      int err = orig - ref;
+      ssd += err*err;
+    }
+    ref_ptr += ref_buffer.GetStride();
+  }
+  const int64_t max_val = (1 << max_bitdepth) - 1;
   const int64_t max_sum = max_val * max_val * width_ * height_;
   return ssd > 0 ? 10.0 * std::log10(max_sum / ssd) : 1000;
 }
@@ -226,6 +279,54 @@ void TestYuvPic::FillLargerBuffer(int out_width, int out_height,
     if (pic1[i] != pic2[i]) {
       return ::testing::AssertionFailure() <<
         (unsigned)pic1[i] << " vs " << (unsigned)pic2[i] << " at i=" << i;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
+
+::testing::AssertionResult
+TestYuvPic::SameSamples(int src_width, int src_height,
+                        const xvc_test::TestYuvPic &orig_pic, int orig_upshift,
+                        const xvc::YuvPicture &ref_pic, int ref_upshift) {
+  xvc::ChromaFormat chroma_fmt = ref_pic.GetChromaFormat();
+  for (int c = 0; c < xvc::constants::kMaxYuvComponents; c++) {
+    const xvc::YuvComponent comp = static_cast<xvc::YuvComponent>(c);
+    const int width = xvc::util::ScaleSizeX(src_width, chroma_fmt, comp);
+    const int height = xvc::util::ScaleSizeY(src_height, chroma_fmt, comp);
+    const int comp_crop_x = ref_pic.GetWidth(comp) - width;
+    const int comp_crop_y = ref_pic.GetWidth(comp) - height;
+    xvc::SampleBufferConst ref_buffer =
+      ref_pic.GetSampleBuffer(comp, 0, 0);
+    const xvc::Sample *orig_ptr = orig_pic.GetSamplePtr(comp);
+    const xvc::Sample *ref_ptr = ref_buffer.GetDataPtr();
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        if ((orig_ptr[x] << orig_upshift) != (ref_ptr[x] << ref_upshift)) {
+          return ::testing::AssertionFailure()
+            << (orig_ptr[x] << orig_upshift)
+            << " vs " << (ref_ptr[x] << ref_upshift)
+            << " comp=" << comp << " y=" << y << " x=" << x;
+        }
+      }
+      // Verify non-zero right padding
+      for (int x2 = 0; x2 < comp_crop_x; x2++) {
+        if (!ref_ptr[width + x2]) {
+          return ::testing::AssertionFailure()
+            << "zero padding comp=" << comp << " y=" << y << " x2=" << x2;
+        }
+      }
+      orig_ptr += orig_pic.GetStride(comp);
+      ref_ptr += ref_buffer.GetStride();
+    }
+    // Verfy non-zero bottom padding
+    for (int y2 = 0; y2 < comp_crop_y; y2++) {
+      for (int x2 = 0; x2 < width + comp_crop_x; x2++) {
+        if (!ref_ptr[x2]) {
+          return ::testing::AssertionFailure()
+            << "zero padding comp=" << comp << " y2=" << y2 << " x2=" << x2;
+        }
+      }
+      ref_ptr += ref_buffer.GetStride();
     }
   }
   return ::testing::AssertionSuccess();

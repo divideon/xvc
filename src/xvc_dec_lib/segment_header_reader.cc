@@ -38,8 +38,8 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
                                  segment_header->minor_version)) {
     return Decoder::State::kBitstreamVersionTooLow;
   }
-  segment_header->SetWidth(bit_reader->ReadBits(16));
-  segment_header->SetHeight(bit_reader->ReadBits(16));
+  segment_header->SetWidth(bit_reader->ReadBits(constants::kPicSizeBits));
+  segment_header->SetHeight(bit_reader->ReadBits(constants::kPicSizeBits));
   segment_header->chroma_format = ChromaFormat(bit_reader->ReadBits(4));
   segment_header->internal_bitdepth = bit_reader->ReadBits(4) + 8;
   if (segment_header->internal_bitdepth >
@@ -56,6 +56,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
                 "max binary split depth signaling");
   segment_header->max_binary_split_depth = bit_reader->ReadBits(2);
   segment_header->checksum_mode = Checksum::Mode(bit_reader->ReadBits(1));
+
   segment_header->adaptive_qp = bit_reader->ReadBits(2);
   segment_header->chroma_qp_offset_table = bit_reader->ReadBits(2);
   int chroma_qp_offsets = bit_reader->ReadBit();
@@ -74,11 +75,24 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   }
   if (segment_header->major_version > 1) {
     segment_header->leading_pictures = bit_reader->ReadBits(1);
+    segment_header->source_padding = bit_reader->ReadBit() != 0;
+  } else {
+    segment_header->leading_pictures = 0;
+    segment_header->source_padding = false;
   }
 
-  auto &restr = segment_header->restrictions;
-  restr = Restrictions();
+  segment_header->restrictions = ReadRestrictions(*segment_header, bit_reader);
+  Restrictions::GetRW() = segment_header->restrictions;
+  bit_reader->SkipBits();
 
+  segment_header->soc = segment_counter;
+  return Decoder::State::kSegmentHeaderDecoded;
+}
+
+Restrictions
+SegmentHeaderReader::ReadRestrictions(const SegmentHeader &segment_header,
+                                      BitReader *bit_reader) {
+  Restrictions restr;
   // Note! Override the value of the restriction flags only if the flag is
   // set to true in the bitstream.
 
@@ -175,7 +189,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext_deblock_subblock_size_4 |= !!bit_reader->ReadBit();
   }
 
-  if (segment_header->major_version > 1) {
+  if (segment_header.major_version > 1) {
     int ext2_restrictions = bit_reader->ReadBit();
     if (ext2_restrictions) {
       restr.disable_ext2_intra_67_modes |= !!bit_reader->ReadBit();
@@ -210,11 +224,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     restr.disable_ext2_transform_select = true;
     restr.disable_ext2_cabac_alt_residual_ctx = true;
   }
-
-  Restrictions::GetRW() = restr;
-
-  segment_header->soc = segment_counter;
-  return Decoder::State::kSegmentHeaderDecoded;
+  return restr;
 }
 
 bool SegmentHeaderReader::SupportedBitstreamVersion(uint32_t major_version,
@@ -234,5 +244,6 @@ bool SegmentHeaderReader::SupportedBitstreamVersion(uint32_t major_version,
   }
   return false;
 }
+
 
 }   // namespace xvc

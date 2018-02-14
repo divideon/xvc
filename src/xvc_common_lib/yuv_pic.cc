@@ -27,8 +27,12 @@
 namespace xvc {
 
 YuvPicture::YuvPicture(ChromaFormat chroma_fmt, int width, int height,
-                       int bitdepth, bool padding)
-  : chroma_format_(chroma_fmt), bitdepth_(bitdepth) {
+                       int bitdepth, bool padding, int crop_width,
+                       int crop_height)
+  : chroma_format_(chroma_fmt),
+  bitdepth_(bitdepth),
+  crop_width_(crop_width),
+  crop_height_(crop_height) {
   int offset_x = padding ? (constants::kMaxBlockSize + 16) : 0;
   int offset_y = padding ? (constants::kMaxBlockSize + 16) : 0;
   width_[0] = width;
@@ -60,95 +64,13 @@ YuvPicture::YuvPicture(ChromaFormat chroma_fmt, int width, int height,
   }
 }
 
-void YuvPicture::CopyFrom(const uint8_t *pic8,
-                          int input_bitdepth) {
-  // TODO(Dev) Padding support not implemented
-  assert(width_[0] == stride_[0]);
-  assert(height_[0] == total_height_[0]);
-
-  if (sample_buffer_.empty()) {
-    return;
-  }
-  if (sizeof(*pic8) == sizeof(Sample)) {
-    if (input_bitdepth == 8) {
-      std::memcpy(&sample_buffer_[0], pic8,
-                  sample_buffer_.size() * sizeof(Sample));
-    } else {
-      assert(0);  // not supported
-    }
-    return;
-  }
-  // High bitdepth combinations
-  const uint16_t *pic16 = reinterpret_cast<const uint16_t *>(&pic8[0]);
-  int bit_shift = bitdepth_ - input_bitdepth;
-  if (input_bitdepth == 8) {
-    for (size_t i = 0; i < sample_buffer_.size(); i++) {
-      sample_buffer_[i] = pic8[i] << bit_shift;
-    }
-  } else if (input_bitdepth == bitdepth_) {
-    // Assuming little ending
-    std::memcpy(&sample_buffer_[0], pic8,
-                sample_buffer_.size() * sizeof(Sample));
-  } else if (input_bitdepth <= bitdepth_) {
-    for (size_t i = 0; i < sample_buffer_.size(); i++) {
-      sample_buffer_[i] = static_cast<Sample>(pic16[i] << bit_shift);
-    }
-  } else {
-    assert(0);  // not supported
-  }
+int YuvPicture::GetCropWidth(YuvComponent comp) const {
+  return util::ScaleSizeX(crop_width_, chroma_format_, comp);
 }
 
-void YuvPicture::CopyFromWithPadding(const uint8_t *pic8,
-                                     int input_bitdepth) {
-  if (sample_buffer_.empty()) {
-    return;
-  }
-
-  if (input_bitdepth == 8) {
-    for (int c = 0; c < constants::kMaxYuvComponents; c++) {
-      YuvComponent comp = YuvComponent(c);
-      for (int y = 0; y < height_[comp]; y++) {
-        for (int x = 0; x < width_[comp]; x++) {
-          Sample *dst = GetSamplePtr(comp, x, y);
-          *dst = static_cast<Sample>(*pic8++);
-        }
-      }
-    }
-  } else {
-    const uint16_t *pic16 = reinterpret_cast<const uint16_t *>(&pic8[0]);
-    for (int c = 0; c < constants::kMaxYuvComponents; c++) {
-      YuvComponent comp = YuvComponent(c);
-      for (int y = 0; y < height_[comp]; y++) {
-        for (int x = 0; x < width_[comp]; x++) {
-          Sample *dst = GetSamplePtr(comp, x, y);
-          *dst = static_cast<Sample>(*pic16++);
-        }
-      }
-    }
-  }
-  PadBorder();
+int YuvPicture::GetCropHeight(YuvComponent comp) const {
+  return util::ScaleSizeY(crop_height_, chroma_format_, comp);
 }
-
-
-void YuvPicture::CopyFromWithResampling(const uint8_t *pic8, int input_bitdepth,
-                                        int orig_width, int orig_height) {
-  YuvPicture temp_pic(chroma_format_, orig_width, orig_height, input_bitdepth,
-                      true);
-  temp_pic.CopyFromWithPadding(pic8, input_bitdepth);
-  for (int c = 0; c < constants::kMaxYuvComponents; c++) {
-    YuvComponent comp = YuvComponent(c);
-    uint8_t* dst = reinterpret_cast<uint8_t*>(GetSamplePtr(comp, 0, 0));
-    uint8_t* src =
-      reinterpret_cast<uint8_t*>(temp_pic.GetSamplePtr(comp, 0, 0));
-    resample::Resample<Sample, Sample>
-      (dst, width_[c], height_[c],
-       stride_[c], bitdepth_,
-       src, temp_pic.GetWidth(comp), temp_pic.GetHeight(comp),
-       temp_pic.GetStride(comp), input_bitdepth);
-  }
-}
-
-
 
 void YuvPicture::CopyToSameBitdepth(std::vector<uint8_t> *out_bytes) const {
   int num_samples = util::GetTotalNumSamples(width_[YuvComponent::kY],
@@ -156,6 +78,9 @@ void YuvPicture::CopyToSameBitdepth(std::vector<uint8_t> *out_bytes) const {
                                              chroma_format_);
   size_t pic_bytes = num_samples * (bitdepth_ > 8 ? 2 : 1);
   out_bytes->resize(pic_bytes);
+  if (!num_samples) {
+    return;
+  }
   uint16_t *out16 = reinterpret_cast<uint16_t *>(&(*out_bytes)[0]);
   uint8_t *out8 = &(*out_bytes)[0];
 

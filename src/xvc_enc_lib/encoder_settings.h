@@ -87,6 +87,7 @@ struct EncoderSettings {
   int structural_ssd = 1;
   int encapsulation_mode = 0;
   int leading_pictures = 0;
+  int source_padding = 0;
   int chroma_qp_offset_table = 1;
   int chroma_qp_offset_u = 0;
   int chroma_qp_offset_v = 0;

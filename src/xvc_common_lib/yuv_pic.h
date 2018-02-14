@@ -48,16 +48,25 @@ struct PictureFormat {
 
 class YuvPicture {
 public:
+  YuvPicture(const PictureFormat &pic_fmt, bool padding,
+             int crop_width, int crop_height)
+    : YuvPicture(pic_fmt.chroma_format, pic_fmt.width, pic_fmt.height,
+                 pic_fmt.bitdepth, padding, crop_width, crop_height) {
+  }
   YuvPicture(ChromaFormat chroma_format, int width, int height, int bitdepth,
-             bool padding);
+             bool padding, int crop_width, int crop_height);
 
   int GetWidth(YuvComponent comp) const { return width_[comp]; }
   int GetHeight(YuvComponent comp) const { return height_[comp]; }
   ptrdiff_t GetStride(YuvComponent comp) const { return stride_[comp]; }
+  int GetTotalHeight(YuvComponent comp) const { return total_height_[comp]; }
   int GetSizeShiftX(YuvComponent comp) const { return shiftx_[comp]; }
   int GetSizeShiftY(YuvComponent comp) const { return shifty_[comp]; }
   int GetBitdepth() const { return bitdepth_; }
+  size_t GetTotalSamples() const { return sample_buffer_.size(); }
   ChromaFormat GetChromaFormat() const { return chroma_format_; }
+  int GetCropWidth(YuvComponent comp) const;
+  int GetCropHeight(YuvComponent comp) const;
 
   Sample* GetSamplePtr(YuvComponent comp, int x, int y) {
     return comp_pel_[comp] + y * GetStride(comp) + x;
@@ -71,10 +80,6 @@ public:
   SampleBufferConst GetSampleBuffer(YuvComponent comp, int x, int y) const {
     return SampleBufferConst(GetSamplePtr(comp, x, y), GetStride(comp));
   }
-  void CopyFrom(const uint8_t *picture_bytes, int input_bitdepth);
-  void CopyFromWithPadding(const uint8_t *picture_bytes, int input_bitdepth);
-  void CopyFromWithResampling(const uint8_t *picture_bytes, int input_bitdepth,
-                              int orig_width, int orig_height);
   void CopyToSameBitdepth(std::vector<uint8_t> *pic_bytes) const;
   void PadBorder();
 
@@ -87,6 +92,8 @@ private:
   int shiftx_[constants::kMaxYuvComponents];
   int shifty_[constants::kMaxYuvComponents];
   int bitdepth_;
+  int crop_width_;
+  int crop_height_;
   std::vector<Sample> sample_buffer_;
   Sample *comp_pel_[constants::kMaxYuvComponents];
 };

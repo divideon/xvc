@@ -93,6 +93,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       adaptive_qp = 0;
       structural_ssd = 0;
       leading_pictures = 0;
+      source_padding = 1;
       chroma_qp_offset_table = 1;
       chroma_qp_offset_u = 0;
       chroma_qp_offset_v = 0;
@@ -117,6 +118,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       adaptive_qp = 0;
       structural_ssd = 0;
       leading_pictures = 0;
+      source_padding = 1;
       chroma_qp_offset_table = 1;
       chroma_qp_offset_u = 1;
       chroma_qp_offset_v = 1;
@@ -135,6 +137,7 @@ void EncoderSettings::Tune(TuneMode tune_mode) {
     case TuneMode::kPsnr:
       adaptive_qp = 0;
       structural_ssd = 0;
+      source_padding = 1;
       chroma_qp_offset_table = 0;
       break;
     default:
@@ -195,6 +198,8 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> encapsulation_mode;
     } else if (setting == "leading_pictures") {
       stream >> leading_pictures;
+    } else if (setting == "source_padding") {
+      stream >> source_padding;
     }
   }
 }

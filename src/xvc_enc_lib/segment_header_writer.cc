@@ -43,6 +43,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
                                               / framerate), 24);
   bit_writer->WriteBits(
     static_cast<uint32_t>(segment_header->max_sub_gop_length), 8);
+
   bit_writer->WriteBits(static_cast<uint8_t>(segment_header->color_matrix), 3);
   // The open gop flag is set to 0 if the tail pictures
   // do not predict from the Intra picture in the next segment.
@@ -53,6 +54,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   bit_writer->WriteBits(segment_header->max_binary_split_depth, 2);
   bit_writer->WriteBits(static_cast<uint32_t>(segment_header->checksum_mode),
                         1);
+
   assert(segment_header->adaptive_qp >= 0 && segment_header->adaptive_qp <= 3);
   bit_writer->WriteBits(segment_header->adaptive_qp, 2);
   bit_writer->WriteBits(segment_header->chroma_qp_offset_table, 2);
@@ -74,9 +76,19 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBits(segment_header->beta_offset + (1 << (d - 1)), d);
     bit_writer->WriteBits(segment_header->tc_offset + (1 << (d - 1)), d);
   }
-  bit_writer->WriteBits(leading_pictures > 0 ? 1 : 0, 1);
+  // Checking major version on encoder side is only needed for unit tests
+  if (segment_header->major_version > 1) {
+    bit_writer->WriteBits(leading_pictures > 0 ? 1 : 0, 1);
+    bit_writer->WriteBit(segment_header->source_padding ? 1 : 0);
+  }
 
-  auto &restr = Restrictions::Get();
+  const Restrictions &restr = Restrictions::Get();
+  WriteRestrictions(restr, bit_writer);
+  bit_writer->PadZeroBits();
+}
+
+void SegmentHeaderWriter::WriteRestrictions(const Restrictions &restr,
+                                            BitWriter *bit_writer) {
   if (restr.GetIntraRestrictions()) {
     bit_writer->WriteBit(1);  // intra_restrictions
     bit_writer->WriteBit(restr.disable_intra_ref_padding);
@@ -193,7 +205,6 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // ext2_restrictions
   }
-  bit_writer->PadZeroBits();
 }
 
 }   // namespace xvc

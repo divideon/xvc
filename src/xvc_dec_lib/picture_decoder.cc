@@ -35,14 +35,15 @@ namespace xvc {
 
 PictureDecoder::PictureDecoder(const SimdFunctions &simd,
                                const PictureFormat &pic_fmt,
-                               const PictureFormat &output_format)
+                               int crop_width, int crop_height)
   : simd_(simd),
-  output_resampler_(output_format),
+  output_resampler_(),
+  output_format_(),
   pic_data_(std::make_shared<PictureData>(pic_fmt.chroma_format, pic_fmt.width,
                                           pic_fmt.height, pic_fmt.bitdepth)),
   rec_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
-                                        pic_fmt.height, pic_fmt.bitdepth,
-                                        true)) {
+                                        pic_fmt.height, pic_fmt.bitdepth, true,
+                                        crop_width, crop_height)) {
 }
 
 PictureDecoder::PicNalHeader
@@ -126,9 +127,11 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
 void PictureDecoder::Init(const SegmentHeader &segment,
                           const PicNalHeader &header,
                           ReferencePictureLists &&ref_pic_list,
+                          const PictureFormat &output_pic_format,
                           int64_t user_data) {
   assert(output_status_ == OutputStatus::kHasBeenOutput);
   pic_qp_ = header.pic_qp;
+  output_format_ = output_pic_format;
   user_data_ = user_data;
   output_status_ = OutputStatus::kProcessing;
   ref_count = 0;
@@ -192,19 +195,21 @@ bool PictureDecoder::Postprocess(const SegmentHeader &segment,
   } else {
     pic_hash_.clear();
   }
-  output_resampler_.Convert(*rec_pic_, &output_pic_bytes_);
+  output_resampler_.ConvertTo(*rec_pic_, output_format_, &output_pic_bytes_);
   return success;
 }
 
 std::shared_ptr<YuvPicture>
-PictureDecoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
-                                     int height, int bitdepth) const {
+PictureDecoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
+                                     int crop_width, int crop_height) const {
   if (alt_rec_pic_) {
     return alt_rec_pic_;
   }
   auto alt_rec_pic =
-    std::make_shared<YuvPicture>(chroma_format, width, height, bitdepth, true);
-  for (int c = 0; c < util::GetNumComponents(chroma_format); c++) {
+    std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
+                                 pic_fmt.height, pic_fmt.bitdepth, true,
+                                 crop_width, crop_height);
+  for (int c = 0; c < util::GetNumComponents(pic_fmt.chroma_format); c++) {
     YuvComponent comp = YuvComponent(c);
     uint8_t* dst =
       reinterpret_cast<uint8_t*>(alt_rec_pic->GetSamplePtr(comp, 0, 0));

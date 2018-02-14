@@ -27,6 +27,7 @@
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/sample_buffer.h"
+#include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc_test {
 
@@ -39,14 +40,23 @@ public:
   TestYuvPic(int width, int height, int bitdepth, int dx = 0, int dy = 0,
              xvc::ChromaFormat chroma_fmt = xvc::ChromaFormat::k420);
   const std::vector<uint8_t> GetBytes() const { return bytes_; }
+  const Sample* GetSamplePtr(xvc::YuvComponent comp) const;
   xvc::SampleBufferConst GetSampleBuffer() const {
     return xvc::SampleBufferConst(&samples_[0], width_);
+  }
+  ptrdiff_t GetStride(xvc::YuvComponent comp) const {
+    return stride_[static_cast<int>(comp)];
   }
   Sample GetAverageSample();
   int GetBitdepth() const { return bitdepth_; }
   double CalcPsnr(const char *bytes) const;
+  double CalcPsnr(xvc::YuvComponent comp, const xvc::YuvPicture &ref_pic);
   void FillLargerBuffer(int out_width, int out_height, xvc::SampleBuffer *out);
 
+  static ::testing::AssertionResult
+    SameSamples(int src_width, int src_height,
+                const xvc_test::TestYuvPic &orig_pic, int orig_upshift,
+                const xvc::YuvPicture &ref_pic, int ref_upshift);
   static ::testing::AssertionResult
     SamePictureBytes(const uint8_t *pic1, size_t size1,
                      const uint8_t *pic2, size_t size2);
@@ -64,6 +74,8 @@ private:
   int width_;
   int height_;
   int bitdepth_;
+  xvc::ChromaFormat chroma_fmt_;
+  std::array<ptrdiff_t, xvc::constants::kMaxYuvComponents> stride_;
   std::vector<Sample> samples_;
   std::vector<uint8_t> bytes_;
 };

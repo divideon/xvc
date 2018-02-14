@@ -28,17 +28,28 @@ namespace xvc {
 
 class Resampler {
 public:
-  explicit Resampler(const PictureFormat &output_format)
-    : out_fmt_(output_format) {
-  }
-  void Convert(const YuvPicture &src_pic,
-               std::vector<uint8_t> *out_bytes);
+  Resampler() {}
+  void ConvertFrom(const PictureFormat &src_format, const uint8_t *src_bytes,
+                   YuvPicture *out_picm);
+  void ConvertTo(const YuvPicture &src_pic, const PictureFormat &output_format,
+                 std::vector<uint8_t> *out_bytes);
 
 private:
   static const int kColorConversionBitdepth = 12;
-  uint8_t* CopyWithShift(uint8_t *out8, int width,
-                         int height, ptrdiff_t stride, int out_bitdepth,
-                         const Sample *src, int bitdepth, int dither) const;
+  void CopyFromBytesFast(const uint8_t *src_bytes, int input_bitdepth,
+                         YuvPicture *out_pic) const;
+  void CopyFromBytesWithPadding(const uint8_t *src_bytes,
+                                const PictureFormat &src_format,
+                                YuvPicture *out_pic) const;
+  void CopyFromBytesWithResampling(const uint8_t *src_bytes,
+                                   const PictureFormat &src_format,
+                                   YuvPicture *out_pic) const;
+  uint8_t* CopyToBytesWithShift(YuvComponent comp, const YuvPicture &src_pic,
+                                int out_bitdepth, int dither,
+                                uint8_t *out8) const;
+  void CopyToWithResize(const YuvPicture &src_pic,
+                        const PictureFormat &output_format,
+                        int dst_bitdepth, uint8_t *out8) const;
   template <typename T>
   void ConvertColorSpace(uint8_t *dst, int width, int height,
                          const uint16_t *src, int bitdepth,
@@ -46,7 +57,6 @@ private:
   void ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
                                 const uint16_t *src) const;
 
-  PictureFormat out_fmt_;
   std::vector<uint8_t> tmp_bytes_;
 };
 

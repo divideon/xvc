@@ -81,15 +81,12 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   pic_data->SetBetaOffset(segment_header_->beta_offset);
   pic_data->SetTcOffset(segment_header_->tc_offset);
 
-  if (segment_header_->GetOutputWidth() != segment_header_->GetInternalWidth()
-      || segment_header_->GetOutputHeight() !=
-      segment_header_->GetInternalHeight()) {
-    pic_enc->GetOrigPic()->CopyFromWithResampling(
-      pic_bytes, input_bitdepth_, segment_header_->GetOutputWidth(),
-      segment_header_->GetOutputHeight());
-  } else {
-    pic_enc->GetOrigPic()->CopyFrom(pic_bytes, input_bitdepth_);
-  }
+  PictureFormat input_format(segment_header_->GetOutputWidth(),
+                             segment_header_->GetOutputHeight(),
+                             input_bitdepth_, segment_header_->chroma_format,
+                             segment_header_->color_matrix, false);
+  input_resampler_.ConvertFrom(input_format, pic_bytes,
+                               pic_enc->GetOrigPic().get());
 
   // Check if it is time to encode a new segment header.
   bool encode_segment_header = false;
@@ -280,6 +277,7 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   encoder_settings_ = settings;
   segment_header_->num_ref_pics = settings.default_num_ref_pics;
   segment_header_->max_binary_split_depth = settings.max_binary_split_depth;
+  segment_header_->source_padding = settings.source_padding != 0;
   segment_header_->chroma_qp_offset_table = settings.chroma_qp_offset_table;
   segment_header_->leading_pictures = settings.leading_pictures;
   segment_header_->chroma_qp_offset_u = settings.chroma_qp_offset_u;
@@ -372,7 +370,9 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   if (pic_encoders_.size() < pic_buffering_num_) {
     auto pic =
       std::make_shared<PictureEncoder>(simd_,
-                                       segment_header_->GetInternalPicFormat());
+                                       segment_header_->GetInternalPicFormat(),
+                                       segment_header_->GetCropWidth(),
+                                       segment_header_->GetCropHeight());
     pic_encoders_.push_back(pic);
     return pic;
   }

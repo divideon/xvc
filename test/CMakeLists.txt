@@ -16,6 +16,7 @@ set(XVC_TEST_SOURCES
     "xvc_test/encoder_api_test.cc"
     "xvc_test/encoder_helper.h"
     "xvc_test/hls_test.cc"
+    "xvc_test/resampler_test.cc"
     "xvc_test/residual_coding_test.cc"
     "xvc_test/resolution_test.cc"
     "xvc_test/restrictions_test.cc"

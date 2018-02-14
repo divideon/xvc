@@ -39,7 +39,8 @@ namespace xvc {
 class PictureEncoder {
 public:
   PictureEncoder(const EncoderSimdFunctions &simd,
-                 const PictureFormat &pic_fmt);
+                 const PictureFormat &pic_fmt,
+                 int crop_width, int crop_height);
   std::shared_ptr<const YuvPicture> GetOrigPic() const { return orig_pic_; }
   std::shared_ptr<YuvPicture> GetOrigPic() { return orig_pic_; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
@@ -55,7 +56,7 @@ public:
                                const EncoderSettings &encoder_settings);
   const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
-    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
+    const PictureFormat &pic_fmt, int crop_width, int crop_height) const;
 
 private:
   void WriteHeader(const PictureData &pic_data, PicNum sub_gop_length,

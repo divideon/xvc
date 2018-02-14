@@ -38,19 +38,29 @@ struct SegmentHeader {
                                 PicNum sub_gop_length);
   static double GetFramerate(int max_tid, int bitstream_ticks,
                              PicNum sub_gop_length);
-  void SetWidth(int width) { pic_width = width; }
-  int GetOutputWidth() const { return pic_width; }
-  int GetInternalWidth() const {
-    return pic_width - (pic_width % constants::kMinCuSize);
+  void SetWidth(int output_width) {
+    output_pic_width_ = output_width;
+    internal_pic_width_ = constants::kMinCuSize *
+      ((output_width + constants::kMinCuSize - 1) / constants::kMinCuSize);
   }
-  void SetHeight(int height) { pic_height = height; }
-  int GetOutputHeight() const { return pic_height; }
-  int GetInternalHeight() const {
-    return pic_height - (pic_height % constants::kMinCuSize);
+  int GetOutputWidth() const { return output_pic_width_; }
+  int GetInternalWidth() const { return internal_pic_width_; }
+  void SetHeight(int output_height) {
+    output_pic_height_ = output_height;
+    internal_pic_height_ = constants::kMinCuSize *
+      ((output_height + constants::kMinCuSize - 1) / constants::kMinCuSize);
   }
+  int GetOutputHeight() const { return output_pic_height_; }
+  int GetInternalHeight() const { return internal_pic_height_; }
   PictureFormat GetInternalPicFormat() const {
-    return PictureFormat(GetInternalWidth(), GetInternalHeight(),
+    return PictureFormat(internal_pic_width_, internal_pic_height_,
                          internal_bitdepth, chroma_format, color_matrix, false);
+  }
+  int GetCropWidth() const {
+    return !source_padding ? 0 : internal_pic_width_ - output_pic_width_;
+  }
+  int GetCropHeight() const {
+    return !source_padding ? 0 : internal_pic_height_ - output_pic_height_;
   }
 
   uint32_t codec_identifier = static_cast<uint32_t>(-1);
@@ -67,6 +77,7 @@ struct SegmentHeader {
   int num_ref_pics = 0;
   int max_binary_split_depth = -1;
   Checksum::Mode checksum_mode = Checksum::Mode::kInvalid;
+  bool source_padding = false;
   int adaptive_qp = -1;
   int chroma_qp_offset_table = -1;
   int chroma_qp_offset_u = 0;
@@ -77,8 +88,10 @@ struct SegmentHeader {
   Restrictions restrictions;
 
 private:
-  int pic_width = 0;
-  int pic_height = 0;
+  int output_pic_width_ = 0;
+  int output_pic_height_ = 0;
+  int internal_pic_width_ = 0;
+  int internal_pic_height_ = 0;
   static PicNum DocToPoc(PicNum sub_gop_length, PicNum doc);
   static PicNum PocToDoc(PicNum sub_gop_length, PicNum poc);
   static int DocToTid(PicNum sub_gop_length, PicNum doc);

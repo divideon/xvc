@@ -35,16 +35,17 @@
 namespace xvc {
 
 PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
-                               const PictureFormat &pic_fmt)
+                               const PictureFormat &pic_fmt,
+                               int crop_width, int crop_height)
   : simd_(simd),
   orig_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
                                          pic_fmt.height, pic_fmt.bitdepth,
-                                         false)),
+                                         false, crop_width, crop_height)),
   pic_data_(std::make_shared<PictureData>(pic_fmt.chroma_format, pic_fmt.width,
                                           pic_fmt.height, pic_fmt.bitdepth)),
   rec_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
                                         pic_fmt.height, pic_fmt.bitdepth,
-                                        true)) {
+                                        true, 0, 0)) {
 }
 
 std::vector<uint8_t>*
@@ -110,8 +111,8 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
 }
 
 std::shared_ptr<YuvPicture>
-PictureEncoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
-                                     int height, int bitdepth) const {
+PictureEncoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
+                                     int crop_width, int crop_height) const {
   assert(0);
   return std::shared_ptr<YuvPicture>();
 }

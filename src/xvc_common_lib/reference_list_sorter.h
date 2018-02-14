@@ -145,10 +145,9 @@ private:
       if (segment_header_.soc != ref_data->GetSoc() &&
           !IsSameDimension(segment_header_, *ref_data)) {
         ref_pic = pic_enc_dec->GetAlternativeRecPic(
-          segment_header_.chroma_format,
-          segment_header_.GetInternalWidth(),
-          segment_header_.GetInternalHeight(),
-          segment_header_.internal_bitdepth);
+          segment_header_.GetInternalPicFormat(),
+          segment_header_.GetCropWidth(),
+          segment_header_.GetCropHeight());
       }
       if (rpl) {
         rpl->SetRefPic(ref_pic_list, ref_idx, ref_data->GetPoc(),
@@ -209,10 +208,9 @@ private:
         if (segment_header_.soc != ref_data->GetSoc() &&
             !IsSameDimension(segment_header_, *ref_data)) {
           ref_pic = pic_enc_dec1->GetAlternativeRecPic(
-            segment_header_.chroma_format,
-            segment_header_.GetInternalWidth(),
-            segment_header_.GetInternalHeight(),
-            segment_header_.internal_bitdepth);
+            segment_header_.GetInternalPicFormat(),
+            segment_header_.GetCropWidth(),
+            segment_header_.GetCropHeight());
         }
         if (rpl) {
           rpl->SetRefPic(ref_pic_list, ref_idx,

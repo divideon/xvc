@@ -32,6 +32,10 @@ public:
                     double framerate,
                     int open_gop,
                     int leading_pictures);
+
+private:
+  static void WriteRestrictions(const Restrictions &restrictions,
+                                BitWriter *bit_writer);
 };
 
 }   // namespace xvc

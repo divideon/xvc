@@ -267,7 +267,7 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
 
   // Setup poc and output status on main thread
   pic_dec->Init(*segment_header, pic_header, std::move(ref_pic_list),
-                user_data);
+                output_pic_format_, user_data);
 
   // Special handling of inter dependency ref counting for lowest layer
   if (pic_header.tid == 0) {
@@ -404,7 +404,8 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
   if (pic_decoders_.size() < pic_buffering_num_) {
     auto pic =
       std::make_shared<PictureDecoder>(simd_, segment.GetInternalPicFormat(),
-                                       output_pic_format_);
+                                       segment.GetCropWidth(),
+                                       segment.GetCropHeight());
     pic_decoders_.push_back(pic);
     return pic;
   }
@@ -437,7 +438,8 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
       segment.chroma_format != pic_data->GetChromaFormat() ||
       segment.internal_bitdepth != pic_data->GetBitdepth()) {
     pic_dec_it->reset(new PictureDecoder(simd_, segment.GetInternalPicFormat(),
-                                         output_pic_format_));
+                                         segment.GetCropWidth(),
+                                         segment.GetCropHeight()));
   }
   return *pic_dec_it;
 }

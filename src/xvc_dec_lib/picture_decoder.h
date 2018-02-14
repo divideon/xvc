@@ -51,9 +51,10 @@ public:
   };
 
   PictureDecoder(const SimdFunctions &simd, const PictureFormat &pic_format,
-                 const PictureFormat &output_format);
+                 int crop_width, int crop_height);
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
-            ReferencePictureLists &&ref_pic_list, int64_t user_data);
+            ReferencePictureLists &&ref_pic_list,
+            const PictureFormat &output_pic_format, int64_t user_data);
   bool Decode(const SegmentHeader &segment, BitReader *bit_reader,
               bool post_process);
   bool Postprocess(const SegmentHeader &segment, BitReader *bit_reader);
@@ -79,7 +80,7 @@ public:
   void RemoveReferenceCount(int val) const { ref_count -= val; }
   const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
-    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
+    const PictureFormat &pic_fmt, int crop_width, int crop_height) const;
   static PicNalHeader
     DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                  PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
@@ -93,6 +94,7 @@ private:
 
   const SimdFunctions &simd_;
   Resampler output_resampler_;
+  PictureFormat output_format_;
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;
