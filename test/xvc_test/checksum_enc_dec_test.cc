@@ -110,7 +110,8 @@ protected:
       pic_decoder_->DecodeHeader(&bit_reader, &sub_gop_end_poc,
                                  &sub_gop_start_poc, &sub_gop_length,
                                  sub_gop_length, sub_gop_length, doc,
-                                 segment_.soc, num_buffered_nals);
+                                 segment_.soc, num_buffered_nals,
+                                 segment_.leading_pictures);
     // TODO(PH) Also verify inter pictures?
     xvc::ReferencePictureLists ref_pic_list;
     pic_decoder_->Init(segment_, pic_header, std::move(ref_pic_list), 0);

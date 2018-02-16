@@ -119,7 +119,7 @@ private:
   bool curr_segment_open_gop_ = false;
   PicNum poc_ = 0;
   PicNum doc_ = 0;
-  SegmentNum soc_ = std::numeric_limits<SegmentNum>::max();
+  SegmentNum soc_ = 0;
   PicNum pic_buffering_num_ = 1;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();

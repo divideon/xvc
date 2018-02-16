@@ -84,7 +84,8 @@ public:
     DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                  PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
                  PicNum max_sub_gop_length, PicNum prev_sub_gop_length,
-                 PicNum doc, SegmentNum soc, int num_buffered_nals);
+                 PicNum doc, SegmentNum soc, int num_buffered_nals,
+                 int leading_pictures);
 
 private:
   bool ValidateChecksum(const SegmentHeader &segment,

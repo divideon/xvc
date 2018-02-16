@@ -54,6 +54,9 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   auto pic_enc = GetNewPictureEncoder();
   auto pic_data = pic_enc->GetPicData();
   pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
+    poc_++;
+  }
   pic_data->SetPoc(poc_);
   if (segment_header_->num_ref_pics == 0) {
     pic_data->SetNalType(NalUnitType::kIntraPicture);
@@ -89,7 +92,14 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   }
 
   // Check if it is time to encode a new segment header.
-  if ((poc_ % segment_length_) == 0) {
+  bool encode_segment_header = false;
+  if (segment_header_->leading_pictures > 0) {
+    encode_segment_header = (poc_ >= pic_data->GetSubGopLength() &&
+      ((poc_ - pic_data->GetSubGopLength()) % segment_length_) == 0);
+  } else {
+    encode_segment_header = ((poc_ % segment_length_) == 0);
+  }
+  if (encode_segment_header) {
     prev_segment_open_gop_ = curr_segment_open_gop_;
     if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
       curr_segment_open_gop_ = false;
@@ -103,9 +113,19 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
       bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
       bit_writer_.WriteBits(1, 8);
     }
-    SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_, framerate_,
-                               curr_segment_open_gop_);
-    soc_++;
+    if (poc_ == pic_data->GetSubGopLength() &&
+        encoder_settings_.leading_pictures > 0) {
+      segment_header_->leading_pictures = encoder_settings_.leading_pictures;
+      SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
+                                 framerate_, curr_segment_open_gop_, 1);
+      encode_with_buffer_flag_ = false;
+    } else {
+      segment_header_->leading_pictures = 0;
+      SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
+                                 framerate_, curr_segment_open_gop_, 0);
+      encode_with_buffer_flag_ = true;
+      soc_ += poc_ == 0 ? 0 : 1;
+    }
     segment_header_->soc = soc_;
     xvc_enc_nal_unit nal;
     std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
@@ -116,14 +136,12 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     nal.stats.nal_unit_type = static_cast<int>(NalUnitType::kSegmentHeader);
     nal_units_.push_back(nal);
     pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
-    encode_with_buffer_flag_ = true;
   } else {
     encode_with_buffer_flag_ = false;
   }
   pic_data->SetSoc(soc_);
 
-
-  if (poc_ == 0) {
+  if (encoder_settings_.leading_pictures == 0 && poc_ == 0) {
     EncodeOnePicture(pic_enc, segment_header_->max_sub_gop_length);
     doc_ = 0;
   }
@@ -158,7 +176,8 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   }
   // If enough pictures have been encoded, the reconstructed picture
   // with lowest poc can be output.
-  if (poc_ >= segment_header_->max_sub_gop_length) {
+  if (poc_ >= segment_header_->max_sub_gop_length +
+    (segment_header_->leading_pictures > 0 ? 1 : 0)) {
     ReconstructOnePicture(rec_pic);
   }
   if (nal_units_.size() > 0) {
@@ -174,8 +193,53 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
   if (poc_ > 0) {
     poc_--;
   }
+
   // Check if there are pictures left to encode.
   if (doc_ < poc_) {
+    // If Flush is performed before a full SubGop has been input,
+    // then leading_pictures is disabled and picture numbers are
+    // recalculated.
+    if (doc_ == 0 && segment_header_->leading_pictures) {
+      poc_--;
+      segment_header_->leading_pictures = 0;
+      for (auto &pic : pic_encoders_) {
+        auto pic_data = pic->GetPicData();
+        PicNum poc = pic_data->GetPoc() - 1;
+        pic_data->SetPoc(poc);
+        PicNum doc = SegmentHeader::CalcDocFromPoc(
+          poc, segment_header_->max_sub_gop_length, sub_gop_start_poc_);
+        int tid = SegmentHeader::CalcTidFromDoc(
+          doc, segment_header_->max_sub_gop_length, sub_gop_start_poc_);
+        int max_tid =
+          SegmentHeader::GetMaxTid(segment_header_->max_sub_gop_length);
+        pic_data->SetDoc(doc);
+        pic_data->SetTid(tid);
+        pic_data->SetHighestLayer(tid == max_tid);
+        if (poc == 0) {
+          pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
+          bit_writer_.Clear();
+          if (encoder_settings_.encapsulation_mode != 0) {
+            bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
+            bit_writer_.WriteBits(1, 8);
+          }
+          SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
+                                     framerate_, curr_segment_open_gop_, 0);
+          segment_header_->soc = soc_;
+          xvc_enc_nal_unit nal;
+          std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
+          nal.bytes = &(*nal_bytes)[0];
+          nal.size = nal_bytes->size();
+          nal.buffer_flag = 0;
+          SetNalStats(*pic_data, &nal);
+          nal.stats.nal_unit_type =
+            static_cast<int>(NalUnitType::kSegmentHeader);
+          nal_units_.push_back(nal);
+          EncodeOnePicture(pic, segment_header_->max_sub_gop_length);
+          doc_ = 0;
+        }
+      }
+    }
+
     encode_with_buffer_flag_ = false;
     PicNum pics_to_encode = poc_ - doc_;
     PicNum num_encoded = 0;
@@ -217,6 +281,7 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   segment_header_->num_ref_pics = settings.default_num_ref_pics;
   segment_header_->max_binary_split_depth = settings.max_binary_split_depth;
   segment_header_->chroma_qp_offset_table = settings.chroma_qp_offset_table;
+  segment_header_->leading_pictures = settings.leading_pictures;
   segment_header_->chroma_qp_offset_u = settings.chroma_qp_offset_u;
   segment_header_->chroma_qp_offset_v = settings.chroma_qp_offset_v;
   segment_header_->adaptive_qp = settings.adaptive_qp;
@@ -255,8 +320,8 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
   ref_list_sorter.Prepare(pic->GetPicData()->GetPoc(),
                           pic->GetPicData()->GetTid(),
                           pic->GetPicData()->IsIntraPic(),
-                          pic_encoders_, pic->GetPicData()->GetRefPicLists());
-
+                          pic_encoders_, pic->GetPicData()->GetRefPicLists(),
+                          segment_header.leading_pictures);
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> *pic_bytes =
     pic->Encode(segment_header, segment_qp_, sub_gop_length, buffer_flag,

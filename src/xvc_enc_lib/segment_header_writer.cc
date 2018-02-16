@@ -27,7 +27,8 @@ namespace xvc {
 void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
                                 BitWriter *bit_writer,
                                 double framerate,
-                                int open_gop) {
+                                int open_gop,
+                                int leading_pictures) {
   bit_writer->WriteBits(33, 8);  // Nal Unit header with nal_unit_type == 16
   bit_writer->WriteBits(segment_header->codec_identifier, 24);
   bit_writer->WriteBits(segment_header->major_version, 16);
@@ -73,6 +74,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
     bit_writer->WriteBits(segment_header->beta_offset + (1 << (d - 1)), d);
     bit_writer->WriteBits(segment_header->tc_offset + (1 << (d - 1)), d);
   }
+  bit_writer->WriteBits(leading_pictures > 0 ? 1 : 0, 1);
 
   auto &restr = Restrictions::Get();
   if (restr.GetIntraRestrictions()) {

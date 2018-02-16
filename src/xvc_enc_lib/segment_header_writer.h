@@ -30,7 +30,8 @@ public:
   static void Write(SegmentHeader* segment_header,
                     BitWriter *bit_writer,
                     double framerate,
-                    int open_gop);
+                    int open_gop,
+                    int leading_pictures);
 };
 
 }   // namespace xvc

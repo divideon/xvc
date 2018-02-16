@@ -42,7 +42,7 @@ public:
   std::vector<std::shared_ptr<const T>>
     Prepare(PicNum curr_poc, int curr_tid, bool is_intra_pic,
             const std::vector<std::shared_ptr<T>> &pic_buffer,
-            ReferencePictureLists* rpl) {
+            ReferencePictureLists* rpl, int leading_pictures) {
     std::vector<std::shared_ptr<const T>> dependencies;
     if (rpl) {
       rpl->Reset(curr_poc);
@@ -57,7 +57,8 @@ public:
     }
     int num_l0 = FillLowerPoc(RefPicList::kL0, 0, curr_poc, curr_tid,
                               pic_buffer, &dependencies, rpl);
-    if (Restrictions::Get().disable_ext_ref_list_l0_trim) {
+    if (Restrictions::Get().disable_ext_ref_list_l0_trim
+        || num_l0 == 0) {
       FillHigherPoc(RefPicList::kL0, num_l0, curr_poc, curr_tid, pic_buffer,
                     &dependencies, rpl);
     }

@@ -63,6 +63,7 @@ struct SegmentHeader {
   int bitstream_ticks = 0;
   PicNum max_sub_gop_length = 0;
   bool open_gop = false;
+  int leading_pictures = 0;
   int num_ref_pics = 0;
   int max_binary_split_depth = -1;
   Checksum::Mode checksum_mode = Checksum::Mode::kInvalid;

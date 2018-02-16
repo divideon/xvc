@@ -92,6 +92,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       fast_transform_select_eval = 1;
       adaptive_qp = 0;
       structural_ssd = 0;
+      leading_pictures = 0;
       chroma_qp_offset_table = 1;
       chroma_qp_offset_u = 0;
       chroma_qp_offset_v = 0;
@@ -115,6 +116,7 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       fast_transform_select_eval = 1;
       adaptive_qp = 0;
       structural_ssd = 0;
+      leading_pictures = 0;
       chroma_qp_offset_table = 1;
       chroma_qp_offset_u = 1;
       chroma_qp_offset_v = 1;
@@ -191,6 +193,8 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> structural_ssd;
     } else if (setting == "encapsulation_mode") {
       stream >> encapsulation_mode;
+    } else if (setting == "leading_pictures") {
+      stream >> leading_pictures;
     }
   }
 }

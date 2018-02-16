@@ -50,14 +50,19 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
                              PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
                              PicNum max_sub_gop_length,
                              PicNum prev_sub_gop_length, PicNum doc,
-                             SegmentNum soc_counter, int num_buffered_nals) {
+                             SegmentNum soc_counter, int num_buffered_nals,
+                             int leading_pictures) {
   // Start by reading the picture header data
   uint32_t header_byte = bit_reader->ReadBits(8);
   NalUnitType nal_unit_type = NalUnitType((header_byte >> 1) & 31);
   int buffer_flag = bit_reader->ReadBits(1);
   SegmentNum soc = (buffer_flag) ? soc_counter - 1 : soc_counter;
   int tid = bit_reader->ReadBits(3);
-  if (tid == 0) {
+  if (nal_unit_type == NalUnitType::kIntraAccessPicture && leading_pictures) {
+    *sub_gop_length = max_sub_gop_length;
+    *sub_gop_start_poc += doc > 1 ? constants::kMaxSubGopLength : 0;
+    *sub_gop_end_poc = *sub_gop_start_poc;
+  } else if (tid == 0) {
     PicNum length = max_sub_gop_length;
     if (num_buffered_nals) {
       *sub_gop_length = prev_sub_gop_length;

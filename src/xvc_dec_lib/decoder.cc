@@ -118,6 +118,9 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   soc_++;
   state_ =
     SegmentHeaderReader::Read(curr_segment_header_.get(), bit_reader, soc_);
+  if (doc_ == 0 && curr_segment_header_->leading_pictures > 0) {
+    doc_++;
+  }
   if (state_ != State::kSegmentHeaderDecoded) {
     return false;
   }
@@ -221,7 +224,8 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
                                  &sub_gop_start_poc_, &sub_gop_length_,
                                  segment_header->max_sub_gop_length,
                                  prev_segment_header_->max_sub_gop_length,
-                                 doc_, soc_, num_tail_pics_);
+                                 doc_, soc_, num_tail_pics_,
+                                 segment_header->leading_pictures);
   doc_ = pic_header.doc + 1;
 
   // Reload restriction flags for current thread if segment has changed
@@ -239,7 +243,8 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   ReferencePictureLists ref_pic_list;
   auto inter_dependencies =
     ref_list_sorter.Prepare(pic_header.poc, pic_header.tid, is_intra_nal,
-                            pic_decoders_, &ref_pic_list);
+                            pic_decoders_, &ref_pic_list,
+                            segment_header->leading_pictures);
 
   // Bump ref count before finding an available picture decoder
   for (auto &pic_dep : inter_dependencies) {

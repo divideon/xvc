@@ -72,6 +72,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     segment_header->beta_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
     segment_header->tc_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
   }
+  if (segment_header->major_version > 1) {
+    segment_header->leading_pictures = bit_reader->ReadBits(1);
+  }
 
   auto &restr = segment_header->restrictions;
   restr = Restrictions();
