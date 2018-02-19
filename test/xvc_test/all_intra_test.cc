@@ -28,18 +28,26 @@
 
 namespace {
 
+struct TestParam {
+  int internal_bitdepth;
+  bool use_leading_pictures;
+};
+
 static constexpr int kWidth = 16;
 static constexpr int kHeight = 8;
 static constexpr int kQp = 20;
 static constexpr double kPsnrThreshold = 41.0;
 static constexpr int kPocOffset = 999;  // to avoid start at zero
 
-class AllIntraTest : public ::testing::TestWithParam<int>,
+class AllIntraTest : public ::testing::TestWithParam<TestParam>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void SetUp() override {
-    EncoderHelper::Init(GetParam());
     DecoderHelper::Init();
+    xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
+    encoder_settings.leading_pictures = GetParam().use_leading_pictures;
+    SetupEncoder(encoder_settings, 0, 0, GetParam().internal_bitdepth,
+                 kDefaultQp);
     encoder_->SetResolution(kWidth, kHeight);
     encoder_->SetSubGopLength(1);
     encoder_->SetNumRefPics(0);
@@ -53,8 +61,9 @@ protected:
   }
 
   void Encode(int frames) {
+    const int input_bitdepth = GetParam().internal_bitdepth;
     for (int i = 0; i < frames; i++) {
-      xvc_test::TestYuvPic orig_pic{ kWidth, kHeight, GetParam(), i, i };
+      xvc_test::TestYuvPic orig_pic{ kWidth, kHeight, input_bitdepth, i, i };
       std::vector<xvc_enc_nal_stats> nal_stats =
         EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
       orig_pics_.emplace_back(std::move(orig_pic));
@@ -183,10 +192,12 @@ TEST_P(AllIntraTest, ClosedGopEvery3rdPicture) {
 }
 
 INSTANTIATE_TEST_CASE_P(NormalBitdepth, AllIntraTest,
-                        ::testing::Values(8));
+                        ::testing::Values(TestParam({ 8, false }),
+                                          TestParam({ 8, true })));
 #if XVC_HIGH_BITDEPTH
 INSTANTIATE_TEST_CASE_P(HighBitdepth, AllIntraTest,
-                        ::testing::Values(10));
+                        ::testing::Values(TestParam({ 10, false }),
+                                          TestParam({ 10, true })));
 #endif
 
 }   // namespace

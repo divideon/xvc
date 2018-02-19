@@ -27,21 +27,27 @@
 
 namespace {
 
+struct TestParam {
+  int internal_bitdepth;
+  bool use_leading_pictures;
+};
+
 static constexpr int kQp = 27;
 static constexpr double kPsnrThreshold = 28.0;
 static constexpr int kFramesEncoded = 8;
 static constexpr int kSegmentLength = kFramesEncoded * 3;
 static constexpr int kPocOffset = 999;
 
-class EncodeDecodeTest : public ::testing::TestWithParam<int>,
+class EncodeDecodeTest : public ::testing::TestWithParam<TestParam>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void SetUp() override {
-    EncoderHelper::Init(GetParam());
-    DecoderHelper::Init();
+    xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
+    encoder_settings.leading_pictures = GetParam().use_leading_pictures ? 1 : 0;
+    SetupEncoder(encoder_settings, 0, 0, GetParam().internal_bitdepth, kQp);
     encoder_->SetSubGopLength(kFramesEncoded);
     encoder_->SetSegmentLength(kSegmentLength);
-    encoder_->SetQp(kQp);
+    DecoderHelper::Init();
   }
 
   void TearDown() override {
@@ -51,9 +57,10 @@ protected:
   }
 
   void Encode(int width, int height, int frames) {
+    const int input_bitdepth = GetParam().internal_bitdepth;
     encoder_->SetResolution(width, height);
     for (int i = 0; i < frames; i++) {
-      xvc_test::TestYuvPic orig_pic{ width, height, GetParam(), i, i };
+      xvc_test::TestYuvPic orig_pic(width, height, input_bitdepth, i, i);
       std::vector<xvc_enc_nal_stats> nal_stats =
         EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
       orig_pics_.emplace_back(std::move(orig_pic));
@@ -106,26 +113,37 @@ protected:
 };
 
 TEST_P(EncodeDecodeTest, TwoSubGopZeroResolution) {
-  Encode(0, 0, kFramesEncoded * 2 + 1);
-  Decode(0, 0, kFramesEncoded * 2 + 1);
+  const int nbr_pictures = kFramesEncoded * 2 +
+    (!GetParam().use_leading_pictures ? 1 : 0);
+  Encode(0, 0, nbr_pictures);
+  Decode(0, 0, nbr_pictures);
 }
 
 TEST_P(EncodeDecodeTest, TwoSubGop24x24) {
-  Encode(24, 24, kFramesEncoded * 2 + 1);
-  Decode(24, 24, kFramesEncoded * 2 + 1);
+  const int nbr_pictures = kFramesEncoded * 2 +
+    (!GetParam().use_leading_pictures ? 1 : 0);
+  Encode(24, 24, nbr_pictures);
+  Decode(24, 24, nbr_pictures);
 }
 
 TEST_P(EncodeDecodeTest, SingleSegment16x16) {
-  Encode(16, 16, kSegmentLength + 1);
-  Decode(16, 16, kSegmentLength, false);
-  Decode(16, 16, 1, true);
+  if (GetParam().use_leading_pictures) {
+    Encode(16, 16, kSegmentLength);
+    Decode(16, 16, kSegmentLength);
+  } else {
+    Encode(16, 16, kSegmentLength + 1);
+    Decode(16, 16, kSegmentLength, false);
+    Decode(16, 16, 1, true);
+  }
 }
 
 INSTANTIATE_TEST_CASE_P(NormalBitdepth, EncodeDecodeTest,
-                        ::testing::Values(8));
+                        ::testing::Values(TestParam({ 8, false }),
+                                          TestParam({ 8, true })));
 #if XVC_HIGH_BITDEPTH
 INSTANTIATE_TEST_CASE_P(HighBitdepth, EncodeDecodeTest,
-                        ::testing::Values(10));
+                        ::testing::Values(TestParam({ 10, false }),
+                                          TestParam({ 10, true })));
 #endif
 
 }   // namespace

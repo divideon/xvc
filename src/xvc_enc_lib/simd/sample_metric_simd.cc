@@ -44,7 +44,7 @@
 #define CAST_M256i_CONST(VAL) reinterpret_cast<const __m256i*>((VAL))
 #endif  // XVC_ARCH_X86
 
-static const std::array<int16_t, 16> kOnes16bit = { {
+static const std::array<int16_t, 16> kOnes16bit alignas(32) = { {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 } };
 

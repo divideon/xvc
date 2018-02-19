@@ -50,20 +50,10 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
                         int64_t user_data) {
   // Nal header parsing
   BitReader bit_reader(nal_unit, nal_unit_size);
-  uint8_t header = bit_reader.ReadByte();
-  // Check the nal_rfe to see if the Nal Unit shall be ignored.
-  int nal_rfe = ((header >> 6) & 3);
-  if (nal_rfe > 0) {
-    // Accept the nal unit only if it uses one of the encapsulation codes.
-    if (header == constants::kEncapsulationCode1 ||
-        header == constants::kEncapsulationCode2) {
-      bit_reader.ReadByte();
-      header = bit_reader.ReadByte();
-    } else {
-      return false;
-    }
+  NalUnitType nal_unit_type;
+  if (!ParseNalUnitHeader(&bit_reader, &nal_unit_type)) {
+    return false;
   }
-  NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
 
   // Segment header parsing
   if (nal_unit_type == NalUnitType::kSegmentHeader) {
@@ -84,6 +74,25 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
     return DecodePictureNal(nal_unit, nal_unit_size, user_data, &bit_reader);
   }
   return false;   // unknown nal type
+}
+
+bool Decoder::ParseNalUnitHeader(BitReader *bit_reader,
+                                 NalUnitType *nal_unit_type) {
+  uint8_t header = bit_reader->ReadByte();
+  // Check the nal_rfe to see if the Nal Unit shall be ignored.
+  int nal_rfe = ((header >> 6) & 3);
+  if (nal_rfe > 0) {
+    // Accept the nal unit only if it uses one of the encapsulation codes.
+    if (header == constants::kEncapsulationCode1 ||
+        header == constants::kEncapsulationCode2) {
+      bit_reader->ReadByte();
+      header = bit_reader->ReadByte();
+    } else {
+      return false;
+    }
+  }
+  *nal_unit_type = NalUnitType((header >> 1) & 31);
+  return true;
 }
 
 void Decoder::DecodeAllBufferedNals() {
@@ -314,8 +323,10 @@ void Decoder::FlushBufferedNalUnits() {
       num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());
       nal_buffer_.clear();
     } else {
-      // Step over the missing key picture and then decode the buffered nals
-      if (sub_gop_length_ > 1) {
+      if (curr_segment_header_->num_ref_pics == 0) {
+        soc_--;
+      } else if (sub_gop_length_ > 1) {
+        // Step over the missing key picture and then decode the buffered nals
         doc_++;
         sub_gop_start_poc_ = sub_gop_end_poc_;
         sub_gop_end_poc_ += sub_gop_length_;
@@ -463,6 +474,7 @@ void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
 
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                              xvc_decoded_picture *output_pic) {
+  const int poc_offset = (curr_segment_header_->leading_pictures != 0 ? -1 : 0);
   auto pic_data = pic_dec->GetPicData();
   output_pic->user_data = pic_dec->GetNalUserData();
   output_pic->stats.width = output_pic_format_.width;
@@ -482,8 +494,10 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
     static_cast<uint32_t>(pic_data->GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
-  output_pic->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());
-  output_pic->stats.doc = static_cast<uint32_t>(pic_data->GetDoc());
+  output_pic->stats.poc =
+    static_cast<uint32_t>(pic_data->GetPoc() + poc_offset);
+  output_pic->stats.doc =
+    static_cast<uint32_t>(pic_data->GetDoc() + poc_offset);
   output_pic->stats.soc = static_cast<uint32_t>(pic_data->GetSoc());
   output_pic->stats.tid = pic_data->GetTid();
   output_pic->stats.qp = pic_data->GetPicQp()->GetQpRaw(YuvComponent::kY);
@@ -495,13 +509,13 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {
       output_pic->stats.l0[i] =
-        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i));
+        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i) + poc_offset);
     } else {
       output_pic->stats.l0[i] = -1;
     }
     if (i < rpl->GetNumRefPics(RefPicList::kL1)) {
       output_pic->stats.l1[i] =
-        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i));
+        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i) + poc_offset);
     } else {
       output_pic->stats.l1[i] = -1;
     }

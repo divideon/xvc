@@ -54,7 +54,11 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   auto pic_enc = GetNewPictureEncoder();
   auto pic_data = pic_enc->GetPicData();
   pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
-  if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
+  if (encoder_settings_.leading_pictures > 0 &&
+      segment_header_->max_sub_gop_length == 1) {
+    encoder_settings_.leading_pictures = 0;
+    segment_header_->leading_pictures = 0;
+  } else if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
     poc_++;
   }
   pic_data->SetPoc(poc_);
@@ -399,12 +403,13 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
 }
 
 void Encoder::SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal) {
+  const int poc_offset = (segment_header_->leading_pictures != 0 ? -1 : 0);
   nal->stats.nal_unit_type =
     static_cast<uint32_t>(pic_data.GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
-  nal->stats.poc = static_cast<uint32_t>(pic_data.GetPoc());
-  nal->stats.doc = static_cast<uint32_t>(pic_data.GetDoc());
+  nal->stats.poc = static_cast<uint32_t>(pic_data.GetPoc() + poc_offset);
+  nal->stats.doc = static_cast<uint32_t>(pic_data.GetDoc() + poc_offset);
   nal->stats.soc = static_cast<uint32_t>(pic_data.GetSoc());
   nal->stats.tid = pic_data.GetTid();
   if (pic_data.GetPicQp()) {
@@ -419,13 +424,13 @@ void Encoder::SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal) {
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {
       nal->stats.l0[i] =
-        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i));
+        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i) + poc_offset);
     } else {
       nal->stats.l0[i] = -1;
     }
     if (i < rpl->GetNumRefPics(RefPicList::kL1)) {
       nal->stats.l1[i] =
-        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i));
+        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i) + poc_offset);
     } else {
       nal->stats.l1[i] = -1;
     }

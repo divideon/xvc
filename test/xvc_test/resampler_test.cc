@@ -93,7 +93,7 @@ protected:
     EXPECT_EQ(8, format.bitdepth) << "only 8 bitdepth implemented in test";
     // Extract luma and compare original (lossy due to fixed point in lib)
     std::vector<uint8_t> luma_bytes(format.width * format.height);
-    for (int i = 0; i < luma_bytes.size(); i++) {
+    for (int i = 0; i < static_cast<int>(luma_bytes.size()); i++) {
       EXPECT_EQ(255, src_bytes[i * 4 + 3]) << "alpha";
       if (HasFailure())
         break;

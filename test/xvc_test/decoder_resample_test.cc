@@ -51,12 +51,9 @@ protected:
   void EncodeSegment(xvc::Sample orig_sample, int  qp, int resolution,
                      int bitdepth,
                      xvc::ChromaFormat chroma_fmt = xvc::ChromaFormat::k420) {
-    xvc::EncoderSettings encoder_settings;
-    encoder_settings.Initialize(xvc::SpeedMode::kSlow);
-    encoder_settings.Tune(xvc::TuneMode::kPsnr);
+    xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
     encoder_settings.source_padding = GetParam().use_src_padding;
-    encoder_ =
-      CreateEncoder(encoder_settings, resolution, resolution, bitdepth, qp);
+    SetupEncoder(encoder_settings, resolution, resolution, bitdepth, qp);
     encoder_->SetSubGopLength(1);
     encoder_->SetSegmentLength(1);
     encoder_->SetChromaFormat(chroma_fmt);

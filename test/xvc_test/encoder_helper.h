@@ -36,33 +36,30 @@ public:
   static const int kDefaultQp = 27;
 
   void Init(int internal_bitdepth = 8) {
-    encoder_ = CreateEncoder(0, 0, internal_bitdepth, kDefaultQp);
+    xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
+    SetupEncoder(encoder_settings, 0, 0, internal_bitdepth, kDefaultQp);
   }
 
-  std::unique_ptr<xvc::Encoder>
-    CreateEncoder(int width, int height, int internal_bitdepth, int qp) {
+  xvc::EncoderSettings GetDefaultEncoderSettings() {
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder_settings.Tune(xvc::TuneMode::kPsnr);
-    return
-      CreateEncoder(encoder_settings, width, height, internal_bitdepth, qp);
+    return encoder_settings;
   }
 
-  std::unique_ptr<xvc::Encoder>
-    CreateEncoder(const xvc::EncoderSettings &encoder_settings,
-                  int width, int height, int internal_bitdepth, int qp) {
-    std::unique_ptr<xvc::Encoder> encoder(new xvc::Encoder(internal_bitdepth));
-    encoder->SetEncoderSettings(encoder_settings);
-    encoder->SetResolution(width, height);
-    encoder->SetChromaFormat(xvc::ChromaFormat::k420);
-    encoder->SetInputBitdepth(8);
-    encoder->SetSegmentLength(64);
-    encoder->SetSubGopLength(1);
-    encoder->SetFramerate(30);
-    encoder->SetChecksumMode(xvc::Checksum::Mode::kMaxRobust);
-    encoder->SetDeblock(1);
-    encoder->SetQp(qp);
-    return encoder;
+  void SetupEncoder(const xvc::EncoderSettings &encoder_settings,
+                    int width, int height, int internal_bitdepth, int qp) {
+    encoder_.reset(new xvc::Encoder(internal_bitdepth));
+    encoder_->SetEncoderSettings(encoder_settings);
+    encoder_->SetResolution(width, height);
+    encoder_->SetChromaFormat(xvc::ChromaFormat::k420);
+    encoder_->SetInputBitdepth(8);
+    encoder_->SetSegmentLength(64);
+    encoder_->SetSubGopLength(1);
+    encoder_->SetFramerate(30);
+    encoder_->SetChecksumMode(xvc::Checksum::Mode::kMaxRobust);
+    encoder_->SetDeblock(1);
+    encoder_->SetQp(qp);
   }
 
   std::vector<uint8_t> CreateSampleBuffer(xvc::Sample fill_sample,

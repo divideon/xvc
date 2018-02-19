@@ -26,13 +26,15 @@
 #include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
+using xvc_test::NalUnit;
+
 namespace {
 
 static const int kSubGopLength = 4;
 static const int kSegmentLength = 8;
 static const int qp = 32;
 
-class DecoderScalabilityTest : public ::testing::Test,
+class DecoderScalabilityTest : public ::testing::TestWithParam<bool>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void SetUp() override {
@@ -40,19 +42,22 @@ protected:
     DecoderHelper::Init();
   }
 
-  std::vector<xvc_test::NalUnit> EncodeBitstream(int width, int height,
+  std::vector<NalUnit> EncodeBitstream(int width, int height,
                                                  int internal_bitdepth,
                                                  int frames) {
     const int input_bitdepth = 8;
-    encoded_nal_units_.clear();
-    encoder_ = CreateEncoder(width, height, internal_bitdepth, qp);
+    xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
+    encoder_settings.leading_pictures = GetParam() ? 1 : 0;
+    SetupEncoder(encoder_settings, width, height, internal_bitdepth, qp);
     encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSegmentLength);
     encoder_->SetClosedGopInterval(1000);   // force open gop
+    encoded_nal_units_.clear();
     for (int i = 0; i < frames; i++) {
       auto orig_pic = xvc_test::TestYuvPic(width, height, input_bitdepth, i, i);
       EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
     }
+    EncoderFlush();
     return encoded_nal_units_;
   }
 
@@ -74,19 +79,30 @@ protected:
   }
 };
 
-TEST_F(DecoderScalabilityTest, ReferencePicDownscaling) {
-  auto bitstream1 = EncodeBitstream(16, 16, 8, 1 + 2 * kSegmentLength);
-  auto bitstream2 = EncodeBitstream(24, 24, 8, 1 + 2 * kSegmentLength);
-  std::vector<xvc_test::NalUnit> merged_bitstream;
-  // 1 segment header + 1 intra pic + (1 segment - 1 picture)
-  const int nals_to_copy = 1 + 1 + kSegmentLength - 1;
+TEST_P(DecoderScalabilityTest, ReferencePicDownscaling) {
+  auto is_segment_header = [](const NalUnit &nal) {
+    xvc::BitReader bit_reader(&nal[0], nal.size());
+    xvc::NalUnitType nal_type;
+    EXPECT_TRUE(xvc::Decoder::ParseNalUnitHeader(&bit_reader, &nal_type));
+    return nal_type == xvc::NalUnitType::kSegmentHeader;
+  };
+  std::vector<NalUnit> bitstream1 = EncodeBitstream(16, 16, 8,
+                                                    1 + 2 * kSegmentLength);
+  std::vector<NalUnit> bitstream2 = EncodeBitstream(24, 24, 8,
+                                                    1 + 2 * kSegmentLength);
+  encoded_nal_units_.clear();
+
   // Copy first segment from bitstream 1
-  std::copy(bitstream1.begin(), bitstream1.begin() + nals_to_copy,
-            std::back_inserter(merged_bitstream));
+  auto it1 = std::find_if(bitstream1.begin() + 1, bitstream1.end(),
+                          is_segment_header);
+  std::copy(bitstream1.begin(), it1, std::back_inserter(encoded_nal_units_));
+
   // Copy second segment from bitstream 2
-  std::copy(bitstream2.begin() + nals_to_copy, bitstream2.end(),
-            std::back_inserter(merged_bitstream));
-  encoded_nal_units_ = merged_bitstream;
+  auto it2 = std::find_if(bitstream2.begin() + 1, bitstream2.end(),
+                          is_segment_header);
+  std::copy(it2, bitstream2.end(), std::back_inserter(encoded_nal_units_));
+
+  // Decode merged bitstream
   int decoded_pics = DecodeBitstream(16, 16);
   int expected_decoded_pics = 1 + 2 * kSegmentLength;
   // Half of pictures from 1st bitstream will be corrupted
@@ -97,5 +113,8 @@ TEST_F(DecoderScalabilityTest, ReferencePicDownscaling) {
   EXPECT_LE(decoder_->GetNumCorruptedPics(), expected_corrupted_pics + 1);
   EXPECT_GT(decoder_->GetNumCorruptedPics(), 0);
 }
+
+INSTANTIATE_TEST_CASE_P(LeadingPictures, DecoderScalabilityTest,
+                        ::testing::Bool());
 
 }   // namespace

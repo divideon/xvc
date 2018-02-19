@@ -85,6 +85,7 @@ public:
     return xvc_dec_chroma_format(curr_segment_header_->chroma_format);
   }
   void SetDithering(bool dither) { output_pic_format_.dither = dither; }
+  static bool ParseNalUnitHeader(BitReader *reader, NalUnitType *nal_unit_type);
 
 private:
   using NalUnitPtr = std::unique_ptr<std::vector<uint8_t>>;
