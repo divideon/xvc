@@ -18,6 +18,7 @@
 
 #include "xvc_enc_lib/picture_encoder.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -51,21 +52,26 @@ PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
 
 std::vector<uint8_t>*
 PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
-                       PicNum sub_gop_length, int buffer_flag,
-                       bool flat_lambda,
+                       int buffer_flag,
                        const EncoderSettings &encoder_settings) {
-  int lambda_sub_gop_length =
-    !flat_lambda ? static_cast<int>(segment.max_sub_gop_length) : 1;
-  int lambda_max_tid = SegmentHeader::GetMaxTid(lambda_sub_gop_length);
-  int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
-  int pic_qp = DerivePictureQp(*pic_data_, segment_qp, encoder_settings);
-  double lambda =
-    CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
-                    lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
-                    encoder_settings);
-  int scaled_qp = GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
+  const PicturePredictionType picture_type = pic_data_->GetPredictionType();
+  int sub_gop_length = static_cast<int>(segment.max_sub_gop_length);
+  int max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
+  int pic_tid = pic_data_->GetTid();
+  if (encoder_settings.flat_lambda > 0) {
+    sub_gop_length = std::min(sub_gop_length, encoder_settings.flat_lambda);
+    max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
+    pic_tid = max_tid;
+  }
+  const int pic_qp =
+    DerivePictureQp(encoder_settings, segment_qp, picture_type, pic_tid);
+  const double pic_lambda =
+    CalculateLambda(pic_qp, picture_type, sub_gop_length,
+                    pic_tid, max_tid, encoder_settings);
+  const int scaled_qp =
+    GetQpFromLambda(pic_data_->GetBitdepth(), pic_lambda);
   Qp base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
-             lambda, encoder_settings.chroma_qp_offset_table,
+             pic_lambda, encoder_settings.chroma_qp_offset_table,
              encoder_settings.chroma_qp_offset_u,
              encoder_settings.chroma_qp_offset_v);
 
@@ -98,16 +104,17 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   }
   writer.Finish();
 
-  int pic_tid = pic_data_->GetTid();
-  if (pic_tid == 0 || !pic_data_->IsHighestLayer()) {
+  if (pic_data_->GetTid() == 0 || !pic_data_->IsHighestLayer()) {
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
-  if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
+  if (pic_data_->GetTid() == 0 ||
+      segment.checksum_mode == Checksum::Mode::kMaxRobust) {
     WriteChecksum(segment, &bit_writer_, segment.checksum_mode);
   } else {
     pic_hash_.clear();
   }
+  rec_sse_ = CalculatePicMetric(base_qp);
   return bit_writer_.GetBytes();
 }
 
@@ -156,14 +163,15 @@ void PictureEncoder::WriteChecksum(const SegmentHeader &segment,
   bit_writer->WriteBytes(&pic_hash_[0], pic_hash_.size());
 }
 
-int PictureEncoder::DerivePictureQp(const PictureData &pic_data,
-                                    int segment_qp, const EncoderSettings
-                                    &encoder_settings) const {
+int
+PictureEncoder::DerivePictureQp(const EncoderSettings &encoder_settings,
+                                int segment_qp, PicturePredictionType pic_type,
+                                int tid) const {
   int pic_qp;
-  if (pic_data.GetPredictionType() == PicturePredictionType::kIntra) {
+  if (pic_type == PicturePredictionType::kIntra) {
     pic_qp = segment_qp + encoder_settings.intra_qp_offset;
   } else {
-    pic_qp = segment_qp + pic_data.GetTid() + 1;
+    pic_qp = segment_qp + tid + 1;
   }
   return util::Clip3(pic_qp, constants::kMinAllowedQp,
                      constants::kMaxAllowedQp);
@@ -222,6 +230,25 @@ PictureEncoder::DetermineAllowLic(PicturePredictionType pic_type,
   return false;
 }
 
+uint64_t PictureEncoder::CalculatePicMetric(const Qp &qp) const {
+  // TODO(PH) Force bitdepth 8 to prevent truncating metric precision
+  const int metric_bitdepth = 8;
+  // TODO(PH) Force luma component to prevent distortion scaling for chroma
+  const YuvComponent metric_comp = YuvComponent::kY;
+  SampleMetric metric(simd_.sample_metric, metric_bitdepth, MetricType::kSsd);
+  uint64_t mse = 0;
+  for (int c = 0; c < pic_data_->GetMaxNumComponents(); c++) {
+    const YuvComponent comp = static_cast<YuvComponent>(c);
+    const int width = orig_pic_->GetWidth(comp);
+    const int height = orig_pic_->GetHeight(comp);
+    SampleBufferConst orig_buffer = orig_pic_->GetSampleBuffer(comp, 0, 0);
+    SampleBufferConst rec_buffer = rec_pic_->GetSampleBuffer(comp, 0, 0);
+    mse += metric.CompareSample(qp, metric_comp, width, height,
+                                orig_buffer, rec_buffer);
+  }
+  return mse;
+}
+
 int PictureEncoder::GetQpFromLambda(int bitdepth, double lambda) {
   int qp = static_cast<int>(
     std::floor((3.0 * (log(lambda / 0.57) / log(2.0))) + 0.5));
@@ -236,6 +263,8 @@ PictureEncoder::CalculateLambda(int qp, PicturePredictionType pic_type,
                                 const EncoderSettings &encoder_settings) {
   int qp_temp = qp - 12;
   double lambda = pow(2.0, qp_temp / 3.0);
+  double scale_factor = encoder_settings.lambda_scale_a *
+    pow(2.0, encoder_settings.lambda_scale_b * qp_temp);
   double pic_type_factor =
     (pic_type == PicturePredictionType::kIntra ? 0.57 : 0.68);
   double subgop_factor =
@@ -264,7 +293,8 @@ PictureEncoder::CalculateLambda(int qp, PicturePredictionType pic_type,
       return temporal_factor[temporal_id] * hierarchical_factor * lambda;
     }
   }
-  return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
+  return lambda *
+    scale_factor * pic_type_factor * subgop_factor * hierarchical_factor;
 }
 
 }   // namespace xvc

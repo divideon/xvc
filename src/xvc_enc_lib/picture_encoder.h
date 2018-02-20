@@ -49,10 +49,10 @@ public:
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() const { return output_status_; }
+  uint64_t GetRecPicErrSum() const { return rec_sse_; }
 
   std::vector<uint8_t>* Encode(const SegmentHeader &segment, int segment_qp,
-                               PicNum sub_gop_length, int buffer_flag,
-                               bool flat_lambda,
+                               int buffer_flag,
                                const EncoderSettings &encoder_settings);
   const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
@@ -63,10 +63,11 @@ private:
                    int buffer_flag, BitWriter *bit_writer);
   void WriteChecksum(const SegmentHeader &segment, BitWriter *bit_writer,
                      Checksum::Mode checksum_mode);
-  int DerivePictureQp(const PictureData &pic_data, int segment_qp,
-                      const EncoderSettings &encoder_settings) const;
+  int DerivePictureQp(const EncoderSettings &encoder_settings, int segment_qp,
+                      PicturePredictionType pic_type, int tid) const;
   bool DetermineAllowLic(PicturePredictionType pic_type,
                          const ReferencePictureLists &ref_list) const;
+  uint64_t CalculatePicMetric(const Qp &qp) const;
   static double CalculateLambda(int qp, PicturePredictionType pic_type,
                                 int sub_gop_length, int temporal_id,
                                 int max_temporal_id,
@@ -79,6 +80,7 @@ private:
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
   std::vector<uint8_t> pic_hash_;
+  uint64_t rec_sse_ = 0;
   OutputStatus output_status_ = OutputStatus::kHasNotBeenOutput;
 };
 

@@ -92,7 +92,6 @@ public:
     segment_qp_ =
       util::Clip3(qp, constants::kMinAllowedQp, constants::kMaxAllowedQp);
   }
-  void SetFlatLambda(bool flat_lambda) { flat_lambda_ = flat_lambda; }
   void SetChecksumMode(Checksum::Mode mode) {
     segment_header_->checksum_mode = mode;
   }
@@ -101,11 +100,11 @@ public:
   void SetEncoderSettings(const EncoderSettings &settings);
 
 private:
-  void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
-                        PicNum sub_gop_length);
+  void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
   void ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
-  void SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal);
+  void SetNalStats(const PictureData &pic_data, const PictureEncoder *pic_enc,
+                   xvc_enc_nal_unit *nal);
 
   int input_bitdepth_ = 8;
   bool encode_with_buffer_flag_ = false;
@@ -122,7 +121,6 @@ private:
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   int segment_qp_ = std::numeric_limits<int>::max();
-  bool flat_lambda_ = false;
   EncoderSimdFunctions simd_;
   EncoderSettings encoder_settings_;
   Resampler input_resampler_;

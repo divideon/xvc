@@ -25,6 +25,7 @@
 #include <fstream>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "xvc_enc_lib/xvcenc.h"
@@ -43,8 +44,10 @@ public:
 
 private:
   xvc_enc_return_code ConfigureApiParams(xvc_encoder_parameters *params);
-  void EncodeOnePass(xvc_encoder_parameters *params);
-  void SinglePassLookahead(xvc_encoder_parameters *out_params);
+  std::pair<uint64_t, int> EncodeOnePass(xvc_encoder_parameters *params,
+                                         bool last = false);
+  void StartPictureDetermination(xvc_encoder_parameters *out_params);
+  void MultiPass(xvc_encoder_parameters *out_params);
   void ResetStreams();
   bool ReadNextPicture(std::vector<uint8_t> *picture_bytes);
   void PrintUsage();
@@ -109,6 +112,22 @@ private:
 
   std::chrono::time_point<std::chrono::steady_clock> start_;
   std::chrono::time_point<std::chrono::steady_clock> end_;
+};
+
+class LambdaCurve {
+public:
+  LambdaCurve(const std::pair<uint64_t, int> &p0, int qp0,
+              const std::pair<uint64_t, int> &p1, int qp1);
+  LambdaCurve(const LambdaCurve &curve,
+              const std::pair<uint64_t, int> &p, int qp);
+  bool IsPointBetter(const std::pair<uint64_t, int> &p);
+  double GetQpAtDistortion(uint64_t distortion);
+
+private:
+  double dist_scale_;
+  double dist_offset_;
+  double qp_scale_;
+  double qp_offset_;
 };
 
 }  // namespace xvc_app

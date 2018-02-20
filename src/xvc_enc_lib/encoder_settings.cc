@@ -200,6 +200,10 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> leading_pictures;
     } else if (setting == "source_padding") {
       stream >> source_padding;
+    } else if (setting == "lambda_scale_a") {
+      stream >> lambda_scale_a;
+    } else if (setting == "lambda_scale_b") {
+      stream >> lambda_scale_b;
     }
   }
 }

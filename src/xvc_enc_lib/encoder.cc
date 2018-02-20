@@ -133,7 +133,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     nal.bytes = &(*nal_bytes)[0];
     nal.size = nal_bytes->size();
     nal.buffer_flag = 0;
-    SetNalStats(*pic_data, &nal);
+    SetNalStats(*pic_data, nullptr, &nal);
     nal.stats.nal_unit_type = static_cast<int>(NalUnitType::kSegmentHeader);
     nal_units_.push_back(nal);
     pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
@@ -143,7 +143,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   pic_data->SetSoc(soc_);
 
   if (encoder_settings_.leading_pictures == 0 && poc_ == 0) {
-    EncodeOnePicture(pic_enc, segment_header_->max_sub_gop_length);
+    EncodeOnePicture(pic_enc);
     doc_ = 0;
   }
 
@@ -154,7 +154,7 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
       // the one that has doc = this->doc_ + 1.
       for (auto &pic : pic_encoders_) {
         if (pic->GetPicData()->GetDoc() == doc_ + 1) {
-          EncodeOnePicture(pic, segment_header_->max_sub_gop_length);
+          EncodeOnePicture(pic);
         }
       }
     }
@@ -231,11 +231,11 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
           nal.bytes = &(*nal_bytes)[0];
           nal.size = nal_bytes->size();
           nal.buffer_flag = 0;
-          SetNalStats(*pic_data, &nal);
+          SetNalStats(*pic_data, nullptr, &nal);
           nal.stats.nal_unit_type =
             static_cast<int>(NalUnitType::kSegmentHeader);
           nal_units_.push_back(nal);
-          EncodeOnePicture(pic, segment_header_->max_sub_gop_length);
+          EncodeOnePicture(pic);
           doc_ = 0;
         }
       }
@@ -250,7 +250,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
       bool found = false;
       for (auto &pic : pic_encoders_) {
         if (pic->GetPicData()->GetDoc() == doc_ + 1) {
-          EncodeOnePicture(pic, segment_header_->max_sub_gop_length);
+          EncodeOnePicture(pic);
           found = true;
           num_encoded++;
         }
@@ -306,8 +306,7 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   Restrictions::GetRW() = std::move(restrictions);
 }
 
-void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
-                               PicNum sub_gop_length) {
+void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   // Check if current picture is a tail picture.
   // This means that it will be sent before the key picture of the
   // next segment and then be buffered in the decoder to be decoded after
@@ -326,8 +325,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
                           segment_header.leading_pictures);
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> *pic_bytes =
-    pic->Encode(segment_header, segment_qp_, sub_gop_length, buffer_flag,
-                flat_lambda_, encoder_settings_);
+    pic->Encode(segment_header, segment_qp_, buffer_flag, encoder_settings_);
 
   // When a picture has been encoded, the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.
@@ -335,7 +333,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic,
   nal.bytes = &(*pic_bytes)[0];
   nal.size = pic_bytes->size();
   nal.buffer_flag = buffer_flag;
-  SetNalStats(*pic->GetPicData(), &nal);
+  SetNalStats(*pic->GetPicData(), pic.get(), &nal);
   nal_units_.push_back(nal);
 
   // Decoding order counter is increased each time a picture has been encoded.
@@ -402,7 +400,9 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   return pic_enc;
 }
 
-void Encoder::SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal) {
+void Encoder::SetNalStats(const PictureData &pic_data,
+                          const PictureEncoder *pic_enc,
+                          xvc_enc_nal_unit *nal) {
   const int poc_offset = (segment_header_->leading_pictures != 0 ? -1 : 0);
   nal->stats.nal_unit_type =
     static_cast<uint32_t>(pic_data.GetNalType());
@@ -417,6 +417,7 @@ void Encoder::SetNalStats(const PictureData &pic_data, xvc_enc_nal_unit *nal) {
   } else {
     nal->stats.qp = constants::kMaxAllowedQp + 1;
   }
+  nal->stats.sse = pic_enc ? pic_enc->GetRecPicErrSum() : 0;
 
   // Expose the first reference pictures in L0 and L1.
   const ReferencePictureLists* rpl = pic_data.GetRefPicLists();

@@ -89,7 +89,6 @@ protected:
 
   std::vector<uint8_t>* EncodePicture(const xvc::Sample *orig) {
     int buffer_flag = 0;
-    bool flat_lamda = false;
     pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
     pic_encoder_->GetPicData()->SetPoc(0);
     pic_encoder_->GetPicData()->SetDoc(0);
@@ -104,9 +103,8 @@ protected:
     xvc::EncoderSettings encoder_settings;
     encoder_settings.Initialize(xvc::SpeedMode::kSlow);
     encoder_settings.Tune(xvc::TuneMode::kPsnr);
-    return pic_encoder_->Encode(segment_, segment_qp_,
-                                segment_.max_sub_gop_length, buffer_flag,
-                                flat_lamda, encoder_settings);
+    return pic_encoder_->Encode(segment_, segment_qp_, buffer_flag,
+                                encoder_settings);
   }
 
   bool DecodePicture(const std::vector<uint8_t> &bitstream) {

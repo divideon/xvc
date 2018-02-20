@@ -42,6 +42,7 @@ extern "C" {
     XVC_ENC_DEBLOCKING_SETTINGS_INVALID,
     XVC_ENC_TOO_MANY_REF_PICS,
     XVC_ENC_SIZE_TOO_LARGE,
+    XVC_ENC_NO_SUCH_PRESET = 100,
   } xvc_enc_return_code;
 
   typedef enum {
@@ -68,6 +69,7 @@ extern "C" {
     uint32_t soc;
     uint32_t tid;
     int32_t qp;
+    uint64_t sse;
     int32_t l0[5];
     int32_t l1[5];
   } xvc_enc_nal_stats;
@@ -115,6 +117,8 @@ extern "C" {
     int tc_offset;
     int qp;
     int flat_lambda;
+    float lambda_a;
+    float lambda_b;
     int leading_pictures;
     int speed_mode;
     int tune_mode;
@@ -131,6 +135,8 @@ extern "C" {
     xvc_enc_return_code(*parameters_destroy)(xvc_encoder_parameters
                                              *param);
     xvc_enc_return_code(*parameters_set_default)(
+      xvc_encoder_parameters *param);
+    xvc_enc_return_code(*parameters_apply_rd_preset)(int preset,
       xvc_encoder_parameters *param);
     xvc_enc_return_code(*parameters_check)(const xvc_encoder_parameters *param);
     // Reconstructed picture

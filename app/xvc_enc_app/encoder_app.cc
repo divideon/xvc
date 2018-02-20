@@ -23,8 +23,10 @@
 #include <io.h>
 #endif
 
+#include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <iomanip>
@@ -245,7 +247,7 @@ void EncoderApp::CheckParameters() {
     std::exit(1);
   }
 
-  if (cli_.multipass_rd < 0 || cli_.multipass_rd > 1) {
+  if (cli_.multipass_rd < 0 || cli_.multipass_rd > 2) {
     std::cerr << "Error: Invalid multi-pass configuration" << std::endl;
     PrintUsage();
     std::exit(1);
@@ -376,9 +378,11 @@ void EncoderApp::MainEncoderLoop() {
                         picture_samples : (picture_samples << 1));
 
   if (cli_.multipass_rd == 1) {
-    SinglePassLookahead(params_);
+    StartPictureDetermination(params_);
+  } else if (cli_.multipass_rd > 1) {
+    MultiPass(params_);
   }
-  EncodeOnePass(params_);
+  EncodeOnePass(params_, true);
 
   // Cleanup
   if (rec_stream_.is_open()) {
@@ -388,7 +392,8 @@ void EncoderApp::MainEncoderLoop() {
   file_input_stream_.close();
 }
 
-void EncoderApp::EncodeOnePass(xvc_encoder_parameters *params) {
+std::pair<uint64_t, int>
+EncoderApp::EncodeOnePass(xvc_encoder_parameters *params, bool last) {
   if (encoder_) {
     xvc_enc_return_code ret = xvc_api_->encoder_destroy(encoder_);
     assert(ret == XVC_ENC_OK);
@@ -425,6 +430,8 @@ void EncoderApp::EncodeOnePass(xvc_encoder_parameters *params) {
   char nal_size[4];
   size_t current_segment_bytes = 0;
   int current_segment_pics = 0;
+  int highest_qp = std::numeric_limits<int>::min();
+  uint64_t total_sse = 0;
   picture_index_ = 0;
   total_bytes_ = 0;
   max_segment_bytes_ = 0;
@@ -467,6 +474,9 @@ void EncoderApp::EncodeOnePass(xvc_encoder_parameters *params) {
         }
         current_segment_bytes = 0;
         current_segment_pics = -1;
+      } else {
+        total_sse += nal_units[i].stats.sse;
+        highest_qp = std::max(highest_qp, nal_units[i].stats.qp);
       }
       current_segment_bytes += nal_units[i].size;
       current_segment_pics++;
@@ -503,6 +513,16 @@ void EncoderApp::EncodeOnePass(xvc_encoder_parameters *params) {
     max_segment_bytes_ = current_segment_bytes;
     max_segment_pics_ = current_segment_pics;
   }
+
+  if (!last) {
+    std::cout << "Pass bits:     " << total_bytes_ * 8 << "\n";
+    std::cout << "Pass SSE:      " << total_sse << "\n";
+    std::cout << std::endl;
+    ResetStreams();
+  }
+  assert(total_bytes_ > 0);
+  assert(total_bytes_ < static_cast<size_t>(std::numeric_limits<int>::max()));
+  return std::make_pair(total_sse, static_cast<int>(total_bytes_ * 8));
 }
 
 void EncoderApp::PrintStatistics() {
@@ -523,7 +543,7 @@ void EncoderApp::PrintStatistics() {
     << " kbit/s" << std::endl;
 }
 
-void EncoderApp::SinglePassLookahead(xvc_encoder_parameters *out_params) {
+void EncoderApp::StartPictureDetermination(xvc_encoder_parameters *out_params) {
   static const double kPocRatio = 0.6875;
   const auto param_delete = [this](xvc_encoder_parameters *p) {
     xvc_api_->parameters_destroy(p);
@@ -593,6 +613,101 @@ void EncoderApp::SinglePassLookahead(xvc_encoder_parameters *out_params) {
   input_stream_->seekg(0, std::ifstream::beg);
 }
 
+void EncoderApp::MultiPass(xvc_encoder_parameters *out_params) {
+  const auto param_delete = [this](xvc_encoder_parameters *p) {
+    xvc_api_->parameters_destroy(p);
+  };
+  std::unique_ptr<xvc_encoder_parameters, decltype(param_delete)>
+    multipass_params(xvc_api_->parameters_create(), param_delete);
+  const auto time_start = std::chrono::steady_clock::now();
+  std::cout << "\n";
+
+  int best_preset = 0;
+  ConfigureApiParams(multipass_params.get());
+  multipass_params->speed_mode = 2;
+  xvc_enc_return_code ret =
+    xvc_api_->parameters_apply_rd_preset(best_preset, multipass_params.get());
+  assert(ret == XVC_ENC_OK);
+  int best_qp = multipass_params->qp;
+
+  // Determine shape of lambda curve based on 2 rate points
+  multipass_params->qp = best_qp - 2;
+  const auto dist_bits1 = EncodeOnePass(multipass_params.get());
+  multipass_params->qp = best_qp;
+  const auto dist_bits0 = EncodeOnePass(multipass_params.get());
+  LambdaCurve lambda_curve(dist_bits0, best_qp, dist_bits1, best_qp - 2);
+  const int64_t base_distortion = dist_bits0.first;
+
+  for (int preset = 0; true; preset++) {
+    if (preset == best_preset) {
+      continue;
+    }
+    ConfigureApiParams(multipass_params.get());
+    multipass_params->speed_mode = 2;
+    multipass_params->qp = best_qp;
+    ret = xvc_api_->parameters_apply_rd_preset(preset, multipass_params.get());
+    if (ret == XVC_ENC_NO_SUCH_PRESET) {
+      break;
+    }
+    if (ret != XVC_ENC_OK) {
+      std::cout << xvc_api_->xvc_enc_get_error_text(ret) << std::endl;
+      std::exit(1);
+    }
+    std::cout << "Eval multi-pass preset: " << preset
+      << " QP: " << multipass_params->qp << std::endl;
+    const auto dist_bits = EncodeOnePass(multipass_params.get());
+    const bool is_better = lambda_curve.IsPointBetter(dist_bits);
+
+    if (is_better) {
+      // Determine 2nd rate point
+      LambdaCurve copy_scale(lambda_curve, dist_bits, multipass_params->qp);
+      double qp_steps_frac =
+        copy_scale.GetQpAtDistortion(base_distortion) - multipass_params->qp;
+      int qp_steps = ::lround(qp_steps_frac);
+      bool change_best_qp = qp_steps != 0;
+      if (qp_steps == 0) {
+        qp_steps = qp_steps_frac > 0 ? 1 : -1;
+      }
+      multipass_params->qp += qp_steps;
+
+      std::cout << "Refine multi-pass preset: " << preset
+        << " QP: " << multipass_params->qp << std::endl;
+      auto dist_bits2 = EncodeOnePass(multipass_params.get());
+      if (!lambda_curve.IsPointBetter(dist_bits2)) {
+        continue;
+      }
+
+      best_preset = preset;
+      lambda_curve =
+        LambdaCurve(dist_bits, best_qp, dist_bits2, multipass_params->qp);
+      if (change_best_qp) {
+        best_qp += qp_steps;
+      }
+    }
+  }
+  const auto time_end = std::chrono::steady_clock::now();
+
+  std::cout << "Best preset:      " << best_preset << "\n";
+  std::cout << "Multipass time:   " <<
+    std::chrono::duration<float>(time_end - time_start).count() << " s\n";
+  std::cout << std::endl;
+
+  assert(best_preset >= 0);
+  ret = xvc_api_->parameters_apply_rd_preset(best_preset, out_params);
+  assert(ret == XVC_ENC_OK);
+  out_params->qp = best_qp;
+}
+
+void EncoderApp::ResetStreams() {
+  input_stream_->clear();
+  input_stream_->seekg(0, std::ifstream::beg);
+  file_output_stream_.close();
+  file_output_stream_.open(cli_.output_filename, std::ios_base::binary);
+  if (rec_stream_.is_open() && !cli_.rec_file.empty()) {
+    rec_stream_.close();
+    rec_stream_.open(cli_.rec_file, std::ios_base::binary);
+  }
+}
 
 bool EncoderApp::ReadNextPicture(std::vector<uint8_t> *picture_bytes) {
   assert(picture_bytes->size() > 0);
@@ -652,6 +767,7 @@ void EncoderApp::PrintUsage() {
   std::cout << "      0: Single-pass (default)" << std::endl;
   std::cout << "      1: Single pass with start picture determination"
     << std::endl;
+  std::cout << "      2: Multi-pass" << std::endl;
   std::cout << "  -speed-mode <0..2>" << std::endl;
   std::cout << "      0: Placebo" << std::endl;
   std::cout << "      1: Slow (default)" << std::endl;
@@ -706,6 +822,45 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
     }
   }
   std::cout << std::endl;
+}
+
+LambdaCurve::LambdaCurve(const std::pair<uint64_t, int> &p0, int qp0,
+                         const std::pair<uint64_t, int> &p1, int qp1) {
+  const double sse0 = log(p0.first);
+  const double sse1 = log(p1.first);
+  const double bits0 = log(p0.second);
+  const double bits1 = log(p1.second);
+  const double lambda0 = sse0 - bits0;
+  const double lambda1 = sse1 - bits1;
+  dist_scale_ = (lambda1 - lambda0) / (sse1 - sse0);
+  dist_offset_ = lambda0 - dist_scale_ * sse0;
+  qp_scale_ = (lambda1 - lambda0) / (qp1 - qp0);
+  qp_offset_ = lambda0 - qp_scale_ * qp0;
+}
+
+LambdaCurve::LambdaCurve(const LambdaCurve &curve,
+                         const std::pair<uint64_t, int> &p, int qp)
+  : dist_scale_(curve.dist_scale_),
+  qp_scale_(curve.qp_scale_) {
+  const double sse = log(p.first);
+  const double bits = log(p.second);
+  const double lambda = sse - bits;
+  dist_offset_ = lambda - dist_scale_ * sse;
+  qp_offset_ = lambda - qp_scale_ * qp;
+}
+
+bool LambdaCurve::IsPointBetter(const std::pair<uint64_t, int> &p) {
+  const double sse = log(p.first);
+  const double bits = log(p.second);
+  const double lambda = sse - bits;
+  const double lambda_ref = dist_scale_ * sse + dist_offset_;
+  return lambda > lambda_ref;
+}
+
+double LambdaCurve::GetQpAtDistortion(uint64_t distortion) {
+  const double sse = log(distortion);
+  const double lambda = dist_scale_ * sse + dist_offset_;
+  return (lambda - qp_offset_) / qp_scale_;
 }
 
 }  // namespace xvc_app

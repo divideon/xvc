@@ -18,6 +18,7 @@
 
 #include "xvc_enc_lib/xvcenc.h"
 
+#include <cmath>
 #include <limits>
 #include <string>
 
@@ -28,6 +29,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  static const int kDefaultSubGopLength = 16;
 
   static xvc_encoder_parameters* xvc_enc_parameters_create() {
     xvc_encoder_parameters *parameters = new xvc_encoder_parameters;
@@ -68,10 +71,48 @@ extern "C" {
     param->tc_offset = 0;
     param->qp = 32;
     param->flat_lambda = 0;
+    param->lambda_a = 0;
+    param->lambda_b = 0;
+    param->leading_pictures = 0;
     param->speed_mode = -1;  // determined in xvc_enc_encoder_create
     param->tune_mode = 0;
     param->simd_mask = static_cast<uint32_t>(-1);
     param->explicit_encoder_settings = nullptr;
+    return XVC_ENC_OK;
+  }
+
+  static xvc_enc_return_code
+    xvc_enc_parameters_apply_rd_preset(int preset,
+                                       xvc_encoder_parameters *param) {
+    if (!param) {
+      return XVC_ENC_INVALID_ARGUMENT;
+    }
+    switch (preset) {
+      case 0:
+        // default
+        param->flat_lambda = 0;
+        param->leading_pictures = 0;
+        break;
+
+      case 1:
+        param->leading_pictures = 1;
+        break;
+
+      case 2:
+        param->flat_lambda = param->sub_gop_length > 0 ?
+          param->sub_gop_length : kDefaultSubGopLength;
+        break;
+
+      case 3:
+        // Lower qp with fixed offset (low motion bias)
+        param->leading_pictures = 1;
+        param->lambda_a = pow(2.0f, -5 / 3.0f);
+        param->lambda_b = 1.0f / 22;
+        break;
+
+      default:
+        return XVC_ENC_NO_SUCH_PRESET;
+    }
     return XVC_ENC_OK;
   }
 
@@ -148,7 +189,9 @@ extern "C" {
         param->qp < xvc::constants::kMinAllowedQp) {
       return XVC_ENC_QP_OUT_OF_RANGE;
     }
-    if (param->flat_lambda < 0 || param->flat_lambda > 1) {
+    if (param->flat_lambda < 0 ||
+        param->flat_lambda >
+        static_cast<int>(xvc::constants::kMaxSubGopLength)) {
       return XVC_ENC_INVALID_PARAMETER;
     }
     if (param->speed_mode < -1 ||
@@ -177,7 +220,6 @@ extern "C" {
     xvc_enc_set_encoder_settings(xvc::Encoder *encoder,
                                  const xvc_encoder_parameters *param) {
     xvc::EncoderSettings encoder_settings;
-
     if (param->speed_mode >= 0) {
       // If speed mode has been set explictly
       encoder_settings.Initialize(xvc::SpeedMode(param->speed_mode));
@@ -193,6 +235,13 @@ extern "C" {
     }
 
     encoder_settings.leading_pictures = param->leading_pictures;
+    encoder_settings.flat_lambda = param->flat_lambda;
+    if (param->lambda_a != 0) {
+      encoder_settings.lambda_scale_a = param->lambda_a;
+    }
+    if (param->lambda_b != 0) {
+      encoder_settings.lambda_scale_b = param->lambda_b;
+    }
 
     // Explicit speed settings override the settings
     if (param->explicit_encoder_settings) {
@@ -260,13 +309,12 @@ extern "C" {
     if (param->num_ref_pics >= 0) {
       encoder->SetNumRefPics(param->num_ref_pics);
     }
-    encoder->SetFlatLambda(param->flat_lambda != 0);
     encoder->SetChecksumMode(
       static_cast<xvc::Checksum::Mode>(param->checksum_mode));
 
     int sub_gop_length = param->sub_gop_length;
     if (sub_gop_length == 0) {
-      sub_gop_length = encoder->GetNumRefPics() > 0 ? 16 : 1;
+      sub_gop_length = encoder->GetNumRefPics() > 0 ? kDefaultSubGopLength : 1;
     }
     encoder->SetSubGopLength(sub_gop_length);
     xvc_enc_set_segment_length(encoder, param, sub_gop_length);
@@ -342,6 +390,8 @@ extern "C" {
       case XVC_ENC_INVALID_PARAMETER:
         return  "Error. Invalid parameter. Please check the encoder"
           " parameters.";
+      case XVC_ENC_NO_SUCH_PRESET:
+        return "No such multi-pass preset configuration exists";
       default:
         return "Unkown error";
     }
@@ -351,6 +401,7 @@ extern "C" {
     &xvc_enc_parameters_create,
     &xvc_enc_parameters_destroy,
     &xvc_enc_parameters_set_default,
+    &xvc_enc_parameters_apply_rd_preset,
     &xvc_enc_parameters_check,
     &xvc_enc_picture_create,
     &xvc_enc_picture_destroy,

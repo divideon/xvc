@@ -19,6 +19,7 @@
 #ifndef XVC_ENC_LIB_ENCODER_SETTINGS_H_
 #define XVC_ENC_LIB_ENCODER_SETTINGS_H_
 
+#include <array>
 #include <string>
 
 #include "xvc_common_lib/restrictions.h"
@@ -91,6 +92,9 @@ struct EncoderSettings {
   int chroma_qp_offset_table = 1;
   int chroma_qp_offset_u = 0;
   int chroma_qp_offset_v = 0;
+  int flat_lambda = 0;
+  float lambda_scale_a = 1.0f;
+  float lambda_scale_b = 0.0f;
   RestrictedMode restricted_mode = RestrictedMode::kUnrestricted;
 };
 
