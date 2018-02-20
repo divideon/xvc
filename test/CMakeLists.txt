@@ -25,6 +25,11 @@ set(XVC_TEST_SOURCES
     "xvc_test/yuv_helper.cc"
     "xvc_test/yuv_helper.h")
 
+if(ENABLE_ASSERTIONS)
+  add_definitions(-UNDEBUG)
+  string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " " CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+endif()
+
 if(MSVC)
   set(cxx_flags /GS /W3 /WX /Za /EHsc)
 elseif(CMAKE_COMPILER_IS_GNUCXX)

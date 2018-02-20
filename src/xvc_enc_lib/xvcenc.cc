@@ -192,6 +192,8 @@ extern "C" {
       encoder_settings.Tune(xvc::TuneMode(param->tune_mode));
     }
 
+    encoder_settings.leading_pictures = param->leading_pictures;
+
     // Explicit speed settings override the settings
     if (param->explicit_encoder_settings) {
       std::string explicit_settings(param->explicit_encoder_settings);

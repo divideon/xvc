@@ -23,10 +23,8 @@ int main(int argc, const char* argv[]) {
 
   main_app.ReadArguments(argc, argv);
   main_app.CheckParameters();
-  main_app.CreateAndConfigureApi();
   main_app.PrintEncoderSettings();
   main_app.MainEncoderLoop();
-  main_app.CloseStream();
   main_app.PrintStatistics();
 
   return 0;

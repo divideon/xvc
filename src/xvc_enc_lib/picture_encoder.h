@@ -67,6 +67,11 @@ private:
                       const EncoderSettings &encoder_settings) const;
   bool DetermineAllowLic(PicturePredictionType pic_type,
                          const ReferencePictureLists &ref_list) const;
+  static double CalculateLambda(int qp, PicturePredictionType pic_type,
+                                int sub_gop_length, int temporal_id,
+                                int max_temporal_id,
+                                const EncoderSettings &encoder_settings);
+  static int GetQpFromLambda(int bitdepth, double lambda);
 
   const EncoderSimdFunctions &simd_;
   BitWriter bit_writer_;

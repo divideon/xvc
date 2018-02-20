@@ -19,6 +19,7 @@
 #include "xvc_enc_lib/picture_encoder.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -59,10 +60,10 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
   int pic_qp = DerivePictureQp(*pic_data_, segment_qp, encoder_settings);
   double lambda =
-    Qp::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
-                        lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
-                        encoder_settings.smooth_lambda_scaling);
-  int scaled_qp = Qp::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
+    CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
+                    lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
+                    encoder_settings);
+  int scaled_qp = GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
   Qp base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
              lambda, encoder_settings.chroma_qp_offset_table,
              encoder_settings.chroma_qp_offset_u,
@@ -219,6 +220,51 @@ PictureEncoder::DetermineAllowLic(PicturePredictionType pic_type,
     }
   }
   return false;
+}
+
+int PictureEncoder::GetQpFromLambda(int bitdepth, double lambda) {
+  int qp = static_cast<int>(
+    std::floor((3.0 * (log(lambda / 0.57) / log(2.0))) + 0.5));
+  return util::Clip3(12 + qp, constants::kMinAllowedQp,
+                     constants::kMaxAllowedQp);
+}
+
+double
+PictureEncoder::CalculateLambda(int qp, PicturePredictionType pic_type,
+                                int sub_gop_length, int temporal_id,
+                                int max_temporal_id,
+                                const EncoderSettings &encoder_settings) {
+  int qp_temp = qp - 12;
+  double lambda = pow(2.0, qp_temp / 3.0);
+  double pic_type_factor =
+    (pic_type == PicturePredictionType::kIntra ? 0.57 : 0.68);
+  double subgop_factor =
+    1.0 - util::Clip3(0.05 * (sub_gop_length - 1), 0.0, 0.5);
+  double hierarchical_factor = 1;
+  if (temporal_id > 0 && temporal_id == max_temporal_id) {
+    subgop_factor = 1.0;
+    hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+  } else if (temporal_id > 0) {
+    hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+    hierarchical_factor *= 0.8;
+  }
+  if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra) {
+    if (encoder_settings.smooth_lambda_scaling == 0) {
+      static const std::array<double, 5> temporal_factor = { {
+          0.6, 0.2, 0.33, 0.33, 0.4
+        } };
+      hierarchical_factor =
+        temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+      return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+    } else {
+      static const std::array<double, 5> temporal_factor = { {
+          0.14, 0.2, 0.33, 0.33, 0.4
+        } };
+      hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+      return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+    }
+  }
+  return pic_type_factor * subgop_factor * hierarchical_factor * lambda;
 }
 
 }   // namespace xvc

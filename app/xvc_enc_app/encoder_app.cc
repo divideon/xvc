@@ -23,16 +23,24 @@
 #include <io.h>
 #endif
 
+#include <array>
 #include <cassert>
 #include <cstdlib>
+#include <memory>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <vector>
 
 #include "xvc_enc_app/y4m_reader.h"
 
 namespace xvc_app {
+
+static const int kDefaultSubGopSize = 16;
+
+EncoderApp::EncoderApp() : cli_() {
+  xvc_api_ = xvc_encoder_api_get();
+  params_ = xvc_api_->parameters_create();
+}
 
 EncoderApp::~EncoderApp() {
   if (encoder_) {
@@ -118,6 +126,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.qp;
     } else if (arg == "-flat-lambda") {
       std::stringstream(argv[++i]) >> cli_.flat_lambda;
+    } else if (arg == "-multi-passes") {
+      std::stringstream(argv[++i]) >> cli_.multipass_rd;
     } else if (arg == "-speed-mode") {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
     } else if (arg == "-tune") {
@@ -136,7 +146,7 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
   }
 }
 
-bool EncoderApp::CheckParameters() {
+void EncoderApp::CheckParameters() {
   if (cli_.input_filename.empty()) {
     std::cerr << "Error: Missing input file argument" << std::endl;
     PrintUsage();
@@ -155,6 +165,7 @@ bool EncoderApp::CheckParameters() {
 #endif
     input_seekable_ = false;
     input_stream_ = &std::cin;
+    input_file_size_ = 0;
   } else {
     file_input_stream_.open(cli_.input_filename, std::ios_base::binary);
     if (!file_input_stream_) {
@@ -164,6 +175,9 @@ bool EncoderApp::CheckParameters() {
     }
     input_seekable_ = true;
     input_stream_ = &file_input_stream_;
+    input_stream_->seekg(0, std::ifstream::end);
+    input_file_size_ = input_stream_->tellg();
+    input_stream_->seekg(0, std::ifstream::beg);
   }
 
   Y4mReader y4m_reader(input_stream_);
@@ -231,113 +245,122 @@ bool EncoderApp::CheckParameters() {
     std::exit(1);
   }
 
-  return true;
-}
-
-void EncoderApp::CreateAndConfigureApi() {
-  xvc_api_ = xvc_encoder_api_get();
-  params_ = xvc_api_->parameters_create();
-  xvc_api_->parameters_set_default(params_);
-  if (cli_.width) {
-    params_->width = cli_.width;
-  }
-  if (cli_.height) {
-    params_->height = cli_.height;
-  }
-  if (cli_.chroma_format != XVC_ENC_CHROMA_FORMAT_UNDEFINED) {
-    params_->chroma_format = cli_.chroma_format;
-  }
-  if (cli_.color_matrix != XVC_ENC_COLOR_MATRIX_UNDEFINED) {
-    params_->color_matrix = cli_.color_matrix;
-  }
-  if (cli_.input_bitdepth) {
-    params_->input_bitdepth = cli_.input_bitdepth;
-  }
-  if (cli_.internal_bitdepth) {
-    params_->internal_bitdepth = cli_.internal_bitdepth;
-  }
-  if (cli_.framerate) {
-    params_->framerate = cli_.framerate;
-  }
-  if (cli_.sub_gop_length >= 0) {
-    params_->sub_gop_length = cli_.sub_gop_length;
-  }
-  if (cli_.max_keypic_distance >= 0) {
-    params_->max_keypic_distance = cli_.max_keypic_distance;
-  }
-  if (cli_.closed_gop != -1) {
-    params_->closed_gop = cli_.closed_gop;
-  }
-  if (cli_.num_ref_pics != -1) {
-    params_->num_ref_pics = cli_.num_ref_pics;
-  }
-  if (cli_.restricted_mode != -1) {
-    params_->restricted_mode = cli_.restricted_mode;
-  }
-  if (cli_.chroma_qp_offset_table != -1) {
-    params_->chroma_qp_offset_table = cli_.chroma_qp_offset_table;
-  }
-  if (cli_.chroma_qp_offset_u != std::numeric_limits<int>::min()) {
-    params_->chroma_qp_offset_u = cli_.chroma_qp_offset_u;
-  }
-  if (cli_.chroma_qp_offset_v != std::numeric_limits<int>::min()) {
-    params_->chroma_qp_offset_v = cli_.chroma_qp_offset_v;
-  }
-  if (cli_.deblock != -1) {
-    params_->deblock = cli_.deblock;
-  }
-  if (cli_.checksum_mode != -1) {
-    params_->checksum_mode = cli_.checksum_mode;
-  }
-  if (cli_.beta_offset != std::numeric_limits<int>::min()) {
-    params_->beta_offset = cli_.beta_offset;
-  }
-  if (cli_.tc_offset != std::numeric_limits<int>::min()) {
-    params_->tc_offset = cli_.tc_offset;
-  }
-  if (cli_.qp != -1) {
-    params_->qp = cli_.qp;
-  }
-  if (cli_.flat_lambda >= 0) {
-    params_->flat_lambda = cli_.flat_lambda;
-  }
-  if (cli_.speed_mode != -1) {
-    params_->speed_mode = cli_.speed_mode;
-  }
-  if (cli_.tune_mode != -1) {
-    params_->tune_mode = cli_.tune_mode;
-  }
-  if (cli_.simd_mask != -1) {
-    params_->simd_mask = cli_.simd_mask;
-  }
-  if (!cli_.explicit_encoder_settings.empty()) {
-    params_->explicit_encoder_settings = &cli_.explicit_encoder_settings[0];
-  }
-  xvc_enc_return_code ret = xvc_api_->parameters_check(params_);
-  if (ret != XVC_ENC_OK) {
-    std::cout << xvc_api_->xvc_enc_get_error_text(ret) << std::endl;
+  if (cli_.multipass_rd < 0 || cli_.multipass_rd > 1) {
+    std::cerr << "Error: Invalid multi-pass configuration" << std::endl;
     PrintUsage();
     std::exit(1);
   }
-  encoder_ = xvc_api_->encoder_create(params_);
+
+  if (cli_.multipass_rd > 0 && !input_seekable_) {
+    std::cerr << "Warning: Disabling multi-pass and lookahead on "
+      "non-seekable input-streams" << std::endl;
+    cli_.multipass_rd = 0;
+  }
+
+  xvc_enc_return_code ret = ConfigureApiParams(params_);
+  if (ret != XVC_ENC_OK) {
+    std::cerr << xvc_api_->xvc_enc_get_error_text(ret) << std::endl;
+    PrintUsage();
+    std::exit(1);
+  }
+}
+
+xvc_enc_return_code
+EncoderApp::ConfigureApiParams(xvc_encoder_parameters *params) {
+  xvc_api_->parameters_set_default(params);
+  if (cli_.width) {
+    params->width = cli_.width;
+  }
+  if (cli_.height) {
+    params->height = cli_.height;
+  }
+  if (cli_.chroma_format != XVC_ENC_CHROMA_FORMAT_UNDEFINED) {
+    params->chroma_format = cli_.chroma_format;
+  }
+  if (cli_.color_matrix != XVC_ENC_COLOR_MATRIX_UNDEFINED) {
+    params->color_matrix = cli_.color_matrix;
+  }
+  if (cli_.input_bitdepth) {
+    params->input_bitdepth = cli_.input_bitdepth;
+  }
+  if (cli_.internal_bitdepth) {
+    params->internal_bitdepth = cli_.internal_bitdepth;
+  }
+  if (cli_.framerate) {
+    params->framerate = cli_.framerate;
+  }
+  if (cli_.sub_gop_length >= 0) {
+    params->sub_gop_length = cli_.sub_gop_length;
+  }
+  if (cli_.max_keypic_distance >= 0) {
+    params->max_keypic_distance = cli_.max_keypic_distance;
+  }
+  if (cli_.closed_gop != -1) {
+    params->closed_gop = cli_.closed_gop;
+  }
+  if (cli_.num_ref_pics != -1) {
+    params->num_ref_pics = cli_.num_ref_pics;
+  }
+  if (cli_.restricted_mode != -1) {
+    params->restricted_mode = cli_.restricted_mode;
+  }
+  if (cli_.chroma_qp_offset_table != -1) {
+    params->chroma_qp_offset_table = cli_.chroma_qp_offset_table;
+  }
+  if (cli_.chroma_qp_offset_u != std::numeric_limits<int>::min()) {
+    params->chroma_qp_offset_u = cli_.chroma_qp_offset_u;
+  }
+  if (cli_.chroma_qp_offset_v != std::numeric_limits<int>::min()) {
+    params->chroma_qp_offset_v = cli_.chroma_qp_offset_v;
+  }
+  if (cli_.deblock != -1) {
+    params->deblock = cli_.deblock;
+  }
+  if (cli_.checksum_mode != -1) {
+    params->checksum_mode = cli_.checksum_mode;
+  }
+  if (cli_.beta_offset != std::numeric_limits<int>::min()) {
+    params->beta_offset = cli_.beta_offset;
+  }
+  if (cli_.tc_offset != std::numeric_limits<int>::min()) {
+    params->tc_offset = cli_.tc_offset;
+  }
+  if (cli_.qp != -1) {
+    params->qp = cli_.qp;
+  }
+  if (cli_.flat_lambda >= 0) {
+    params->flat_lambda = cli_.flat_lambda;
+  }
+  if (cli_.speed_mode != -1) {
+    params->speed_mode = cli_.speed_mode;
+  }
+  if (cli_.tune_mode != -1) {
+    params->tune_mode = cli_.tune_mode;
+  }
+  if (cli_.simd_mask != -1) {
+    params->simd_mask = cli_.simd_mask;
+  }
+  if (!cli_.explicit_encoder_settings.empty()) {
+    params->explicit_encoder_settings = &cli_.explicit_encoder_settings[0];
+  }
+  return xvc_api_->parameters_check(params);
 }
 
 void EncoderApp::PrintEncoderSettings() {
   if (!params_) {
     return;
   }
-  std::cout << "Input:        " << cli_.input_filename << std::endl;
-  std::cout << "Output:       " << cli_.output_filename << std::endl;
-  std::cout << "Size:         " << params_->width << "x" << params_->height
+  std::cout << "Input:            " << cli_.input_filename << std::endl;
+  std::cout << "Output:           " << cli_.output_filename << std::endl;
+  std::cout << "Size:             " << params_->width << "x" << params_->height
     << std::endl;
-  std::cout << "Bitdepth:     " << params_->input_bitdepth << std::endl;
-  std::cout << "Framerate:    " << params_->framerate << std::endl;
-  std::cout << "QP:           " << params_->qp << std::endl;
+  std::cout << "Bitdepth:         " << params_->input_bitdepth << std::endl;
+  std::cout << "Framerate:        " << params_->framerate << std::endl;
+  std::cout << "QP:               " << params_->qp << std::endl;
 }
 
 void EncoderApp::MainEncoderLoop() {
   // Calculate how much data to read for each picture.
-  std::vector<uint8_t> picture_bytes;
   int picture_samples = 0;
   if (params_->chroma_format == XVC_ENC_CHROMA_FORMAT_MONOCHROME) {
     picture_samples = params_->width * params_->height;
@@ -349,8 +372,33 @@ void EncoderApp::MainEncoderLoop() {
     picture_samples = 3 * params_->width * params_->height;
   }
   assert(picture_samples > 0);
-  picture_bytes.resize(params_->input_bitdepth == 8 ?
-                       picture_samples : (picture_samples << 1));
+  picture_bytes_.resize(params_->input_bitdepth == 8 ?
+                        picture_samples : (picture_samples << 1));
+
+  if (cli_.multipass_rd == 1) {
+    SinglePassLookahead(params_);
+  }
+  EncodeOnePass(params_);
+
+  // Cleanup
+  if (rec_stream_.is_open()) {
+    rec_stream_.close();
+  }
+  file_output_stream_.close();
+  file_input_stream_.close();
+}
+
+void EncoderApp::EncodeOnePass(xvc_encoder_parameters *params) {
+  if (encoder_) {
+    xvc_enc_return_code ret = xvc_api_->encoder_destroy(encoder_);
+    assert(ret == XVC_ENC_OK);
+    ((void)(ret));
+  }
+  encoder_ = xvc_api_->encoder_create(params);
+  if (!encoder_) {
+    std::cerr << "Error: Failed to allocate encoder" << std::endl;
+    std::exit(1);
+  }
 
   // Setting the buffer pointer for reconstructed picture to nullptr
   // indicates that no reconstructed picture is requested.
@@ -360,47 +408,36 @@ void EncoderApp::MainEncoderLoop() {
     rec_pic_ptr = &rec_pic_buffer_;
   }
 
-  // Temporal subsampling can be used to encode every n'th frame
-  // of the input file.
-  int max_num_pics = cli_.max_num_pictures;
-
-  xvc_enc_nal_unit *nal_units;
-  int num_nal_units;
   if (input_seekable_) {
     // Skip input pictures (if supported by stream)
-    input_stream_->seekg(0, std::ifstream::end);
-    std::streampos input_length = input_stream_->tellg();
-    std::streamoff start_pos =
-      start_skip_ + (picture_skip_ + picture_bytes.size()) * cli_.skip_pictures;
-    if (start_pos < input_length) {
-      input_stream_->seekg(start_pos, std::ifstream::beg);
-    } else {
+    std::streamoff start_pos = start_skip_ +
+      (picture_skip_ + picture_bytes_.size()) * cli_.skip_pictures;
+    if (start_pos >= input_file_size_) {
       std::cerr << "Error: The value of skip-pictures is larger than the "
         << "number of pictures in the input file.";
       std::exit(1);
     }
+    input_stream_->seekg(start_pos, std::ifstream::beg);
   }
 
+  xvc_enc_nal_unit *nal_units;
+  int num_nal_units;
   char nal_size[4];
   size_t current_segment_bytes = 0;
   int current_segment_pics = 0;
+  picture_index_ = 0;
+  total_bytes_ = 0;
+  max_segment_bytes_ = 0;
+  max_segment_pics_ = 0;
   start_ = std::chrono::steady_clock::now();
-  bool loop_check = true;
+
   // loop_check will become false when the entire file has been encoded
   // or when max_num_pics have been encoded.
+  bool loop_check = true;
   while (loop_check) {
-    if (input_seekable_) {
-      input_stream_->seekg(picture_skip_, std::ifstream::cur);
-    } else {
-      assert(picture_skip_ < static_cast<int>(picture_bytes.size()));
-      // Read dummy frame header
-      input_stream_->read(reinterpret_cast<char *>(&picture_bytes.front()),
-                          picture_skip_);
-    }
-    input_stream_->read(reinterpret_cast<char *>(&picture_bytes.front()),
-                        picture_bytes.size());
-    if (input_stream_->gcount() < static_cast<int>(picture_bytes.size()) ||
-      (max_num_pics >= 0 && picture_index_ >= max_num_pics)) {
+    bool read_success = ReadNextPicture(&picture_bytes_);
+    if (!read_success ||
+      (cli_.max_num_pictures >= 0 && picture_index_ >= cli_.max_num_pictures)) {
       // Flush the encoder for remaining nal_units and reconstructed pictures.
       xvc_api_->encoder_flush(encoder_, &nal_units, &num_nal_units,
                               rec_pic_ptr);
@@ -411,7 +448,7 @@ void EncoderApp::MainEncoderLoop() {
       // Encode one picture and get 0 or 1 reconstructed picture back.
       // Also get back 0 or more nal_units depending on if pictures are being
       // buffered in order to encode a full Sub Gop.
-      xvc_api_->encoder_encode(encoder_, &picture_bytes[0], &nal_units,
+      xvc_api_->encoder_encode(encoder_, &picture_bytes_[0], &nal_units,
                                &num_nal_units, rec_pic_ptr);
       picture_index_++;
     }
@@ -455,26 +492,17 @@ void EncoderApp::MainEncoderLoop() {
 
     // Jump forward in the input file if temporal subsampling is applied.
     if (input_seekable_ && cli_.temporal_subsample > 1) {
-      std::streamoff skip_picture = picture_bytes.size() + picture_skip_;
+      std::streamoff skip_picture = picture_bytes_.size() + picture_skip_;
       input_stream_->seekg((cli_.temporal_subsample - 1) * skip_picture,
                            std::ifstream::cur);
     }
   }
 
+  end_ = std::chrono::steady_clock::now();
   if (current_segment_bytes > max_segment_bytes_) {
     max_segment_bytes_ = current_segment_bytes;
     max_segment_pics_ = current_segment_pics;
   }
-
-  end_ = std::chrono::steady_clock::now();
-}
-
-void EncoderApp::CloseStream() {
-  if (rec_stream_.is_open()) {
-    rec_stream_.close();
-  }
-  file_output_stream_.close();
-  file_input_stream_.close();
 }
 
 void EncoderApp::PrintStatistics() {
@@ -493,6 +521,95 @@ void EncoderApp::PrintStatistics() {
   std::cout << "Peak bitrate:  " <<
     (max_segment_bytes_ * 8 / 1000 / (max_segment_pics_ / params_->framerate))
     << " kbit/s" << std::endl;
+}
+
+void EncoderApp::SinglePassLookahead(xvc_encoder_parameters *out_params) {
+  static const double kPocRatio = 0.6875;
+  const auto param_delete = [this](xvc_encoder_parameters *p) {
+    xvc_api_->parameters_destroy(p);
+  };
+  const auto encoder_delete = [this](xvc_encoder *p) {
+    xvc_api_->encoder_destroy(p);
+  };
+  const std::streampos required_size = start_skip_ +
+    (picture_skip_ + picture_bytes_.size()) * kDefaultSubGopSize;
+  const int sub_gop_length = params_->sub_gop_length < 1 ?
+    kDefaultSubGopSize : params_->sub_gop_length;
+  const int middle_poc = static_cast<int>(kPocRatio * sub_gop_length + 0.5);
+  const std::array<std::array<int, 2>, 2> test_positions = { {
+    { 0, middle_poc },
+    { (sub_gop_length - 1), middle_poc }
+  } };
+  if (!input_seekable_ || sub_gop_length < 4 ||
+      input_file_size_ < required_size) {
+    std::cout << "Warning: Singlepass lookahead not attempted" << std::endl;
+    return;
+  }
+
+  std::unique_ptr<xvc_encoder_parameters, decltype(param_delete)>
+    lookahead_params(xvc_api_->parameters_create(), param_delete);
+  std::unique_ptr<xvc_encoder, decltype(encoder_delete)>
+    lookahead_encoder(nullptr, encoder_delete);
+  xvc_enc_return_code ret =
+    ConfigureApiParams(lookahead_params.get());
+  if (ret != XVC_ENC_OK) {
+    return;
+  }
+  lookahead_params->speed_mode = 2;
+  lookahead_params->sub_gop_length = 2;
+  std::array<size_t, 2> result = { 0, 0 };
+  const auto time_start = std::chrono::steady_clock::now();
+
+  for (int i = 0; i < static_cast<int>(test_positions.size()); i++) {
+    lookahead_encoder.reset(xvc_api_->encoder_create(lookahead_params.get()));
+    assert(lookahead_encoder);
+    xvc_enc_nal_unit *nal_units;
+    int num_nal_units;
+    for (int poc : test_positions[i]) {
+      std::streamoff seek_pos = start_skip_ +
+        (picture_skip_ + picture_bytes_.size()) * poc;
+      input_stream_->seekg(seek_pos, std::ifstream::beg);
+      if (!ReadNextPicture(&picture_bytes_)) {
+        input_stream_->seekg(0, std::ifstream::beg);
+        return;
+      }
+      ret =
+        xvc_api_->encoder_encode(lookahead_encoder.get(), &picture_bytes_[0],
+                                 &nal_units, &num_nal_units, nullptr);
+      assert(ret == XVC_ENC_OK);
+    }
+    ret = xvc_api_->encoder_flush(lookahead_encoder.get(), &nal_units,
+                                  &num_nal_units, nullptr);
+    assert(ret == XVC_ENC_OK);
+    result[i] = nal_units[0].size;
+  }
+  const auto time_end = std::chrono::steady_clock::now();
+
+  out_params->leading_pictures = result[1] <= result[0];
+  std::cout << "Leading Picture:  " << out_params->leading_pictures << "\n";
+  std::cout << "Lookahead time:   "
+    << std::chrono::duration<float>(time_end - time_start).count() << " s"
+    << std::endl;
+  input_stream_->seekg(0, std::ifstream::beg);
+}
+
+
+bool EncoderApp::ReadNextPicture(std::vector<uint8_t> *picture_bytes) {
+  assert(picture_bytes->size() > 0);
+  if (picture_skip_ > 0) {
+    if (input_seekable_) {
+      input_stream_->seekg(picture_skip_, std::ifstream::cur);
+    } else {
+      assert(picture_skip_ <
+             static_cast<std::streamoff>(picture_bytes->size()));
+      // Read dummy frame header
+      input_stream_->read(reinterpret_cast<char *>(&(*picture_bytes)[0]),
+                          picture_skip_);
+    }
+  }
+  input_stream_->read(reinterpret_cast<char *>(&(*picture_bytes)[0]),
+                      picture_bytes->size());
+  return input_stream_->gcount() == static_cast<int>(picture_bytes->size());
 }
 
 void EncoderApp::PrintUsage() {
@@ -519,7 +636,8 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -skip-pictures <int>" << std::endl;
   std::cout << "  -temporal-subsample <int>" << std::endl;
   std::cout << "  -max-pictures <int>" << std::endl;
-  std::cout << "  -sub-gop-length <1..64> (default: 16)" << std::endl;
+  std::cout << "  -sub-gop-length <1..64> (default: " << kDefaultSubGopSize
+    << ")" << std::endl;
   std::cout << "  -max-keypic-distance <int> (default: 640)" << std::endl;
   std::cout << "  -closed-gop <int> (default: 0)" << std::endl;
   std::cout << "  -num-ref-pics <0..5> (default: 2)" << std::endl;
@@ -530,6 +648,10 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -beta-offset <-32..31>" << std::endl;
   std::cout << "  -tc-offset <-32..31>" << std::endl;
   std::cout << "  -qp <-64..63> (default: 32)" << std::endl;
+  std::cout << "  -multi-passes <0..2>" << std::endl;
+  std::cout << "      0: Single-pass (default)" << std::endl;
+  std::cout << "      1: Single pass with start picture determination"
+    << std::endl;
   std::cout << "  -speed-mode <0..2>" << std::endl;
   std::cout << "      0: Placebo" << std::endl;
   std::cout << "      1: Slow (default)" << std::endl;
@@ -539,7 +661,6 @@ void EncoderApp::PrintUsage() {
   std::cout << "      1: PSNR" << std::endl;
   std::cout << "  -verbose <0..1>" << std::endl;
 }
-
 
 void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
   std::cout << "NUT:" << std::setw(6) << nal_unit.stats.nal_unit_type;

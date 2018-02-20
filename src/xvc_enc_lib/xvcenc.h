@@ -115,6 +115,7 @@ extern "C" {
     int tc_offset;
     int qp;
     int flat_lambda;
+    int leading_pictures;
     int speed_mode;
     int tune_mode;
     int checksum_mode;
