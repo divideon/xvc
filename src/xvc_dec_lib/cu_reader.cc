@@ -221,12 +221,10 @@ void CuReader::ReadResidualDataInternal(CodingUnit *cu, YuvComponent comp,
 
 bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
                                 SyntaxReader *reader) const {
-  bool signal_root_cbf = cu->IsInter() &&
-    !Restrictions::Get().disable_transform_root_cbf &&
-    (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
-  if (signal_root_cbf) {
+  if (cu->IsInter() &&
+    (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode)) {
     if (util::IsLuma(comp)) {
-      bool root_cbf = reader->ReadRootCbf();
+      const bool root_cbf = reader->ReadRootCbf();
       cu->SetRootCbf(root_cbf);
       if (!root_cbf) {
         if (cu->GetMergeFlag()) {
@@ -241,16 +239,13 @@ bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
       return false;
     }
   }
-
   bool cbf;
-  if (Restrictions::Get().disable_transform_cbf) {
-    cbf = true;
-  } else if (cu->IsIntra()) {
+  if (cu->IsIntra()) {
     cbf = reader->ReadCbf(*cu, comp);
   } else if (util::IsLuma(comp)) {
     // luma will read cbf for all components
-    bool cbf_u = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
-    bool cbf_v = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
+    bool cbf_u = reader->ReadCbf(*cu, YuvComponent::kU);
+    bool cbf_v = reader->ReadCbf(*cu, YuvComponent::kU);
     cu->SetCbf(YuvComponent::kU, cbf_u);
     cu->SetCbf(YuvComponent::kV, cbf_v);
     if (cbf_u || cbf_v || Restrictions::Get().disable_transform_root_cbf) {

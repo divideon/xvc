@@ -608,7 +608,10 @@ void SyntaxWriter::WriteQp(int qp_value) {
 }
 
 void SyntaxWriter::WriteRootCbf(bool root_cbf) {
-  assert(!Restrictions::Get().disable_transform_root_cbf);
+  if (Restrictions::Get().disable_transform_root_cbf) {
+    assert(root_cbf);
+    return;
+  }
   encoder_.EncodeBin(root_cbf != 0, &ctx_.cu_root_cbf[0]);
 }
 

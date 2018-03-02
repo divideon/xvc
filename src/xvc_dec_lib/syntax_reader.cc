@@ -613,8 +613,10 @@ int SyntaxReaderCabac<Ctx>::ReadQp() {
 
 template<typename Ctx>
 bool SyntaxReaderCabac<Ctx>::ReadRootCbf() {
-  uint32_t bin = decoder_.DecodeBin(&ctx_.cu_root_cbf[0]);
-  return bin != 0;
+  if (Restrictions::Get().disable_transform_root_cbf) {
+    return true;
+  }
+  return decoder_.DecodeBin(&ctx_.cu_root_cbf[0]) != 0;
 }
 
 template<typename Ctx>

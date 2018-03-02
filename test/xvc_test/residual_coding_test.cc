@@ -139,6 +139,7 @@ TEST_P(ResidualCoding, 4x4AcOnly) {
 
 TEST_F(ResidualCoding, AllZero) {
   if (!xvc::Restrictions::Get().disable_transform_cbf) {
+    // this functionality is not used when cbf is available
     return;
   }
   enc_coeff.fill(0);

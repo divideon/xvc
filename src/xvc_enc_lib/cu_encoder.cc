@@ -388,7 +388,6 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                  qp, rdo_depth, cache_result, *writer);
     cu = *best_cu;
   }
-  cu->SetRootCbf(cu->GetHasAnyCbf());
   pic_data_.MarkUsedInPic(cu);
 
   if (cache_result.cacheable) {
@@ -634,7 +633,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
   cu->SetMergeIdx(best_merge_idx);
   inter_search_.ApplyMergeCand(cu, merge_list[best_merge_idx]);
   cu->LoadStateFrom(best_transform_state, &rec_pic_);
-  cu->SetSkipFlag(!cu->GetRootCbf() &&
+  cu->SetSkipFlag(!cu->GetHasAnyCbf() &&
                   !Restrictions::Get().disable_inter_skip_mode);
   return best_cost;
 }

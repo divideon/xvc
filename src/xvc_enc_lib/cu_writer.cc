@@ -169,7 +169,7 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
 }
 
 void CuWriter::WriteMergePrediction(const CodingUnit &cu, YuvComponent comp,
-                                   SyntaxWriter * writer) {
+                                    SyntaxWriter * writer) {
   if (cu.CanAffineMerge()) {
     writer->WriteAffineFlag(cu, true, cu.GetUseAffine());
   } else {
@@ -227,28 +227,19 @@ CuWriter::WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
 
 bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
                                  SyntaxWriter *writer) const {
-  if (Restrictions::Get().disable_transform_root_cbf &&
-      Restrictions::Get().disable_transform_cbf) {
-    return true;
-  }
-
-  bool signal_root_cbf = cu.IsInter() &&
-    !Restrictions::Get().disable_transform_root_cbf &&
-    (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
-  if (signal_root_cbf) {
-    bool root_cbf = cu.GetRootCbf();
+  if (cu.IsInter() &&
+    (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode)) {
+    const bool root_cbf = cu.GetRootCbf();
     if (util::IsLuma(comp)) {
       writer->WriteRootCbf(root_cbf);
     }
     if (!root_cbf) {
+      assert(!cu.GetCbf(comp));
       return false;
     }
   }
-
-  bool cbf = cu.GetCbf(comp);
-  if (Restrictions::Get().disable_transform_cbf) {
-    assert(cbf);
-  } else if (cu.IsIntra()) {
+  const bool cbf = cu.GetCbf(comp);
+  if (cu.IsIntra()) {
     writer->WriteCbf(cu, comp, cbf);
   } else if (util::IsLuma(comp)) {
     // Inter luma comp will write all cbf flags since chroma is written first

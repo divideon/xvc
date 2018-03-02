@@ -108,8 +108,7 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
   }
 
   // Evaluate cbf zero
-  if ((search_flags & TxSearchFlags::kCbfZero) != TxSearchFlags::kNone &&
-      !Restrictions::Get().disable_transform_cbf) {
+  if ((search_flags & TxSearchFlags::kCbfZero) != TxSearchFlags::kNone) {
     Distortion dist_zero =
       cu_metric_.CompareSample(*cu, comp, orig_pic, GetPredBuffer(comp));
     if (out_dist_zero) {
@@ -117,7 +116,19 @@ TransformEncoder::CompressAndEvalTransform(CodingUnit *cu, YuvComponent comp,
     }
     if (cu->GetCbf(comp)) {
       RdoSyntaxWriter zero_writer(writer, 0);
-      zero_writer.WriteCbf(*cu, comp, false);
+      if (!Restrictions::Get().disable_transform_cbf) {
+        zero_writer.WriteCbf(*cu, comp, false);
+      } else {
+        // Slow method, perform full coeff writing of zero coefficients
+        if (best_is_applied) {
+          best_is_applied = false;
+          cu->SaveStateTo(&best_cu_state_, *rec_pic, comp);
+        }
+        cu->SetRootCbf(true);
+        cu->ClearCbf(comp);
+        ReconstructZeroCbf(cu, comp, orig_pic, rec_pic);
+        cu_writer->WriteResidualDataRdoCbf(*cu, comp, &zero_writer);
+      }
       Bits bits_zero = zero_writer.GetNumWrittenBits();
       Cost cost = dist_zero +
         static_cast<Cost>(bits_zero * qp.GetLambda() + 0.5);
@@ -293,15 +304,12 @@ Bits TransformEncoder::GetCuBitsFull(const CodingUnit &cu,
 void TransformEncoder::ReconstructZeroCbf(CodingUnit *cu, YuvComponent comp,
                                           const YuvPicture &orig_pic,
                                           YuvPicture *rec_pic) {
-  assert(!cu->GetCbf(comp));
   const int cu_x = cu->GetPosX(comp);
   const int cu_y = cu->GetPosY(comp);
   const int width = cu->GetWidth(comp);
   const int height = cu->GetHeight(comp);
-  CoeffBuffer cu_coeff = cu->GetCoeff(comp);
   const SampleBuffer &pred_buffer = GetPredBuffer(comp);
   SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
-  cu_coeff.ZeroOut(width, height);
   reco_buffer.CopyFrom(width, height, pred_buffer);
 }
 

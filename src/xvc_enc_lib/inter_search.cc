@@ -309,12 +309,12 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
         modified = true;
       }
     }
-    cu->SetRootCbf(cu->GetHasAnyCbf());
-    cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetRootCbf());
+    cu->SetRootCbf(cu->GetHasAnyCbf() ||
+                   Restrictions::Get().disable_transform_root_cbf);
+    cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetHasAnyCbf());
 
     // Evaluate root cbf zero
     if ((tx_pass == 0 || modified) &&
-        !Restrictions::Get().disable_transform_cbf &&
         !Restrictions::Get().disable_transform_root_cbf) {
       Bits bits_non_zero =
         encoder->GetCuBitsResidual(*cu, bitstream_writer, &cu_writer_);
@@ -324,6 +324,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
       if (cost_zero < cost_non_zero) {
         sum_dist_resi = sum_dist_zero;
         sum_dist_final = sum_dist_zero;
+        cu->SetRootCbf(false);
         for (int c = 0; c < max_components_; c++) {
           best_cost[c].dist_resi = comp_dist_zero[c];
           best_cost[c].dist_reco = comp_dist_zero[c];
@@ -334,8 +335,7 @@ InterSearch::CompressAndEvalCbf(CodingUnit *cu, const Qp &qp,
                                                        cu->GetPosY(comp));
           reco.CopyFrom(cu->GetWidth(comp), cu->GetHeight(comp), pred_buffer);
         }
-        cu->SetRootCbf(cu->GetHasAnyCbf());
-        cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetRootCbf());
+        cu->SetSkipFlag(cu->GetMergeFlag() && !cu->GetHasAnyCbf());
       }
     }
 
@@ -368,7 +368,9 @@ InterSearch::CompressSkipOnly(CodingUnit *cu, const Qp &qp,
   if (!Restrictions::Get().disable_inter_skip_mode) {
     cu->SetSkipFlag(true);
   }
-  cu->SetRootCbf(false);
+  if (!Restrictions::Get().disable_transform_root_cbf) {
+    cu->SetRootCbf(false);
+  }
 
   Distortion sum_dist = 0;
   for (int c = 0; c < max_components_; c++) {

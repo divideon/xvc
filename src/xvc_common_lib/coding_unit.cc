@@ -322,9 +322,17 @@ int CodingUnit::GetCuSizeBelowLeft(YuvComponent comp) const {
 }
 
 void CodingUnit::ClearCbf(YuvComponent comp) {
+  CoeffBuffer cu_coeff = GetCoeff(comp);
+  const int width = GetWidth(comp);
+  const int height = GetHeight(comp);
   tx_.cbf[static_cast<int>(comp)] = false;
+  if (Restrictions::Get().disable_transform_cbf) {
+    // when not signaling cbf this can only be false when root cbf is false
+    tx_.cbf[static_cast<int>(comp)] = tx_.root_cbf;
+  }
   tx_.transform_skip[static_cast<int>(comp)] = false;
   SetTransformFromSelectIdx(comp, -1);
+  cu_coeff.ZeroOut(width, height);
 }
 
 void CodingUnit::SetTransformType(YuvComponent comp, TransformType tx1,
