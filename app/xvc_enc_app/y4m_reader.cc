@@ -23,9 +23,9 @@
 
 namespace xvc_app {
 
-bool Y4mReader::Read(int &width, int &height, double &framerate,
-                     int &input_bitdepth, std::streamoff &start_skip,
+bool Y4mReader::Read(PictureFormat *out_format, std::streamoff *start_skip,
                      std::streamoff *picture_skip) {
+  PictureFormat pic_fmt;
   char buf[80];
 
   std::streamsize len;
@@ -58,11 +58,11 @@ bool Y4mReader::Read(int &width, int &height, double &framerate,
     }
     switch (buf[pos++]) {
       case 'W':  // picture width
-        width = static_cast<int>(strtol(buf + pos, &end, 10));
+        pic_fmt.width = static_cast<int>(strtol(buf + pos, &end, 10));
         pos = end - buf;
         break;
       case 'H':  // picture height
-        height = static_cast<int>(strtol(buf + pos, &end, 10));
+        pic_fmt.height = static_cast<int>(strtol(buf + pos, &end, 10));
         pos = end - buf;
         break;
       case 'F':  // framerate
@@ -70,7 +70,7 @@ bool Y4mReader::Read(int &width, int &height, double &framerate,
         pos = end - buf + 1;
         num = static_cast<int>(strtol(buf + pos, &end, 10));
         pos = end - buf;
-        framerate = static_cast<double>(den) / num;
+        pic_fmt.framerate = static_cast<double>(den) / num;
         break;
       case 'I':  // interlacing
         assert(buf[pos] == 'p');
@@ -84,13 +84,31 @@ bool Y4mReader::Read(int &width, int &height, double &framerate,
         break;
       case 'C':  // color space
         if (!strncmp(buf + pos, "420p10", 6)) {
-          input_bitdepth = 10;
+          pic_fmt.input_bitdepth = 10;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_420;
           pos += 6;
         } else if (!strncmp(buf + pos, "420", 3)) {
-          input_bitdepth = 8;
+          pic_fmt.input_bitdepth = 8;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_420;
+          pos += 3;
+        } else if (!strncmp(buf + pos, "422p10", 6)) {
+          pic_fmt.input_bitdepth = 10;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_422;
+          pos += 6;
+        } else if (!strncmp(buf + pos, "422", 3)) {
+          pic_fmt.input_bitdepth = 8;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_422;
+          pos += 3;
+        } else if (!strncmp(buf + pos, "444p10", 6)) {
+          pic_fmt.input_bitdepth = 10;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_444;
+          pos += 6;
+        } else if (!strncmp(buf + pos, "444", 3)) {
+          pic_fmt.input_bitdepth = 8;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_444;
           pos += 3;
         } else {
-          assert(0);
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_UNDEFINED;
         }
         break;
       case 'X':  // YUV4MPEG2 comment, ignored
@@ -102,8 +120,18 @@ bool Y4mReader::Read(int &width, int &height, double &framerate,
     }
   }
 
-  start_skip = pos + 1;
-  *picture_skip = 6;  // Skip "FRAME\n" before each picture
+  assert(pic_fmt.width != 0 && pic_fmt.height != 0);
+  assert(pic_fmt.input_bitdepth != 0);
+  assert(pic_fmt.chroma_format != XVC_ENC_CHROMA_FORMAT_UNDEFINED);
+  if (out_format) {
+    *out_format = pic_fmt;
+  }
+  if (start_skip) {
+    *start_skip = pos + 1;
+  }
+  if (picture_skip) {
+    *picture_skip = 6;  // Skip "FRAME\n" before each picture
+  }
   return true;
 }
 
