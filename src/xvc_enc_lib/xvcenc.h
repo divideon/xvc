@@ -107,6 +107,7 @@ extern "C" {
     uint32_t sub_gop_length;
     uint32_t max_keypic_distance;
     int closed_gop;
+    int low_delay;
     int num_ref_pics;
     int restricted_mode;
     int chroma_qp_offset_table;

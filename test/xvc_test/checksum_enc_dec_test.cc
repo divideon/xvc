@@ -115,11 +115,10 @@ protected:
     xvc::BitReader bit_reader(&bitstream[0], bitstream.size());
     pic_decoder_->SetOutputStatus(xvc::OutputStatus::kHasBeenOutput);
     auto pic_header =
-      pic_decoder_->DecodeHeader(&bit_reader, &sub_gop_end_poc,
+      pic_decoder_->DecodeHeader(segment_, &bit_reader, &sub_gop_end_poc,
                                  &sub_gop_start_poc, &sub_gop_length,
-                                 sub_gop_length, sub_gop_length, doc,
-                                 segment_.soc, num_buffered_nals,
-                                 segment_.leading_pictures);
+                                 sub_gop_length, doc, segment_.soc,
+                                 num_buffered_nals);
     // TODO(PH) Also verify inter pictures?
     xvc::ReferencePictureLists ref_pic_list;
     pic_decoder_->Init(segment_, pic_header, std::move(ref_pic_list),

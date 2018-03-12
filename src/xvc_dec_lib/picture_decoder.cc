@@ -47,24 +47,24 @@ PictureDecoder::PictureDecoder(const SimdFunctions &simd,
 }
 
 PictureDecoder::PicNalHeader
-PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
+PictureDecoder::DecodeHeader(const SegmentHeader &segment_header,
+                             BitReader *bit_reader, PicNum *sub_gop_end_poc,
                              PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
-                             PicNum max_sub_gop_length,
                              PicNum prev_sub_gop_length, PicNum doc,
-                             SegmentNum soc_counter, int num_buffered_nals,
-                             int leading_pictures) {
+                             SegmentNum soc_counter, int num_buffered_nals) {
   // Start by reading the picture header data
   uint32_t header_byte = bit_reader->ReadBits(8);
   NalUnitType nal_unit_type = NalUnitType((header_byte >> 1) & 31);
   int buffer_flag = bit_reader->ReadBits(1);
   SegmentNum soc = (buffer_flag) ? soc_counter - 1 : soc_counter;
   int tid = bit_reader->ReadBits(3);
-  if (nal_unit_type == NalUnitType::kIntraAccessPicture && leading_pictures) {
-    *sub_gop_length = max_sub_gop_length;
+  if (nal_unit_type == NalUnitType::kIntraAccessPicture &&
+      segment_header.leading_pictures) {
+    *sub_gop_length = segment_header.max_sub_gop_length;
     *sub_gop_start_poc += doc > 1 ? constants::kMaxSubGopLength : 0;
     *sub_gop_end_poc = *sub_gop_start_poc;
   } else if (tid == 0) {
-    PicNum length = max_sub_gop_length;
+    PicNum length = segment_header.max_sub_gop_length;
     if (num_buffered_nals) {
       *sub_gop_length = prev_sub_gop_length;
     } else if (nal_unit_type == NalUnitType::kIntraAccessPicture) {
@@ -75,8 +75,8 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
       *sub_gop_length = 1;
     }
     *sub_gop_start_poc = *sub_gop_end_poc;
-  } else if (max_sub_gop_length > *sub_gop_length) {
-    *sub_gop_length = max_sub_gop_length;
+  } else if (segment_header.max_sub_gop_length > *sub_gop_length) {
+    *sub_gop_length = segment_header.max_sub_gop_length;
   }
   int pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
   bool allow_lic = bit_reader->ReadBit() != 0;
@@ -97,7 +97,8 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
   //  1. Temporal layers have been removed, or
   //  2. The Sub Gop is incomplete (i.e. at the end of a stream)
   // Figure out the correct doc to use by stepping until the tids are equal.
-  while (SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
+  while (!segment_header.low_delay &&
+         SegmentHeader::CalcTidFromDoc(doc, *sub_gop_length, *sub_gop_start_poc)
          != tid) {
     doc++;
     if (doc > *sub_gop_end_poc) {
@@ -109,13 +110,17 @@ PictureDecoder::DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
     *sub_gop_end_poc =
       SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
   }
+  PicNum poc =
+    SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
+  if (segment_header.low_delay) {
+    poc = doc;
+  }
 
   // Set High-level syntax parameters of the current picture
   PictureDecoder::PicNalHeader header;
   header.nal_unit_type = nal_unit_type;
   header.soc = soc;
-  header.poc =
-    SegmentHeader::CalcPocFromDoc(doc, *sub_gop_length, *sub_gop_start_poc);
+  header.poc = poc;
   header.doc = doc;
   header.tid = tid;
   header.pic_qp = pic_qp_;
@@ -141,7 +146,7 @@ void PictureDecoder::Init(const SegmentHeader &segment,
   pic_data_->SetDoc(header.doc);
   pic_data_->SetTid(header.tid);
   pic_data_->SetSubGopLength(segment.max_sub_gop_length);
-  pic_data_->SetHighestLayer(header.highest_layer);
+  pic_data_->SetHighestLayer(header.highest_layer && !segment.low_delay);
   pic_data_->SetAdaptiveQp(segment.adaptive_qp > 0);
   pic_data_->SetDeblock(segment.deblock > 0);
   pic_data_->SetBetaOffset(segment.beta_offset);
@@ -178,7 +183,9 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
     assert(0);
     success = false;
   }
-  rec_pic_->PadBorder();
+  if (pic_data_->GetTid() == 0 || !pic_data_->IsHighestLayer()) {
+    rec_pic_->PadBorder();
+  }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   if (post_process) {
     success &= Postprocess(segment, bit_reader);

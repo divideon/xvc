@@ -106,6 +106,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.max_keypic_distance;
     } else if (arg == "-closed-gop") {
       std::stringstream(argv[++i]) >> cli_.closed_gop;
+    } else if (arg == "-low-delay") {
+      std::stringstream(argv[++i]) >> cli_.low_delay;
     } else if (arg == "-num-ref-pics") {
       std::stringstream(argv[++i]) >> cli_.num_ref_pics;
     } else if (arg == "-restricted-mode") {
@@ -305,6 +307,9 @@ EncoderApp::ConfigureApiParams(xvc_encoder_parameters *params) {
   }
   if (cli_.closed_gop != -1) {
     params->closed_gop = cli_.closed_gop;
+  }
+  if (cli_.low_delay != -1) {
+    params->low_delay = cli_.low_delay;
   }
   if (cli_.num_ref_pics != -1) {
     params->num_ref_pics = cli_.num_ref_pics;

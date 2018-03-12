@@ -55,7 +55,8 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   auto pic_data = pic_enc->GetPicData();
   pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
   if (encoder_settings_.leading_pictures > 0 &&
-      segment_header_->max_sub_gop_length == 1) {
+      (segment_header_->max_sub_gop_length == 1 ||
+       segment_header_->low_delay)) {
     encoder_settings_.leading_pictures = 0;
     segment_header_->leading_pictures = 0;
   } else if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
@@ -76,10 +77,13 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     SegmentHeader::CalcTidFromDoc(doc, segment_header_->max_sub_gop_length,
                                   sub_gop_start_poc_);
   int max_tid = SegmentHeader::GetMaxTid(segment_header_->max_sub_gop_length);
+  if (segment_header_->low_delay) {
+    doc = poc_;
+  }
   pic_data->SetDoc(doc);
   pic_data->SetTid(tid);
   pic_data->SetSubGopLength(segment_header_->max_sub_gop_length);
-  pic_data->SetHighestLayer(tid == max_tid);
+  pic_data->SetHighestLayer(tid == max_tid && !segment_header_->low_delay);
   pic_data->SetAdaptiveQp(segment_header_->adaptive_qp > 0);
   pic_data->SetDeblock(segment_header_->deblock > 0);
   pic_data->SetBetaOffset(segment_header_->beta_offset);
@@ -101,14 +105,13 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     encode_segment_header = ((poc_ % segment_length_) == 0);
   }
   if (encode_segment_header) {
-    prev_segment_open_gop_ = curr_segment_open_gop_;
-    if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
-      curr_segment_open_gop_ = false;
-    } else {
-      curr_segment_open_gop_ = true;
-    }
     prev_segment_header_ = std::move(segment_header_);
     segment_header_.reset(new SegmentHeader(*prev_segment_header_));
+    if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
+      segment_header_->open_gop = false;
+    } else {
+      segment_header_->open_gop = true;
+    }
     bit_writer_.Clear();
     if (encoder_settings_.encapsulation_mode != 0) {
       bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
@@ -118,12 +121,12 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
         encoder_settings_.leading_pictures > 0) {
       segment_header_->leading_pictures = encoder_settings_.leading_pictures;
       SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                                 framerate_, curr_segment_open_gop_, 1);
+                                 framerate_);
       encode_with_buffer_flag_ = false;
     } else {
       segment_header_->leading_pictures = 0;
       SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                                 framerate_, curr_segment_open_gop_, 0);
+                                 framerate_);
       encode_with_buffer_flag_ = true;
       soc_ += poc_ == 0 ? 0 : 1;
     }
@@ -215,7 +218,8 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
           SegmentHeader::GetMaxTid(segment_header_->max_sub_gop_length);
         pic_data->SetDoc(doc);
         pic_data->SetTid(tid);
-        pic_data->SetHighestLayer(tid == max_tid);
+        pic_data->SetHighestLayer(tid == max_tid &&
+                                  !segment_header_->low_delay);
         if (poc == 0) {
           pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
           bit_writer_.Clear();
@@ -224,7 +228,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
             bit_writer_.WriteBits(1, 8);
           }
           SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                                     framerate_, curr_segment_open_gop_, 0);
+                                     framerate_);
           segment_header_->soc = soc_;
           xvc_enc_nal_unit nal;
           std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
@@ -317,7 +321,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
     !buffer_flag ? *segment_header_ : *prev_segment_header_;
 
   ReferenceListSorter<PictureEncoder>
-    ref_list_sorter(segment_header, prev_segment_open_gop_);
+    ref_list_sorter(segment_header, prev_segment_header_->open_gop);
   ref_list_sorter.Prepare(pic->GetPicData()->GetPoc(),
                           pic->GetPicData()->GetTid(),
                           pic->GetPicData()->IsIntraPic(),

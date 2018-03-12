@@ -25,10 +25,7 @@
 namespace xvc {
 
 void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
-                                BitWriter *bit_writer,
-                                double framerate,
-                                int open_gop,
-                                int leading_pictures) {
+                                BitWriter *bit_writer, double framerate) {
   bit_writer->WriteBits(33, 8);  // Nal Unit header with nal_unit_type == 16
   bit_writer->WriteBits(segment_header->codec_identifier, 24);
   bit_writer->WriteBits(segment_header->major_version, 16);
@@ -47,7 +44,7 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   bit_writer->WriteBits(static_cast<uint8_t>(segment_header->color_matrix), 3);
   // The open gop flag is set to 0 if the tail pictures
   // do not predict from the Intra picture in the next segment.
-  bit_writer->WriteBit(open_gop);
+  bit_writer->WriteBit(segment_header->open_gop ? 1 : 0);
   bit_writer->WriteBits(segment_header->num_ref_pics, 4);
   static_assert(constants::kMaxBinarySplitDepth < (1 << 2),
                 "max binary split depth signaling");
@@ -78,7 +75,8 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   }
   // Checking major version on encoder side is only needed for unit tests
   if (segment_header->major_version > 1) {
-    bit_writer->WriteBits(leading_pictures > 0 ? 1 : 0, 1);
+    bit_writer->WriteBit(segment_header->low_delay ? 1 : 0);
+    bit_writer->WriteBit(segment_header->leading_pictures > 0 ? 1 : 0);
     bit_writer->WriteBit(segment_header->source_padding ? 1 : 0);
   }
 

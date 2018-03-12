@@ -68,8 +68,12 @@ public:
   void SetInputBitdepth(int bitdepth) { input_bitdepth_ = bitdepth; }
   void SetFramerate(double rate) { framerate_ = rate; }
   void SetSubGopLength(PicNum sub_gop_length) {
+    assert(sub_gop_length > 0);
     segment_header_->max_sub_gop_length = sub_gop_length;
     pic_buffering_num_ = sub_gop_length + segment_header_->num_ref_pics;
+  }
+  void SetLowDelay(bool low_delay) {
+    segment_header_->low_delay = low_delay;
   }
   void SetSegmentLength(PicNum length) { segment_length_ = length; }
   void SetClosedGopInterval(PicNum interval) {
@@ -112,8 +116,6 @@ private:
   std::unique_ptr<SegmentHeader> segment_header_;
   std::unique_ptr<SegmentHeader> prev_segment_header_;
   PicNum sub_gop_start_poc_ = 0;
-  bool prev_segment_open_gop_ = false;
-  bool curr_segment_open_gop_ = false;
   PicNum poc_ = 0;
   PicNum doc_ = 0;
   SegmentNum soc_ = 0;

@@ -126,6 +126,14 @@ TEST_P(EncodeDecodeTest, TwoSubGop24x24) {
   Decode(24, 24, nbr_pictures);
 }
 
+TEST_P(EncodeDecodeTest, LowDelayTwoSubGop24x24) {
+  const int nbr_pictures = kFramesEncoded * 2 +
+    (!GetParam().use_leading_pictures ? 1 : 0);
+  encoder_->SetLowDelay(true);
+  Encode(24, 24, nbr_pictures);
+  Decode(24, 24, nbr_pictures);
+}
+
 TEST_P(EncodeDecodeTest, SingleSegment16x16) {
   if (GetParam().use_leading_pictures) {
     Encode(16, 16, kSegmentLength);

@@ -68,10 +68,11 @@ private:
   bool DetermineAllowLic(PicturePredictionType pic_type,
                          const ReferencePictureLists &ref_list) const;
   uint64_t CalculatePicMetric(const Qp &qp) const;
-  static double CalculateLambda(int qp, PicturePredictionType pic_type,
+  static double CalculateLambda(const EncoderSettings &encoder_settings,
+                                const SegmentHeader &segment_header,
+                                int pic_qp, PicturePredictionType pic_type,
                                 int sub_gop_length, int temporal_id,
-                                int max_temporal_id,
-                                const EncoderSettings &encoder_settings);
+                                int max_temporal_id);
   static int GetQpFromLambda(int bitdepth, double lambda);
 
   const EncoderSimdFunctions &simd_;

@@ -18,6 +18,7 @@
 
 #include "xvc_common_lib/reference_picture_lists.h"
 
+#include <algorithm>
 #include <cassert>
 
 #include "xvc_common_lib/picture_data.h"
@@ -41,36 +42,42 @@ bool ReferencePictureLists::IsRefPicListUsed(RefPicList ref_pic_list,
   }
 }
 
+bool ReferencePictureLists::HasRefPoc(RefPicList ref_list, PicNum poc) const {
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  return std::find_if(entry_list.begin(), entry_list.end(),
+                      [poc](const RefEntry &entry) {
+    return entry.poc == poc;
+  }) != entry_list.end();
+}
+
 PicturePredictionType
 ReferencePictureLists::GetRefPicType(RefPicList ref_list, int ref_idx) const {
-  const std::vector<RefEntry> *entry_list =
-    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
-  if (static_cast<int>(entry_list->size()) <= ref_idx) {
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  if (static_cast<int>(entry_list.size()) <= ref_idx) {
     return PicturePredictionType::kInvalid;
   }
-  return (*entry_list)[ref_idx].data->GetPredictionType();
+  return entry_list[ref_idx].data->GetPredictionType();
 }
 
 int
 ReferencePictureLists::GetRefPicTid(RefPicList ref_list, int ref_idx) const {
-  const std::vector<RefEntry> *entry_list =
-    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
-  if (static_cast<int>(entry_list->size()) <= ref_idx) {
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  if (static_cast<int>(entry_list.size()) <= ref_idx) {
     return -1;
   }
-  return (*entry_list)[ref_idx].data->GetTid();
+  return entry_list[ref_idx].data->GetTid();
 }
 
 const CodingUnit*
 ReferencePictureLists::GetCodingUnitAt(RefPicList ref_list, int index,
                                        CuTree cu_tree, int posx,
                                        int posy) const {
-  std::shared_ptr<const PictureData> pic_data;
-  if (ref_list == RefPicList::kL0) {
-    pic_data = l0_[index].data;
-  } else {
-    pic_data = l1_[index].data;
-  }
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  std::shared_ptr<const PictureData> pic_data = entry_list[index].data;
   return pic_data->GetCuAt(cu_tree, posx, posy);
 }
 

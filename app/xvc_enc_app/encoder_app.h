@@ -85,6 +85,7 @@ private:
     int sub_gop_length = -1;
     int max_keypic_distance = -1;
     int closed_gop = -1;
+    int low_delay = -1;
     int num_ref_pics = -1;
     int restricted_mode = -1;
     int checksum_mode = -1;

@@ -229,12 +229,11 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
 
   // Parse picture header to determine poc
   PictureDecoder::PicNalHeader pic_header =
-    PictureDecoder::DecodeHeader(&pic_bit_reader, &sub_gop_end_poc_,
-                                 &sub_gop_start_poc_, &sub_gop_length_,
-                                 segment_header->max_sub_gop_length,
+    PictureDecoder::DecodeHeader(*segment_header, &pic_bit_reader,
+                                 &sub_gop_end_poc_, &sub_gop_start_poc_,
+                                 &sub_gop_length_,
                                  prev_segment_header_->max_sub_gop_length,
-                                 doc_, soc_, num_tail_pics_,
-                                 segment_header->leading_pictures);
+                                 doc_, soc_, num_tail_pics_);
   doc_ = pic_header.doc + 1;
 
   // Reload restriction flags for current thread if segment has changed

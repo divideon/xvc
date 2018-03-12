@@ -59,6 +59,7 @@ extern "C" {
     param->sub_gop_length = 0;  // determined in xvc_enc_encoder_create
     param->max_keypic_distance = 640;
     param->closed_gop = 0;
+    param->low_delay = 0;
     param->num_ref_pics = -1;  // determined in xvc_enc_set_encoder_settings
     param->restricted_mode = 0;
     param->checksum_mode = 0;
@@ -157,6 +158,9 @@ extern "C" {
       return XVC_ENC_SUB_GOP_LENGTH_TOO_LARGE;
     }
     if (param->closed_gop < 0) {
+      return XVC_ENC_INVALID_PARAMETER;
+    }
+    if (param->low_delay < 0 || param->low_delay > 1) {
       return XVC_ENC_INVALID_PARAMETER;
     }
     if (param->num_ref_pics > xvc::constants::kMaxNumRefPics) {
@@ -306,8 +310,11 @@ extern "C" {
       encoder->SetDeblock(param->deblock);
     }
     encoder->SetQp(param->qp);
+    encoder->SetLowDelay(param->low_delay != 0);
     if (param->num_ref_pics >= 0) {
       encoder->SetNumRefPics(param->num_ref_pics);
+    } else if (param->low_delay != 0) {
+      encoder->SetNumRefPics(4);
     }
     encoder->SetChecksumMode(
       static_cast<xvc::Checksum::Mode>(param->checksum_mode));

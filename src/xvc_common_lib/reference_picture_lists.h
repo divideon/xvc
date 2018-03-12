@@ -59,6 +59,7 @@ public:
   PicNum GetRefPoc(RefPicList ref_list, int ref_idx) const {
     return (ref_list == RefPicList::kL0) ? l0_[ref_idx].poc : l1_[ref_idx].poc;
   }
+  bool HasRefPoc(RefPicList ref_list, PicNum poc) const;
   bool HasOnlyBackReferences() const { return only_back_references_; }
   PicturePredictionType GetRefPicType(RefPicList ref_list, int ref_idx) const;
   int GetRefPicTid(RefPicList ref_list, int ref_idx) const;

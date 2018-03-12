@@ -66,8 +66,8 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
   const int pic_qp =
     DerivePictureQp(encoder_settings, segment_qp, picture_type, pic_tid);
   const double pic_lambda =
-    CalculateLambda(pic_qp, picture_type, sub_gop_length,
-                    pic_tid, max_tid, encoder_settings);
+    CalculateLambda(encoder_settings, segment, pic_qp, picture_type,
+                    sub_gop_length, pic_tid, max_tid);
   const int scaled_qp =
     GetQpFromLambda(pic_data_->GetBitdepth(), pic_lambda);
   Qp base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
@@ -257,12 +257,13 @@ int PictureEncoder::GetQpFromLambda(int bitdepth, double lambda) {
 }
 
 double
-PictureEncoder::CalculateLambda(int qp, PicturePredictionType pic_type,
+PictureEncoder::CalculateLambda(const EncoderSettings &encoder_settings,
+                                const SegmentHeader &segment_header,
+                                int qp, PicturePredictionType pic_type,
                                 int sub_gop_length, int temporal_id,
-                                int max_temporal_id,
-                                const EncoderSettings &encoder_settings) {
-  int qp_temp = qp - 12;
-  double lambda = pow(2.0, qp_temp / 3.0);
+                                int max_temporal_id) {
+  const int qp_temp = qp - 12;
+  const double lambda = pow(2.0, qp_temp / 3.0);
   double scale_factor = encoder_settings.lambda_scale_a *
     pow(2.0, encoder_settings.lambda_scale_b * qp_temp);
   double pic_type_factor =
@@ -270,14 +271,16 @@ PictureEncoder::CalculateLambda(int qp, PicturePredictionType pic_type,
   double subgop_factor =
     1.0 - util::Clip3(0.05 * (sub_gop_length - 1), 0.0, 0.5);
   double hierarchical_factor = 1;
-  if (temporal_id > 0 && temporal_id == max_temporal_id) {
+  if (temporal_id > 0 && temporal_id == max_temporal_id &&
+      !segment_header.low_delay) {
     subgop_factor = 1.0;
     hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
   } else if (temporal_id > 0) {
     hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
     hierarchical_factor *= 0.8;
   }
-  if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra) {
+  if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra &&
+      !segment_header.low_delay) {
     if (encoder_settings.smooth_lambda_scaling == 0) {
       static const std::array<double, 5> temporal_factor = { {
           0.6, 0.2, 0.33, 0.33, 0.4

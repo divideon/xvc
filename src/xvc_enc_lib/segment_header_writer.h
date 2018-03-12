@@ -29,9 +29,7 @@ class SegmentHeaderWriter {
 public:
   static void Write(SegmentHeader* segment_header,
                     BitWriter *bit_writer,
-                    double framerate,
-                    int open_gop,
-                    int leading_pictures);
+                    double framerate);
 
 private:
   static void WriteRestrictions(const Restrictions &restrictions,
