@@ -67,6 +67,10 @@ else()
     add_definitions(-DXVC_HIGH_BITDEPTH=0)
 endif()
 
+if (BUILD_SHARED_LIBS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
+
 add_subdirectory(src)
 if(BUILD_APPS)
   add_subdirectory(app)
