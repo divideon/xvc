@@ -16,6 +16,15 @@ set(XVC_ENC_APP_SOURCES
     "xvc_enc_app/y4m_reader.cc"
     "xvc_enc_app/y4m_reader.h")
 
+if(ENABLE_ASSERTIONS)
+  add_definitions(-UNDEBUG)
+  string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " " CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+endif()
+
+if(BUILD_SHARED_LIBS)
+  add_definitions(-DXVC_SHARED_LIB)
+endif()
+
 if(MSVC)
   set(cxx_flags /GS /W3 /WX /Za /EHsc)
 elseif(CMAKE_COMPILER_IS_GNUCXX)

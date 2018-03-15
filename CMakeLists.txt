@@ -24,6 +24,11 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
+if(MSVC AND BUILD_TESTS AND BUILD_SHARED_LIBS)
+    message(WARNING "Unit-tests disabled when building shared libraries")
+    set(BUILD_TESTS OFF CACHE BOOL "Build all test code" FORCE)
+endif()
+
 # Target arch detection
 set(XVC_HAVE_NEON FALSE)
 if(NOT XVC_TARGET_ARCH)
@@ -65,6 +70,10 @@ if(HIGH_BITDEPTH)
     add_definitions(-DXVC_HIGH_BITDEPTH=1)
 else()
     add_definitions(-DXVC_HIGH_BITDEPTH=0)
+endif()
+
+if(BUILD_SHARED_LIBS)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
 add_subdirectory(src)
