@@ -26,6 +26,17 @@
 extern "C" {
 #endif
 
+#if defined (_WIN32)
+#if defined(xvc_dec_lib_EXPORTS)
+#define XVC_DEC_API __declspec(dllexport)
+#elif defined(XVC_SHARED_LIB)
+#define XVC_DEC_API __declspec(dllimport)
+#endif
+#endif
+#ifndef XVC_DEC_API
+#define XVC_DEC_API
+#endif
+
 #define XVC_DEC_API_VERSION   1
 
   typedef enum {
@@ -148,7 +159,7 @@ extern "C" {
   } xvc_decoder_api;
 
   // Starting point for using the xvc decoder api
-  const xvc_decoder_api* xvc_decoder_api_get(void);
+  XVC_DEC_API const xvc_decoder_api* xvc_decoder_api_get(void);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -30,6 +30,10 @@ if(ENABLE_ASSERTIONS)
   string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " " CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
+if(BUILD_SHARED_LIBS)
+  add_definitions(-DXVC_SHARED_LIB)
+endif()
+
 if(MSVC)
   set(cxx_flags /GS /W3 /WX /Za /EHsc)
 elseif(CMAKE_COMPILER_IS_GNUCXX)
