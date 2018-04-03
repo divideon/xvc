@@ -64,12 +64,12 @@ YuvPicture::YuvPicture(ChromaFormat chroma_fmt, int width, int height,
   }
 }
 
-int YuvPicture::GetCropWidth(YuvComponent comp) const {
-  return util::ScaleSizeX(crop_width_, chroma_format_, comp);
+int YuvPicture::GetDisplayWidth(YuvComponent comp) const {
+  return util::ScaleSizeX(width_[0] - crop_width_, chroma_format_, comp);
 }
 
-int YuvPicture::GetCropHeight(YuvComponent comp) const {
-  return util::ScaleSizeY(crop_height_, chroma_format_, comp);
+int YuvPicture::GetDisplayHeight(YuvComponent comp) const {
+  return util::ScaleSizeY(height_[0] - crop_height_, chroma_format_, comp);
 }
 
 void YuvPicture::CopyToSameBitdepth(std::vector<uint8_t> *out_bytes) const {

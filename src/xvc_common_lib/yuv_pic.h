@@ -65,8 +65,10 @@ public:
   int GetBitdepth() const { return bitdepth_; }
   size_t GetTotalSamples() const { return sample_buffer_.size(); }
   ChromaFormat GetChromaFormat() const { return chroma_format_; }
-  int GetCropWidth(YuvComponent comp) const;
-  int GetCropHeight(YuvComponent comp) const;
+  int GetCropWidth() const { return crop_width_; }
+  int GetCropHeight() const { return crop_height_; }
+  int GetDisplayWidth(YuvComponent comp) const;
+  int GetDisplayHeight(YuvComponent comp) const;
 
   Sample* GetSamplePtr(YuvComponent comp, int x, int y) {
     return comp_pel_[comp] + y * GetStride(comp) + x;

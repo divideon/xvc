@@ -39,8 +39,8 @@ void Resampler::ConvertFrom(const PictureFormat &src_format,
   if (out_pic->GetWidth(luma) == src_format.width &&
       out_pic->GetHeight(luma) == src_format.height) {
     CopyFromBytesFast(src_bytes, src_format.bitdepth, out_pic);
-  } else if (out_pic->GetCropWidth(luma) != 0 ||
-             out_pic->GetCropHeight(luma) != 0) {
+  } else if (out_pic->GetCropWidth() != 0 ||
+             out_pic->GetCropHeight() != 0) {
     CopyFromBytesWithPadding(src_bytes, src_format, out_pic);
   } else {
     CopyFromBytesWithResampling(src_bytes, src_format, out_pic);
@@ -69,10 +69,8 @@ void Resampler::ConvertTo(const YuvPicture &src_pic,
     out8 = &tmp_bytes_[0];
   }
 
-  const int src_width_nopad = src_pic.GetWidth(YuvComponent::kY) -
-    src_pic.GetCropWidth(YuvComponent::kY);
-  const int src_height_nopad = src_pic.GetHeight(YuvComponent::kY) -
-    src_pic.GetCropHeight(YuvComponent::kY);
+  const int src_width_nopad = src_pic.GetDisplayWidth(YuvComponent::kY);
+  const int src_height_nopad = src_pic.GetDisplayHeight(YuvComponent::kY);
   if (out_fmt.width != src_width_nopad ||
       out_fmt.height != src_height_nopad ||
       (out_fmt.chroma_format != src_pic.GetChromaFormat() &&
@@ -108,8 +106,8 @@ void Resampler::ConvertTo(const YuvPicture &src_pic,
 
 void Resampler::CopyFromBytesFast(const uint8_t *pic8, int input_bitdepth,
                                   YuvPicture *out_pic) const {
-  assert(out_pic->GetCropWidth(YuvComponent::kY) == 0);
-  assert(out_pic->GetCropHeight(YuvComponent::kY) == 0);
+  assert(out_pic->GetCropWidth() == 0);
+  assert(out_pic->GetCropHeight() == 0);
   const int num_components = util::GetNumComponents(out_pic->GetChromaFormat());
 
   if (sizeof(uint8_t) == sizeof(Sample)) {
@@ -177,10 +175,8 @@ void Resampler::CopyFromBytesFast(const uint8_t *pic8, int input_bitdepth,
 void Resampler::CopyFromBytesWithPadding(const uint8_t *pic8,
                                          const PictureFormat &input_format,
                                          YuvPicture *out_pic) const {
-  assert(input_format.width == out_pic->GetWidth(YuvComponent::kY) -
-         out_pic->GetCropWidth(YuvComponent::kY));
-  assert(input_format.height == out_pic->GetHeight(YuvComponent::kY) -
-         out_pic->GetCropHeight(YuvComponent::kY));
+  assert(input_format.width == out_pic->GetDisplayWidth(YuvComponent::kY));
+  assert(input_format.height == out_pic->GetDisplayHeight(YuvComponent::kY));
   assert(input_format.chroma_format == out_pic->GetChromaFormat());
   assert(out_pic->GetWidth(YuvComponent::kY) >= 0);
   assert(out_pic->GetHeight(YuvComponent::kY) >= 0);
@@ -257,8 +253,8 @@ Resampler::CopyToBytesWithShift(YuvComponent comp, const YuvPicture &src_pic,
                                 int out_bitdepth, int dither,
                                 uint8_t *out8) const {
   const int src_bitdepth = src_pic.GetBitdepth();
-  const int out_width = src_pic.GetWidth(comp) - src_pic.GetCropWidth(comp);
-  const int out_height = src_pic.GetHeight(comp) - src_pic.GetCropHeight(comp);
+  const int out_width = src_pic.GetDisplayWidth(comp);
+  const int out_height = src_pic.GetDisplayHeight(comp);
   const Sample *src = src_pic.GetSamplePtr(comp, 0, 0);
   const ptrdiff_t src_stride = src_pic.GetStride(comp);
 
@@ -366,10 +362,8 @@ void Resampler::CopyToWithResize(const YuvPicture &src_pic,
     const int dst_height =
       util::ScaleSizeY(out_fmt.height, out_fmt.chroma_format, comp);
     if (c < util::GetNumComponents(src_chroma_fmt)) {
-      const int src_width =
-        src_pic.GetWidth(comp) - src_pic.GetCropWidth(comp);
-      const int src_height =
-        src_pic.GetHeight(comp) - src_pic.GetCropHeight(comp);
+      const int src_width = src_pic.GetDisplayWidth(comp);
+      const int src_height = src_pic.GetDisplayHeight(comp);
       const ptrdiff_t src_stride = src_pic.GetStride(comp);
       const ptrdiff_t dst_stride = dst_width;
       if (dst_width == src_width && dst_height == src_height) {

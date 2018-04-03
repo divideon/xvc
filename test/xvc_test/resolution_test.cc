@@ -70,6 +70,14 @@ protected:
   }
 };
 
+TEST_P(ResolutionTest, OddWidthx16) {
+  EncodeDecode(xvc_test::TestYuvPic::kDefaultSize - 1, 16);
+}
+
+TEST_P(ResolutionTest, OddHeightx16) {
+  EncodeDecode(16, xvc_test::TestYuvPic::kDefaultSize - 1);
+}
+
 TEST_P(ResolutionTest, Size8xN) {
   EncodeDecode(8, xvc_test::TestYuvPic::kDefaultSize);
 }
