@@ -44,106 +44,43 @@ Encoder::Encoder(int internal_bitdepth)
   segment_header_->major_version = constants::kXvcMajorVersion;
   segment_header_->minor_version = constants::kXvcMinorVersion;
   segment_header_->internal_bitdepth = internal_bitdepth;
+  segment_header_->soc = 0;
 }
 
 int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
                     xvc_enc_pic_buffer *rec_pic) {
+  if (!initialized_) {
+    initialized_ = true;
+    Initialize();
+  }
   nal_units_.clear();
 
-  // Set picture parameters and get bytes for original picture
-  auto pic_enc = GetNewPictureEncoder();
-  auto pic_data = pic_enc->GetPicData();
-  pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
-  if (encoder_settings_.leading_pictures > 0 &&
-      (segment_header_->max_sub_gop_length == 1 ||
-       segment_header_->low_delay)) {
-    encoder_settings_.leading_pictures = 0;
-    segment_header_->leading_pictures = 0;
-  } else if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
-    poc_++;
-  }
-  pic_data->SetPoc(poc_);
-  if (segment_header_->num_ref_pics == 0) {
-    pic_data->SetNalType(NalUnitType::kIntraPicture);
-  } else if (Restrictions::Get().disable_inter_bipred) {
-    pic_data->SetNalType(NalUnitType::kPredictedPicture);
-  } else {
-    pic_data->SetNalType(NalUnitType::kBipredictedPicture);
-  }
   PicNum doc =
     SegmentHeader::CalcDocFromPoc(poc_, segment_header_->max_sub_gop_length,
                                   sub_gop_start_poc_);
   int tid =
     SegmentHeader::CalcTidFromDoc(doc, segment_header_->max_sub_gop_length,
                                   sub_gop_start_poc_);
-  int max_tid = SegmentHeader::GetMaxTid(segment_header_->max_sub_gop_length);
   if (segment_header_->low_delay) {
     doc = poc_;
   }
-  pic_data->SetDoc(doc);
-  pic_data->SetTid(tid);
-  pic_data->SetSubGopLength(segment_header_->max_sub_gop_length);
-  pic_data->SetHighestLayer(tid == max_tid && !segment_header_->low_delay);
-  pic_data->SetAdaptiveQp(segment_header_->adaptive_qp > 0);
-  pic_data->SetDeblock(segment_header_->deblock > 0);
-  pic_data->SetBetaOffset(segment_header_->beta_offset);
-  pic_data->SetTcOffset(segment_header_->tc_offset);
-
-  PictureFormat input_format(segment_header_->GetOutputWidth(),
-                             segment_header_->GetOutputHeight(),
-                             input_bitdepth_, segment_header_->chroma_format,
-                             segment_header_->color_matrix, false);
-  input_resampler_.ConvertFrom(input_format, pic_bytes,
-                               pic_enc->GetOrigPic().get());
-
   // Check if it is time to encode a new segment header.
-  bool encode_segment_header = false;
+  bool encode_segment_header = ((poc_ % segment_length_) == 0);
   if (segment_header_->leading_pictures > 0) {
-    encode_segment_header = (poc_ >= pic_data->GetSubGopLength() &&
-      ((poc_ - pic_data->GetSubGopLength()) % segment_length_) == 0);
-  } else {
-    encode_segment_header = ((poc_ % segment_length_) == 0);
+    encode_segment_header = (poc_ >= segment_header_->max_sub_gop_length &&
+      ((poc_ - segment_header_->max_sub_gop_length) % segment_length_) == 0);
   }
+
   if (encode_segment_header) {
-    prev_segment_header_ = std::move(segment_header_);
-    segment_header_.reset(new SegmentHeader(*prev_segment_header_));
-    if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
-      segment_header_->open_gop = false;
-    } else {
-      segment_header_->open_gop = true;
-    }
-    bit_writer_.Clear();
-    if (encoder_settings_.encapsulation_mode != 0) {
-      bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
-      bit_writer_.WriteBits(1, 8);
-    }
-    if (poc_ == pic_data->GetSubGopLength() &&
-        encoder_settings_.leading_pictures > 0) {
-      segment_header_->leading_pictures = encoder_settings_.leading_pictures;
-      SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                                 framerate_);
-      encode_with_buffer_flag_ = false;
-    } else {
-      segment_header_->leading_pictures = 0;
-      SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                                 framerate_);
-      encode_with_buffer_flag_ = true;
-      soc_ += poc_ == 0 ? 0 : 1;
-    }
-    segment_header_->soc = soc_;
-    xvc_enc_nal_unit nal;
-    std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
-    nal.bytes = &(*nal_bytes)[0];
-    nal.size = nal_bytes->size();
-    nal.buffer_flag = 0;
-    SetNalStats(*pic_data, nullptr, &nal);
-    nal.stats.nal_unit_type = static_cast<int>(NalUnitType::kSegmentHeader);
-    nal_units_.push_back(nal);
-    pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
+    EncodeSegmentHeader();
   } else {
     encode_with_buffer_flag_ = false;
   }
-  pic_data->SetSoc(soc_);
+
+  // Set picture parameters and get bytes for original picture
+  std::shared_ptr<PictureEncoder> pic_enc =
+    PrepareNewInputPicture(*segment_header_, doc, poc_, tid,
+                           encode_segment_header, pic_bytes);
 
   if (encoder_settings_.leading_pictures == 0 && poc_ == 0) {
     EncodeOnePicture(pic_enc);
@@ -207,7 +144,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
       poc_--;
       segment_header_->leading_pictures = 0;
       for (auto &pic : pic_encoders_) {
-        auto pic_data = pic->GetPicData();
+        std::shared_ptr<PictureData> pic_data = pic->GetPicData();
         PicNum poc = pic_data->GetPoc() - 1;
         pic_data->SetPoc(poc);
         PicNum doc = SegmentHeader::CalcDocFromPoc(
@@ -235,9 +172,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
           nal.bytes = &(*nal_bytes)[0];
           nal.size = nal_bytes->size();
           nal.buffer_flag = 0;
-          SetNalStats(*pic_data, nullptr, &nal);
-          nal.stats.nal_unit_type =
-            static_cast<int>(NalUnitType::kSegmentHeader);
+          SetNalStats(*segment_header_, &nal.stats);
           nal_units_.push_back(nal);
           EncodeOnePicture(pic);
           doc_ = 0;
@@ -310,6 +245,52 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   Restrictions::GetRW() = std::move(restrictions);
 }
 
+void Encoder::Initialize() {
+  if (encoder_settings_.leading_pictures > 0 &&
+    (segment_header_->max_sub_gop_length == 1 ||
+     segment_header_->low_delay)) {
+    encoder_settings_.leading_pictures = 0;
+    segment_header_->leading_pictures = 0;
+  } else if (encoder_settings_.leading_pictures) {
+    segment_header_->leading_pictures = encoder_settings_.leading_pictures;
+  }
+  if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
+    poc_++;
+  }
+}
+
+void Encoder::EncodeSegmentHeader() {
+  prev_segment_header_ = std::move(segment_header_);
+  segment_header_.reset(new SegmentHeader(*prev_segment_header_));
+  if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
+    segment_header_->open_gop = false;
+  } else {
+    segment_header_->open_gop = true;
+  }
+  bit_writer_.Clear();
+  if (encoder_settings_.encapsulation_mode != 0) {
+    bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
+    bit_writer_.WriteBits(1, 8);
+  }
+  SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
+                             framerate_);
+  if (poc_ == segment_header_->max_sub_gop_length &&
+      encoder_settings_.leading_pictures > 0) {
+    encode_with_buffer_flag_ = false;
+  } else {
+    encode_with_buffer_flag_ = true;
+    soc_ += poc_ == 0 ? 0 : 1;
+  }
+  segment_header_->soc = soc_;
+  xvc_enc_nal_unit nal;
+  std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
+  nal.bytes = &(*nal_bytes)[0];
+  nal.size = nal_bytes->size();
+  nal.buffer_flag = 0;
+  SetNalStats(*segment_header_, &nal.stats);
+  nal_units_.push_back(nal);
+}
+
 void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   // Check if current picture is a tail picture.
   // This means that it will be sent before the key picture of the
@@ -337,7 +318,7 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   nal.bytes = &(*pic_bytes)[0];
   nal.size = pic_bytes->size();
   nal.buffer_flag = buffer_flag;
-  SetNalStats(*pic->GetPicData(), pic.get(), &nal);
+  SetNalStats(*pic->GetPicData(), *pic, &nal.stats);
   nal_units_.push_back(nal);
 
   // Decoding order counter is increased each time a picture has been encoded.
@@ -368,6 +349,44 @@ void Encoder::ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic) {
     rec_pic->size = output_pic_bytes_.size();
     rec_pic->pic = output_pic_bytes_.empty() ? nullptr : &output_pic_bytes_[0];
   }
+}
+
+std::shared_ptr<PictureEncoder>
+Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
+                                PicNum poc, int tid, bool is_access_picture,
+                                const uint8_t *pic_bytes) {
+  const int max_tid = SegmentHeader::GetMaxTid(segment.max_sub_gop_length);
+  std::shared_ptr<PictureEncoder> pic_enc = GetNewPictureEncoder();
+  pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+
+  std::shared_ptr<PictureData> pic_data = pic_enc->GetPicData();
+  if (is_access_picture) {
+    pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
+  } else if (segment.num_ref_pics == 0) {
+    pic_data->SetNalType(NalUnitType::kIntraPicture);
+  } else if (Restrictions::Get().disable_inter_bipred) {
+    pic_data->SetNalType(NalUnitType::kPredictedPicture);
+  } else {
+    pic_data->SetNalType(NalUnitType::kBipredictedPicture);
+  }
+  pic_data->SetDoc(doc);
+  pic_data->SetPoc(poc);
+  pic_data->SetTid(tid);
+  pic_data->SetSoc(segment.soc);
+  pic_data->SetSubGopLength(segment.max_sub_gop_length);
+  pic_data->SetHighestLayer(tid == max_tid && !segment.low_delay);
+  pic_data->SetAdaptiveQp(segment.adaptive_qp > 0);
+  pic_data->SetDeblock(segment.deblock > 0);
+  pic_data->SetBetaOffset(segment.beta_offset);
+  pic_data->SetTcOffset(segment.tc_offset);
+
+  PictureFormat input_format(segment.GetOutputWidth(),
+                             segment.GetOutputHeight(),
+                             input_bitdepth_, segment.chroma_format,
+                             segment.color_matrix, false);
+  input_resampler_.ConvertFrom(input_format, pic_bytes,
+                               pic_enc->GetOrigPic().get());
+  return pic_enc;
 }
 
 std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
@@ -404,40 +423,48 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   return pic_enc;
 }
 
+void Encoder::SetNalStats(const SegmentHeader &segment_header,
+                          xvc_enc_nal_stats *nal_stats) {
+  ::memset(nal_stats, 0, sizeof(*nal_stats));
+  nal_stats->nal_unit_type = static_cast<uint32_t>(NalUnitType::kSegmentHeader);
+  nal_stats->soc = segment_header.soc;
+  nal_stats->tid = 0;
+}
+
 void Encoder::SetNalStats(const PictureData &pic_data,
-                          const PictureEncoder *pic_enc,
-                          xvc_enc_nal_unit *nal) {
+                          const PictureEncoder &pic_enc,
+                          xvc_enc_nal_stats *nal_stats) {
   const int poc_offset = (segment_header_->leading_pictures != 0 ? -1 : 0);
-  nal->stats.nal_unit_type =
+  nal_stats->nal_unit_type =
     static_cast<uint32_t>(pic_data.GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
-  nal->stats.poc = static_cast<uint32_t>(pic_data.GetPoc() + poc_offset);
-  nal->stats.doc = static_cast<uint32_t>(pic_data.GetDoc() + poc_offset);
-  nal->stats.soc = static_cast<uint32_t>(pic_data.GetSoc());
-  nal->stats.tid = pic_data.GetTid();
+  nal_stats->poc = static_cast<uint32_t>(pic_data.GetPoc() + poc_offset);
+  nal_stats->doc = static_cast<uint32_t>(pic_data.GetDoc() + poc_offset);
+  nal_stats->soc = static_cast<uint32_t>(pic_data.GetSoc());
+  nal_stats->tid = pic_data.GetTid();
   if (pic_data.GetPicQp()) {
-    nal->stats.qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
+    nal_stats->qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
   } else {
-    nal->stats.qp = constants::kMaxAllowedQp + 1;
+    nal_stats->qp = constants::kMaxAllowedQp + 1;
   }
-  nal->stats.sse = pic_enc ? pic_enc->GetRecPicErrSum() : 0;
+  nal_stats->sse = pic_enc.GetRecPicErrSum();
 
   // Expose the first reference pictures in L0 and L1.
   const ReferencePictureLists* rpl = pic_data.GetRefPicLists();
-  int length = sizeof(nal->stats.l0) / sizeof(nal->stats.l0[0]);
+  int length = sizeof(nal_stats->l0) / sizeof(nal_stats->l0[0]);
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {
-      nal->stats.l0[i] =
+      nal_stats->l0[i] =
         static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i) + poc_offset);
     } else {
-      nal->stats.l0[i] = -1;
+      nal_stats->l0[i] = -1;
     }
     if (i < rpl->GetNumRefPics(RefPicList::kL1)) {
-      nal->stats.l1[i] =
+      nal_stats->l1[i] =
         static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i) + poc_offset);
     } else {
-      nal->stats.l1[i] = -1;
+      nal_stats->l1[i] = -1;
     }
   }
 }

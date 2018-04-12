@@ -104,12 +104,21 @@ public:
   void SetEncoderSettings(const EncoderSettings &settings);
 
 private:
+  void Initialize();
+  void EncodeSegmentHeader();
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
   void ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic);
+  std::shared_ptr<PictureEncoder>
+    PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc, PicNum poc,
+                           int tid, bool is_access_picture,
+                           const uint8_t *pic_bytes);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
-  void SetNalStats(const PictureData &pic_data, const PictureEncoder *pic_enc,
-                   xvc_enc_nal_unit *nal);
+  void SetNalStats(const SegmentHeader &segment_header,
+                   xvc_enc_nal_stats *nal_stats);
+  void SetNalStats(const PictureData &pic_data, const PictureEncoder &pic_enc,
+                   xvc_enc_nal_stats *nal_stats);
 
+  bool initialized_ = false;
   int input_bitdepth_ = 8;
   bool encode_with_buffer_flag_ = false;
   double framerate_ = 0;
