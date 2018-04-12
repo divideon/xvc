@@ -113,8 +113,9 @@ private:
                            int tid, bool is_access_picture,
                            const uint8_t *pic_bytes);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
-  void SetNalStats(const SegmentHeader &segment_header,
-                   xvc_enc_nal_stats *nal_stats);
+  std::shared_ptr<PictureEncoder> RewriteLeadingPictures();
+  xvc_enc_nal_unit WriteSegmentHeaderNal(const SegmentHeader &segment_header,
+                                         BitWriter *bit_writer);
   void SetNalStats(const PictureData &pic_data, const PictureEncoder &pic_enc,
                    xvc_enc_nal_stats *nal_stats);
 
@@ -127,7 +128,6 @@ private:
   PicNum sub_gop_start_poc_ = 0;
   PicNum poc_ = 0;
   PicNum doc_ = 0;
-  SegmentNum soc_ = 0;
   PicNum pic_buffering_num_ = 1;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
@@ -137,7 +137,7 @@ private:
   Resampler input_resampler_;
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
-  BitWriter bit_writer_;
+  BitWriter segment_header_bit_writer_;
   std::vector<xvc_enc_nal_unit> nal_units_;
 };
 

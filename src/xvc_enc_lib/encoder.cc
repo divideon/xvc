@@ -137,47 +137,17 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
 
   // Check if there are pictures left to encode.
   if (doc_ < poc_) {
-    // If Flush is performed before a full SubGop has been input,
+    // If flush is performed before a full SubGop has been input,
     // then leading_pictures is disabled and picture numbers are
     // recalculated.
     if (doc_ == 0 && segment_header_->leading_pictures) {
-      poc_--;
-      segment_header_->leading_pictures = 0;
-      for (auto &pic : pic_encoders_) {
-        std::shared_ptr<PictureData> pic_data = pic->GetPicData();
-        PicNum poc = pic_data->GetPoc() - 1;
-        pic_data->SetPoc(poc);
-        PicNum doc = SegmentHeader::CalcDocFromPoc(
-          poc, segment_header_->max_sub_gop_length, sub_gop_start_poc_);
-        int tid = SegmentHeader::CalcTidFromDoc(
-          doc, segment_header_->max_sub_gop_length, sub_gop_start_poc_);
-        int max_tid =
-          SegmentHeader::GetMaxTid(segment_header_->max_sub_gop_length);
-        pic_data->SetDoc(doc);
-        pic_data->SetTid(tid);
-        pic_data->SetHighestLayer(tid == max_tid &&
-                                  !segment_header_->low_delay);
-        if (poc == 0) {
-          pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
-          bit_writer_.Clear();
-          if (encoder_settings_.encapsulation_mode != 0) {
-            bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
-            bit_writer_.WriteBits(1, 8);
-          }
-          SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                                     framerate_);
-          segment_header_->soc = soc_;
-          xvc_enc_nal_unit nal;
-          std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
-          nal.bytes = &(*nal_bytes)[0];
-          nal.size = nal_bytes->size();
-          nal.buffer_flag = 0;
-          SetNalStats(*segment_header_, &nal.stats);
-          nal_units_.push_back(nal);
-          EncodeOnePicture(pic);
-          doc_ = 0;
-        }
-      }
+      std::shared_ptr<PictureEncoder> first_pic = RewriteLeadingPictures();
+      assert(first_pic);
+      xvc_enc_nal_unit nal =
+        WriteSegmentHeaderNal(*segment_header_, &segment_header_bit_writer_);
+      nal_units_.push_back(nal);
+      EncodeOnePicture(first_pic);
+      doc_ = 0;
     }
 
     encode_with_buffer_flag_ = false;
@@ -267,27 +237,15 @@ void Encoder::EncodeSegmentHeader() {
   } else {
     segment_header_->open_gop = true;
   }
-  bit_writer_.Clear();
-  if (encoder_settings_.encapsulation_mode != 0) {
-    bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
-    bit_writer_.WriteBits(1, 8);
-  }
-  SegmentHeaderWriter::Write(segment_header_.get(), &bit_writer_,
-                             framerate_);
+  xvc_enc_nal_unit nal =
+    WriteSegmentHeaderNal(*segment_header_, &segment_header_bit_writer_);
   if (poc_ == segment_header_->max_sub_gop_length &&
       encoder_settings_.leading_pictures > 0) {
     encode_with_buffer_flag_ = false;
   } else {
     encode_with_buffer_flag_ = true;
-    soc_ += poc_ == 0 ? 0 : 1;
+    segment_header_->soc += poc_ == 0 ? 0 : 1;
   }
-  segment_header_->soc = soc_;
-  xvc_enc_nal_unit nal;
-  std::vector<uint8_t> *nal_bytes = bit_writer_.GetBytes();
-  nal.bytes = &(*nal_bytes)[0];
-  nal.size = nal_bytes->size();
-  nal.buffer_flag = 0;
-  SetNalStats(*segment_header_, &nal.stats);
   nal_units_.push_back(nal);
 }
 
@@ -423,12 +381,54 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   return pic_enc;
 }
 
-void Encoder::SetNalStats(const SegmentHeader &segment_header,
-                          xvc_enc_nal_stats *nal_stats) {
-  ::memset(nal_stats, 0, sizeof(*nal_stats));
-  nal_stats->nal_unit_type = static_cast<uint32_t>(NalUnitType::kSegmentHeader);
-  nal_stats->soc = segment_header.soc;
-  nal_stats->tid = 0;
+std::shared_ptr<PictureEncoder> Encoder::RewriteLeadingPictures() {
+  std::shared_ptr<PictureEncoder> pic_zero;
+  assert(segment_header_->leading_pictures);
+  segment_header_->leading_pictures = 0;
+  poc_--;
+  // Convert all pictures from a leading picture structure to normal
+  for (std::shared_ptr<PictureEncoder> &pic : pic_encoders_) {
+    std::shared_ptr<PictureData> pic_data = pic->GetPicData();
+    PicNum poc = pic_data->GetPoc() - 1;
+    pic_data->SetPoc(poc);
+    PicNum doc = SegmentHeader::CalcDocFromPoc(
+      poc, segment_header_->max_sub_gop_length, sub_gop_start_poc_);
+    int tid = SegmentHeader::CalcTidFromDoc(
+      doc, segment_header_->max_sub_gop_length, sub_gop_start_poc_);
+    int max_tid =
+      SegmentHeader::GetMaxTid(segment_header_->max_sub_gop_length);
+    pic_data->SetDoc(doc);
+    pic_data->SetTid(tid);
+    pic_data->SetHighestLayer(tid == max_tid &&
+                              !segment_header_->low_delay);
+    if (poc == 0) {
+      pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
+      pic_zero = pic;
+    }
+  }
+  return pic_zero;
+}
+
+xvc_enc_nal_unit
+Encoder::WriteSegmentHeaderNal(const SegmentHeader &segment_header,
+                               BitWriter *bit_writer) {
+  bit_writer->Clear();
+  if (encoder_settings_.encapsulation_mode != 0) {
+    bit_writer->WriteBits(constants::kEncapsulationCode1, 8);
+    bit_writer->WriteBits(1, 8);
+  }
+  SegmentHeaderWriter::Write(segment_header, bit_writer, framerate_);
+
+  std::vector<uint8_t> *nal_bytes = bit_writer->GetBytes();
+  xvc_enc_nal_unit nal;
+  nal.bytes = &(*nal_bytes)[0];
+  nal.size = nal_bytes->size();
+  nal.buffer_flag = 0;
+  ::memset(&nal.stats, 0, sizeof(nal.stats));
+  nal.stats.nal_unit_type = static_cast<uint32_t>(NalUnitType::kSegmentHeader);
+  nal.stats.soc = segment_header.soc;
+  nal.stats.tid = 0;
+  return nal;
 }
 
 void Encoder::SetNalStats(const PictureData &pic_data,

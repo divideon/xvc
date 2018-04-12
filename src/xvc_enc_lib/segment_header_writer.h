@@ -27,8 +27,7 @@ namespace xvc {
 
 class SegmentHeaderWriter {
 public:
-  static void Write(SegmentHeader* segment_header,
-                    BitWriter *bit_writer,
+  static void Write(const SegmentHeader &segment_header, BitWriter *bit_writer,
                     double framerate);
 
 private:
