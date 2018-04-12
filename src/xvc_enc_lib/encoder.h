@@ -70,7 +70,6 @@ public:
   void SetSubGopLength(PicNum sub_gop_length) {
     assert(sub_gop_length > 0);
     segment_header_->max_sub_gop_length = sub_gop_length;
-    pic_buffering_num_ = sub_gop_length + segment_header_->num_ref_pics;
   }
   void SetLowDelay(bool low_delay) {
     segment_header_->low_delay = low_delay;
@@ -107,11 +106,12 @@ private:
   void Initialize();
   void EncodeSegmentHeader();
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
-  void ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic);
+  void ReconstructNextPicture(xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder>
     PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc, PicNum poc,
                            int tid, bool is_access_picture,
                            const uint8_t *pic_bytes);
+  void UpdateReferenceCounts(PicNum last_subgop_end_poc);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
   std::shared_ptr<PictureEncoder> RewriteLeadingPictures();
   xvc_enc_nal_unit WriteSegmentHeaderNal(const SegmentHeader &segment_header,
@@ -128,9 +128,9 @@ private:
   PicNum sub_gop_start_poc_ = 0;
   PicNum poc_ = 0;
   PicNum doc_ = 0;
-  PicNum pic_buffering_num_ = 1;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
+  size_t pic_buffering_num_ = 1;
   int segment_qp_ = std::numeric_limits<int>::max();
   EncoderSimdFunctions simd_;
   EncoderSettings encoder_settings_;
@@ -139,6 +139,7 @@ private:
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter segment_header_bit_writer_;
   std::vector<xvc_enc_nal_unit> nal_units_;
+  PicNum last_rec_poc_ = static_cast<PicNum>(-1);
 };
 
 }   // namespace xvc

@@ -48,7 +48,7 @@ Encoder::Encoder(int internal_bitdepth)
 }
 
 int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
-                    xvc_enc_pic_buffer *rec_pic) {
+                    xvc_enc_pic_buffer *out_rec_pic) {
   if (!initialized_) {
     initialized_ = true;
     Initialize();
@@ -70,6 +70,9 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     encode_segment_header = (poc_ >= segment_header_->max_sub_gop_length &&
       ((poc_ - segment_header_->max_sub_gop_length) % segment_length_) == 0);
   }
+  if (tid == 0 && poc_ > 0) {
+    sub_gop_start_poc_ = doc_ + segment_header_->max_sub_gop_length;
+  }
 
   if (encode_segment_header) {
     EncodeSegmentHeader();
@@ -81,24 +84,23 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   std::shared_ptr<PictureEncoder> pic_enc =
     PrepareNewInputPicture(*segment_header_, doc, poc_, tid,
                            encode_segment_header, pic_bytes);
-
-  if (encoder_settings_.leading_pictures == 0 && poc_ == 0) {
-    EncodeOnePicture(pic_enc);
-    doc_ = 0;
+  if (tid == 0) {
+    UpdateReferenceCounts(poc_);
   }
 
-  // Check if there are enough pictures buffered to encode a new Sub Gop
-  if (poc_ == doc_ + segment_header_->max_sub_gop_length) {
+  if (encoder_settings_.leading_pictures == 0 && poc_ == 0) {
+    // Directly encode intra picture when coding the segment header
+    EncodeOnePicture(pic_enc);
+    doc_ = 0;
+  } else if (tid == 0) {
     for (PicNum i = 0; i < segment_header_->max_sub_gop_length; i++) {
-      // Find next picture to encode by searching for
-      // the one that has doc = this->doc_ + 1.
       for (auto &pic : pic_encoders_) {
         if (pic->GetPicData()->GetDoc() == doc_ + 1) {
+          assert(pic->GetOutputStatus() == OutputStatus::kReady);
           EncodeOnePicture(pic);
         }
       }
     }
-    sub_gop_start_poc_ = doc_;
   }
 
   // Put tail pictures before the segment header in network order.
@@ -111,16 +113,9 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   // poc_ is initialized to 0.
   poc_++;
 
-  if (rec_pic) {
-    rec_pic->pic = nullptr;
-    rec_pic->size = 0;
-  }
   // If enough pictures have been encoded, the reconstructed picture
   // with lowest poc can be output.
-  if (poc_ >= segment_header_->max_sub_gop_length +
-    (segment_header_->leading_pictures > 0 ? 1 : 0)) {
-    ReconstructOnePicture(rec_pic);
-  }
+  ReconstructNextPicture(out_rec_pic);
   if (nal_units_.size() > 0) {
     *nal_units = &nal_units_[0];
   }
@@ -170,6 +165,12 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
     }
   }
 
+  // Put tail pictures before the segment header in network order.
+  std::stable_sort(nal_units_.begin(), nal_units_.end(),
+                   [](xvc_enc_nal_unit n1, xvc_enc_nal_unit n2) {
+    return n1.buffer_flag > n2.buffer_flag;
+  });
+
   // Increase poc by one for each call to Flush.
   poc_++;
 
@@ -178,7 +179,7 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
     rec_pic->size = 0;
   }
   // Check if reconstruction should be performed.
-  ReconstructOnePicture(rec_pic);
+  ReconstructNextPicture(rec_pic);
   if (nal_units_.size() > 0) {
     *nal_units = &nal_units_[0];
   }
@@ -224,9 +225,14 @@ void Encoder::Initialize() {
   } else if (encoder_settings_.leading_pictures) {
     segment_header_->leading_pictures = encoder_settings_.leading_pictures;
   }
-  if (poc_ == 0 && encoder_settings_.leading_pictures > 0) {
-    poc_++;
+  if (encoder_settings_.leading_pictures > 0) {
+    poc_ = 1;
+    last_rec_poc_ = 0;
   }
+  // TODO(PH) Using one more extra buffered picture than actually needed
+  // due to how picture reference counting works
+  pic_buffering_num_ = static_cast<size_t>(
+    segment_header_->max_sub_gop_length + segment_header_->num_ref_pics + 1);
 }
 
 void Encoder::EncodeSegmentHeader() {
@@ -254,21 +260,23 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   // This means that it will be sent before the key picture of the
   // next segment and then be buffered in the decoder to be decoded after
   // the key picture.
-  int buffer_flag = encode_with_buffer_flag_ &&
-    pic->GetPicData()->GetNalType() != NalUnitType::kIntraAccessPicture;
+  int buffer_flag = pic->GetPicData()->GetSoc() != segment_header_->soc;
   SegmentHeader &segment_header =
     !buffer_flag ? *segment_header_ : *prev_segment_header_;
+  assert(pic->GetOutputStatus() == OutputStatus::kReady);
+  pic->SetOutputStatus(OutputStatus::kProcessing);
 
   ReferenceListSorter<PictureEncoder>
     ref_list_sorter(segment_header, prev_segment_header_->open_gop);
-  ref_list_sorter.Prepare(pic->GetPicData()->GetPoc(),
-                          pic->GetPicData()->GetTid(),
-                          pic->GetPicData()->IsIntraPic(),
-                          pic_encoders_, pic->GetPicData()->GetRefPicLists(),
-                          segment_header.leading_pictures);
+  auto dependent_pic_enc =
+    ref_list_sorter.Prepare(pic->GetPoc(), pic->GetPicData()->GetTid(),
+                            pic->GetPicData()->IsIntraPic(),
+                            pic_encoders_, pic->GetPicData()->GetRefPicLists(),
+                            segment_header.leading_pictures);
   // Bitstream reference valid until next picture is coded
   std::vector<uint8_t> *pic_bytes =
     pic->Encode(segment_header, segment_qp_, buffer_flag, encoder_settings_);
+  pic->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
 
   // When a picture has been encoded, the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.
@@ -279,34 +287,60 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   SetNalStats(*pic->GetPicData(), *pic, &nal.stats);
   nal_units_.push_back(nal);
 
+  // Decrease ref count for all reference pictures (avoiding duplicate entries)
+  PicNum last_poc = pic->GetPoc();
+  std::sort(dependent_pic_enc.begin(), dependent_pic_enc.end());
+  for (auto &dep_pic : dependent_pic_enc) {
+    const bool is_prev_sub_gop_pic = dep_pic->GetPicData()->GetTid() == 0 &&
+      dep_pic->GetPoc() < pic->GetPoc();
+    if (last_poc == dep_pic->GetPoc() || is_prev_sub_gop_pic) {
+      continue;
+    }
+    dep_pic->RemoveReferenceCount(1);
+    last_poc = dep_pic->GetPoc();
+  }
+
+  // Prune all previous lowest layer pictures in previous sub-gops
+  if (pic->GetPicData()->GetTid() == 0) {
+    // Because reference count on previous subgops is decreased already on
+    // the first picture (e.g. poc 16) in the sub-gop, lowest layer pictures
+    // gets an extra reference count to survive one extra sub-gop.
+    for (std::shared_ptr<PictureEncoder> &prev_pic_enc : pic_encoders_) {
+      if (prev_pic_enc->GetPicData()->GetTid() == 0 &&
+          prev_pic_enc->GetPoc() < pic->GetPoc()) {
+        prev_pic_enc->RemoveReferenceCount(1);
+      }
+    }
+  }
+
   // Decoding order counter is increased each time a picture has been encoded.
   doc_++;
 }
 
-void Encoder::ReconstructOnePicture(xvc_enc_pic_buffer *rec_pic) {
-  // Find the picture with the lowest poc that has not been output.
+void Encoder::ReconstructNextPicture(xvc_enc_pic_buffer *out_pic) {
   std::shared_ptr<PictureEncoder> pic_enc;
-  PicNum lowest_poc = std::numeric_limits<PicNum>::max();
-  for (auto &pic : pic_encoders_) {
-    auto pd = pic->GetPicData();
-    if (pic->GetOutputStatus() == OutputStatus::kHasNotBeenOutput &&
-        pd->GetPoc() < lowest_poc) {
+  for (std::shared_ptr<PictureEncoder> &pic : pic_encoders_) {
+    if (pic->GetPoc() == last_rec_poc_ + 1) {
       pic_enc = pic;
-      lowest_poc = pd->GetPoc();
+      break;
     }
   }
-  if (!pic_enc) {
+  if (!pic_enc ||
+      pic_enc->GetOutputStatus() != OutputStatus::kHasNotBeenOutput) {
+    if (out_pic) {
+      out_pic->pic = nullptr;
+      out_pic->size = 0;
+    }
     return;
   }
   pic_enc->SetOutputStatus(OutputStatus::kHasBeenOutput);
-  auto rec_pic_out = pic_enc->GetRecPic();
-
-  // Only perform reconstruction if it is requested and a picture was found.
-  if (rec_pic_out && rec_pic) {
-    rec_pic_out->CopyToSameBitdepth(&output_pic_bytes_);
-    rec_pic->size = output_pic_bytes_.size();
-    rec_pic->pic = output_pic_bytes_.empty() ? nullptr : &output_pic_bytes_[0];
+  if (out_pic) {
+    std::shared_ptr<YuvPicture> rec_pic = pic_enc->GetRecPic();
+    rec_pic->CopyToSameBitdepth(&output_pic_bytes_);
+    out_pic->size = output_pic_bytes_.size();
+    out_pic->pic = output_pic_bytes_.empty() ? nullptr : &output_pic_bytes_[0];
   }
+  last_rec_poc_++;
 }
 
 std::shared_ptr<PictureEncoder>
@@ -314,8 +348,12 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
                                 PicNum poc, int tid, bool is_access_picture,
                                 const uint8_t *pic_bytes) {
   const int max_tid = SegmentHeader::GetMaxTid(segment.max_sub_gop_length);
+  const int base_ref = encoder_settings_.leading_pictures || poc > 0 ?
+    static_cast<int>(segment.max_sub_gop_length) : 0;
+  const int ref_cnt = base_ref + (tid == 0 ? 1 + segment.num_ref_pics : 0);
   std::shared_ptr<PictureEncoder> pic_enc = GetNewPictureEncoder();
-  pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  pic_enc->SetOutputStatus(OutputStatus::kReady);
+  pic_enc->SetReferenceCount(ref_cnt);
 
   std::shared_ptr<PictureData> pic_data = pic_enc->GetPicData();
   if (is_access_picture) {
@@ -347,6 +385,50 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
   return pic_enc;
 }
 
+void Encoder::UpdateReferenceCounts(PicNum last_subgop_end_poc) {
+  const PicNum last_subgop_start_poc =
+    last_subgop_end_poc - segment_header_->max_sub_gop_length + 1;
+  // Identify all picture encoders in current subgop
+  std::vector<PictureEncoder*> subgop_pic_encoders;
+  subgop_pic_encoders.reserve(segment_header_->max_sub_gop_length);
+  for (std::shared_ptr<PictureEncoder> &pic_enc : pic_encoders_) {
+    if (pic_enc->GetPoc() >= last_subgop_start_poc) {
+      subgop_pic_encoders.push_back(pic_enc.get());
+    }
+  }
+  if (subgop_pic_encoders.empty()) {
+    return;
+  }
+  assert(subgop_pic_encoders.size() == segment_header_->max_sub_gop_length);
+
+  for (const auto *pic_enc : subgop_pic_encoders) {
+    std::shared_ptr<const PictureData> pic_data = pic_enc->GetPicData();
+    SegmentHeader &segment_header = pic_data->GetSoc() == segment_header_->soc ?
+      *segment_header_ : *prev_segment_header_;
+    // Find all pictures that are referenced by this picture
+    ReferencePictureLists ref_pic_list;
+    ReferenceListSorter<PictureEncoder>
+      ref_list_sorter(segment_header, prev_segment_header_->open_gop);
+    auto depdenent_pic_encs =
+      ref_list_sorter.Prepare(pic_data->GetPoc(), pic_data->GetTid(),
+                              pic_data->IsIntraPic(), pic_encoders_,
+                              &ref_pic_list,
+                              segment_header.leading_pictures);
+
+    for (auto *pic_enc2 : subgop_pic_encoders) {
+      const PicNum poc = pic_enc2->GetPoc();
+      bool not_referenced =
+        std::none_of(depdenent_pic_encs.cbegin(), depdenent_pic_encs.cend(),
+                     [poc](const std::shared_ptr<const PictureEncoder> &pic) {
+        return poc == pic->GetPoc();
+      });
+      if (not_referenced) {
+        pic_enc2->RemoveReferenceCount(1);
+      }
+    }
+  }
+}
+
 std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
   // Allocate a new PictureEncoder if the number of buffered pictures
   // is lower than the maximum that will be used.
@@ -360,25 +442,17 @@ std::shared_ptr<PictureEncoder> Encoder::GetNewPictureEncoder() {
     return pic;
   }
 
-  // Reuse a PictureEncoder if the number of buffered pictures
-  // is equal to the maximum that will be used.
-  // Pick any that has been output and has tid higher than 0.
-  // If no pictures with tid higher than 0 is available, reuse the
-  // picture with the lowest poc.
-  PicNum lowest_poc = std::numeric_limits<PicNum>::max();
-  std::shared_ptr<PictureEncoder> pic_enc;
-  for (auto &pic : pic_encoders_) {
-    auto pic_data = pic->GetPicData();
-    if (pic->GetOutputStatus() == OutputStatus::kHasBeenOutput &&
-        pic_data->GetTid() > 0) {
-      return pic;
-    } else if (pic_data->GetPoc() < lowest_poc) {
-      pic_enc = pic;
-      lowest_poc = pic_data->GetPoc();
+  std::shared_ptr<PictureEncoder> avail_pic_enc;
+  for (auto &pic_enc : pic_encoders_) {
+    if (pic_enc->GetOutputStatus() != OutputStatus::kHasBeenOutput ||
+        pic_enc->IsReferenced()) {
+      continue;
     }
+    avail_pic_enc = pic_enc;
+    break;
   }
-  assert(pic_enc);
-  return pic_enc;
+  assert(avail_pic_enc);
+  return avail_pic_enc;
 }
 
 std::shared_ptr<PictureEncoder> Encoder::RewriteLeadingPictures() {
