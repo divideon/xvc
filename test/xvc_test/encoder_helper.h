@@ -131,7 +131,7 @@ public:
           NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
         encoded_nal_stats.push_back(nal_units[i].stats);
       }
-      if (rec_pic.size == 0) {
+      if (rec_pic.size == 0 && !num_nals) {
         break;
       }
       rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);

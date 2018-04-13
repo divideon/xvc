@@ -50,7 +50,7 @@ PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
                                         true, 0, 0)) {
 }
 
-std::vector<uint8_t>*
+const std::vector<uint8_t>*
 PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                        int buffer_flag,
                        const EncoderSettings &encoder_settings) {

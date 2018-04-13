@@ -87,7 +87,7 @@ protected:
                                             segment_.GetCropHeight());
   }
 
-  std::vector<uint8_t>* EncodePicture(const xvc::Sample *orig) {
+  const std::vector<uint8_t>* EncodePicture(const xvc::Sample *orig) {
     int buffer_flag = 0;
     pic_encoder_->GetPicData()->SetNalType(xvc::NalUnitType::kIntraPicture);
     pic_encoder_->GetPicData()->SetPoc(0);

@@ -19,11 +19,14 @@
 #ifndef XVC_ENC_LIB_ENCODER_H_
 #define XVC_ENC_LIB_ENCODER_H_
 
+#include <deque>
 #include <limits>
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
+#include <unordered_map>
 
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
@@ -42,6 +45,7 @@ namespace xvc {
 class Encoder : public xvc_encoder {
 public:
   explicit Encoder(int internal_bitdepth);
+  ~Encoder();
   int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
              xvc_enc_pic_buffer *rec_pic);
   int Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic);
@@ -103,14 +107,17 @@ public:
   void SetEncoderSettings(const EncoderSettings &settings);
 
 private:
+  using NalBuffer = std::unique_ptr<std::vector<uint8_t>>;
   void Initialize();
-  void EncodeSegmentHeader();
+  void StartNewSegment();
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
+  void PrepareOutputNals();
   void ReconstructNextPicture(xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder>
     PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc, PicNum poc,
                            int tid, bool is_access_picture,
                            const uint8_t *pic_bytes);
+  void DetermineBufferFlags(const PictureEncoder &pic_enc);
   void UpdateReferenceCounts(PicNum last_subgop_end_poc);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();
   std::shared_ptr<PictureEncoder> RewriteLeadingPictures();
@@ -121,7 +128,6 @@ private:
 
   bool initialized_ = false;
   int input_bitdepth_ = 8;
-  bool encode_with_buffer_flag_ = false;
   double framerate_ = 0;
   std::unique_ptr<SegmentHeader> segment_header_;
   std::unique_ptr<SegmentHeader> prev_segment_header_;
@@ -138,7 +144,11 @@ private:
   std::vector<std::shared_ptr<PictureEncoder>> pic_encoders_;
   std::vector<uint8_t> output_pic_bytes_;
   BitWriter segment_header_bit_writer_;
-  std::vector<xvc_enc_nal_unit> nal_units_;
+  std::vector<xvc_enc_nal_unit> api_output_nals_;
+  std::vector<NalBuffer> avail_nal_buffers_;
+  std::deque<PicNum> doc_bitstream_order_;
+  std::unordered_map<PicNum,
+    std::pair<NalBuffer, xvc_enc_nal_unit>> pending_out_nal_buffers_;
   PicNum last_rec_poc_ = static_cast<PicNum>(-1);
 };
 

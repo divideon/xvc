@@ -48,17 +48,20 @@ public:
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   PicNum GetPoc() const { return pic_data_->GetPoc(); }
+  PicNum GetDoc() const { return pic_data_->GetDoc(); }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() const { return output_status_; }
+  bool GetBufferFlag() const { return buffer_flag_; }
+  void SetBufferFlag(bool buffer_flag) { buffer_flag_ = buffer_flag; }
   bool IsReferenced() const { return ref_count_ > 0; }
   int GetReferenceCount() const { return ref_count_; }
   void SetReferenceCount(int ref_count) { ref_count_ = ref_count; }
   void RemoveReferenceCount(int val) const { ref_count_ -= val; }
   uint64_t GetRecPicErrSum() const { return rec_sse_; }
 
-  std::vector<uint8_t>* Encode(const SegmentHeader &segment, int segment_qp,
-                               int buffer_flag,
-                               const EncoderSettings &encoder_settings);
+  const std::vector<uint8_t>*
+    Encode(const SegmentHeader &segment, int segment_qp, int buffer_flag,
+           const EncoderSettings &encoder_settings);
   const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
     const PictureFormat &pic_fmt, int crop_width, int crop_height) const;
@@ -88,6 +91,7 @@ private:
   std::vector<uint8_t> pic_hash_;
   uint64_t rec_sse_ = 0;
   OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
+  bool buffer_flag_ = false;
   mutable int ref_count_ = 0;
 };
 

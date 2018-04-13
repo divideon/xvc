@@ -47,13 +47,16 @@ Encoder::Encoder(int internal_bitdepth)
   segment_header_->soc = 0;
 }
 
+Encoder::~Encoder() {
+}
+
 int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
                     xvc_enc_pic_buffer *out_rec_pic) {
   if (!initialized_) {
     initialized_ = true;
     Initialize();
   }
-  nal_units_.clear();
+  api_output_nals_.clear();
 
   PicNum doc =
     SegmentHeader::CalcDocFromPoc(poc_, segment_header_->max_sub_gop_length,
@@ -75,15 +78,16 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   }
 
   if (encode_segment_header) {
-    EncodeSegmentHeader();
-  } else {
-    encode_with_buffer_flag_ = false;
+    StartNewSegment();
   }
 
   // Set picture parameters and get bytes for original picture
   std::shared_ptr<PictureEncoder> pic_enc =
     PrepareNewInputPicture(*segment_header_, doc, poc_, tid,
                            encode_segment_header, pic_bytes);
+  if (encode_segment_header) {
+    DetermineBufferFlags(*pic_enc);
+  }
   if (tid == 0) {
     UpdateReferenceCounts(poc_);
   }
@@ -103,12 +107,6 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
     }
   }
 
-  // Put tail pictures before the segment header in network order.
-  std::stable_sort(nal_units_.begin(), nal_units_.end(),
-                   [](xvc_enc_nal_unit n1, xvc_enc_nal_unit n2) {
-    return n1.buffer_flag > n2.buffer_flag;
-  });
-
   // Increase encoder poc counter by one for each call to Encode.
   // poc_ is initialized to 0.
   poc_++;
@@ -116,14 +114,17 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   // If enough pictures have been encoded, the reconstructed picture
   // with lowest poc can be output.
   ReconstructNextPicture(out_rec_pic);
-  if (nal_units_.size() > 0) {
-    *nal_units = &nal_units_[0];
+  PrepareOutputNals();
+  if (api_output_nals_.size() > 0) {
+    *nal_units = &api_output_nals_[0];
+  } else {
+    *nal_units = nullptr;
   }
-  return static_cast<int>(nal_units_.size());
+  return static_cast<int>(api_output_nals_.size());
 }
 
 int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
-  nal_units_.clear();
+  api_output_nals_.clear();
   // Since poc is increased at the end of each call to Encode
   // it is reduced by one here to get the poc of the last picture.
   if (poc_ > 0) {
@@ -138,14 +139,10 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
     if (doc_ == 0 && segment_header_->leading_pictures) {
       std::shared_ptr<PictureEncoder> first_pic = RewriteLeadingPictures();
       assert(first_pic);
-      xvc_enc_nal_unit nal =
-        WriteSegmentHeaderNal(*segment_header_, &segment_header_bit_writer_);
-      nal_units_.push_back(nal);
       EncodeOnePicture(first_pic);
       doc_ = 0;
     }
 
-    encode_with_buffer_flag_ = false;
     PicNum pics_to_encode = poc_ - doc_;
     PicNum num_encoded = 0;
     while (num_encoded < pics_to_encode) {
@@ -165,12 +162,6 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
     }
   }
 
-  // Put tail pictures before the segment header in network order.
-  std::stable_sort(nal_units_.begin(), nal_units_.end(),
-                   [](xvc_enc_nal_unit n1, xvc_enc_nal_unit n2) {
-    return n1.buffer_flag > n2.buffer_flag;
-  });
-
   // Increase poc by one for each call to Flush.
   poc_++;
 
@@ -180,10 +171,13 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
   }
   // Check if reconstruction should be performed.
   ReconstructNextPicture(rec_pic);
-  if (nal_units_.size() > 0) {
-    *nal_units = &nal_units_[0];
+  PrepareOutputNals();
+  if (api_output_nals_.size() > 0) {
+    *nal_units = &api_output_nals_[0];
+  } else {
+    *nal_units = nullptr;
   }
-  return static_cast<int>(nal_units_.size());
+  return static_cast<int>(api_output_nals_.size());
 }
 
 void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
@@ -235,7 +229,7 @@ void Encoder::Initialize() {
     segment_header_->max_sub_gop_length + segment_header_->num_ref_pics + 1);
 }
 
-void Encoder::EncodeSegmentHeader() {
+void Encoder::StartNewSegment() {
   prev_segment_header_ = std::move(segment_header_);
   segment_header_.reset(new SegmentHeader(*prev_segment_header_));
   if (((poc_ + segment_length_) % closed_gop_interval_) == 0) {
@@ -243,56 +237,65 @@ void Encoder::EncodeSegmentHeader() {
   } else {
     segment_header_->open_gop = true;
   }
-  xvc_enc_nal_unit nal =
-    WriteSegmentHeaderNal(*segment_header_, &segment_header_bit_writer_);
-  if (poc_ == segment_header_->max_sub_gop_length &&
-      encoder_settings_.leading_pictures > 0) {
-    encode_with_buffer_flag_ = false;
-  } else {
-    encode_with_buffer_flag_ = true;
-    segment_header_->soc += poc_ == 0 ? 0 : 1;
+  if ((!encoder_settings_.leading_pictures && poc_ != 0) ||
+    (encoder_settings_.leading_pictures &&
+     poc_ != segment_header_->max_sub_gop_length)) {
+    segment_header_->soc++;
   }
-  nal_units_.push_back(nal);
 }
 
-void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
+void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic_enc) {
   // Check if current picture is a tail picture.
   // This means that it will be sent before the key picture of the
   // next segment and then be buffered in the decoder to be decoded after
   // the key picture.
-  int buffer_flag = pic->GetPicData()->GetSoc() != segment_header_->soc;
   SegmentHeader &segment_header =
-    !buffer_flag ? *segment_header_ : *prev_segment_header_;
-  assert(pic->GetOutputStatus() == OutputStatus::kReady);
-  pic->SetOutputStatus(OutputStatus::kProcessing);
+    pic_enc->GetPicData()->GetSoc() == segment_header_->soc ?
+    *segment_header_ : *prev_segment_header_;
+  assert(pic_enc->GetOutputStatus() == OutputStatus::kReady);
+  pic_enc->SetOutputStatus(OutputStatus::kProcessing);
 
+  NalBuffer pic_nal_buffer;
+  if (!avail_nal_buffers_.empty()) {
+    pic_nal_buffer = std::move(avail_nal_buffers_.back());
+    avail_nal_buffers_.pop_back();
+  } else {
+    pic_nal_buffer.reset(new std::vector<uint8_t>());
+  }
+
+  // Determine reference pictures
   ReferenceListSorter<PictureEncoder>
     ref_list_sorter(segment_header, prev_segment_header_->open_gop);
   auto dependent_pic_enc =
-    ref_list_sorter.Prepare(pic->GetPoc(), pic->GetPicData()->GetTid(),
-                            pic->GetPicData()->IsIntraPic(),
-                            pic_encoders_, pic->GetPicData()->GetRefPicLists(),
+    ref_list_sorter.Prepare(pic_enc->GetPoc(), pic_enc->GetPicData()->GetTid(),
+                            pic_enc->GetPicData()->IsIntraPic(), pic_encoders_,
+                            pic_enc->GetPicData()->GetRefPicLists(),
                             segment_header.leading_pictures);
   // Bitstream reference valid until next picture is coded
-  std::vector<uint8_t> *pic_bytes =
-    pic->Encode(segment_header, segment_qp_, buffer_flag, encoder_settings_);
-  pic->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
+  const std::vector<uint8_t> *pic_bytes =
+    pic_enc->Encode(segment_header, segment_qp_, pic_enc->GetBufferFlag(),
+                    encoder_settings_);
+  *pic_nal_buffer = *pic_bytes;
+  pic_enc->SetOutputStatus(OutputStatus::kHasNotBeenOutput);
 
   // When a picture has been encoded, the picture data is put into
   // the xvc_enc_nal_unit struct to be delivered through the API.
   xvc_enc_nal_unit nal;
-  nal.bytes = &(*pic_bytes)[0];
-  nal.size = pic_bytes->size();
-  nal.buffer_flag = buffer_flag;
-  SetNalStats(*pic->GetPicData(), *pic, &nal.stats);
-  nal_units_.push_back(nal);
+  nal.bytes = const_cast<uint8_t*>(&(*pic_nal_buffer)[0]);
+  nal.size = pic_nal_buffer->size();
+  nal.buffer_flag = pic_enc->GetBufferFlag();
+  SetNalStats(*pic_enc->GetPicData(), *pic_enc, &nal.stats);
+  auto &nal_stats_pair =
+    pending_out_nal_buffers_[pic_enc->GetPicData()->GetDoc()];
+  nal_stats_pair.first = std::move(pic_nal_buffer);
+  nal_stats_pair.second = nal;
 
   // Decrease ref count for all reference pictures (avoiding duplicate entries)
-  PicNum last_poc = pic->GetPoc();
+  PicNum last_poc = pic_enc->GetPoc();
   std::sort(dependent_pic_enc.begin(), dependent_pic_enc.end());
   for (auto &dep_pic : dependent_pic_enc) {
     const bool is_prev_sub_gop_pic = dep_pic->GetPicData()->GetTid() == 0 &&
-      dep_pic->GetPoc() < pic->GetPoc();
+      dep_pic->GetPoc() < pic_enc->GetPoc();
     if (last_poc == dep_pic->GetPoc() || is_prev_sub_gop_pic) {
       continue;
     }
@@ -301,20 +304,51 @@ void Encoder::EncodeOnePicture(std::shared_ptr<PictureEncoder> pic) {
   }
 
   // Prune all previous lowest layer pictures in previous sub-gops
-  if (pic->GetPicData()->GetTid() == 0) {
+  if (pic_enc->GetPicData()->GetTid() == 0) {
     // Because reference count on previous subgops is decreased already on
     // the first picture (e.g. poc 16) in the sub-gop, lowest layer pictures
     // gets an extra reference count to survive one extra sub-gop.
     for (std::shared_ptr<PictureEncoder> &prev_pic_enc : pic_encoders_) {
       if (prev_pic_enc->GetPicData()->GetTid() == 0 &&
-          prev_pic_enc->GetPoc() < pic->GetPoc()) {
+          prev_pic_enc->GetPoc() < pic_enc->GetPoc()) {
         prev_pic_enc->RemoveReferenceCount(1);
       }
     }
   }
 
-  // Decoding order counter is increased each time a picture has been encoded.
+  // For all pictures expect last sub-gop bitstream order is equal to doc order
+  // TODO(PH) Is there a more robust mechanism to detect this case?
+  if (pic_enc->GetPicData()->GetSoc() == segment_header_->soc) {
+    doc_bitstream_order_.push_back(pic_enc->GetDoc());
+  }
   doc_++;
+}
+
+void Encoder::PrepareOutputNals() {
+  if (doc_bitstream_order_.empty()) {
+    return;
+  }
+  PicNum next_doc = doc_bitstream_order_.front();
+  auto next_output_nal_it = pending_out_nal_buffers_.find(next_doc);
+  if (next_output_nal_it == pending_out_nal_buffers_.end()) {
+    return;
+  }
+  doc_bitstream_order_.pop_front();
+  NalBuffer &&pic_nal_buffer = std::move(next_output_nal_it->second.first);
+  xvc_enc_nal_unit &nal = next_output_nal_it->second.second;
+  if (nal.stats.nal_unit_type ==
+      static_cast<uint32_t>(NalUnitType::kIntraAccessPicture)) {
+    xvc_enc_nal_unit segment_nal =
+      WriteSegmentHeaderNal(*segment_header_, &segment_header_bit_writer_);
+    api_output_nals_.emplace_back(std::move(segment_nal));
+  }
+  assert(nal.bytes == &(*pic_nal_buffer)[0]);
+  assert(nal.size == pic_nal_buffer->size());
+  api_output_nals_.emplace_back(nal);
+  // The assumption is that we don't start encoding any new pictures until
+  // next api call
+  avail_nal_buffers_.emplace_back(std::move(pic_nal_buffer));
+  pending_out_nal_buffers_.erase(next_output_nal_it);
 }
 
 void Encoder::ReconstructNextPicture(xvc_enc_pic_buffer *out_pic) {
@@ -353,6 +387,7 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
   const int ref_cnt = base_ref + (tid == 0 ? 1 + segment.num_ref_pics : 0);
   std::shared_ptr<PictureEncoder> pic_enc = GetNewPictureEncoder();
   pic_enc->SetOutputStatus(OutputStatus::kReady);
+  pic_enc->SetBufferFlag(false);
   pic_enc->SetReferenceCount(ref_cnt);
 
   std::shared_ptr<PictureData> pic_data = pic_enc->GetPicData();
@@ -385,6 +420,36 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
   return pic_enc;
 }
 
+void Encoder::DetermineBufferFlags(const PictureEncoder &intra_pic) {
+  if (segment_header_->leading_pictures &&
+      intra_pic.GetPicData()->GetDoc() == 1) {
+    // leading pictures are never buffered
+    return;
+  }
+  for (std::shared_ptr<PictureEncoder> &pic_enc : pic_encoders_) {
+    if (pic_enc->GetOutputStatus() == OutputStatus::kReady &&
+        pic_enc->GetPoc() < intra_pic.GetPoc()) {
+      if (segment_header_->open_gop) {
+        // for closed gop buffer flag is not used but segment header is still
+        // send after all pictures in previous segment
+        pic_enc->SetBufferFlag(true);
+      }
+      // Insert last sub-gop before next intra access picture in bitstream order
+      // TODO(PH) Consider also check soc to ensure inserted before next segment
+      auto doc_order_insert_it = doc_bitstream_order_.end();
+      for (auto doc_order_it = doc_bitstream_order_.begin();
+           doc_order_it != doc_bitstream_order_.end(); ++doc_order_it) {
+        if ((doc_order_insert_it == doc_bitstream_order_.end() ||
+             *doc_order_it < *doc_order_insert_it) &&
+            *doc_order_it > pic_enc->GetDoc()) {
+          doc_order_insert_it = doc_order_it;
+        }
+      }
+      doc_bitstream_order_.insert(doc_order_insert_it, pic_enc->GetDoc());
+    }
+  }
+}
+
 void Encoder::UpdateReferenceCounts(PicNum last_subgop_end_poc) {
   const PicNum last_subgop_start_poc =
     last_subgop_end_poc - segment_header_->max_sub_gop_length + 1;
@@ -403,7 +468,7 @@ void Encoder::UpdateReferenceCounts(PicNum last_subgop_end_poc) {
 
   for (const auto *pic_enc : subgop_pic_encoders) {
     std::shared_ptr<const PictureData> pic_data = pic_enc->GetPicData();
-    SegmentHeader &segment_header = pic_data->GetSoc() == segment_header_->soc ?
+    SegmentHeader &segment_header = !pic_enc->GetBufferFlag() ?
       *segment_header_ : *prev_segment_header_;
     // Find all pictures that are referenced by this picture
     ReferencePictureLists ref_pic_list;

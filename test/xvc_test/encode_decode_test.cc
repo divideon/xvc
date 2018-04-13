@@ -34,8 +34,8 @@ struct TestParam {
 
 static constexpr int kQp = 27;
 static constexpr double kPsnrThreshold = 28.0;
-static constexpr int kFramesEncoded = 8;
-static constexpr int kSegmentLength = kFramesEncoded * 3;
+static constexpr int kSubGopLength = 8;
+static constexpr int kSegmentLength = kSubGopLength * 3;
 static constexpr int kPocOffset = 999;
 
 class EncodeDecodeTest : public ::testing::TestWithParam<TestParam>,
@@ -45,7 +45,7 @@ protected:
     xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
     encoder_settings.leading_pictures = GetParam().use_leading_pictures ? 1 : 0;
     SetupEncoder(encoder_settings, 0, 0, GetParam().internal_bitdepth, kQp);
-    encoder_->SetSubGopLength(kFramesEncoded);
+    encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSegmentLength);
     DecoderHelper::Init();
   }
@@ -113,21 +113,21 @@ protected:
 };
 
 TEST_P(EncodeDecodeTest, TwoSubGopZeroResolution) {
-  const int nbr_pictures = kFramesEncoded * 2 +
+  const int nbr_pictures = kSubGopLength * 2 +
     (!GetParam().use_leading_pictures ? 1 : 0);
   Encode(0, 0, nbr_pictures);
   Decode(0, 0, nbr_pictures);
 }
 
 TEST_P(EncodeDecodeTest, TwoSubGop24x24) {
-  const int nbr_pictures = kFramesEncoded * 2 +
+  const int nbr_pictures = kSubGopLength * 2 +
     (!GetParam().use_leading_pictures ? 1 : 0);
   Encode(24, 24, nbr_pictures);
   Decode(24, 24, nbr_pictures);
 }
 
 TEST_P(EncodeDecodeTest, LowDelayTwoSubGop24x24) {
-  const int nbr_pictures = kFramesEncoded * 2 +
+  const int nbr_pictures = kSubGopLength * 2 +
     (!GetParam().use_leading_pictures ? 1 : 0);
   encoder_->SetLowDelay(true);
   Encode(24, 24, nbr_pictures);
@@ -135,13 +135,13 @@ TEST_P(EncodeDecodeTest, LowDelayTwoSubGop24x24) {
 }
 
 TEST_P(EncodeDecodeTest, SingleSegment16x16) {
-  if (GetParam().use_leading_pictures) {
-    Encode(16, 16, kSegmentLength);
-    Decode(16, 16, kSegmentLength);
-  } else {
+  if (!GetParam().use_leading_pictures) {
     Encode(16, 16, kSegmentLength + 1);
     Decode(16, 16, kSegmentLength, false);
     Decode(16, 16, 1, true);
+  } else {
+    Encode(16, 16, kSegmentLength);
+    Decode(16, 16, kSegmentLength);
   }
 }
 
