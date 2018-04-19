@@ -78,6 +78,7 @@ extern "C" {
     param->leading_pictures = 0;
     param->speed_mode = -1;  // determined in xvc_enc_encoder_create
     param->tune_mode = 0;
+    param->threads = 0;
     param->simd_mask = static_cast<uint32_t>(-1);
     param->explicit_encoder_settings = nullptr;
     return XVC_ENC_OK;
@@ -285,7 +286,8 @@ extern "C" {
     if (xvc_enc_parameters_check(param) != XVC_ENC_OK) {
       return nullptr;
     }
-    xvc::Encoder *encoder = new xvc::Encoder(param->internal_bitdepth);
+    xvc::Encoder *encoder = new xvc::Encoder(param->internal_bitdepth,
+                                             param->threads);
     xvc_enc_set_encoder_settings(encoder, param);
 
     encoder->SetCpuCapabilities(xvc::SimdCpu::GetMaskedCaps(param->simd_mask));

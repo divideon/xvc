@@ -49,6 +49,7 @@ public:
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   PicNum GetPoc() const { return pic_data_->GetPoc(); }
   PicNum GetDoc() const { return pic_data_->GetDoc(); }
+  int GetTid() const { return pic_data_->GetTid(); }
   void SetOutputStatus(OutputStatus status) { output_status_ = status; }
   OutputStatus GetOutputStatus() const { return output_status_; }
   bool GetBufferFlag() const { return buffer_flag_; }

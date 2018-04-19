@@ -37,7 +37,7 @@ enum class RestrictedMode {
 typedef struct Restrictions {
 public:
   Restrictions();
-  static const Restrictions &Get() {
+  static const Restrictions& Get() {
     return instance;
   }
 
@@ -230,8 +230,9 @@ private:
   friend class Encoder;
   friend class Decoder;
   friend class ThreadDecoder;
+  friend class ThreadEncoder;
   static thread_local Restrictions instance;
-  static Restrictions &GetRW() { return instance; }
+  static Restrictions& GetRW() { return instance; }
 
   void EnableRestrictedMode(RestrictedMode mode);
 } Restrictions;

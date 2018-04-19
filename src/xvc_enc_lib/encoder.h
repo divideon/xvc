@@ -42,9 +42,11 @@ struct xvc_encoder {};
 
 namespace xvc {
 
+class ThreadEncoder;
+
 class Encoder : public xvc_encoder {
 public:
-  explicit Encoder(int internal_bitdepth);
+  explicit Encoder(int internal_bitdepth, int num_threads = 0);
   ~Encoder();
   bool Encode(const uint8_t *pic_bytes, xvc_enc_pic_buffer *rec_pic);
   bool Flush(xvc_enc_pic_buffer *rec_pic);
@@ -110,9 +112,13 @@ public:
 
 private:
   using NalBuffer = std::unique_ptr<std::vector<uint8_t>>;
+  using PicEncList = std::vector<std::shared_ptr<const PictureEncoder>>;
   void Initialize();
   void StartNewSegment();
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
+  void OnPictureEncoded(std::shared_ptr<PictureEncoder> pic_enc,
+                        const PicEncList &inter_deps,
+                        NalBuffer &&pic_nal_buffer);
   void PrepareOutputNals();
   void ReconstructNextPicture(xvc_enc_pic_buffer *rec_pic);
   std::shared_ptr<PictureEncoder>
@@ -131,14 +137,15 @@ private:
   bool initialized_ = false;
   int input_bitdepth_ = 8;
   double framerate_ = 0;
-  std::unique_ptr<SegmentHeader> segment_header_;
-  std::unique_ptr<SegmentHeader> prev_segment_header_;
+  std::shared_ptr<SegmentHeader> segment_header_;
+  std::shared_ptr<SegmentHeader> prev_segment_header_;
   PicNum sub_gop_start_poc_ = 0;
   PicNum poc_ = 0;
   PicNum doc_ = 0;
   PicNum segment_length_ = 1;
   PicNum closed_gop_interval_ = std::numeric_limits<PicNum>::max();
   size_t pic_buffering_num_ = 1;
+  int extra_num_buffered_subgops_ = 0;
   int segment_qp_ = std::numeric_limits<int>::max();
   EncoderSimdFunctions simd_;
   EncoderSettings encoder_settings_;
@@ -152,6 +159,7 @@ private:
   std::unordered_map<PicNum,
     std::pair<NalBuffer, xvc_enc_nal_unit>> pending_out_nal_buffers_;
   PicNum last_rec_poc_ = static_cast<PicNum>(-1);
+  std::unique_ptr<ThreadEncoder> thread_encoder_;
 };
 
 }   // namespace xvc

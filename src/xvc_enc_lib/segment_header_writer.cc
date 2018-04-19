@@ -80,8 +80,7 @@ void SegmentHeaderWriter::Write(const SegmentHeader &segment_header,
     bit_writer->WriteBit(segment_header.source_padding ? 1 : 0);
   }
 
-  const Restrictions &restr = Restrictions::Get();
-  WriteRestrictions(restr, bit_writer);
+  WriteRestrictions(segment_header.restrictions, bit_writer);
   bit_writer->PadZeroBits();
 }
 

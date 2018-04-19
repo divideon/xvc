@@ -109,6 +109,8 @@ set(XVC_ENC_LIB_SOURCES
     "xvc_enc_lib/segment_header_writer.h"
     "xvc_enc_lib/syntax_writer.cc"
     "xvc_enc_lib/syntax_writer.h"
+    "xvc_enc_lib/thread_encoder.cc"
+    "xvc_enc_lib/thread_encoder.h"
     "xvc_enc_lib/transform_encoder.cc"
     "xvc_enc_lib/transform_encoder.h"
     "xvc_enc_lib/xvcenc.cc"
@@ -226,7 +228,7 @@ add_library(xvc_enc_lib ${XVC_ENC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> 
 set_target_properties(xvc_enc_lib PROPERTIES OUTPUT_NAME "xvcenc")
 target_compile_options(xvc_enc_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_enc_lib PUBLIC .)
-target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags})
+target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags} PUBLIC Threads::Threads)
 
 # xvc_dec_lib
 add_library(xvc_dec_lib ${XVC_DEC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_dec_src_extra})

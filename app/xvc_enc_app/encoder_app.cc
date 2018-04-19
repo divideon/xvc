@@ -136,6 +136,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
     } else if (arg == "-tune") {
       std::stringstream(argv[++i]) >> cli_.tune_mode;
+    } else if (arg == "-threads") {
+      std::stringstream(argv[++i]) >> cli_.threads;
     } else if (arg == "-simd-mask") {
       std::stringstream(argv[++i]) >> cli_.simd_mask;
     } else if (arg == "-explicit-encoder-settings") {
@@ -349,6 +351,9 @@ EncoderApp::ConfigureApiParams(xvc_encoder_parameters *params) {
   }
   if (cli_.tune_mode != -1) {
     params->tune_mode = cli_.tune_mode;
+  }
+  if (cli_.threads != -1) {
+    params->threads = cli_.threads;
   }
   if (cli_.simd_mask != -1) {
     params->simd_mask = cli_.simd_mask;
@@ -789,6 +794,10 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -tune <0..1>" << std::endl;
   std::cout << "      0: Visual quality (default)" << std::endl;
   std::cout << "      1: PSNR" << std::endl;
+  std::cout << "  -threads <int>" << std::endl;
+  std::cout << "     -1: auto-detect" << std::endl;
+  std::cout << "      0: disabled (default)" << std::endl;
+  std::cout << "     1+: number of threads" << std::endl;
   std::cout << "  -verbose <0..1>" << std::endl;
 }
 
