@@ -427,9 +427,12 @@ void Encoder::DetermineBufferFlags(const PictureEncoder &intra_pic) {
     return;
   }
   for (std::shared_ptr<PictureEncoder> &pic_enc : pic_encoders_) {
+    SegmentHeader &segment_header =
+      pic_enc->GetPicData()->GetSoc() == segment_header_->soc ?
+      *segment_header_ : *prev_segment_header_;
     if (pic_enc->GetOutputStatus() == OutputStatus::kReady &&
         pic_enc->GetPoc() < intra_pic.GetPoc()) {
-      if (segment_header_->open_gop) {
+      if (segment_header.open_gop) {
         // for closed gop buffer flag is not used but segment header is still
         // send after all pictures in previous segment
         pic_enc->SetBufferFlag(true);
@@ -468,7 +471,8 @@ void Encoder::UpdateReferenceCounts(PicNum last_subgop_end_poc) {
 
   for (const auto *pic_enc : subgop_pic_encoders) {
     std::shared_ptr<const PictureData> pic_data = pic_enc->GetPicData();
-    SegmentHeader &segment_header = !pic_enc->GetBufferFlag() ?
+    SegmentHeader &segment_header =
+      pic_enc->GetPicData()->GetSoc() == segment_header_->soc ?
       *segment_header_ : *prev_segment_header_;
     // Find all pictures that are referenced by this picture
     ReferencePictureLists ref_pic_list;

@@ -461,7 +461,7 @@ EncoderApp::EncodeOnePass(xvc_encoder_parameters *params, bool last) {
                               rec_pic_ptr);
       // loop_check will remain true as long as there are buffered pictures
       // that should be reconstructed.
-      loop_check = (rec_pic_ptr && (rec_pic_ptr->size > 0));
+      loop_check = (rec_pic_ptr && (rec_pic_ptr->size > 0)) || num_nal_units;
     } else {
       // Encode one picture and get 0 or 1 reconstructed picture back.
       // Also get back 0 or more nal_units depending on if pictures are being
