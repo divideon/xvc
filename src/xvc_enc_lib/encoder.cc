@@ -50,8 +50,8 @@ Encoder::Encoder(int internal_bitdepth)
 Encoder::~Encoder() {
 }
 
-int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
-                    xvc_enc_pic_buffer *out_rec_pic) {
+bool Encoder::Encode(const uint8_t *pic_bytes,
+                     xvc_enc_pic_buffer *out_rec_pic) {
   if (!initialized_) {
     initialized_ = true;
     Initialize();
@@ -115,15 +115,10 @@ int Encoder::Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
   // with lowest poc can be output.
   ReconstructNextPicture(out_rec_pic);
   PrepareOutputNals();
-  if (api_output_nals_.size() > 0) {
-    *nal_units = &api_output_nals_[0];
-  } else {
-    *nal_units = nullptr;
-  }
-  return static_cast<int>(api_output_nals_.size());
+  return true;
 }
 
-int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
+bool Encoder::Flush(xvc_enc_pic_buffer *rec_pic) {
   api_output_nals_.clear();
   // Since poc is increased at the end of each call to Encode
   // it is reduced by one here to get the poc of the last picture.
@@ -172,12 +167,8 @@ int Encoder::Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic) {
   // Check if reconstruction should be performed.
   ReconstructNextPicture(rec_pic);
   PrepareOutputNals();
-  if (api_output_nals_.size() > 0) {
-    *nal_units = &api_output_nals_[0];
-  } else {
-    *nal_units = nullptr;
-  }
-  return static_cast<int>(api_output_nals_.size());
+  return doc_ + 1 < poc_ || last_rec_poc_ + 1 < poc_ ||
+    !doc_bitstream_order_.empty();
 }
 
 void Encoder::SetEncoderSettings(const EncoderSettings &settings) {

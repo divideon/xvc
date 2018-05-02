@@ -38,13 +38,15 @@ public:
     const_cast<xvc::SegmentHeader*>(segment)->minor_version = minor_version;
     encoder_->SetResolution(0, 0);
     std::vector<uint8_t> pic_bytes;
-    EncodeFirstFrame(pic_bytes, 8);
+    auto nals = EncodeOneFrame(pic_bytes, 8);
+    ASSERT_EQ(2, nals.size());
   }
 
   void EncodeWithRfeValue(int nal_rfe_value) {
     encoder_->SetResolution(0, 0);
     std::vector<uint8_t> pic_bytes;
-    EncodeFirstFrame(pic_bytes, 8);
+    auto nals = EncodeOneFrame(pic_bytes, 8);
+    ASSERT_EQ(2, nals.size());
     // Rewrite value directly in bitstream
     uint8_t *nal_unit_header = &encoded_nal_units_[0][0];
     nal_unit_header[0] |= (nal_rfe_value & 3) << 6;

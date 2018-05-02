@@ -81,38 +81,18 @@ public:
     return pic_bytes;
   }
 
-  void EncodeFirstFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
-    const uint8_t *in_pic = pic_bytes.empty() ? nullptr : &pic_bytes[0];
-    xvc_enc_nal_unit *nal_units = nullptr;
-    xvc_enc_pic_buffer rec_pic;
-    encoder_->SetInputBitdepth(bitdepth);
-    int num_nals = encoder_->Encode(in_pic, &nal_units, &rec_pic);
-    ASSERT_EQ(2, num_nals);
-    EXPECT_EQ(static_cast<uint32_t>(xvc::NalUnitType::kSegmentHeader),
-              nal_units[0].stats.nal_unit_type);
-    EXPECT_EQ(static_cast<uint32_t>(xvc::NalUnitType::kIntraAccessPicture),
-              nal_units[1].stats.nal_unit_type);
-    for (int i = 0; i < 2; i++) {
-      encoded_nal_units_.push_back(
-        NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
-    }
-    if (rec_pic.size > 0) {
-      rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);
-    }
-  }
-
   std::vector<xvc_enc_nal_stats>
     EncodeOneFrame(const std::vector<uint8_t> &pic_bytes, int bitdepth) {
     std::vector<xvc_enc_nal_stats> encoded_nal_stats;
     const uint8_t *in_pic = pic_bytes.empty() ? nullptr : &pic_bytes[0];
-    xvc_enc_nal_unit *nal_units = nullptr;
     encoder_->SetInputBitdepth(bitdepth);
     xvc_enc_pic_buffer rec_pic;
-    int num_nals = encoder_->Encode(in_pic, &nal_units, &rec_pic);
-    for (int i = 0; i < num_nals; i++) {
+    bool success = encoder_->Encode(in_pic, &rec_pic);
+    EXPECT_TRUE(success);
+    for (xvc_enc_nal_unit &nal_unit : encoder_->GetOutputNals()) {
       encoded_nal_units_.push_back(
-        NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
-      encoded_nal_stats.push_back(nal_units[i].stats);
+        NalUnit(nal_unit.bytes, nal_unit.bytes + nal_unit.size));
+      encoded_nal_stats.push_back(nal_unit.stats);
     }
     if (rec_pic.size > 0) {
       rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);
@@ -122,19 +102,18 @@ public:
 
   std::vector<xvc_enc_nal_stats> EncoderFlush() {
     std::vector<xvc_enc_nal_stats> encoded_nal_stats;
-    xvc_enc_nal_unit *nal_units = nullptr;
     xvc_enc_pic_buffer rec_pic;
     while (true) {
-      int num_nals = encoder_->Flush(&nal_units, &rec_pic);
-      for (int i = 0; i < num_nals; i++) {
+      bool success = encoder_->Flush(&rec_pic);
+      for (xvc_enc_nal_unit &nal_unit : encoder_->GetOutputNals()) {
         encoded_nal_units_.push_back(
-          NalUnit(nal_units[i].bytes, nal_units[i].bytes + nal_units[i].size));
-        encoded_nal_stats.push_back(nal_units[i].stats);
-      }
-      if (rec_pic.size == 0 && !num_nals) {
-        break;
+          NalUnit(nal_unit.bytes, nal_unit.bytes + nal_unit.size));
+        encoded_nal_stats.push_back(nal_unit.stats);
       }
       rec_pics_.emplace_back(rec_pic.pic, rec_pic.pic + rec_pic.size);
+      if (!success) {
+        break;
+      }
     }
     return encoded_nal_stats;
   }

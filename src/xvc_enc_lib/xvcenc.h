@@ -41,6 +41,7 @@ extern "C" {
 
   typedef enum {
     XVC_ENC_OK = 0,
+    XVC_ENC_NO_MORE_OUTPUT = 1,
     XVC_ENC_INVALID_ARGUMENT = 10,
     XVC_ENC_INVALID_PARAMETER = 20,
     XVC_ENC_SIZE_TOO_SMALL,

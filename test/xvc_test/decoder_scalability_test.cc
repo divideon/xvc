@@ -43,8 +43,7 @@ protected:
   }
 
   std::vector<NalUnit> EncodeBitstream(int width, int height,
-                                                 int internal_bitdepth,
-                                                 int frames) {
+                                       int internal_bitdepth, int frames) {
     const int input_bitdepth = 8;
     xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
     encoder_settings.leading_pictures = GetParam() ? 1 : 0;

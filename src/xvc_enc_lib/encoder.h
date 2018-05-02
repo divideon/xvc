@@ -46,9 +46,11 @@ class Encoder : public xvc_encoder {
 public:
   explicit Encoder(int internal_bitdepth);
   ~Encoder();
-  int Encode(const uint8_t *pic_bytes, xvc_enc_nal_unit **nal_units,
-             xvc_enc_pic_buffer *rec_pic);
-  int Flush(xvc_enc_nal_unit **nal_units, xvc_enc_pic_buffer *rec_pic);
+  bool Encode(const uint8_t *pic_bytes, xvc_enc_pic_buffer *rec_pic);
+  bool Flush(xvc_enc_pic_buffer *rec_pic);
+  std::vector<xvc_enc_nal_unit>& GetOutputNals() {
+    return api_output_nals_;
+  }
   const SegmentHeader* GetCurrentSegment() const {
     return segment_header_.get();
   }

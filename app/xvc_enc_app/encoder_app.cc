@@ -436,6 +436,7 @@ EncoderApp::EncodeOnePass(xvc_encoder_parameters *params, bool last) {
     input_stream_->seekg(start_pos, std::ifstream::beg);
   }
 
+  xvc_enc_return_code ret;
   xvc_enc_nal_unit *nal_units;
   int num_nal_units;
   char nal_size[4];
@@ -457,17 +458,19 @@ EncoderApp::EncodeOnePass(xvc_encoder_parameters *params, bool last) {
     if (!read_success ||
       (cli_.max_num_pictures >= 0 && picture_index_ >= cli_.max_num_pictures)) {
       // Flush the encoder for remaining nal_units and reconstructed pictures.
-      xvc_api_->encoder_flush(encoder_, &nal_units, &num_nal_units,
-                              rec_pic_ptr);
+      ret = xvc_api_->encoder_flush(encoder_, &nal_units, &num_nal_units,
+                                    rec_pic_ptr);
+      assert(ret == XVC_ENC_OK || ret == XVC_ENC_NO_MORE_OUTPUT);
       // loop_check will remain true as long as there are buffered pictures
       // that should be reconstructed.
-      loop_check = (rec_pic_ptr && (rec_pic_ptr->size > 0)) || num_nal_units;
+      loop_check = ret == XVC_ENC_OK;
     } else {
       // Encode one picture and get 0 or 1 reconstructed picture back.
       // Also get back 0 or more nal_units depending on if pictures are being
       // buffered in order to encode a full Sub Gop.
-      xvc_api_->encoder_encode(encoder_, &picture_bytes_[0], &nal_units,
-                               &num_nal_units, rec_pic_ptr);
+      ret = xvc_api_->encoder_encode(encoder_, &picture_bytes_[0], &nal_units,
+                                     &num_nal_units, rec_pic_ptr);
+      assert(ret == XVC_ENC_OK);
       picture_index_++;
     }
 
@@ -611,7 +614,7 @@ void EncoderApp::StartPictureDetermination(xvc_encoder_parameters *out_params) {
     }
     ret = xvc_api_->encoder_flush(lookahead_encoder.get(), &nal_units,
                                   &num_nal_units, nullptr);
-    assert(ret == XVC_ENC_OK);
+    assert(ret == XVC_ENC_OK || ret == XVC_ENC_NO_MORE_OUTPUT);
     result[i] = nal_units[0].size;
   }
   const auto time_end = std::chrono::steady_clock::now();

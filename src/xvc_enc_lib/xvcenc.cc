@@ -21,6 +21,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <vector>
 
 #include "xvc_common_lib/common.h"
 #include "xvc_enc_lib/encoder.h"
@@ -345,8 +346,16 @@ extern "C" {
       return XVC_ENC_INVALID_ARGUMENT;
     }
     xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
-    *num_nal_units = lib_encoder->Encode(input_picture, nal_units, rec_pic);
-    return XVC_ENC_OK;
+    bool success = lib_encoder->Encode(input_picture, rec_pic);
+    std::vector<xvc_enc_nal_unit> &output_nals = lib_encoder->GetOutputNals();
+    if (output_nals.size() > 0) {
+      *nal_units = &output_nals[0];
+      *num_nal_units = static_cast<int>(output_nals.size());
+    } else {
+      *nal_units = nullptr;
+      *num_nal_units = 0;
+    }
+    return success ? XVC_ENC_OK : XVC_ENC_INVALID_ARGUMENT;
   }
 
   static xvc_enc_return_code
@@ -356,8 +365,16 @@ extern "C" {
       return XVC_ENC_INVALID_ARGUMENT;
     }
     xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
-    *num_nal_units = lib_encoder->Flush(nal_units, rec_pic);
-    return XVC_ENC_OK;
+    bool success = lib_encoder->Flush(rec_pic);
+    std::vector<xvc_enc_nal_unit> &output_nals = lib_encoder->GetOutputNals();
+    if (output_nals.size() > 0) {
+      *nal_units = &output_nals[0];
+      *num_nal_units = static_cast<int>(output_nals.size());
+    } else {
+      *nal_units = nullptr;
+      *num_nal_units = 0;
+    }
+    return success ? XVC_ENC_OK : XVC_ENC_NO_MORE_OUTPUT;
   }
 
   static const char* xvc_enc_get_error_text(xvc_enc_return_code error_code) {

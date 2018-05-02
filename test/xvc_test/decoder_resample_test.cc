@@ -58,7 +58,8 @@ protected:
     encoder_->SetSegmentLength(1);
     encoder_->SetChromaFormat(chroma_fmt);
     auto pic_bytes = CreateSampleBuffer(orig_sample, bitdepth);
-    EncodeFirstFrame(pic_bytes, bitdepth);
+    auto nals = EncodeOneFrame(pic_bytes, bitdepth);
+    ASSERT_EQ(2, nals.size());
   }
 
   void DecodeResolution(int size_dec, int expected_segments = 2) {
