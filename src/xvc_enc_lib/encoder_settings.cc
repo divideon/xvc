@@ -123,6 +123,20 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       chroma_qp_offset_u = 1;
       chroma_qp_offset_v = 1;
       break;
+    case RestrictedMode::kModeC:
+      inter_search_range_uni_max = 256;
+      inter_search_range_uni_min = 96;
+      bipred_refinement_iterations = 1;
+      always_evaluate_intra_in_inter = 0;
+      default_num_ref_pics = 2;
+      max_binary_split_depth = 2;
+      fast_transform_select_eval = 1;
+      fast_intra_mode_eval_level = 1;
+      fast_transform_size_64 = 0;
+      fast_transform_select = 0;
+      fast_inter_local_illumination_comp = 0;
+      fast_inter_adaptive_fullpel_mv = 0;
+      break;
     default:
       assert(0);
       break;

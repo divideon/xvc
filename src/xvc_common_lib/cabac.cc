@@ -685,6 +685,10 @@ CabacContexts<Ctx>::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
       coeff_ext.greater1_chroma[start_offset + offset];
   } else {
     static_assert(1 == constants::kMaxNumC2Flags, "Assumes only 1 c2 flag");
+    if (Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
+      return util::IsLuma(comp) ?
+        coeff_ext.greater1_luma[0] : coeff_ext.greater1_chroma[0];
+    }
     return util::IsLuma(comp) ?
       coeff.greater2_luma[ctx_set] : coeff.greater2_chroma[ctx_set];
   }
@@ -738,7 +742,8 @@ CabacContexts<Ctx>::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
   const int size = is_pos_x ? width : height;
   if (util::IsLuma(comp)) {
     auto &ctx_base = is_pos_x ? coeff_last_pos_x_luma : coeff_last_pos_y_luma;
-    if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx) {
+    if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx &&
+        Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
       return ctx_base[0];
     }
     int offset, shift;
@@ -758,7 +763,8 @@ CabacContexts<Ctx>::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
   } else {
     auto &ctx_base =
       is_pos_x ? coeff_last_pos_x_chroma : coeff_last_pos_y_chroma;
-    if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx) {
+    if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx &&
+        Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
       return ctx_base[0];
     }
     int offset = 0;
