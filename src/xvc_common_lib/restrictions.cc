@@ -325,6 +325,10 @@ Restrictions::Restrictions() {
   disable_ext2_transform_select = true;
 #endif
 
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_DST
+  disable_ext2_transform_dst = true;
+#endif
+
 #if RESTRICTION_DISABLE_EXT2_CABAC_ALT_RESIDUAL_CTX
   disable_ext2_cabac_alt_residual_ctx = true;
 #endif
@@ -383,7 +387,6 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_transform_sign_hiding = !disable_transform_sign_hiding;
     disable_transform_adaptive_exp_golomb =
       !disable_transform_adaptive_exp_golomb;
-    disable_cabac_split_flag_ctx = !disable_cabac_split_flag_ctx;
     disable_cabac_skip_flag_ctx = !disable_cabac_skip_flag_ctx;
     disable_cabac_inter_dir_ctx = !disable_cabac_inter_dir_ctx;
     disable_cabac_subblock_csbf_ctx = !disable_cabac_subblock_csbf_ctx;
@@ -400,8 +403,6 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
       !disable_deblock_weak_sample_decision;
     disable_deblock_two_samples_weak_filter =
       !disable_deblock_two_samples_weak_filter;
-    disable_high_level_default_checksum_method =
-      !disable_high_level_default_checksum_method;
     disable_ext_sink = !disable_ext_sink;
     disable_ext_implicit_last_ctu = !disable_ext_implicit_last_ctu;
     disable_ext_tmvp_full_resolution = !disable_ext_tmvp_full_resolution;
@@ -434,6 +435,7 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext2_transform_skip = !disable_ext2_transform_skip;
     disable_ext2_transform_high_precision =
       !disable_ext2_transform_high_precision;
+    disable_ext2_transform_dst = !disable_ext2_transform_dst;
   }
 }
 

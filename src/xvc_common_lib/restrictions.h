@@ -139,6 +139,7 @@ public:
       disable_ext2_transform_skip ||
       disable_ext2_transform_high_precision ||
       disable_ext2_transform_select ||
+      disable_ext2_transform_dst ||
       disable_ext2_cabac_alt_residual_ctx;
   }
 
@@ -217,6 +218,7 @@ public:
   bool disable_ext2_transform_skip = false;
   bool disable_ext2_transform_high_precision = false;
   bool disable_ext2_transform_select = false;
+  bool disable_ext2_transform_dst = false;
   bool disable_ext2_cabac_alt_residual_ctx = false;
 
 private:

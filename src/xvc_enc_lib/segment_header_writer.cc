@@ -198,6 +198,7 @@ void SegmentHeaderWriter::WriteRestrictions(const Restrictions &restr,
     bit_writer->WriteBit(restr.disable_ext2_transform_skip);
     bit_writer->WriteBit(restr.disable_ext2_transform_high_precision);
     bit_writer->WriteBit(restr.disable_ext2_transform_select);
+    bit_writer->WriteBit(restr.disable_ext2_transform_dst);
     bit_writer->WriteBit(restr.disable_ext2_cabac_alt_residual_ctx);
   } else {
     bit_writer->WriteBit(0);  // ext2_restrictions

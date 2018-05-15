@@ -77,7 +77,8 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                                  ResidualBuffer *out_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra();
+  const bool can_dst_4x4 = !Restrictions::Get().disable_ext2_transform_dst &&
+    util::IsLuma(comp) && cu.IsIntra();
   const bool default_high_precision =
     !Restrictions::Get().disable_ext2_transform_high_precision;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
@@ -836,7 +837,8 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                                  CoeffBuffer *out_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra();
+  const bool can_dst_4x4 = !Restrictions::Get().disable_ext2_transform_dst &&
+    util::IsLuma(comp) && cu.IsIntra() ;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool default_high_precision =
     !Restrictions::Get().disable_ext2_transform_high_precision;

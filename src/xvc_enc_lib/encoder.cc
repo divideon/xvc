@@ -516,7 +516,8 @@ void Encoder::UpdateReferenceCounts(PicNum last_subgop_end_poc) {
     0 : last_subgop_end_poc - segment_header_->max_sub_gop_length + 1;
   // Identify all picture encoders in current subgop
   std::vector<PictureEncoder*> subgop_pic_encoders;
-  subgop_pic_encoders.reserve(segment_header_->max_sub_gop_length);
+  subgop_pic_encoders.reserve(
+    static_cast<int>(segment_header_->max_sub_gop_length));
   for (std::shared_ptr<PictureEncoder> &pic_enc : pic_encoders_) {
     if (pic_enc->GetPoc() >= last_subgop_start_poc) {
       subgop_pic_encoders.push_back(pic_enc.get());
