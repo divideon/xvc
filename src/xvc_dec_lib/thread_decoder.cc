@@ -52,6 +52,7 @@ void ThreadDecoder::StopAll() {
 
 void ThreadDecoder::DecodeAsync(
   std::shared_ptr<SegmentHeader> &&segment_header,
+  std::shared_ptr<SegmentHeader> &&prev_segment_header,
   std::shared_ptr<PictureDecoder> &&pic_dec,
   std::vector<std::shared_ptr<const PictureDecoder>> &&deps,
   std::unique_ptr<std::vector<uint8_t>> &&nal, size_t nal_offset) {
@@ -60,6 +61,7 @@ void ThreadDecoder::DecodeAsync(
   work.pic_dec = std::move(pic_dec);
   work.inter_dependencies = std::move(deps);
   work.segment_header = std::move(segment_header);
+  work.prev_segment_header = std::move(prev_segment_header);
   work.nal_offset = nal_offset;
   work.nal = std::move(nal);
 
@@ -145,7 +147,8 @@ void ThreadDecoder::WorkerMain() {
     // Decode picture
     BitReader bit_reader(&(*work.nal)[0] + work.nal_offset,
                          work.nal->size() - work.nal_offset);
-    work.success = work.pic_dec->Decode(*work.segment_header, &bit_reader,
+    work.success = work.pic_dec->Decode(*work.segment_header,
+                                        *work.prev_segment_header, &bit_reader,
                                         false);
     work.pic_dec->SetOutputStatus(OutputStatus::kPostProcessing);
 

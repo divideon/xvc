@@ -211,6 +211,7 @@ void
 Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   BitReader pic_bit_reader(&(*nal)[0], nal->size());
   std::shared_ptr<SegmentHeader> segment_header = curr_segment_header_;
+  std::shared_ptr<SegmentHeader> prev_segment_header = prev_segment_header_;
 
   int header = pic_bit_reader.ReadByte();
   int nal_rfe = ((header >> 6) & 3);
@@ -293,7 +294,9 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   }
 
   if (thread_decoder_) {
-    thread_decoder_->DecodeAsync(std::move(segment_header), std::move(pic_dec),
+    thread_decoder_->DecodeAsync(std::move(segment_header),
+                                 std::move(prev_segment_header),
+                                 std::move(pic_dec),
                                  std::move(inter_dependencies), std::move(nal),
                                  pic_bit_reader.GetPosition());
     if (state_ == State::kSegmentHeaderDecoded) {
@@ -301,7 +304,8 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
     }
   } else {
     // Synchronous decode
-    bool success = pic_dec->Decode(*segment_header, &pic_bit_reader, true);
+    bool success = pic_dec->Decode(*segment_header, *prev_segment_header,
+                                   &pic_bit_reader, true);
     OnPictureDecoded(pic_dec, success, inter_dependencies);
   }
 }

@@ -156,6 +156,7 @@ void PictureDecoder::Init(const SegmentHeader &segment,
 }
 
 bool PictureDecoder::Decode(const SegmentHeader &segment,
+                            const SegmentHeader &prev_segment_header,
                             BitReader *bit_reader, bool post_process) {
   assert(output_status_ == OutputStatus::kProcessing);
   bool success = true;
@@ -185,6 +186,10 @@ bool PictureDecoder::Decode(const SegmentHeader &segment,
   }
   if (pic_data_->GetTid() == 0 || !pic_data_->IsHighestLayer()) {
     rec_pic_->PadBorder();
+  }
+  if (pic_data_->GetNalType() == NalUnitType::kIntraAccessPicture &&
+      prev_segment_header.open_gop) {
+    GenerateAlternativeRecPic(segment, prev_segment_header);
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
   if (post_process) {
@@ -216,6 +221,43 @@ PictureDecoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
     std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
                                  pic_fmt.height, pic_fmt.bitdepth, true,
                                  crop_width, crop_height);
+  // TODO(PH) Revise const_cast by making this function a pure getter?
+  // In the future alternate pictures should probably be created
+  // beforehand in a separate thread as this can be quite time consuming
+  const_cast<PictureDecoder*>(this)->alt_rec_pic_ = alt_rec_pic;
+  return alt_rec_pic;
+}
+
+void
+PictureDecoder::GenerateAlternativeRecPic(
+  const SegmentHeader &segment, const SegmentHeader &prev_segment_header)
+  const {
+  if (prev_segment_header.GetInternalPicFormat().chroma_format ==
+      ChromaFormat::kUndefined ||
+      prev_segment_header.GetInternalPicFormat().width <= 0 ||
+      prev_segment_header.GetInternalPicFormat().height <= 0 ||
+      (prev_segment_header.GetInternalPicFormat().chroma_format ==
+       segment.GetInternalPicFormat().chroma_format &&
+       prev_segment_header.GetInternalPicFormat().width ==
+       segment.GetInternalPicFormat().width &&
+       prev_segment_header.GetInternalPicFormat().height ==
+       segment.GetInternalPicFormat().height &&
+       prev_segment_header.GetInternalPicFormat().bitdepth ==
+       segment.GetInternalPicFormat().bitdepth)) {
+    return;
+  }
+  auto pic_fmt = prev_segment_header.GetInternalPicFormat();
+  int crop_width = prev_segment_header.GetCropWidth();
+  int crop_height = prev_segment_header.GetCropHeight();
+  std::shared_ptr<YuvPicture> alt_rec_pic;
+  if (alt_rec_pic_) {
+    alt_rec_pic = alt_rec_pic_;
+  } else {
+    alt_rec_pic =
+      std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
+                                   pic_fmt.height, pic_fmt.bitdepth, true,
+                                   crop_width, crop_height);
+  }
   for (int c = 0; c < util::GetNumComponents(pic_fmt.chroma_format); c++) {
     YuvComponent comp = YuvComponent(c);
     uint8_t* dst =
@@ -236,11 +278,6 @@ PictureDecoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
        rec_pic_->GetStride(comp), rec_pic_->GetBitdepth());
   }
   alt_rec_pic->PadBorder();
-  // TODO(PH) Revise const_cast by making this function a pure getter?
-  // In the future alternate pictures should probably be created
-  // beforehand in a separate thread as this can be quite time consuming
-  const_cast<PictureDecoder*>(this)->alt_rec_pic_ = alt_rec_pic;
-  return alt_rec_pic;
 }
 
 bool PictureDecoder::ValidateChecksum(const SegmentHeader &segment,

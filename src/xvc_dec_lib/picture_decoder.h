@@ -55,7 +55,8 @@ public:
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
             ReferencePictureLists &&ref_pic_list,
             const PictureFormat &output_pic_format, int64_t user_data);
-  bool Decode(const SegmentHeader &segment, BitReader *bit_reader,
+  bool Decode(const SegmentHeader &segment,
+              const SegmentHeader &prev_segment_header, BitReader *bit_reader,
               bool post_process);
   bool Postprocess(const SegmentHeader &segment, BitReader *bit_reader);
   std::shared_ptr<const YuvPicture> GetOrigPic() const { return nullptr; }
@@ -88,6 +89,8 @@ public:
                  PicNum doc, SegmentNum soc, int num_buffered_nals);
 
 private:
+  void GenerateAlternativeRecPic(const SegmentHeader &segment,
+                               const SegmentHeader &prev_segment_header) const;
   bool ValidateChecksum(const SegmentHeader &segment,
                         BitReader *bit_reader, Checksum::Mode checksum_mode);
 
