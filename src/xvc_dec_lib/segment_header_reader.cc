@@ -225,7 +225,7 @@ SegmentHeaderReader::ReadRestrictions(const SegmentHeader &segment_header,
     restr.disable_ext2_transform_skip = true;
     restr.disable_ext2_transform_high_precision = true;
     restr.disable_ext2_transform_select = true;
-    restr.disable_ext2_transform_dst = true;
+    restr.disable_ext2_transform_dst = false;
     restr.disable_ext2_cabac_alt_residual_ctx = true;
   }
   return restr;

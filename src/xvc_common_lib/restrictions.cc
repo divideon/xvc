@@ -415,7 +415,6 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_cabac_alt_inter_dir_ctx = !disable_ext_cabac_alt_inter_dir_ctx;
     disable_ext_cabac_alt_last_pos_ctx = !disable_ext_cabac_alt_last_pos_ctx;
     disable_ext_two_cu_trees = !disable_ext_two_cu_trees;
-    disable_ext_transform_size_64 = !disable_ext_transform_size_64;
     disable_ext_intra_unrestricted_predictor =
       !disable_ext_intra_unrestricted_predictor;
     disable_ext_deblock_subblock_size_4 = !disable_ext_deblock_subblock_size_4;

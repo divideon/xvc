@@ -838,7 +838,7 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
   const bool can_dst_4x4 = !Restrictions::Get().disable_ext2_transform_dst &&
-    util::IsLuma(comp) && cu.IsIntra() ;
+    util::IsLuma(comp) && cu.IsIntra();
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool default_high_precision =
     !Restrictions::Get().disable_ext2_transform_high_precision;
