@@ -62,8 +62,11 @@ void CuDecoder::ReadCtu(int rsaddr, SyntaxReader * reader) {
     read_delta_qp |= cu_reader_.ReadCtu(ctu2, reader);
   }
   int qp = pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
-  if (pic_data_.GetAdaptiveQp() && read_delta_qp) {
-    qp = reader->ReadQp();
+  if (pic_data_.GetAdaptiveQp() > 0 && read_delta_qp) {
+    int predicted_qp = ctu->GetPredictedQp();
+    qp = reader->ReadQp(predicted_qp, qp, pic_data_.GetAdaptiveQp());
+  } else if (pic_data_.GetAdaptiveQp() == 2) {
+    qp = ctu->GetPredictedQp();
   }
   ctu->SetQp(qp);
   if (pic_data_.HasSecondaryCuTree()) {

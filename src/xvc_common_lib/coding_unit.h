@@ -111,6 +111,7 @@ public:
   void SetQp(const Qp &qp);
   void SetQp(int qp_value);
   int GetQp(YuvComponent comp) const;
+  int GetPredictedQp() const;
 
   // Split logic
   SplitType GetSplit() const { return split_state_; }

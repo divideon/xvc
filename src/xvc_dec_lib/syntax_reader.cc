@@ -607,8 +607,34 @@ PredictionMode SyntaxReaderCabac<Ctx>::ReadPredMode() {
 }
 
 template<typename Ctx>
-int SyntaxReaderCabac<Ctx>::ReadQp() {
-  return decoder_.DecodeBypassBins(7);
+int SyntaxReaderCabac<Ctx>::ReadQp(int predicted_qp, int base_qp,
+                                   int aqp_mode) {
+  if (aqp_mode == 1) {
+    return decoder_.DecodeBypassBins(7);
+  }
+  int val = decoder_.DecodeBin(&ctx_.delta_qp[0]);
+  int tmp_qp = 0;
+  if (val == 1) {
+    return predicted_qp;
+  }
+  val = decoder_.DecodeBypassBins(1);
+  if (val == 1) {
+    val = decoder_.DecodeBypassBins(1);
+    if (val == 0) {
+      tmp_qp = predicted_qp + 10;
+    } else {
+      tmp_qp = predicted_qp + 1;
+    }
+  } else {
+    val = decoder_.DecodeBypassBins(3);
+    tmp_qp = predicted_qp + 2 + val;
+  }
+  if (tmp_qp > base_qp + 7) {
+    tmp_qp -= 11;
+  } else if (tmp_qp < base_qp - 3) {
+    tmp_qp += 11;
+  }
+  return tmp_qp;
 }
 
 template<typename Ctx>

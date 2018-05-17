@@ -64,7 +64,7 @@ public:
   void WriteMergeIdx(int merge_idx);
   void WritePartitionType(const CodingUnit &cu, PartitionType type);
   void WritePredMode(PredictionMode pred_mode);
-  void WriteQp(int qp_value);
+  void WriteQp(int qp_value, int predicted_qp, int aqp_mode);
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
   void WriteSplitBinary(const CodingUnit &cu,

@@ -58,7 +58,7 @@ public:
   virtual int ReadMergeIdx() = 0;
   virtual PartitionType ReadPartitionType(const CodingUnit &cu) = 0;
   virtual PredictionMode ReadPredMode() = 0;
-  virtual int ReadQp() = 0;
+  virtual int ReadQp(int predicted_qp, int base_qp, int aqp_mode) = 0;
   virtual bool ReadRootCbf() = 0;
   virtual bool ReadSkipFlag(const CodingUnit &cu) = 0;
   virtual SplitType ReadSplitBinary(const CodingUnit &cu,
@@ -92,7 +92,7 @@ public:
   int ReadMergeIdx();
   PartitionType ReadPartitionType(const CodingUnit &cu);
   PredictionMode ReadPredMode();
-  int ReadQp();
+  int ReadQp(int predicted_qp, int base_qp, int aqp_mode);
   bool ReadRootCbf();
   bool ReadSkipFlag(const CodingUnit &cu);
   SplitType ReadSplitBinary(const CodingUnit &cu,

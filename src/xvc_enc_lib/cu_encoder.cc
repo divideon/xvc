@@ -693,15 +693,19 @@ void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
     write_delta_qp |= cu_writer_.WriteCtu(ctu2, &pic_data_, writer);;
   }
 
-  if (pic_data_.GetAdaptiveQp() && write_delta_qp) {
-    writer->WriteQp(ctu->GetQp().GetQpRaw(YuvComponent::kY));
+  const int predicted_qp = ctu->GetPredictedQp();
+  if (pic_data_.GetAdaptiveQp() > 0 && write_delta_qp) {
+    writer->WriteQp(ctu->GetQp().GetQpRaw(YuvComponent::kY),
+                    predicted_qp,
+                    pic_data_.GetAdaptiveQp());
   } else {
     // Delta qp is not written if there was no cbf in the entire CTU.
-    int qp = pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
-    SetQpForAllCusInCtu(ctu, qp);
+    const int derived_qp = pic_data_.GetAdaptiveQp() == 2 ? predicted_qp :
+      pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
+    SetQpForAllCusInCtu(ctu, derived_qp);
     if (pic_data_.HasSecondaryCuTree()) {
       CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-      SetQpForAllCusInCtu(ctu2, qp);
+      SetQpForAllCusInCtu(ctu2, derived_qp);
     }
   }
 

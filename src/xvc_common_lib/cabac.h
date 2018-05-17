@@ -137,6 +137,7 @@ public:
   std::array<ContextModel, kNumIntraPredCtxChroma> intra_pred_chroma;
   std::array<ContextModel, kNumAffineCtx> affine_flag;
   std::array<ContextModel, kNumLicFlagCtx> lic_flag;
+  std::array<ContextModel, kNumDeltaQpCtx> delta_qp;
   union {
     struct {
       std::array<ContextModel, kNumSubblockCsbfCtxLuma> csbf_luma;

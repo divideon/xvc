@@ -83,7 +83,7 @@ struct EncoderSettings {
   int rdo_quant_2x2 = 1;
   int intra_qp_offset = 0;
   int smooth_lambda_scaling = 1;
-  int adaptive_qp = 1;
+  int adaptive_qp = 2;
   int aqp_strength = 13;
   int structural_ssd = 1;
   int encapsulation_mode = 0;

@@ -603,8 +603,50 @@ void SyntaxWriter::WritePredMode(PredictionMode pred_mode) {
   encoder_.EncodeBin(is_intra, &ctx_.cu_pred_mode[0]);
 }
 
-void SyntaxWriter::WriteQp(int qp_value) {
-  encoder_.EncodeBypassBins(qp_value, 7);
+void SyntaxWriter::WriteQp(int qp_value, int predicted_qp, int aqp_mode) {
+  if (aqp_mode == 1) {
+    encoder_.EncodeBypassBins(qp_value, 7);
+    return;
+  }
+  if (qp_value == predicted_qp) {
+    encoder_.EncodeBin(1, &ctx_.delta_qp[0]);
+  } else {
+    encoder_.EncodeBin(0, &ctx_.delta_qp[0]);
+    if (qp_value == predicted_qp - 1 ||
+        qp_value == predicted_qp + 10) {
+      encoder_.EncodeBypassBins(2, 2);
+    } else if (qp_value == predicted_qp + 1 ||
+               qp_value == predicted_qp - 10) {
+      encoder_.EncodeBypassBins(3, 2);
+    } else {
+      encoder_.EncodeBypassBins(0, 1);
+      if (qp_value == predicted_qp + 2 ||
+          qp_value == predicted_qp - 9) {
+        encoder_.EncodeBypassBins(0, 3);
+      } else if (qp_value == predicted_qp + 3 ||
+                 qp_value == predicted_qp - 8) {
+        encoder_.EncodeBypassBins(1, 3);
+      } else if (qp_value == predicted_qp + 4 ||
+                 qp_value == predicted_qp - 7) {
+        encoder_.EncodeBypassBins(2, 3);
+      } else if (qp_value == predicted_qp + 5 ||
+                 qp_value == predicted_qp - 6) {
+        encoder_.EncodeBypassBins(3, 3);
+      } else if (qp_value == predicted_qp + 6 ||
+                 qp_value == predicted_qp - 5) {
+        encoder_.EncodeBypassBins(4, 3);
+      } else if (qp_value == predicted_qp + 7 ||
+                 qp_value == predicted_qp - 4) {
+        encoder_.EncodeBypassBins(5, 3);
+      } else if (qp_value == predicted_qp + 8 ||
+                 qp_value == predicted_qp - 3) {
+        encoder_.EncodeBypassBins(6, 3);
+      } else if (qp_value == predicted_qp + 9 ||
+                 qp_value == predicted_qp - 2) {
+        encoder_.EncodeBypassBins(7, 3);
+      }
+    }
+  }
 }
 
 void SyntaxWriter::WriteRootCbf(bool root_cbf) {

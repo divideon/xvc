@@ -348,6 +348,7 @@ CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &intra_pred_chroma, kInitIntraChromaPredMode);
   Init(q, s, &affine_flag, kInitAffineFlag);
   Init(q, s, &lic_flag, kInitLicFlag);
+  Init(q, s, &delta_qp, kInitDqp);
   if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
     Init(q, s, &coeff_ext.csbf_luma, &coeff_ext.csbf_chroma,
          kInitExtSubblockCsbf);

@@ -72,6 +72,7 @@ bool Encoder::Encode(const uint8_t *pic_bytes,
   if (segment_header_->low_delay) {
     doc = poc_;
   }
+
   // Check if it is time to encode a new segment header.
   bool encode_segment_header = ((poc_ % segment_length_) == 0);
   if (segment_header_->leading_pictures > 0) {
@@ -463,7 +464,7 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
   pic_data->SetSoc(segment.soc);
   pic_data->SetSubGopLength(segment.max_sub_gop_length);
   pic_data->SetHighestLayer(tid == max_tid && !segment.low_delay);
-  pic_data->SetAdaptiveQp(segment.adaptive_qp > 0);
+  pic_data->SetAdaptiveQp(segment_header_->adaptive_qp);
   pic_data->SetDeblock(segment.deblock > 0);
   pic_data->SetBetaOffset(segment.beta_offset);
   pic_data->SetTcOffset(segment.tc_offset);

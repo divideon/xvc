@@ -131,6 +131,17 @@ int CodingUnit::GetQp(YuvComponent comp) const {
   return qp_->GetQpRaw(comp);
 }
 
+int CodingUnit::GetPredictedQp() const {
+  const CodingUnit *tmp;
+  int qp = pic_data_->GetPicQp()->GetQpRaw(YuvComponent::kY);
+  if ((tmp = GetCodingUnitLeft()) != nullptr) {
+    qp = tmp->GetQp().GetQpRaw(YuvComponent::kY);
+  } else if ((tmp = GetCodingUnitAbove()) != nullptr) {
+    qp = tmp->GetQp().GetQpRaw(YuvComponent::kY);
+  }
+  return qp;
+}
+
 SplitRestriction
 CodingUnit::DeriveSiblingSplitRestriction(SplitType parent_split) const {
   if (pic_data_->GetPredictionType() == PicturePredictionType::kIntra) {

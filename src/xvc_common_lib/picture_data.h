@@ -138,8 +138,8 @@ public:
   bool GetTmvpValid() const { return tmvp_valid_; }
   RefPicList GetTmvpRefList() const { return tmvp_ref_list_; }
   int GetTmvpRefIdx() const { return tmvp_ref_idx_; }
-  void SetAdaptiveQp(bool adaptive_qp) { adaptive_qp_ = adaptive_qp; }
-  bool GetAdaptiveQp() const { return adaptive_qp_; }
+  void SetAdaptiveQp(int adaptive_qp) { adaptive_qp_ = adaptive_qp; }
+  int GetAdaptiveQp() const { return adaptive_qp_; }
   void SetDeblock(bool deblock) { deblock_ = deblock; }
   bool GetDeblock() const { return deblock_; }
   void SetBetaOffset(int offset) { beta_offset_ = offset; }
@@ -197,7 +197,7 @@ private:
   bool tmvp_valid_ = false;
   RefPicList tmvp_ref_list_ = RefPicList::kTotalNumber;
   int tmvp_ref_idx_ = -1;
-  bool adaptive_qp_ = false;
+  int adaptive_qp_ = false;
   bool deblock_ = true;
   int beta_offset_ = 0;
   int tc_offset_ = 0;
