@@ -75,7 +75,7 @@ struct EncoderSettings {
   int fast_inter_local_illumination_comp = -1;
   int fast_inter_adaptive_fullpel_mv = -1;
 
-  // Setting with default values used in all speed modes
+  // Settings with default values used in all speed modes
   int fast_merge_eval = 1;
   int fast_quad_split_based_on_binary_split = 1;
   int eval_prev_mv_search_result = 1;

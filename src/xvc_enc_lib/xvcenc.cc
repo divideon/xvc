@@ -229,11 +229,12 @@ extern "C" {
     if (param->speed_mode >= 0) {
       // If speed mode has been set explictly
       encoder_settings.Initialize(xvc::SpeedMode(param->speed_mode));
-    } else if (param->restricted_mode) {
-      // If restricted mode has been set explictly
-      encoder_settings.Initialize(xvc::RestrictedMode(param->restricted_mode));
     } else {
       encoder_settings.Initialize(xvc::SpeedMode::kSlow);
+    }
+    if (param->restricted_mode) {
+      // If restricted mode has been set explictly
+      encoder_settings.Initialize(xvc::RestrictedMode(param->restricted_mode));
     }
 
     if (param->tune_mode > 0) {

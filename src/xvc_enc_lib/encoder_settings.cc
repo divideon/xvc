@@ -40,8 +40,6 @@ void EncoderSettings::Initialize(SpeedMode speed_mode) {
       fast_inter_adaptive_fullpel_mv = 0;
       break;
     case SpeedMode::kSlow:
-      inter_search_range_uni_max = 256;
-      inter_search_range_uni_min = 96;
       bipred_refinement_iterations = 1;
       always_evaluate_intra_in_inter = 0;
       default_num_ref_pics = 2;
@@ -75,55 +73,27 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
   restricted_mode = mode;
   switch (mode) {
     case RestrictedMode::kModeA:
-      eval_prev_mv_search_result = 1;
+      inter_search_range_uni_max = 256;
+      inter_search_range_uni_min = 96;
+      bipred_refinement_iterations = 1;
+      always_evaluate_intra_in_inter = 0;
+      default_num_ref_pics = 2;
+      max_binary_split_depth = 0;
+      fast_transform_select_eval = 1;
       fast_intra_mode_eval_level = 1;
       fast_transform_size_64 = 0;
       fast_transform_select = 0;
       fast_inter_local_illumination_comp = 0;
       fast_inter_adaptive_fullpel_mv = 0;
+      fast_merge_eval = 0;
       fast_inter_pred_bits = 1;
       rdo_quant_2x2 = 0;
-      fast_merge_eval = 0;
-      bipred_refinement_iterations = 1;
-      always_evaluate_intra_in_inter = 0;
       smooth_lambda_scaling = 0;
-      default_num_ref_pics = 2;
-      max_binary_split_depth = 0;
-      fast_transform_select_eval = 1;
       adaptive_qp = 0;
       structural_ssd = 0;
-      leading_pictures = 0;
       source_padding = 1;
-      chroma_qp_offset_table = 1;
-      chroma_qp_offset_u = 0;
-      chroma_qp_offset_v = 0;
       break;
     case RestrictedMode::kModeB:
-      fast_quad_split_based_on_binary_split = 2;
-      eval_prev_mv_search_result = 0;
-      fast_intra_mode_eval_level = 2;
-      fast_transform_size_64 = 0;
-      fast_transform_select = 0;
-      fast_inter_local_illumination_comp = 0;
-      fast_inter_adaptive_fullpel_mv = 0;
-      fast_inter_pred_bits = 1;
-      rdo_quant_2x2 = 0;
-      fast_merge_eval = 1;
-      bipred_refinement_iterations = 1;
-      always_evaluate_intra_in_inter = 0;
-      smooth_lambda_scaling = 0;
-      default_num_ref_pics = 2;
-      max_binary_split_depth = 2;
-      fast_transform_select_eval = 1;
-      adaptive_qp = 0;
-      structural_ssd = 0;
-      leading_pictures = 0;
-      source_padding = 1;
-      chroma_qp_offset_table = 1;
-      chroma_qp_offset_u = 1;
-      chroma_qp_offset_v = 1;
-      break;
-    case RestrictedMode::kModeC:
       inter_search_range_uni_max = 256;
       inter_search_range_uni_min = 96;
       bipred_refinement_iterations = 1;
@@ -131,11 +101,24 @@ void EncoderSettings::Initialize(RestrictedMode mode) {
       default_num_ref_pics = 2;
       max_binary_split_depth = 2;
       fast_transform_select_eval = 1;
-      fast_intra_mode_eval_level = 1;
+      fast_intra_mode_eval_level = 2;
       fast_transform_size_64 = 0;
       fast_transform_select = 0;
       fast_inter_local_illumination_comp = 0;
       fast_inter_adaptive_fullpel_mv = 0;
+      fast_merge_eval = 1;
+      fast_quad_split_based_on_binary_split = 2;
+      eval_prev_mv_search_result = 0;
+      fast_inter_pred_bits = 1;
+      rdo_quant_2x2 = 0;
+      smooth_lambda_scaling = 0;
+      adaptive_qp = 0;
+      structural_ssd = 0;
+      source_padding = 1;
+      chroma_qp_offset_u = 1;
+      chroma_qp_offset_v = 1;
+      break;
+    case RestrictedMode::kModeC:
       break;
     default:
       assert(0);
