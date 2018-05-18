@@ -107,6 +107,10 @@ bool Y4mReader::Read(PictureFormat *out_format, std::streamoff *start_skip,
           pic_fmt.input_bitdepth = 8;
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_444;
           pos += 3;
+        } else if (!strncmp(buf + pos, "mono", 4)) {
+          pic_fmt.input_bitdepth = 8;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_MONOCHROME;
+          pos += 4;
         } else {
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_UNDEFINED;
         }

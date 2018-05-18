@@ -29,7 +29,7 @@ struct PictureFormat {
   int width = 0;
   int height = 0;
   double framerate = 0;
-  int input_bitdepth = 0;
+  int input_bitdepth = 8;
   xvc_enc_chroma_format chroma_format = XVC_ENC_CHROMA_FORMAT_420;
 };
 
