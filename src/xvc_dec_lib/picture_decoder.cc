@@ -257,6 +257,7 @@ PictureDecoder::GenerateAlternativeRecPic(
       std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
                                    pic_fmt.height, pic_fmt.bitdepth, true,
                                    crop_width, crop_height);
+    const_cast<PictureDecoder*>(this)->alt_rec_pic_ = alt_rec_pic;
   }
   for (int c = 0; c < util::GetNumComponents(pic_fmt.chroma_format); c++) {
     YuvComponent comp = YuvComponent(c);
