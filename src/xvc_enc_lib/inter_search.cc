@@ -53,8 +53,9 @@ InterSearch::InterSearch(const EncoderSimdFunctions &simd,
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
   simd_(simd),
-  cu_metric_(simd.sample_metric, bitdepth_, encoder_settings.structural_ssd ?
-             MetricType::kStructuralSsd : MetricType::kSsd),
+  cu_metric_(simd.sample_metric, bitdepth_, encoder_settings_.structural_ssd ?
+             MetricType::kStructuralSsd : MetricType::kSsd,
+             encoder_settings_.structural_strength),
   satd_metric_(simd.sample_metric, bitdepth_, MetricType::kSatd),
   cu_writer_(pic_data, nullptr),
   bipred_orig_buffer_(constants::kMaxBlockSize, constants::kMaxBlockSize),

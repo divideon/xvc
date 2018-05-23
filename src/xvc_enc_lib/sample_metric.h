@@ -43,8 +43,10 @@ enum class MetricType {
 class SampleMetric {
 public:
   struct SimdFunc;
-  SampleMetric(const SimdFunc &simd_func, int bitdepth, MetricType type)
-    : simd_func_(simd_func), bitdepth_(bitdepth), type_(type) {
+  SampleMetric(const SimdFunc &simd_func, int bitdepth, MetricType type,
+               int structural_strength = 1)
+    : simd_func_(simd_func), bitdepth_(bitdepth), type_(type),
+    structural_strength_(structural_strength) {
   }
   SampleMetric(const SampleMetric&) = delete;
   // Sample vs Sample
@@ -155,6 +157,7 @@ private:
   const SimdFunc &simd_func_;
   const int bitdepth_;
   const MetricType type_;
+  const int structural_strength_;
 };
 
 struct SampleMetric::SimdFunc {

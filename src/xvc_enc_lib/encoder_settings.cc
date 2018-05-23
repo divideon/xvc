@@ -191,6 +191,8 @@ void EncoderSettings::ParseExplicitSettings(std::string explicit_settings) {
       stream >> aqp_strength;
     } else if (setting == "structural_ssd") {
       stream >> structural_ssd;
+    } else if (setting == "structural_strength") {
+      stream >> structural_strength;
     } else if (setting == "encapsulation_mode") {
       stream >> encapsulation_mode;
     } else if (setting == "leading_pictures") {

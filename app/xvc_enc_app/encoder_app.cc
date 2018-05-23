@@ -556,9 +556,9 @@ void EncoderApp::PrintStatistics() {
     std::chrono::duration<float>(end_ - start_).count() << " s" << std::endl;
   std::cout << "Total written: " << total_bytes_ << " bytes" << std::endl;
   std::cout << "Total bitrate: " <<
-    (total_bytes_ * 8 / 1000 / seq_seconds) << " kbit/s" << std::endl;
+    (total_bytes_ * 8 / (1000 * seq_seconds)) << " kbit/s" << std::endl;
   std::cout << "Peak bitrate:  " <<
-    (max_segment_bytes_ * 8 / 1000 / (max_segment_pics_ / params_->framerate))
+    (max_segment_bytes_ * 8 / (1000 * (max_segment_pics_ / params_->framerate)))
     << " kbit/s" << std::endl;
 }
 

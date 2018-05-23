@@ -600,7 +600,8 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const Qp &qp, int size,
   const int64_t c2 = (n * n * 239708ull >> 12) << shift;
   const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
   const int z = qp.GetQpRaw(YuvComponent::kY);
-  const int w = std::max(0, static_cast<int>(4 * z - 0.054 * z * z - 70));
+  const int w = std::max(0, static_cast<int>((4 * z - 0.054 * z * z - 70)
+                          * structural_strength_)) >> 4;
   const int w1 = 64 - (w >> 1);
   const int w2 = 2 * w;
   int64_t ssd = 0;

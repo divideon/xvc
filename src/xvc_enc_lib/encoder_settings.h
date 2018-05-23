@@ -86,6 +86,7 @@ struct EncoderSettings {
   int adaptive_qp = 2;
   int aqp_strength = 13;
   int structural_ssd = 1;
+  int structural_strength = 16;
   int encapsulation_mode = 0;
   int leading_pictures = 0;
   int source_padding = 0;
