@@ -85,7 +85,8 @@ public:
     return xvc_dec_chroma_format(curr_segment_header_->chroma_format);
   }
   void SetDithering(bool dither) { output_pic_format_.dither = dither; }
-  static bool ParseNalUnitHeader(BitReader *reader, NalUnitType *nal_unit_type);
+  static bool ParseNalUnitHeader(BitReader *reader, NalUnitType *nal_unit_type,
+                                 bool accept_xvc_bit_zero);
 
 private:
   using NalUnitPtr = std::unique_ptr<std::vector<uint8_t>>;
@@ -125,6 +126,7 @@ private:
   std::list<std::shared_ptr<PictureDecoder>> zero_tid_pic_dec_;
   std::deque<std::pair<NalUnitPtr, int64_t>> nal_buffer_;
   std::unique_ptr<ThreadDecoder> thread_decoder_;
+  bool accept_xvc_bit_zero_ = true;
 };
 
 }   // namespace xvc

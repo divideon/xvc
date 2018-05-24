@@ -20,13 +20,17 @@
 
 #include <cassert>
 
+#include "xvc_common_lib/picture_types.h"
 #include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
 
 void SegmentHeaderWriter::Write(const SegmentHeader &segment_header,
                                 BitWriter *bit_writer, double framerate) {
-  bit_writer->WriteBits(33, 8);  // Nal Unit header with nal_unit_type == 16
+  bit_writer->WriteBits(1, 1);  // xvc_bit_one
+  bit_writer->WriteBits(0, 1);  // nal_rfe
+  bit_writer->WriteBits(static_cast<uint8_t>(NalUnitType::kSegmentHeader), 5);
+  bit_writer->WriteBits(1, 1);  // nal_rfl
   bit_writer->WriteBits(segment_header.codec_identifier, 24);
   bit_writer->WriteBits(segment_header.major_version, 16);
   bit_writer->WriteBits(segment_header.minor_version, 16);

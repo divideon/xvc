@@ -24,7 +24,8 @@ namespace xvc {
 
 Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
                                          BitReader *bit_reader,
-                                         SegmentNum segment_counter) {
+                                         SegmentNum segment_counter,
+                                         bool* accept_xvc_bit_zero) {
   segment_header->codec_identifier = bit_reader->ReadBits(24);
   if (segment_header->codec_identifier != constants::kXvcCodecIdentifier) {
     return Decoder::State::kNoSegmentHeader;
@@ -33,6 +34,7 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
   if (segment_header->major_version > constants::kXvcMajorVersion) {
     return Decoder::State::kDecoderVersionTooLow;
   }
+  *accept_xvc_bit_zero = (segment_header->major_version == 1);
   segment_header->minor_version = bit_reader->ReadBits(16);
   if (!SupportedBitstreamVersion(segment_header->major_version,
                                  segment_header->minor_version)) {

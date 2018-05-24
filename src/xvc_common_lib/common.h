@@ -146,8 +146,7 @@ const int kMaxTid = 8;
 const int kFrameRateBitDepth = 24;
 const int kPicSizeBits = 16;
 const PicNum kMaxSubGopLength = 64;
-const int kEncapsulationCode1 = 182;
-const int kEncapsulationCode2 = 214;
+const int kEncapsulationCode = 86;
 
 // Min and Max
 const int16_t kInt16Max = INT16_MAX;

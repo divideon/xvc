@@ -49,7 +49,7 @@ public:
     ASSERT_EQ(2, nals.size());
     // Rewrite value directly in bitstream
     uint8_t *nal_unit_header = &encoded_nal_units_[0][0];
-    nal_unit_header[0] |= (nal_rfe_value & 3) << 6;
+    nal_unit_header[0] |= (nal_rfe_value & 1) << 6;
   }
 };
 

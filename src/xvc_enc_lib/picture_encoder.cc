@@ -82,7 +82,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
 
   bit_writer_.Clear();
   if (encoder_settings.encapsulation_mode != 0) {
-    bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
+    bit_writer_.WriteBits(constants::kEncapsulationCode, 8);
     bit_writer_.WriteBits(1, 8);
   }
   WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
@@ -128,7 +128,8 @@ PictureEncoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
 void PictureEncoder::WriteHeader(const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
                                  BitWriter *bit_writer) {
-  bit_writer->WriteBits(0, 2);  // nal_rfe
+  bit_writer->WriteBits(1, 1);  // xvc_bit_one
+  bit_writer->WriteBits(0, 1);  // nal_rfe
   bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()), 5);
   bit_writer->WriteBits(1, 1);  // nal_rfl
   bit_writer->WriteBits(buffer_flag, 1);

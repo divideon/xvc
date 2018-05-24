@@ -82,7 +82,7 @@ TEST_P(DecoderScalabilityTest, ReferencePicDownscaling) {
   auto is_segment_header = [](const NalUnit &nal) {
     xvc::BitReader bit_reader(&nal[0], nal.size());
     xvc::NalUnitType nal_type;
-    EXPECT_TRUE(xvc::Decoder::ParseNalUnitHeader(&bit_reader, &nal_type));
+    EXPECT_TRUE(xvc::Decoder::ParseNalUnitHeader(&bit_reader, &nal_type, true));
     return nal_type == xvc::NalUnitType::kSegmentHeader;
   };
   std::vector<NalUnit> bitstream1 = EncodeBitstream(16, 16, 8,

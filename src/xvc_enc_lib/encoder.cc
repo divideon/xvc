@@ -631,7 +631,7 @@ Encoder::WriteSegmentHeaderNal(const SegmentHeader &segment_header,
                                BitWriter *bit_writer) {
   bit_writer->Clear();
   if (encoder_settings_.encapsulation_mode != 0) {
-    bit_writer->WriteBits(constants::kEncapsulationCode1, 8);
+    bit_writer->WriteBits(constants::kEncapsulationCode, 8);
     bit_writer->WriteBits(1, 8);
   }
   SegmentHeaderWriter::Write(segment_header, bit_writer, framerate_);

@@ -51,7 +51,7 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
   // Nal header parsing
   BitReader bit_reader(nal_unit, nal_unit_size);
   NalUnitType nal_unit_type;
-  if (!ParseNalUnitHeader(&bit_reader, &nal_unit_type)) {
+  if (!ParseNalUnitHeader(&bit_reader, &nal_unit_type, accept_xvc_bit_zero_)) {
     return false;
   }
 
@@ -77,19 +77,31 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
 }
 
 bool Decoder::ParseNalUnitHeader(BitReader *bit_reader,
-                                 NalUnitType *nal_unit_type) {
+                                 NalUnitType *nal_unit_type,
+                                 bool accept_xvc_bit_zero) {
   uint8_t header = bit_reader->ReadByte();
-  // Check the nal_rfe to see if the Nal Unit shall be ignored.
-  int nal_rfe = ((header >> 6) & 3);
-  if (nal_rfe > 0) {
-    // Accept the nal unit only if it uses one of the encapsulation codes.
-    if (header == constants::kEncapsulationCode1 ||
-        header == constants::kEncapsulationCode2) {
+  // Check the xvc_bit_one to see if the Nal Unit shall be ignored.
+  int xvc_bit_one = ((header >> 7) & 1);
+  if (xvc_bit_one == 0) {
+    if (accept_xvc_bit_zero &&
+      (NalUnitType((header >> 1) & 31) == NalUnitType::kIntraAccessPicture ||
+       NalUnitType((header >> 1) & 31) == NalUnitType::kPredictedPicture ||
+       NalUnitType((header >> 1) & 31) == NalUnitType::kBipredictedPicture ||
+       NalUnitType((header >> 1) & 31) == NalUnitType::kSegmentHeader)) {
+      // The above NAL unit types of xvc version 1 bitstreams are allowed
+      // to not have xvc_bit_one set to 1.
+    } else if (header == constants::kEncapsulationCode) {
+      // Nal units with an encapsulation code consisting of two bytes
       bit_reader->ReadByte();
       header = bit_reader->ReadByte();
     } else {
       return false;
     }
+  }
+  // Check the nal_rfe to see if the Nal Unit shall be ignored.
+  int nal_rfe = ((header >> 6) & 1);
+  if (nal_rfe == 1) {
+    return false;
   }
   *nal_unit_type = NalUnitType((header >> 1) & 31);
   return true;
@@ -126,7 +138,8 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   curr_segment_header_ = std::make_shared<SegmentHeader>();
   soc_++;
   state_ =
-    SegmentHeaderReader::Read(curr_segment_header_.get(), bit_reader, soc_);
+    SegmentHeaderReader::Read(curr_segment_header_.get(), bit_reader, soc_,
+                              &accept_xvc_bit_zero_);
   if (doc_ == 0 && curr_segment_header_->leading_pictures > 0) {
     doc_++;
   }
@@ -214,8 +227,8 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   std::shared_ptr<SegmentHeader> prev_segment_header = prev_segment_header_;
 
   int header = pic_bit_reader.ReadByte();
-  int nal_rfe = ((header >> 6) & 3);
-  if (nal_rfe > 0) {
+  int xvc_bit_one = ((header >> 7) & 1);
+  if (xvc_bit_one == 0 && !accept_xvc_bit_zero_) {
     // Read two more bytes if encapsulation is used.
     pic_bit_reader.ReadBits(16);
   }
