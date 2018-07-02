@@ -29,46 +29,56 @@
 
 namespace xvc {
 
+using Contexts = CabacContexts<ContextModel>;
+
 class SyntaxWriter {
 public:
   SyntaxWriter(const Qp &qp, PicturePredictionType pic_type,
-               EntropyEncoder *entropyenc);
-  SyntaxWriter(const CabacContexts &contexts, EntropyEncoder *entropyenc);
-  const CabacContexts &GetContexts() const { return ctx_; }
+               BitWriter *bit_writer);
+  SyntaxWriter(const Contexts &contexts, EntropyEncoder &&entropyenc);
+  const Contexts& GetContexts() const { return ctx_; }
   Bits GetNumWrittenBits() const {
-    return entropyenc_->GetNumWrittenBits();
+    return encoder_.GetNumWrittenBits();
   }
   Bits GetFractionalBits() const {
-    return entropyenc_->GetFractionalBits();
+    return encoder_.GetFractionalBits();
   }
-  void ResetBitCounting() { entropyenc_->ResetBitCounting(); }
+  void ResetBitCounting() { encoder_.ResetBitCounting(); }
+  void Finish();
 
+  void WriteAffineFlag(const CodingUnit &cu, bool is_merge, bool use_affine);
   void WriteCbf(const CodingUnit &cu, YuvComponent comp, bool cbf);
-  void WriteQp(int qp_value);
-  void WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
-                         const Coeff *coeff, ptrdiff_t coeff_stride);
+  int WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+                        const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteEndOfSlice(bool end_of_slice);
   void WriteInterDir(const CodingUnit &cu, InterDir inter_dir);
-  void WriteInterMvd(const MotionVector &mvd);
-  void WriteInterMvpIdx(int mvp_idx);
+  void WriteInterFullpelMvFlag(const CodingUnit &cu, bool fullpel_mv_only);
+  void WriteInterMvd(const MvDelta &mvd);
+  void WriteInterMvpIdx(const CodingUnit &cu, int mvp_idx);
   void WriteInterRefIdx(int ref_idx, int num_refs_available);
   void WriteIntraMode(IntraMode intra_mode, const IntraPredictorLuma &mpm);
   void WriteIntraChromaMode(IntraChromaMode chroma_mode,
                             IntraPredictorChroma chroma_preds);
+  void WriteLicFlag(bool use_lic);
   void WriteMergeFlag(bool merge);
   void WriteMergeIdx(int merge_idx);
   void WritePartitionType(const CodingUnit &cu, PartitionType type);
   void WritePredMode(PredictionMode pred_mode);
+  void WriteQp(int qp_value, int predicted_qp, int aqp_mode);
   void WriteRootCbf(bool root_cbf);
   void WriteSkipFlag(const CodingUnit &cu, bool flag);
   void WriteSplitBinary(const CodingUnit &cu,
                         SplitRestriction split_restriction, SplitType split);
   void WriteSplitQuad(const CodingUnit &cu, int max_depth, SplitType split);
+  void WriteTransformSkip(const CodingUnit &cu, YuvComponent comp,
+                          bool tx_skip);
+  void WriteTransformSelectEnable(const CodingUnit &cu, bool enable);
+  void WriteTransformSelectIdx(const CodingUnit &cu, int type_idx);
 
-protected:
+private:
   template<int SubBlockShift>
-  void WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
-                          const Coeff *coeff, ptrdiff_t coeff_stride);
+  int WriteCoeffSubblock(const CodingUnit &cu, YuvComponent comp,
+                         const Coeff *coeff, ptrdiff_t coeff_stride);
   void WriteCoeffLastPos(int width, int height, YuvComponent comp,
                          ScanOrder scan_order, int last_pos_x,
                          int last_pos_y);
@@ -77,8 +87,9 @@ protected:
   void WriteUnaryMaxSymbol(uint32_t symbol, uint32_t max_val,
                            ContextModel *ctx_start, ContextModel *ctx_rest);
 
-  CabacContexts ctx_;
-  EntropyEncoder *entropyenc_;
+  Contexts ctx_;
+  EntropyEncoder encoder_;
+  friend class RdoSyntaxWriter;
 };
 
 class RdoSyntaxWriter : public SyntaxWriter {
@@ -89,8 +100,6 @@ public:
   RdoSyntaxWriter(const SyntaxWriter &writer, uint32_t bits_written,
                   uint32_t frac_bits);
   RdoSyntaxWriter& operator=(const RdoSyntaxWriter &writer);
-private:
-  EntropyEncoder entropy_instance_;
 };
 
 }   // namespace xvc

@@ -51,7 +51,8 @@ private:
 
   void DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
                   int subblock_size);
-  int GetBoundaryStrength(const CodingUnit &cu_p, const CodingUnit &cu_q);
+  int GetBoundaryStrength(const CodingUnit &cu_p, const CodingUnit &cu_q,
+                          int pos_x, int pos_y, Direction dir);
   void FilterEdgeLuma(int x, int y, Direction dir, int subblock_size,
                       int boundary_strength, int qp);
   bool CheckStrongFilter(Sample *src, int beta, int tc, ptrdiff_t offset);

@@ -50,6 +50,7 @@ public:
     kDecoderVersionTooLow,
     kBitstreamBitdepthTooHigh,
     kChecksumMismatch,
+    kBitstreamVersionTooLow,
   };
 
   explicit Decoder(int num_threads);
@@ -67,26 +68,33 @@ public:
   void SetCpuCapabilities(std::set<CpuCapability> capabilities) {
     simd_ = SimdFunctions(capabilities);
   }
-  void SetOutputWidth(int width) { output_width_ = width; }
-  void SetOutputHeight(int height) { output_height_ = height; }
+  void SetOutputWidth(int width) { output_pic_format_.width = width; }
+  void SetOutputHeight(int height) { output_pic_format_.height = height; }
   void SetOutputChromaFormat(xvc_dec_chroma_format chroma_format) {
-    output_chroma_format_ = ChromaFormat(chroma_format);
+    output_pic_format_.chroma_format = ChromaFormat(chroma_format);
   }
   void SetOutputColorMatrix(xvc_dec_color_matrix color_matrix) {
-    output_color_matrix_ = ColorMatrix(color_matrix);
+    output_pic_format_.color_matrix = ColorMatrix(color_matrix);
   }
-  void SetOutputBitdepth(int bitdepth) { output_bitdepth_ = bitdepth; }
+  void SetOutputBitdepth(int bitdepth) {
+    output_pic_format_.bitdepth = bitdepth;
+  }
   void SetDecoderTicks(int ticks) { decoder_ticks_ = ticks; }
   State GetState() { return state_; }
   xvc_dec_chroma_format getChromaFormatApiStyle() {
     return xvc_dec_chroma_format(curr_segment_header_->chroma_format);
   }
+  void SetDithering(bool dither) { output_pic_format_.dither = dither; }
+  static bool ParseNalUnitHeader(BitReader *reader, NalUnitType *nal_unit_type,
+                                 bool accept_xvc_bit_zero);
 
 private:
   using NalUnitPtr = std::unique_ptr<std::vector<uint8_t>>;
   using PicDecList = std::vector<std::shared_ptr<const PictureDecoder>>;
   void DecodeAllBufferedNals();
   bool DecodeSegmentHeaderNal(BitReader *bit_reader);
+  bool DecodePictureNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                        int64_t user_data, BitReader *bit_reader);
   void DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data);
   std::shared_ptr<PictureDecoder>
     GetFreePictureDecoder(const SegmentHeader &segment_header);
@@ -107,21 +115,18 @@ private:
   PicNum pic_buffering_num_ = 0;
   PicNum sub_gop_length_ = 0;
   int num_tail_pics_ = 0;
-  int output_width_ = 0;
-  int output_height_ = 0;
-  ChromaFormat output_chroma_format_ = ChromaFormat::kUndefinedChromaFormat;
-  ColorMatrix output_color_matrix_ = ColorMatrix::kUndefinedColorMatrix;
-  int output_bitdepth_ = 0;
   int decoder_ticks_ = 0;
   int max_tid_ = 0;
   bool enforce_sliding_window_ = true;
   State state_ = State::kNoSegmentHeader;
   SimdFunctions simd_;
+  PictureFormat output_pic_format_;
   std::vector<uint8_t> output_pic_bytes_;
   std::vector<std::shared_ptr<PictureDecoder>> pic_decoders_;
   std::list<std::shared_ptr<PictureDecoder>> zero_tid_pic_dec_;
   std::deque<std::pair<NalUnitPtr, int64_t>> nal_buffer_;
   std::unique_ptr<ThreadDecoder> thread_decoder_;
+  bool accept_xvc_bit_zero_ = true;
 };
 
 }   // namespace xvc

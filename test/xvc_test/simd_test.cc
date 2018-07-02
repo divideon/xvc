@@ -20,7 +20,8 @@
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_test/test_helper.h"
+#include "xvc_test/decoder_helper.h"
+#include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
 namespace {
@@ -35,8 +36,7 @@ class SimdTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void Encode(int width, int height, int frames, bool use_simd) {
-    EncoderHelper::Init();
-    encoder_->SetInternalBitdepth(GetParam());
+    EncoderHelper::Init(GetParam());
     encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSegmentLength);
     encoder_->SetQp(kQp);

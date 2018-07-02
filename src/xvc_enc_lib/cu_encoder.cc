@@ -40,19 +40,21 @@ struct CuEncoder::RdoCost {
   Distortion dist;
 };
 
-CuEncoder::CuEncoder(const SimdFunctions &simd,
+CuEncoder::CuEncoder(const EncoderSimdFunctions &simd,
                      const YuvPicture &orig_pic, YuvPicture *rec_pic,
                      PictureData *pic_data,
                      const EncoderSettings &encoder_settings)
-  : TransformEncoder(rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
+  : TransformEncoder(simd, rec_pic->GetBitdepth(),
+                     pic_data->GetMaxNumComponents(),
                      orig_pic, encoder_settings),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
   rec_pic_(*rec_pic),
   pic_data_(*pic_data),
-  inter_search_(simd, rec_pic->GetBitdepth(), pic_data->GetMaxNumComponents(),
-                orig_pic, *pic_data->GetRefPicLists(), encoder_settings),
-  intra_search_(rec_pic->GetBitdepth(), *pic_data, orig_pic, encoder_settings),
+  inter_search_(simd, *pic_data, orig_pic, *rec_pic,
+                *pic_data->GetRefPicLists(), encoder_settings),
+  intra_search_(simd, rec_pic->GetBitdepth(), *pic_data, orig_pic,
+                encoder_settings),
   cu_writer_(pic_data_, &intra_search_),
   cu_cache_(pic_data) {
   for (int tree_idx = 0; tree_idx < constants::kMaxNumCuTrees; tree_idx++) {
@@ -168,9 +170,9 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     cu->SaveStateTo(best_state, rec_pic_);
   }
 
-  // Encoder split speed-up
+  // Skip split eval speed-up
   if (encoder_settings_.fast_cu_split_based_on_full_cu &&
-      do_full && CanSkipAnySplitForCu(pic_data_, *cu)) {
+      do_full && CanSkipAnySplitForCu(*cu)) {
     *writer = best_writer;
     return best_cost.dist;
   }
@@ -185,9 +187,8 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
                       split_restiction, &splitcu_writer);
     hor_cost = split_cost.cost;
     for (auto &sub_cu : (*temp_cu)->GetSubCu()) {
-      if (sub_cu && sub_cu->GetSplit() != SplitType::kNone) {
-        best_binary_depth_greater_than_one = true;
-      }
+      best_binary_depth_greater_than_one |=
+        sub_cu && sub_cu->GetSplit() != SplitType::kNone;
     }
     if (split_cost.cost < best_cost.cost) {
       std::swap(*best_cu, *temp_cu);
@@ -216,9 +217,8 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     if (split_cost.cost < hor_cost) {
       best_binary_depth_greater_than_one = false;
       for (auto &sub_cu : (*temp_cu)->GetSubCu()) {
-        if (sub_cu && sub_cu->GetSplit() != SplitType::kNone) {
-          best_binary_depth_greater_than_one = true;
-        }
+        best_binary_depth_greater_than_one |=
+          sub_cu && sub_cu->GetSplit() != SplitType::kNone;
       }
     }
     if (split_cost.cost < best_cost.cost) {
@@ -239,15 +239,10 @@ Distortion CuEncoder::CompressCu(CodingUnit **best_cu, int rdo_depth,
     }
   }
 
-  bool can_skip_quad_split =
-    do_quad_split && do_hor_split && do_ver_split &&
-    CanSkipQuadSplitForCu(pic_data_, *cu) &&
-    (encoder_settings_.fast_quad_split_based_on_binary_split == 2 ||
-    (encoder_settings_.fast_quad_split_based_on_binary_split == 1 &&
-     !best_binary_depth_greater_than_one));
-
-  // Encoder quad split speed-up
-  if (can_skip_quad_split) {
+  // Quad split speed-up
+  if (encoder_settings_.fast_quad_split_based_on_binary_split &&
+      do_quad_split && do_hor_split && do_ver_split &&
+      CanSkipQuadSplitForCu(*cu, best_binary_depth_greater_than_one)) {
     *writer = best_writer;
     return best_cost.dist;
   }
@@ -308,12 +303,12 @@ CuEncoder::CompressSplitCu(CodingUnit *cu, int rdo_depth, const Qp &qp,
 
 
 int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
-  const double kStrength = encoder_settings_.aqp_strength;
-  const double kOffset = 13;
-  const int kVarBlocksize = 8;
-  const int kMeanDiv = 4;
-  const int kMinQpOffset = -4;
-  const int kMaxQpOffset = 5;
+  const double kStrength = 1.0 * encoder_settings_.aqp_strength / 10;
+  const double kOffset = 15;
+  const int kVarBlocksize = 16;
+  const int kMeanDiv = 2;
+  const int kMinQpOffset = -3;
+  const int kMaxQpOffset = 7;
   const YuvComponent luma = YuvComponent::kY;
   const int x = cu->GetPosX(luma);
   const int y = cu->GetPosY(luma);
@@ -368,8 +363,6 @@ int CuEncoder::CalcDeltaQpFromVariance(const CodingUnit *cu) {
 Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
                                       SplitRestriction split_restriction,
                                       RdoSyntaxWriter *writer) {
-  CodingUnit::ReconstructionState *best_state =
-    &temp_cu_state_[rdo_depth + 1];
   CodingUnit *cu = *best_cu;
   const Qp &qp = cu->GetQp();
   if (cu->GetSplit() != SplitType::kNone) {
@@ -391,57 +384,10 @@ Distortion CuEncoder::CompressNoSplit(CodingUnit **best_cu, int rdo_depth,
     // Intra pic
     best_cost = CompressIntra(cu, qp, *writer);
   } else {
-    // Inter pic
-    CodingUnit *temp_cu = rdo_temp_cu_[cu_tree][rdo_depth + 1];
-    temp_cu->CopyPositionAndSizeFrom(*cu);
-    if (temp_cu->GetSplit() != SplitType::kNone) {
-      temp_cu->UnSplit();
-    }
-    const bool fast_skip_inter =
-      encoder_settings_.fast_mode_selection_for_cached_cu &&
-      (cache_result.any_intra || cache_result.any_skip) &&
-      !Restrictions::Get().disable_inter_merge_mode;
-    const bool fast_skip_intra =
-      encoder_settings_.fast_mode_selection_for_cached_cu &&
-      cache_result.any_inter;
-
-    RdoCost cost;
-    if (!Restrictions::Get().disable_inter_merge_mode) {
-      const bool fast_merge_skip =
-        encoder_settings_.fast_merge_eval && cache_result.any_skip;
-      cost = CompressMerge(temp_cu, qp, *writer, fast_merge_skip);
-      if (cost < best_cost) {
-        best_cost = cost;
-        temp_cu->SaveStateTo(best_state, rec_pic_);
-        std::swap(cu, temp_cu);
-      }
-    }
-
-    if (!fast_skip_inter) {
-      cost = CompressInter(temp_cu, qp, *writer);
-      if (cost < best_cost) {
-        best_cost = cost;
-        temp_cu->SaveStateTo(best_state, rec_pic_);
-        std::swap(cu, temp_cu);
-      }
-    }
-
-    if ((!fast_skip_intra && cu->GetHasAnyCbf()) ||
-        encoder_settings_.always_evaluate_intra_in_inter) {
-      cost = CompressIntra(temp_cu, qp, *writer);
-      if (cost < best_cost) {
-        best_cost = cost;
-        temp_cu->SaveStateTo(best_state, rec_pic_);
-        std::swap(cu, temp_cu);
-      }
-    }
-
-    assert(best_cost.cost < std::numeric_limits<Cost>::max());
-    *best_cu = cu;
-    rdo_temp_cu_[cu_tree][rdo_depth + 1] = temp_cu;
-    cu->LoadStateFrom(*best_state, &rec_pic_);
+    best_cost = CompressInterPic(best_cu, &rdo_temp_cu_[cu_tree][rdo_depth + 1],
+                                 qp, rdo_depth, cache_result, *writer);
+    cu = *best_cu;
   }
-  cu->SetRootCbf(cu->GetHasAnyCbf());
   pic_data_.MarkUsedInPic(cu);
 
   if (cache_result.cacheable) {
@@ -467,9 +413,8 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
   Distortion dist = 0;
   if (cu->IsIntra()) {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
-      // TODO(PH) Add fast method without cbf evaluation
-      dist += intra_search_.CompressIntra(cu, comp, qp, writer, this,
-                                          &rec_pic_);
+      dist +=
+        intra_search_.CompressIntraFast(cu, comp, qp, writer, this, &rec_pic_);
     }
   } else {
     for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
@@ -481,44 +426,166 @@ Distortion CuEncoder::CompressFast(CodingUnit *cu, const Qp &qp,
 }
 
 CuEncoder::RdoCost
+CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
+                            const Qp &qp, int rdo_depth,
+                            const CuCache::Result &cache_result,
+                            const SyntaxWriter &writer) {
+  CodingUnit::ReconstructionState *best_state = &temp_cu_state_[rdo_depth + 1];
+  CodingUnit *best_cu = *best_cu_ref;
+  CodingUnit *cu = *temp_cu_ref;
+  assert(best_cu->GetSplit() == SplitType::kNone);
+  cu->CopyPositionAndSizeFrom(*best_cu);
+  if (cu->GetSplit() != SplitType::kNone) {
+    cu->UnSplit();
+  }
+
+  const bool fast_skip_inter =
+    encoder_settings_.fast_mode_selection_for_cached_cu &&
+    (cache_result.any_intra || cache_result.any_skip) &&
+    !Restrictions::Get().disable_inter_merge_mode;
+  const bool fast_skip_intra =
+    encoder_settings_.fast_mode_selection_for_cached_cu &&
+    cache_result.any_inter;
+  RdoCost best_cost(std::numeric_limits<Cost>::max());
+  const auto save_if_best_cost = [&](RdoCost cost) {
+    if (cost < best_cost) {
+      best_cost = cost;
+      cu->SaveStateTo(best_state, rec_pic_);
+      std::swap(best_cu, cu);
+    }
+  };
+
+  if (cu->CanAffineMerge() &&
+      !Restrictions::Get().disable_ext2_inter_affine_merge &&
+      !Restrictions::Get().disable_inter_merge_mode &&
+      !Restrictions::Get().disable_ext2_inter_affine) {
+    RdoCost cost = CompressAffineMerge(cu, qp, writer, best_cost.cost);
+    save_if_best_cost(cost);
+  }
+
+  if (!Restrictions::Get().disable_inter_merge_mode) {
+    const bool fast_merge_skip =
+      encoder_settings_.fast_merge_eval && cache_result.any_skip;
+    RdoCost cost = CompressMerge(cu, qp, writer, best_cost.cost,
+                                 fast_merge_skip);
+    save_if_best_cost(cost);
+  }
+
+  if (!fast_skip_inter) {
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_ME,
+                                 best_cost.cost);
+    save_if_best_cost(cost);
+  }
+
+  if (!fast_skip_inter && pic_data_.GetUseLocalIlluminationCompensation() &&
+      !Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC,
+                                 best_cost.cost);
+    save_if_best_cost(cost);
+  }
+
+  if (!Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_FULLPEL,
+                                 best_cost.cost);
+    save_if_best_cost(cost);
+  }
+
+  if (pic_data_.GetUseLocalIlluminationCompensation() &&
+      !Restrictions::Get().disable_ext2_inter_local_illumination_comp &&
+      !Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC_FULLPEL,
+                                 best_cost.cost);
+    save_if_best_cost(cost);
+  }
+
+  if ((!fast_skip_intra && best_cu->GetHasAnyCbf()) ||
+      encoder_settings_.always_evaluate_intra_in_inter) {
+    RdoCost cost = CompressIntra(cu, qp, writer);
+    save_if_best_cost(cost);
+  }
+
+  assert(best_cost.cost < std::numeric_limits<Cost>::max());
+  best_cu->LoadStateFrom(*best_state, &rec_pic_);
+  *best_cu_ref = best_cu;
+  *temp_cu_ref = cu;
+  return best_cost;
+}
+
+CuEncoder::RdoCost
 CuEncoder::CompressIntra(CodingUnit *cu, const Qp &qp,
-                         const SyntaxWriter &writer) {
+                         const SyntaxWriter &bitstream_writer) {
+  cu->ResetPredictionState();
   cu->SetPredMode(PredictionMode::kIntra);
   cu->SetSkipFlag(false);
+  RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
   Distortion dist = 0;
-  for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
-    if (util::IsLuma(comp)) {
-      IntraMode best_mode =
-        intra_search_.SearchIntraLuma(cu, comp, qp, writer, this, &rec_pic_);
-      cu->SetIntraModeLuma(best_mode);
-    } else if (util::IsFirstChroma(comp)) {
-      IntraChromaMode chroma_mode =
-        intra_search_.SearchIntraChroma(cu, qp, writer, this, &rec_pic_);
-      cu->SetIntraModeChroma(chroma_mode);
-    }
-    dist += intra_search_.CompressIntra(cu, comp, qp, writer, this, &rec_pic_);
+  if (YuvComponent::kY == pic_data_.GetComponents(cu->GetCuTree())[0]) {
+    dist += intra_search_.CompressIntraLuma(cu, qp, bitstream_writer, this,
+                                            &rec_pic_);
+    cu_writer_.WriteComponent(*cu, YuvComponent::kY, &rdo_writer);
   }
-  return GetCuCostWithoutSplit(*cu, qp, writer, dist);
+  if (pic_data_.GetComponents(cu->GetCuTree()).size() > 1) {
+    // TODO(PH) This should optimally use rdo_writer as starting state
+    dist += intra_search_.CompressIntraChroma(cu, qp, bitstream_writer, this,
+                                              &rec_pic_);
+    cu_writer_.WriteComponent(*cu, YuvComponent::kU, &rdo_writer);
+    cu_writer_.WriteComponent(*cu, YuvComponent::kV, &rdo_writer);
+  }
+  Bits bits = rdo_writer.GetNumWrittenBits();
+  Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+  return RdoCost(cost, dist);
 }
 
 CuEncoder::RdoCost
 CuEncoder::CompressInter(CodingUnit *cu, const Qp &qp,
-                         const SyntaxWriter &bitstream_writer) {
+                         const SyntaxWriter &bitstream_writer,
+                         CuEncoder::RdMode rd_mode, Cost best_cu_cost) {
+  InterSearchFlags search_flags = InterSearchFlags::kDefault;
+  if (cu->GetPicType() == PicturePredictionType::kUni) {
+    search_flags |= InterSearchFlags::kUniPredOnly;
+  }
+  switch (rd_mode) {
+    case CuEncoder::RdMode::INTER_ME:
+      if (cu->CanUseAffine() &&
+          !Restrictions::Get().disable_ext2_inter_affine) {
+        search_flags |= InterSearchFlags::kAffine;
+      }
+      break;
+    case CuEncoder::RdMode::INTER_FULLPEL:
+      search_flags |= InterSearchFlags::kFullPelMv;
+      break;
+    case CuEncoder::RdMode::INTER_LIC:
+      search_flags |= InterSearchFlags::kLic;
+      break;
+    case CuEncoder::RdMode::INTER_LIC_FULLPEL:
+      search_flags |= InterSearchFlags::kFullPelMv;
+      search_flags |= InterSearchFlags::kLic;
+      break;
+    default:
+      assert(0);
+  }
   Distortion dist =
-    inter_search_.CompressInter(cu, qp, bitstream_writer, this, &rec_pic_);
+    inter_search_.CompressInter(cu, qp, bitstream_writer, search_flags,
+                                best_cu_cost, this, &rec_pic_);
+  if (dist == std::numeric_limits<Distortion>::max()) {
+    return RdoCost(std::numeric_limits<Cost>::max(), dist);
+  }
   return GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
 }
 
 CuEncoder::RdoCost
 CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
                          const SyntaxWriter &bitstream_writer,
-                         bool fast_merge_skip) {
+                         Cost best_cu_cost, bool fast_merge_skip) {
   std::array<bool,
     constants::kNumInterMergeCandidates> skip_evaluated = { false };
-  InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   int num_merge_cand = Restrictions::Get().disable_inter_merge_candidates ?
     1 : constants::kNumInterMergeCandidates;
+  cu->ResetPredictionState();
+  cu->SetPredMode(PredictionMode::kInter);
+  cu->SetMergeFlag(true);
 
+  InterMergeCandidateList merge_list = inter_search_.GetMergeCandidates(*cu);
   std::array<int, constants::kNumInterMergeCandidates> cand_lookup;
   if (encoder_settings_.fast_merge_eval &&
       !fast_merge_skip && num_merge_cand > 1) {
@@ -533,7 +600,7 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
   }
 
   RdoCost best_cost(std::numeric_limits<Cost>::max());
-  CodingUnit::TransformState &best_transform_state = rd_transform_state_;
+  CodingUnit::ResidualState &best_transform_state = rd_transform_state_;
   int best_merge_idx = -1;
   const int skip_eval_init = fast_merge_skip ? 1 : 0;
   for (int skip_eval_idx = skip_eval_init; skip_eval_idx < 2; skip_eval_idx++) {
@@ -545,12 +612,14 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
       }
       Distortion dist =
         inter_search_.CompressMergeCand(cu, qp, bitstream_writer, merge_list,
-                                        merge_idx, force_skip, this, &rec_pic_);
+                                        merge_idx, force_skip, best_cu_cost,
+                                        this, &rec_pic_);
       RdoCost cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
       if (!cu->GetHasAnyCbf()) {
         skip_evaluated[merge_idx] = true;
       }
       if (cost.cost < best_cost.cost) {
+        best_cu_cost = std::min(cost.cost, best_cu_cost);
         best_cost = cost;
         best_merge_idx = merge_idx;
         cu->SaveStateTo(&best_transform_state, rec_pic_);
@@ -562,9 +631,41 @@ CuEncoder::CompressMerge(CodingUnit *cu, const Qp &qp,
     }
   }
   cu->SetMergeIdx(best_merge_idx);
-  inter_search_.ApplyMerge(cu, merge_list[best_merge_idx]);
+  inter_search_.ApplyMergeCand(cu, merge_list[best_merge_idx]);
   cu->LoadStateFrom(best_transform_state, &rec_pic_);
-  cu->SetSkipFlag(!cu->GetRootCbf());
+  cu->SetSkipFlag(!cu->GetHasAnyCbf() &&
+                  !Restrictions::Get().disable_inter_skip_mode);
+  return best_cost;
+}
+
+CuEncoder::RdoCost
+CuEncoder::CompressAffineMerge(CodingUnit *cu, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               Cost best_cu_cost) {
+  cu->ResetPredictionState();
+  cu->SetPredMode(PredictionMode::kInter);
+  cu->SetMergeFlag(true);
+  cu->SetUseAffine(true);
+  cu->SetMergeIdx(0);
+
+  CodingUnit::ResidualState &best_transform_state = rd_transform_state_;
+  AffineMergeCandidate merge_cand = inter_search_.GetAffineMergeCand(*cu);
+  Distortion dist =
+    inter_search_.CompressAffineMerge(cu, qp, bitstream_writer, merge_cand,
+                                      false, best_cu_cost, this, &rec_pic_);
+  RdoCost best_cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist);
+  if (cu->GetHasAnyCbf()) {
+    cu->SaveStateTo(&best_transform_state, rec_pic_);
+    Distortion dist_skip =
+      inter_search_.CompressAffineMerge(cu, qp, bitstream_writer, merge_cand,
+                                        true, best_cu_cost, this, &rec_pic_);
+    RdoCost cost = GetCuCostWithoutSplit(*cu, qp, bitstream_writer, dist_skip);
+    if (cost < best_cost) {
+      return cost;
+    }
+    cu->SetSkipFlag(false);
+    cu->LoadStateFrom(best_transform_state, &rec_pic_);
+  }
   return best_cost;
 }
 
@@ -586,21 +687,25 @@ void CuEncoder::WriteCtu(int rsaddr, SyntaxWriter *writer) {
     writer->ResetBitCounting();
   }
   CodingUnit *ctu = pic_data_.GetCtu(CuTree::Primary, rsaddr);
-  bool write_delta_qp = cu_writer_.WriteCtu(*ctu, writer);
+  bool write_delta_qp = cu_writer_.WriteCtu(ctu, &pic_data_, writer);
   if (pic_data_.HasSecondaryCuTree()) {
     CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-    write_delta_qp |= cu_writer_.WriteCtu(*ctu2, writer);;
+    write_delta_qp |= cu_writer_.WriteCtu(ctu2, &pic_data_, writer);;
   }
 
-  if (pic_data_.GetAdaptiveQp() && write_delta_qp) {
-    writer->WriteQp(ctu->GetQp().GetQpRaw(YuvComponent::kY));
+  const int predicted_qp = ctu->GetPredictedQp();
+  if (pic_data_.GetAdaptiveQp() > 0 && write_delta_qp) {
+    writer->WriteQp(ctu->GetQp().GetQpRaw(YuvComponent::kY),
+                    predicted_qp,
+                    pic_data_.GetAdaptiveQp());
   } else {
     // Delta qp is not written if there was no cbf in the entire CTU.
-    int qp = pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
-    SetQpForAllCusInCtu(ctu, qp);
+    const int derived_qp = pic_data_.GetAdaptiveQp() == 2 ? predicted_qp :
+      pic_data_.GetPicQp()->GetQpRaw(YuvComponent::kY);
+    SetQpForAllCusInCtu(ctu, derived_qp);
     if (pic_data_.HasSecondaryCuTree()) {
       CodingUnit *ctu2 = pic_data_.GetCtu(CuTree::Secondary, rsaddr);
-      SetQpForAllCusInCtu(ctu2, qp);
+      SetQpForAllCusInCtu(ctu2, derived_qp);
     }
   }
 
@@ -627,27 +732,42 @@ void CuEncoder::SetQpForAllCusInCtu(CodingUnit *ctu, int qp) {
 }
 
 
-bool CuEncoder::CanSkipAnySplitForCu(const PictureData &pic_data,
-                                     const CodingUnit &cu) {
-  const int binary_depth_threshold = pic_data.IsHighestLayer() ? 2 : 3;
+bool CuEncoder::CanSkipAnySplitForCu(const CodingUnit &cu) const {
+  const int binary_depth_threshold = pic_data_.IsHighestLayer() ? 2 : 3;
   return cu.GetSkipFlag() && cu.GetBinaryDepth() >= binary_depth_threshold;
 }
 
-bool CuEncoder::CanSkipQuadSplitForCu(const PictureData &pic_data,
-                                      const CodingUnit &cu) {
+bool
+CuEncoder::CanSkipQuadSplitForCu(const CodingUnit &cu,
+                                 bool binary_depth_greater_than_one) const {
   const YuvComponent comp = YuvComponent::kY;
-  const int max_binary_depth =
-    pic_data.GetMaxBinarySplitDepth(cu.GetCuTree());
-  const CodingUnit *best_sub_cu =
-    pic_data.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp), cu.GetPosY(comp));
-  const CodingUnit *bottom_right =
-    pic_data.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp) + cu.GetWidth(comp) - 1,
-                     cu.GetPosY(comp) + cu.GetHeight(comp) - 1);
-  return ((best_sub_cu->GetBinaryDepth() == 0 &&
-           max_binary_depth >= (pic_data.IsIntraPic() ? 3 : 2)) ||
-           (best_sub_cu->GetBinaryDepth() == 1 &&
-            bottom_right->GetBinaryDepth() == 1 &&
-            max_binary_depth >= (pic_data.IsIntraPic() ? 4 : 3)));
+  const CodingUnit *cu_top_left =
+    pic_data_.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp), cu.GetPosY(comp));
+  const CodingUnit *cu_bottom_right =
+    pic_data_.GetCuAt(cu.GetCuTree(), cu.GetPosX(comp) + cu.GetWidth(comp) - 1,
+                      cu.GetPosY(comp) + cu.GetHeight(comp) - 1);
+  if (encoder_settings_.fast_quad_split_based_on_binary_split == 1 &&
+      binary_depth_greater_than_one) {
+    return false;   // always evaluate quad split if binary spliting twice
+  }
+  const bool best_is_no_split = cu_top_left->GetBinaryDepth() == 0;
+  const bool best_is_single_bt_split = cu_top_left->GetBinaryDepth() == 1 &&
+    cu_bottom_right->GetBinaryDepth() == 1;
+  switch (pic_data_.GetMaxBinarySplitDepth(cu.GetCuTree())) {
+    case 1:
+      return best_is_no_split && !pic_data_.IsIntraPic();
+
+    case 2:
+      return best_is_no_split && !pic_data_.IsIntraPic();
+
+    case 3:
+      return best_is_no_split ||
+        (best_is_single_bt_split && !pic_data_.IsIntraPic());
+
+    case 4:
+      return best_is_no_split || best_is_single_bt_split;
+  }
+  return false;
 }
 
 }   // namespace xvc

@@ -122,6 +122,10 @@ public:
   SegmentNum GetSoc() const { return soc_; }
   void SetTid(int tid) { tid_ = tid; }
   int GetTid() const { return tid_; }
+  void SetSubGopLength(PicNum sub_gop_length) {
+    sub_gop_length_ = sub_gop_length;
+  }
+  PicNum GetSubGopLength() const { return sub_gop_length_; }
   bool IsHighestLayer() const { return highest_layer_; }
   void SetHighestLayer(bool highest_layer) { highest_layer_ = highest_layer; }
 
@@ -130,19 +134,25 @@ public:
   const ReferencePictureLists *GetRefPicLists() const {
     return &ref_pic_lists_;
   }
+  bool GetForceBipredL1MvdZero() const { return force_bipred_l1_mvd_zero_; }
   bool GetTmvpValid() const { return tmvp_valid_; }
   RefPicList GetTmvpRefList() const { return tmvp_ref_list_; }
   int GetTmvpRefIdx() const { return tmvp_ref_idx_; }
-  void SetAdaptiveQp(bool adaptive_qp) { adaptive_qp_ = adaptive_qp; }
-  bool GetAdaptiveQp() const { return adaptive_qp_; }
+  void SetAdaptiveQp(int adaptive_qp) { adaptive_qp_ = adaptive_qp; }
+  int GetAdaptiveQp() const { return adaptive_qp_; }
   void SetDeblock(bool deblock) { deblock_ = deblock; }
   bool GetDeblock() const { return deblock_; }
   void SetBetaOffset(int offset) { beta_offset_ = offset; }
   int GetBetaOffset() const { return beta_offset_; }
   void SetTcOffset(int offset) { tc_offset_ = offset; }
   int GetTcOffset() const { return tc_offset_; }
+  bool GetUseLocalIlluminationCompensation() const { return lic_active_; }
+  void SetUseLocalIlluminationCompensation(bool active) {
+    lic_active_ = active;
+  }
 
 private:
+  bool DetermineForceBipredL1MvdZero();
   RefPicList DetermineTmvpRefList(int *tmvp_ref_idx);
   void AllocateAllCtu(CuTree cu_tree);
 
@@ -176,19 +186,22 @@ private:
   PicNum doc_ = static_cast<PicNum>(-1);
   SegmentNum soc_ = static_cast<SegmentNum>(-1);
   int tid_ = -1;
+  PicNum sub_gop_length_ = 0;
   bool highest_layer_ = false;
   int max_binary_split_depth_ = 0;
   std::unique_ptr<Qp> pic_qp_;
   std::vector<Qp> qps_;
   NalUnitType nal_type_ = NalUnitType::kIntraPicture;
   ReferencePictureLists ref_pic_lists_;
+  bool force_bipred_l1_mvd_zero_ = false;
   bool tmvp_valid_ = false;
   RefPicList tmvp_ref_list_ = RefPicList::kTotalNumber;
   int tmvp_ref_idx_ = -1;
-  bool adaptive_qp_ = false;
+  int adaptive_qp_ = false;
   bool deblock_ = true;
   int beta_offset_ = 0;
   int tc_offset_ = 0;
+  bool lic_active_ = false;
 };
 
 }   // namespace xvc

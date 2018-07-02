@@ -20,7 +20,8 @@
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_test/test_helper.h"
+#include "xvc_test/decoder_helper.h"
+#include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
 namespace {
@@ -37,12 +38,9 @@ protected:
 
   void Encode(const xvc::EncoderSettings &settings, int width, int height,
               int frames) {
-    encoder_ = CreateEncoder(settings, width, height, 8, kDefaultQp);
-    encoder_->SetInternalBitdepth(GetParam());
+    SetupEncoder(settings, width, height, GetParam(), kDefaultQp);
     encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSubGopLength * 2 + 1);
-    encoder_->SetQp(kDefaultQp);
-    encoder_->SetResolution(width, height);
     for (int i = 0; i < frames; i++) {
       auto orig_pic = xvc_test::TestYuvPic(width, height, GetParam(), i, i);
       EncodeOneFrame(orig_pic.GetBytes(), orig_pic.GetBitdepth());
@@ -92,11 +90,14 @@ typedef RestrictionsTest RestrictionsDeathTest;
 TEST_P(RestrictionsTest, HandlesSwitchingRestrictionAtSegmentHeader) {
   xvc::EncoderSettings enc_settings1;
   enc_settings1.Initialize(xvc::SpeedMode::kSlow);
+  enc_settings1.leading_pictures = 0;
+  Encode(enc_settings1, 16, 16, kSubGopLength + 1);
+
   xvc::EncoderSettings enc_settings2;
   enc_settings2.Initialize(xvc::RestrictedMode::kModeA);
-
-  Encode(enc_settings1, 16, 16, kSubGopLength + 1);
+  enc_settings2.leading_pictures = 0;
   Encode(enc_settings2, 16, 16, kSubGopLength + 1);
+
   Decode(16, 16, kSubGopLength + 1, kSubGopLength + 1);
 }
 
@@ -104,11 +105,12 @@ TEST_P(RestrictionsTest, SupportParallelDecodeWhenRestrictionChanges) {
   const int num_iterations = 10;
   xvc::EncoderSettings enc_settings1;
   enc_settings1.Initialize(xvc::SpeedMode::kSlow);
+  Encode(enc_settings1, 16, 16, kSubGopLength + 1);
+
   xvc::EncoderSettings enc_settings2;
   enc_settings2.Initialize(xvc::RestrictedMode::kModeA);
-
-  Encode(enc_settings1, 16, 16, kSubGopLength + 1);
   Encode(enc_settings2, 16, 16, kSubGopLength + 1);
+
   DecoderHelper::Init(true);
   int decoded_pictures = 0;
   for (int iterations = 0; iterations < num_iterations; iterations++) {
@@ -129,13 +131,14 @@ TEST_P(RestrictionsTest, SupportParallelDecodeWhenRestrictionChanges) {
 TEST_P(RestrictionsDeathTest, FailsIfRestrictionFlagChangesAreNotSignaled) {
   xvc::EncoderSettings enc_settings1;
   enc_settings1.Initialize(xvc::SpeedMode::kSlow);
-  xvc::EncoderSettings enc_settings2;
-  enc_settings2.Initialize(xvc::RestrictedMode::kModeA);
-
   Encode(enc_settings1, 16, 16, kSubGopLength + 1);
   size_t nbr_of_nal_units = encoded_nal_units_.size();
+
+  xvc::EncoderSettings enc_settings2;
+  enc_settings2.Initialize(xvc::RestrictedMode::kModeA);
   Encode(enc_settings2, 16, 16, kSubGopLength + 1);
   encoded_nal_units_[nbr_of_nal_units] = encoded_nal_units_[0];
+
   ASSERT_DEATH({ Decode(16, 16, kSubGopLength + 1, kSubGopLength + 1); },
                "0");
 }

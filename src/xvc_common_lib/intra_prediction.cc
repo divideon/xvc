@@ -28,81 +28,231 @@
 
 namespace xvc {
 
-const int8_t IntraPrediction::kAngleTable_[17] = {
+static const std::array<int8_t, 17> kAngleTable = {
   -32, -26, -21, -17, -13, -9, -5, -2, 0, 2, 5, 9, 13, 17, 21, 26, 32
 };
 
-const int16_t IntraPrediction::kInvAngleTable_[8] = {
+static const std::array<int8_t, 33> kAngleTableExt = {
+  -32, -29, -26, -23, -21, -19, -17, -15, -13, -11, -9, -7, -5, -3, -2, -1,
+  0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 26, 29, 32
+};
+
+static const std::array<int16_t, 8> kInvAngleTable = {
   4096, 1638, 910, 630, 482, 390, 315, 256
 };
 
-void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
-                              YuvComponent comp,
-                              const Sample *input_pic, ptrdiff_t input_stride,
-                              Sample *output_buffer, ptrdiff_t output_stride) {
-  IntraPrediction::State ref_state =
-    ComputeReferenceState(cu, comp, input_pic, input_stride);
-  Predict(intra_mode, cu, comp, ref_state, output_buffer, output_stride);
+static const std::array<int16_t, 16> kInvAngleTableExt = {
+  8192, 4096, 2731, 1638, 1170, 910, 745, 630, 546, 482, 431, 390, 356, 315,
+  282, 256
+};
+
+struct IntraPrediction::NeighborState {
+  bool has_any() const {
+    return has_above_left || has_above || has_left ||
+      has_above_right > 0 || has_below_left > 0;
+  }
+  bool has_all(int below_left, int above_right) const {
+    return has_above_left && has_above && has_left &&
+      has_below_left == below_left && has_above_right == above_right;
+  }
+  bool has_above_left = false;
+  bool has_above = false;
+  int has_above_right = 0;
+  bool has_left = false;
+  int has_below_left = 0;
+};
+
+struct IntraPrediction::LmParams {
+  int scale;
+  int offset;
+  int shift;
+};
+
+IntraPrediction::IntraPrediction(int bitdepth)
+  : bitdepth_(bitdepth),
+  temp_pred_buffer_(constants::kMaxBlockSize + kDownscaleLumaPadding,
+                    constants::kMaxBlockSize + kDownscaleLumaPadding) {
 }
 
 void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
-                              YuvComponent comp, const State &ref_state,
-                              Sample *output_buffer, ptrdiff_t output_stride) {
+                              YuvComponent comp, const RefState &ref_state,
+                              const YuvPicture &rec_pic,
+                              SampleBuffer *output_buffer) {
+  const int width = cu.GetWidth(comp);
+  const int height = cu.GetHeight(comp);
+  Sample *out_ptr = output_buffer->GetDataPtr();
+  const ptrdiff_t out_stride = output_buffer->GetStride();
   const Sample *ref_samples = &ref_state.ref_samples[0];
+  if (Restrictions::Get().disable_intra_planar &&
+      intra_mode == IntraMode::kPlanar) {
+    intra_mode = IntraMode::kDc;
+  }
   if (util::IsLuma(comp)) {
     bool filtered_ref = UseFilteredRefSamples(cu, intra_mode);
     ref_samples =
       filtered_ref ? &ref_state.ref_filtered[0] : &ref_state.ref_samples[0];
   }
-  bool post_filter = comp == kY && cu.GetWidth(comp) <= 16 &&
-    cu.GetHeight(comp) <= 16;
-  IntraMode mode = (Restrictions::Get().disable_intra_planar &&
-                    intra_mode == kPlanar) ? kDc : intra_mode;
-  switch (mode) {
-    case kPlanar:
-      PlanarPred(cu.GetWidth(comp), cu.GetHeight(comp), ref_samples,
-                 kRefSampleStride_, output_buffer, output_stride);
+  const bool post_filter = util::IsLuma(comp) && width <= 16 && height <= 16;
+  switch (intra_mode) {
+    case IntraMode::kPlanar:
+      PlanarPred(width, height, ref_samples, kRefSampleStride_,
+                 out_ptr, out_stride);
       break;
 
-    case kDc:
-      PredIntraDC(cu.GetWidth(comp), cu.GetHeight(comp), post_filter,
-                  &ref_state.ref_samples[0], kRefSampleStride_, output_buffer,
-                  output_stride);
+    case IntraMode::kDc:
+      PredIntraDC(width, height, post_filter,
+                  &ref_state.ref_samples[0], kRefSampleStride_,
+                  out_ptr, out_stride);
+      break;
+
+    case IntraMode::kInvalid:
+      assert(0);
+      break;
+
+    case IntraMode::kLmChroma:
+      PredLmChroma(cu, comp, rec_pic, output_buffer);
       break;
 
     default:
-      AngularPred(cu.GetWidth(comp), cu.GetHeight(comp), intra_mode,
-                  post_filter, ref_samples, kRefSampleStride_, output_buffer,
-                  output_stride);
+      AngularPred(width, height, intra_mode, post_filter,
+                  ref_samples, kRefSampleStride_, out_ptr, out_stride);
       break;
   }
 }
 
-IntraPrediction::State
-IntraPrediction::ComputeReferenceState(const CodingUnit &cu, YuvComponent comp,
-                                       const Sample *input_pic,
-                                       ptrdiff_t input_stride) {
-  IntraPrediction::State ref_state;
+void
+IntraPrediction::FillReferenceState(const CodingUnit &cu, YuvComponent comp,
+                                    const YuvPicture &rec_pic,
+                                    RefState *ref_state) {
+  SampleBufferConst src_buffer =
+    rec_pic.GetSampleBuffer(comp, cu.GetPosX(comp), cu.GetPosY(comp));
+  const Sample *src_ptr = src_buffer.GetDataPtr();
+  const ptrdiff_t src_stride = src_buffer.GetStride();
   NeighborState neighbors = DetermineNeighbors(cu, comp);
   ComputeRefSamples(cu.GetWidth(comp), cu.GetHeight(comp), neighbors,
-                    input_pic, input_stride, &ref_state.ref_samples[0],
+                    src_ptr, src_stride, &ref_state->ref_samples[0],
                     kRefSampleStride_);
 
   // TODO(Dev) optimize decoder by skipping filtering depending on intra mode
   if (util::IsLuma(comp)) {
     FilterRefSamples(cu.GetWidth(comp), cu.GetHeight(comp),
-                     &ref_state.ref_samples[0], &ref_state.ref_filtered[0],
+                     &ref_state->ref_samples[0], &ref_state->ref_filtered[0],
                      kRefSampleStride_);
   }
-  return ref_state;
 }
 
 IntraPredictorLuma
 IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
+  const int max_modes = !Restrictions::Get().disable_ext2_intra_67_modes ?
+    kNbrIntraModesExt : kNbrIntraModes - 1;
+  const int offset = !Restrictions::Get().disable_ext2_intra_67_modes ?
+    kNbrIntraModesExt - 5 : kNbrIntraModes - 6;
+  IntraPredictorLuma mpm;
+  if (Restrictions::Get().disable_intra_mpm_prediction) {
+    mpm.num_neighbor_modes = 1;
+    mpm[0] = IntraMode::kPlanar;
+    mpm[1] = IntraMode::kDc;
+    mpm[2] = Convert(IntraAngle::kVertical);
+    if (!Restrictions::Get().disable_ext2_intra_6_predictors) {
+      mpm[3] = Convert(IntraAngle::kHorizontal);
+      mpm[4] = Convert(IntraAngle::kDiagonal);
+      mpm[5] = static_cast<IntraMode>(2);
+    }
+    return mpm;
+  }
+  if (Restrictions::Get().disable_ext2_intra_6_predictors) {
+    FillPredictorLumaDefault(cu, &mpm);
+    return mpm;
+  }
+  std::array<bool, kNbrIntraModesExt> added_modes = { false };
+  auto add_predictor_from_cu =
+    [&added_modes, &mpm](int mpm_index, const CodingUnit *tmp) {
+    if (tmp && tmp->IsIntra()) {
+      IntraMode mode = tmp->GetIntraMode(YuvComponent::kY);
+      if (!added_modes[mode]) {
+        added_modes[mode] = true;
+        mpm[mpm_index++] = mode;
+        return 1;
+      }
+    }
+    return 0;
+  };
+  auto add_predictor_if_new =
+    [&added_modes, &mpm](int mpm_index, IntraMode mode) {
+    if (!added_modes[mode]) {
+      added_modes[mode] = true;
+      mpm[mpm_index++] = mode;
+      return 1;
+    }
+    return 0;
+  };
+  int index = 0;
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitLeftCorner());
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitAboveCorner());
+  }
+  mpm.num_neighbor_modes = index > 1 ? 3 : 2;
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_if_new(index, IntraMode::kPlanar);
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_if_new(index, IntraMode::kDc);
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitLeftBelow());
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitAboveRight());
+  }
+  if (index < constants::kNumIntraMpmExt) {
+    index += add_predictor_from_cu(index, cu.GetCodingUnitAboveLeft());
+  }
+  int current_added = index;
+  for (int i = 0; i < current_added; i++) {
+    if (index == constants::kNumIntraMpmExt) {
+      break;
+    }
+    IntraMode mode = mpm[i];
+    if (mode <= IntraMode::kDc) {
+      continue;
+    }
+    IntraMode predictor =
+      static_cast<IntraMode>(((mode + offset) % (max_modes - 2)) + 2);
+    index += add_predictor_if_new(index, predictor);
+    if (index == constants::kNumIntraMpmExt) {
+      break;
+    }
+    predictor = static_cast<IntraMode>(((mode - 1) % (max_modes - 2)) + 2);
+    index += add_predictor_if_new(index, predictor);
+  }
+  static const std::array<IntraAngle, 4> default_angles = {
+    IntraAngle::kVertical, IntraAngle::kHorizontal,
+    IntraAngle::kFirst, IntraAngle::kDiagonal
+  };
+  for (IntraAngle pred_angle : default_angles) {
+    if (index == constants::kNumIntraMpmExt) {
+      break;
+    }
+    IntraMode predictor = Convert(pred_angle);
+    index += add_predictor_if_new(index, predictor);
+  }
+  assert(index == constants::kNumIntraMpmExt);
+  return mpm;
+}
+
+void IntraPrediction::FillPredictorLumaDefault(const CodingUnit &cu,
+                                               IntraPredictorLuma *mpm) const {
+  constexpr YuvComponent comp = YuvComponent::kY;
+  const int max_modes = !Restrictions::Get().disable_ext2_intra_67_modes ?
+    kNbrIntraModesExt : kNbrIntraModes - 1;
+  const int offset = !Restrictions::Get().disable_ext2_intra_67_modes ?
+    kNbrIntraModesExt - 5 : kNbrIntraModes - 6;
   const CodingUnit *cu_left = cu.GetCodingUnitLeft();
   IntraMode left = IntraMode::kDc;
   if (cu_left && cu_left->IsIntra()) {
-    left = cu_left->GetIntraMode(YuvComponent::kY);
+    left = cu_left->GetIntraMode(comp);
   }
   const CodingUnit *cu_above;
   if (Restrictions::Get().disable_ext_intra_unrestricted_predictor) {
@@ -112,55 +262,77 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
   }
   IntraMode above = IntraMode::kDc;
   if (cu_above && cu_above->IsIntra()) {
-    above = cu_above->GetIntraMode(YuvComponent::kY);
-  }
-  IntraPredictorLuma mpm;
-  if (Restrictions::Get().disable_intra_mpm_prediction) {
-    mpm.num_neighbor_modes = 1;
-    mpm[0] = IntraMode::kPlanar;
-    mpm[1] = IntraMode::kDc;
-    mpm[2] = IntraMode::kVertical;
-    return mpm;
+    above = cu_above->GetIntraMode(comp);
   }
   if (left == above) {
-    mpm.num_neighbor_modes = 1;
+    mpm->num_neighbor_modes = 1;
     if (left > IntraMode::kDc) {
-      mpm[0] = left;
-      mpm[1] = static_cast<IntraMode>(((left + 29) % 32) + 2);
-      mpm[2] = static_cast<IntraMode>(((left - 1) % 32) + 2);
+      (*mpm)[0] = left;
+      (*mpm)[1] =
+        static_cast<IntraMode>(((left + offset) % (max_modes - 2)) + 2);
+      (*mpm)[2] = static_cast<IntraMode>(((left - 1) % (max_modes - 2)) + 2);
     } else {
-      mpm[0] = IntraMode::kPlanar;
-      mpm[1] = IntraMode::kDc;
-      mpm[2] = IntraMode::kVertical;
+      (*mpm)[0] = IntraMode::kPlanar;
+      (*mpm)[1] = IntraMode::kDc;
+      (*mpm)[2] = Convert(IntraAngle::kVertical);
     }
   } else {
-    mpm.num_neighbor_modes = 2;
-    mpm[0] = left;
-    mpm[1] = above;
+    mpm->num_neighbor_modes = 2;
+    (*mpm)[0] = left;
+    (*mpm)[1] = above;
     if (left > IntraMode::kPlanar && above > IntraMode::kPlanar) {
-      mpm[2] = IntraMode::kPlanar;
+      (*mpm)[2] = IntraMode::kPlanar;
     } else {
-      mpm[2] = (left + above) < 2 ? IntraMode::kVertical : IntraMode::kDc;
+      (*mpm)[2] = (left + above) < 2 ?
+        Convert(IntraAngle::kVertical) : IntraMode::kDc;
     }
   }
-  return mpm;
 }
 
 IntraPredictorChroma
 IntraPrediction::GetPredictorsChroma(IntraMode luma_mode) const {
   IntraPredictorChroma chroma_preds;
   chroma_preds[0] = IntraChromaMode::kPlanar;
-  chroma_preds[1] = IntraChromaMode::kVertical;
-  chroma_preds[2] = IntraChromaMode::kHorizontal;
+  chroma_preds[1] = Convert(IntraChromaAngle::kVertical);
+  chroma_preds[2] = Convert(IntraChromaAngle::kHorizontal);
   chroma_preds[3] = IntraChromaMode::kDc;
-  chroma_preds[4] = IntraChromaMode::kDmChroma;
-  for (int i = 0; i < static_cast<int>(chroma_preds.size()) - 1; i++) {
-    if (static_cast<int>(chroma_preds[i]) == luma_mode) {
-      chroma_preds[i] = IntraChromaMode::kVerticalPlus8;
+  if (!Restrictions::Get().disable_ext2_intra_chroma_from_luma) {
+    chroma_preds[4] = IntraChromaMode::kLmChroma;
+    chroma_preds[5] = Convert(IntraChromaAngle::kDmChroma);
+  } else {
+    chroma_preds[4] = Convert(IntraChromaAngle::kDmChroma);
+    chroma_preds[5] = IntraChromaMode::kInvalid;
+  }
+  static_assert(kMaxNumIntraChromaModes == 6,
+                "Only 6 chroma predictors supported");
+  for (int i = 0; i < 4; i++) {
+    if (static_cast<int>(chroma_preds[i]) == static_cast<int>(luma_mode)) {
+      chroma_preds[i] = Convert(IntraChromaAngle::kVerticalPlus8);
       break;
     }
   }
   return chroma_preds;
+}
+
+IntraMode IntraPrediction::Convert(IntraAngle intra_dir) {
+  static const std::array<uint8_t, kNbrIntraDirs> kIntraAngleToModeExtMap = {
+    0, 1, 2, 4, 6, 8, 10, 12, 14, 16,   // [0, 10)
+    18, 20, 22, 24, 26, 28, 30, 32,     // [10, 18)
+    34, 36, 38, 40, 42, 44, 46, 48,     // [18, 26)
+    50, 52, 54, 56, 58, 60, 62, 64, 66  // [26, 35)
+  };
+  if (Restrictions::Get().disable_ext2_intra_67_modes) {
+    return static_cast<IntraMode>(intra_dir);
+  }
+  int intra_mode_ext = kIntraAngleToModeExtMap[static_cast<int>(intra_dir)];
+  return static_cast<IntraMode>(intra_mode_ext);
+}
+
+IntraChromaMode IntraPrediction::Convert(IntraChromaAngle angle) {
+  if (angle == IntraChromaAngle::kDmChroma) {
+    return IntraChromaMode::kDmChroma;
+  }
+  return static_cast<IntraChromaMode>(Convert(static_cast<IntraAngle>(angle)));
 }
 
 bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
@@ -169,14 +341,21 @@ bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
     return false;
   }
   static const std::array<int8_t, 8> kFilterRefThreshold = {
-      /*1x1:*/0, /*2x2:*/20, /*4x4:*/10, /*8x8:*/7, /*16x16:*/1,
-      /*32x32:*/ 0, /*64x64:*/ 10, /*128x128:*/ 0
+    0, 20, 10, 7, 1, 0, 10, 0   // 1, 2, 4, 8, 16, 32, 64, 128
   };
+  static const std::array<int8_t, 8> kFilterRefThresholdExt = {
+    0, 20, 20, 14, 2, 0, 20, 0   // 1, 2, 4, 8, 16, 32, 64, 128
+  };
+  static_assert(constants::kMaxBlockSize <= 128, "Only defined up to 128");
   int size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
               util::SizeToLog2(cu.GetHeight(YuvComponent::kY))) >> 1;
-  int mode_diff = std::min(abs(intra_mode - IntraMode::kHorizontal),
-                           abs(intra_mode - IntraMode::kVertical));
-  return mode_diff > kFilterRefThreshold[size];
+  int mode_diff = std::min(
+    std::abs(intra_mode - Convert(IntraAngle::kHorizontal)),
+    std::abs(intra_mode - Convert(IntraAngle::kVertical)));
+  if (Restrictions::Get().disable_ext2_intra_67_modes) {
+    return mode_diff > kFilterRefThreshold[size];
+  }
+  return mode_diff > kFilterRefThresholdExt[size];
 }
 
 void
@@ -245,7 +424,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
                              const Sample *ref_samples, ptrdiff_t ref_stride,
                              Sample *output_buffer, ptrdiff_t output_stride) {
   Sample ref_flip_buffer[kRefSampleStride_ * 2];
-  const bool is_horizontal = dir_mode < 18;
+  const bool is_horizontal = dir_mode < Convert(IntraAngle::kDiagonal);
   const Sample *ref_ptr = ref_samples;
 
   // Compute flipped reference samples
@@ -267,8 +446,10 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
 
   // Get the prediction angle.
   int angle_offset = is_horizontal ?
-    IntraMode::kHorizontal - dir_mode : dir_mode - IntraMode::kVertical;
-  int angle = kAngleTable_[8 + angle_offset];
+    Convert(IntraAngle::kHorizontal) - dir_mode :
+    dir_mode - Convert(IntraAngle::kVertical);
+  int angle = !Restrictions::Get().disable_ext2_intra_67_modes ?
+    kAngleTableExt[16 + angle_offset] : kAngleTable[8 + angle_offset];
 
   if (!angle) {
     // Speed-up for pure horizontal and vertical
@@ -278,9 +459,9 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
       }
     }
     if (filter && !Restrictions::Get().disable_intra_ver_hor_post_filter) {
-      Sample above_left = ref_ptr[0];
-      Sample above = ref_ptr[1];
-      Sample max_val = (1 << bitdepth_) - 1;
+      const Sample above_left = ref_ptr[0];
+      const Sample above = ref_ptr[1];
+      const Sample max_val = (1 << bitdepth_) - 1;
       for (int y = 0; y < height; y++) {
         int16_t val = above + ((ref_ptr[ref_stride + y] - above_left) >> 1);
         output_buffer[y * output_stride] = util::ClipBD(val, max_val);
@@ -289,6 +470,8 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
   } else {
     Sample ref_line_buffer[kRefSampleStride_];
     const Sample *ref_line = ref_ptr + 1;
+    auto *inv_angle_ptr = !Restrictions::Get().disable_ext2_intra_67_modes ?
+      &kInvAngleTableExt[0] : &kInvAngleTable[0];
 
     // Project the side direction to the prediction line
     if (angle < 0) {
@@ -299,7 +482,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
         ref_line_base_ptr[i - 1] = ref_ptr[i];
       }
       // Rest is projected from the other side edge to the prediction line
-      int inv_angle = kInvAngleTable_[-angle_offset - 1];
+      int inv_angle = inv_angle_ptr[-angle_offset - 1];
       int inv_angle_sum = 128;
       for (int i = 0; i < num_projected; i++) {
         inv_angle_sum += inv_angle;
@@ -325,6 +508,16 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
         for (int x = 0; x < width; x++) {
           output_buffer[y * output_stride + x] = ref_line[offset + x];
         }
+      }
+    }
+    if (filter && std::abs(angle) <= 1 &&
+        !Restrictions::Get().disable_ext2_intra_67_modes &&
+        !Restrictions::Get().disable_intra_ver_hor_post_filter) {
+      const Sample max_val = (1 << bitdepth_) - 1;
+      for (int y = 0; y < height; y++) {
+        int16_t val = output_buffer[y * output_stride] +
+          ((ref_ptr[ref_stride + y] - ref_ptr[0]) >> 2);
+        output_buffer[y * output_stride] = util::ClipBD(val, max_val);
       }
     }
   }
@@ -358,6 +551,134 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
       }
     }
   }
+}
+
+void IntraPrediction::PredLmChroma(const CodingUnit &cu, YuvComponent comp,
+                                   const YuvPicture &rec_pic,
+                                   SampleBuffer *output_buffer) {
+  assert(!Restrictions::Get().disable_ext2_intra_chroma_from_luma);
+  assert(!util::IsLuma(comp));
+  const YuvComponent luma = YuvComponent::kY;
+  const int width = cu.GetWidth(comp);
+  const int height = cu.GetHeight(comp);
+  const Sample max_val = (1 << rec_pic.GetBitdepth()) - 1;
+  SampleBufferConst chroma_buffer =
+    rec_pic.GetSampleBuffer(comp, cu.GetPosX(comp), cu.GetPosY(comp));
+  SampleBufferConst luma_src_buffer =
+    rec_pic.GetSampleBuffer(luma, cu.GetPosX(luma), cu.GetPosY(luma));
+  SampleBuffer luma_sub_buffer = temp_pred_buffer_.Offset(1, 1);
+
+  if (util::IsFirstChroma(comp)) {
+    const int luma_width = cu.GetWidth(luma);
+    const int luma_height = cu.GetHeight(luma);
+    // Reuse downscaled luma samples for the second chroma component
+    RescaleLuma(cu, luma_width, luma_height, luma_src_buffer, width, height,
+                &luma_sub_buffer);
+  }
+  LmParams params = DeriveLmParams(cu, comp, chroma_buffer, luma_sub_buffer);
+  output_buffer->AddLinearModel(width, height, luma_sub_buffer, params.scale,
+                                params.shift, params.offset, 0, max_val);
+}
+
+IntraPrediction::LmParams
+IntraPrediction::DeriveLmParams(const CodingUnit &cu, YuvComponent comp,
+                                const SampleBufferConst &src_buffer,
+                                const SampleBufferConst &ref_buffer) {
+  static const int kModelQuantShift = 15;
+  static const int kModelUpScaleShift = 13;
+  static const int kModelMinResolutionShift = 5;
+  static const int kModelPrecisionShift = 7;
+  const int width = cu.GetWidth(comp);
+  const int height = cu.GetHeight(comp);
+  const bool has_above = cu.GetPosY(YuvComponent::kY) > 0;
+  const bool has_left = cu.GetPosX(YuvComponent::kY) > 0;
+  if (!has_above && !has_left) {
+    return LmParams{ 0, 1 << (bitdepth_ - 1), 0 };
+  }
+  int sum_x = 0;
+  int sum_y = 0;
+  int sum_xx = 0;
+  int sum_xy = 0;
+  int nbr = 0;
+
+  if (has_above) {
+    const Sample *src = src_buffer.GetDataPtr() - src_buffer.GetStride();
+    const Sample *ref = ref_buffer.GetDataPtr() - ref_buffer.GetStride();
+    const int dx = has_left ? std::max(1, width / height) : 1;
+    for (int x = 0; x < width; x += dx) {
+      sum_x += ref[x];
+      sum_y += src[x];
+      sum_xx += ref[x] * ref[x];
+      sum_xy += ref[x] * src[x];
+      nbr++;
+    }
+  }
+  if (has_left) {
+    const Sample *src = src_buffer.GetDataPtr() - 1;
+    const Sample *ref = ref_buffer.GetDataPtr() - 1;
+    const int dy = has_above ? std::max(1, height / width) : 1;
+    for (int y = 0; y < height; y += dy) {
+      const Sample a = ref[y * ref_buffer.GetStride()];
+      const Sample b = src[y * src_buffer.GetStride()];
+      sum_x += a;
+      sum_y += b;
+      sum_xx += a * a;
+      sum_xy += a * b;
+      nbr++;
+    }
+  }
+  int size_shift = util::SizeToLog2(nbr);
+  if (size_shift > kModelQuantShift - bitdepth_) {
+    const int shift = size_shift + bitdepth_ - kModelQuantShift;
+    sum_x = (sum_x + (1 << (shift - 1))) >> shift;
+    sum_y = (sum_y + (1 << (shift - 1))) >> shift;
+    sum_xx = (sum_xx + (1 << (shift - 1))) >> shift;
+    sum_xy = (sum_xy + (1 << (shift - 1))) >> shift;
+    size_shift -= shift;
+  }
+  assert(size_shift >= 0);
+  const int avg_x = sum_x >> size_shift;
+  const int avg_y = sum_y >> size_shift;
+  const int x_frac = sum_x & ((1 << size_shift) - 1);
+  const int y_frac = sum_y & ((1 << size_shift) - 1);
+  // When using floating point, the scale parameter is derived from:
+  // scale = (nbr * sum_xy - sum_x - sum_y) / (nbr * sum_xx - (sum_x * sum_x))
+  // when compensating for integer truncation this becomes equivalent to:
+  // scale ~= stddev_xy / stddev_xx
+  const int stddev_xy = sum_xy - ((avg_x * avg_y) << size_shift)
+    - (avg_x * y_frac) - (avg_y * x_frac);
+  const int stddev_xx = sum_xx - ((avg_x * avg_x) << size_shift)
+    - 2 * avg_x * x_frac;
+
+  // Calculate model scale parameter through division,
+  // numerator and denominator are scaled to avoid overflow and precision loss
+  const int shift_xy = stddev_xy == 0 ?
+    0 : std::max(0, util::Log2Floor(std::abs(stddev_xy)) - bitdepth_ + 2);
+  const int shift_xx = stddev_xx == 0 ?
+    0 : std::max(0, util::Log2Floor(std::abs(stddev_xx)) -
+                 kModelMinResolutionShift);
+  const int stddev_xy_shifted = stddev_xy >> shift_xy;
+  const int shift_xx_shifted = stddev_xx >> shift_xx;
+  const int total_shift = bitdepth_ + shift_xx + 4 + kModelPrecisionShift -
+    kModelUpScaleShift - shift_xy;
+  if (shift_xx_shifted < (1 << kModelMinResolutionShift)) {
+    // prevent divide by zero
+    return LmParams{ 0, avg_y, 0 };
+  }
+  int scale = stddev_xy_shifted * static_cast<uint32_t>(
+    ((1 << (bitdepth_ + 4)) + (shift_xx_shifted / 2)) / shift_xx_shifted);
+  scale = shift_xy >= 0 ? scale >> total_shift : scale << -total_shift;
+  LmParams params;
+  params.scale = (1 << kModelPrecisionShift) *
+    util::Clip3(scale, -(1 << (kModelQuantShift - kModelPrecisionShift)),
+    (1 << (kModelQuantShift - kModelPrecisionShift)) - 1);
+  const int base_shift =
+    util::Log2Floor(std::abs(params.scale) + (params.scale < 0 ? -1 : 0)) -
+    (params.scale ? kModelMinResolutionShift : 0);
+  params.shift = kModelUpScaleShift - base_shift;
+  params.scale >>= base_shift;
+  params.offset = avg_y - ((params.scale * avg_x) >> params.shift);
+  return params;
 }
 
 IntraPrediction::NeighborState
@@ -543,6 +864,89 @@ void IntraPrediction::FilterRefSamples(int width, int height,
                            + src_ref[stride + y + 1] + 2) >> 2;
   }
   dst_ref[stride + height + width - 1] = src_ref[stride + height + width - 1];
+}
+
+void IntraPrediction::RescaleLuma(const CodingUnit &cu,
+                                  int src_width, int src_height,
+                                  const SampleBufferConst &src_buffer,
+                                  int out_width, int out_height,
+                                  SampleBuffer *out_buffer) {
+  const bool has_above = cu.GetPosY(YuvComponent::kY) > 0;
+  const bool has_left = cu.GetPosX(YuvComponent::kY) > 0;
+  const ptrdiff_t src_stride = src_buffer.GetStride();
+  const ptrdiff_t out_stride = out_buffer->GetStride();
+  const int start_x = has_left ? 0 : 1;
+  const int start_y = has_above ? -1 : 0;
+  Sample *out = out_buffer->GetDataPtr();
+
+  if ((src_width >> 1) == out_width && (src_height >> 1) == out_height) {
+    assert(cu.GetPicData()->GetChromaFormat() == ChromaFormat::k420);
+    const Sample *src =
+      src_buffer.GetDataPtr() + (has_above ? -2 * src_stride : 0);
+    if (has_left) {
+      for (int y = start_y; y < out_height; y++) {
+        int sum = src[-3] + 2 * src[-2] + src[-1] + src[-3 + src_stride] +
+          2 * src[-2 + src_stride] + src[-1 + src_stride];
+        out[y * out_stride - 1] = static_cast<Sample>((sum + 4) >> 3);
+        src += 2 * src_stride;
+      }
+    } else {
+      for (int y = start_y; y < out_height; y++) {
+        int sum = src[0] + src[0 + src_stride];
+        out[y * out_stride] = static_cast<Sample>((sum + 1) >> 1);
+        src += 2 * src_stride;
+      }
+    }
+    src = src_buffer.GetDataPtr() + (has_above ? -2 * src_stride : 0);
+    for (int y = start_y; y < out_height; y++) {
+      for (int x = start_x; x < out_width; x++) {
+        int sum = src[2 * x - 1] + 2 * src[2 * x + 0] + src[2 * x + 1] +
+          src[2 * x - 1 + src_stride] + 2 * src[2 * x + 0 + src_stride] +
+          src[2 * x + 1 + src_stride];
+        out[y * out_stride + x] = static_cast<Sample>((sum + 4) >> 3);
+      }
+      src += 2 * src_stride;
+    }
+  } else if (src_width == out_width && src_height == out_height) {
+    assert(cu.GetPicData()->GetChromaFormat() == ChromaFormat::k444);
+    const Sample *src = src_buffer.GetDataPtr();
+    if (has_above) {
+      for (int x = 0; x < out_width; x++) {
+        out[-out_stride + x] = src[-src_stride + x];
+      }
+    }
+    if (has_left) {
+      for (int y = 0; y < out_height; y++) {
+        out[y * out_stride - 1] = src[y * src_stride - 1];
+      }
+    }
+    out_buffer->CopyFrom(out_width, out_height, src_buffer);
+  } else {
+    assert(cu.GetPicData()->GetChromaFormat() == ChromaFormat::k422);
+    assert((src_width >> 1) == out_width);
+    const Sample *src = src_buffer.GetDataPtr() - (has_above ? src_stride : 0);
+    if (has_left) {
+      for (int y = start_y; y < out_height; y++) {
+        int sum = src[-3] + 2 * src[-2] + src[-1];
+        out[y * out_stride - 1] = static_cast<Sample>((sum + 2) >> 2);
+        src += src_stride;
+      }
+    } else {
+      for (int y = start_y; y < out_height; y++) {
+        int sum = src[0] + src[1];
+        out[y * out_stride] = static_cast<Sample>((sum + 1) >> 1);
+        src += src_stride;
+      }
+    }
+    src = src_buffer.GetDataPtr() - (has_above ? src_stride : 0);
+    for (int y = start_y; y < out_height; y++) {
+      for (int x = start_x; x < out_width; x++) {
+        int sum = src[2 * x - 1] + 2 * src[2 * x + 0] + src[2 * x + 1];
+        out[y * out_stride + x] = static_cast<Sample>((sum + 2) >> 2);
+      }
+      src += src_stride;
+    }
+  }
 }
 
 }   // namespace xvc

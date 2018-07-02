@@ -30,7 +30,14 @@ class SegmentHeaderReader {
 public:
   static Decoder::State Read(SegmentHeader* segment_header,
                              BitReader *bit_reader,
-                             SegmentNum segment_counter);
+                             SegmentNum segment_counter,
+                             bool* accept_xvc_bit_zero);
+  static bool SupportedBitstreamVersion(uint32_t major_version,
+                                        uint32_t minor_version);
+
+private:
+  static Restrictions ReadRestrictions(const SegmentHeader &segment_header,
+                                       BitReader *bit_reader);
 };
 
 }   // namespace xvc

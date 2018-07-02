@@ -45,6 +45,7 @@ public:
   ~ThreadDecoder();
   void StopAll();
   void DecodeAsync(std::shared_ptr<SegmentHeader> &&segment_header,
+                   std::shared_ptr<SegmentHeader> &&prev_segment_header,
                    std::shared_ptr<PictureDecoder> &&pic_dec,
                    std::vector<std::shared_ptr<const PictureDecoder>> &&deps,
                    std::unique_ptr<std::vector<uint8_t>> &&nal,
@@ -59,6 +60,7 @@ private:
     std::shared_ptr<PictureDecoder> pic_dec;
     std::vector<std::shared_ptr<const PictureDecoder>> inter_dependencies;
     std::shared_ptr<SegmentHeader> segment_header;
+    std::shared_ptr<SegmentHeader> prev_segment_header;
     std::unique_ptr<std::vector<uint8_t>> nal;
     std::size_t nal_offset;
     bool success;

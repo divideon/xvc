@@ -50,6 +50,7 @@ extern "C" {
     XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER,
     XVC_DEC_NO_SEGMENT_HEADER_DECODED,
     XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH,
+    XVC_DEC_BITSTREAM_VERSION_LOWER_THAN_SUPPORTED_BY_DECODER,
   } xvc_dec_return_code;
 
   typedef enum {
@@ -92,13 +93,14 @@ extern "C" {
 
   // Represents a decoded picture
   // Lifecycle managed by api->picture_create & api->picture_destory
+  // Populated using api->decoder_get_picture
   typedef struct xvc_decoded_picture {
-    char* bytes;      // Adress of first picture sample
-    size_t size;      // Number of picture bytes for all planes (incl. padding)
-    char *planes[3];  // Adress of first sample for each plane
-    int stride[3];    // Width in bytes for each plane (including padding)
+    const char* bytes;  // Address of first picture sample
+    size_t size;        // Number of pic bytes for all planes (incl. padding)
+    const char *planes[3];  // Address of first sample for each plane
+    int stride[3];          // Width in bytes for each plane (including padding)
     xvc_dec_pic_stats stats;
-    int64_t user_data;  //
+    int64_t user_data;
   } xvc_decoded_picture;
 
   // xvc decoder instance
@@ -116,6 +118,7 @@ extern "C" {
     double max_framerate;
     int threads;
     uint32_t simd_mask;
+    int dither;
   } xvc_decoder_parameters;
 
   // xvc decoder api
@@ -144,6 +147,8 @@ extern "C" {
                                              const uint8_t *nal_unit,
                                              size_t nal_unit_size,
                                              int64_t user_data);
+    // Get next output picture that is available in display order.
+    // Pointers to picture sample data are only valid until next API call.
     xvc_dec_return_code(*decoder_get_picture)(xvc_decoder *decoder,
                                               xvc_decoded_picture *out_pic);
     xvc_dec_return_code(*decoder_flush)(xvc_decoder *decoder);

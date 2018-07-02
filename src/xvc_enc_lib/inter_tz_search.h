@@ -30,22 +30,20 @@ namespace xvc {
 
 class TzSearch {
 public:
-  TzSearch(int bitdepth, const YuvPicture &orig_pic,
-           const InterPrediction &inter_pred,
+  TzSearch(const YuvPicture &orig_pic, const InterPrediction &inter_pred,
            const EncoderSettings &encoder_settings, int search_range)
     : orig_pic_(orig_pic),
     inter_pred_(inter_pred),
     encoder_settings_(encoder_settings),
-    bitdepth_(bitdepth),
     search_range_(search_range) {
   }
-  MotionVector Search(const CodingUnit &cu, const Qp &qp, MetricType metric,
-                      const MotionVector &mvp, const YuvPicture &ref_pic,
-                      const MotionVector &mv_min, const MotionVector &mv_max,
-                      const MotionVector &prev_search);
+  MvFullpel Search(const CodingUnit &cu, const Qp &qp,
+                   const SampleMetric &metric, const MotionVector &mvp,
+                   const YuvPicture &ref_pic, const MvFullpel &mv_min,
+                   const MvFullpel &mv_max, const MvFullpel &prev_search);
 
 private:
-  using const_mv = const MotionVector;
+  using const_mv = const MvFullpel;
   struct Left { static const int index = -1; };
   struct Right { static const int index = 1; };
   struct Up { static const int index = -3; };
@@ -53,10 +51,9 @@ private:
   struct SearchState;
   template<typename TOrig> class DistortionWrapper;
 
-  bool FullpelDiamondSearch(SearchState *state, const MotionVector &mv_base,
+  bool FullpelDiamondSearch(SearchState *state, const MvFullpel &mv_base,
                             int range);
   void FullpelNeighborPointSearch(SearchState *state);
-  Distortion GetCost(SearchState *state, int mv_x, int mv_y);
   bool CheckCostBest(SearchState *state, int mv_x, int mv_y);
   template<class Dir>
   bool CheckCost1(SearchState *state, int mv_x, int mv_y, int range);
@@ -68,7 +65,6 @@ private:
   const YuvPicture &orig_pic_;
   const InterPrediction &inter_pred_;
   const EncoderSettings &encoder_settings_;
-  int bitdepth_;
   int search_range_;
 };
 

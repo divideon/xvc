@@ -50,11 +50,16 @@ public:
   }
   const YuvPicture* GetRefPic(RefPicList ref_list, int ref_idx) const {
     return ref_list == RefPicList::kL0 ?
-      l0_[ref_idx].pic.get() : l1_[ref_idx].pic.get();
+      l0_[ref_idx].ref_pic.get() : l1_[ref_idx].ref_pic.get();
+  }
+  const YuvPicture* GetRefOrigPic(RefPicList ref_list, int ref_idx) const {
+    return ref_list == RefPicList::kL0 ?
+      l0_[ref_idx].orig_pic.get() : l1_[ref_idx].orig_pic.get();
   }
   PicNum GetRefPoc(RefPicList ref_list, int ref_idx) const {
     return (ref_list == RefPicList::kL0) ? l0_[ref_idx].poc : l1_[ref_idx].poc;
   }
+  bool HasRefPoc(RefPicList ref_list, PicNum poc) const;
   bool HasOnlyBackReferences() const { return only_back_references_; }
   PicturePredictionType GetRefPicType(RefPicList ref_list, int ref_idx) const;
   int GetRefPicTid(RefPicList ref_list, int ref_idx) const;
@@ -62,16 +67,17 @@ public:
                                     CuTree cu_tree, int posx, int posy) const;
   void SetRefPic(RefPicList ref_list, int index, PicNum ref_poc,
                  const std::shared_ptr<const PictureData> &pic_data,
-                 const std::shared_ptr<const YuvPicture> &ref_pic);
-  void GetSamePocMappingFor(RefPicList ref_list,
-                            std::vector<int> *mapping) const;
+                 const std::shared_ptr<const YuvPicture> &ref_pic,
+                 const std::shared_ptr<const YuvPicture> &orig_pic);
+  std::vector<int> GetSamePocMappingFor(RefPicList ref_list) const;
   void ZeroOutReferences();
   void Reset(PicNum current_poc);
 
 private:
   struct RefEntry {
     PicNum poc;
-    std::shared_ptr<const YuvPicture> pic;
+    std::shared_ptr<const YuvPicture> ref_pic;
+    std::shared_ptr<const YuvPicture> orig_pic;
     std::shared_ptr<const PictureData> data;
   };
   std::vector<RefEntry> l0_;

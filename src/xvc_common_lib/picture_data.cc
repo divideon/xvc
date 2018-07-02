@@ -121,6 +121,8 @@ void PictureData::Init(const SegmentHeader &segment, const Qp &pic_qp,
     AllocateAllCtu(CuTree::Secondary);
   }
 
+  force_bipred_l1_mvd_zero_ = DetermineForceBipredL1MvdZero();
+
   // Temporal mv prediction
   tmvp_ref_list_ = DetermineTmvpRefList(&tmvp_ref_idx_);
   PicturePredictionType pic_type =
@@ -235,6 +237,14 @@ PicturePredictionType PictureData::GetPredictionType() const {
       assert(0);
       return PicturePredictionType::kInvalid;
   }
+}
+
+bool PictureData::DetermineForceBipredL1MvdZero() {
+  if (IsIntraPic() ||
+      Restrictions::Get().disable_ext2_inter_bipred_l1_mvd_zero) {
+    return false;
+  }
+  return ref_pic_lists_.HasOnlyBackReferences();
 }
 
 RefPicList PictureData::DetermineTmvpRefList(int *tmvp_ref_idx) {

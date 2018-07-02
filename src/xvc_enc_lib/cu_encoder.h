@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "xvc_common_lib/picture_data.h"
-#include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/quantize.h"
 #include "xvc_common_lib/yuv_pic.h"
 #include "xvc_enc_lib/cu_cache.h"
@@ -31,6 +30,7 @@
 #include "xvc_enc_lib/inter_search.h"
 #include "xvc_enc_lib/intra_search.h"
 #include "xvc_enc_lib/encoder_settings.h"
+#include "xvc_enc_lib/encoder_simd_functions.h"
 #include "xvc_enc_lib/syntax_writer.h"
 #include "xvc_enc_lib/transform_encoder.h"
 
@@ -38,13 +38,19 @@ namespace xvc {
 
 class CuEncoder : public TransformEncoder {
 public:
-  CuEncoder(const SimdFunctions &simd, const YuvPicture &orig_pic,
+  CuEncoder(const EncoderSimdFunctions &simd, const YuvPicture &orig_pic,
             YuvPicture *rec_pic, PictureData *pic_data,
             const EncoderSettings &encoder_settings);
   ~CuEncoder();
   void EncodeCtu(int rsaddr, SyntaxWriter *writer);
 
 private:
+  enum class RdMode {
+    INTER_ME,
+    INTER_FULLPEL,
+    INTER_LIC,
+    INTER_LIC_FULLPEL,
+  };
   struct RdoCost;
 
   Distortion CompressCu(CodingUnit **cu, int rdo_depth,
@@ -59,24 +65,30 @@ private:
                              RdoSyntaxWriter *rdo_writer);
   Distortion CompressFast(CodingUnit *cu, const Qp &qp,
                           const SyntaxWriter &writer);
+  RdoCost CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
+                           const Qp &qp, int rdo_depth,
+                           const CuCache::Result &cache_result,
+                           const SyntaxWriter &bitstream_writer);
   RdoCost CompressIntra(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer);
   RdoCost CompressInter(CodingUnit *cu, const Qp &qp,
-                        const SyntaxWriter &bitstream_writer);
+                        const SyntaxWriter &bitstream_writer, RdMode rd_mode,
+                        Cost best_cu_cost);
   RdoCost CompressMerge(CodingUnit *cu, const Qp &qp,
                         const SyntaxWriter &bitstream_writer,
-                        bool fast_merge_skip);
+                        Cost best_cu_cost, bool fast_merge_skip);
+  RdoCost CompressAffineMerge(CodingUnit *cu, const Qp &qp,
+                              const SyntaxWriter &bitstream_writer,
+                              Cost best_cu_cost);
   RdoCost GetCuCostWithoutSplit(const CodingUnit &cu, const Qp &qp,
                                 const SyntaxWriter &bitstream_writer,
                                 Distortion ssd);
   int CalcDeltaQpFromVariance(const CodingUnit *cu);
   void WriteCtu(int rsaddr, SyntaxWriter *writer);
   void SetQpForAllCusInCtu(CodingUnit *ctu, int qp);
-
-  static bool CanSkipAnySplitForCu(const PictureData &pic_data,
-                                    const CodingUnit &cu);
-  static bool CanSkipQuadSplitForCu(const PictureData &pic_data,
-                                 const CodingUnit &cu);
+  bool CanSkipAnySplitForCu(const CodingUnit &cu) const;
+  bool CanSkipQuadSplitForCu(const CodingUnit &cu,
+                             bool binary_depth_greater_than_one) const;
 
   const YuvPicture &orig_pic_;
   const EncoderSettings &encoder_settings_;
@@ -90,7 +102,7 @@ private:
   // +2 for allow access to one depth lower than smallest CU in RDO
   std::array<CodingUnit::ReconstructionState,
     constants::kMaxBlockDepth + 2> temp_cu_state_;
-  CodingUnit::TransformState rd_transform_state_;
+  CodingUnit::ResidualState rd_transform_state_;
   std::array<std::array<CodingUnit*, constants::kMaxBlockDepth + 2>,
     constants::kMaxNumCuTrees> rdo_temp_cu_;
 };

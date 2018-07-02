@@ -75,9 +75,7 @@ void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,
       if (skip_flag) {
         cu->SetPredMode(PredictionMode::kInter);
         cu->SetMergeFlag(true);
-        int merge_idx = reader->ReadMergeIdx();
-        cu->SetMergeIdx(merge_idx);
-        cu->SetCbf(comp, false);
+        ReadMergePrediction(cu, comp, reader);
         return;
       }
       PredictionMode pred_mode = reader->ReadPredMode();
@@ -100,7 +98,7 @@ void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,
   } else {
     ReadInterPrediction(cu, comp, reader);
   }
-  ReadCoefficients(cu, comp, reader);
+  ReadResidualData(cu, comp, reader);
 }
 
 void CuReader::ReadIntraPrediction(CodingUnit *cu, YuvComponent comp,
@@ -128,15 +126,18 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
     bool merge = reader->ReadMergeFlag();
     cu->SetMergeFlag(merge);
     if (merge) {
-      int merge_idx = reader->ReadMergeIdx();
-      cu->SetMergeIdx(merge_idx);
+      ReadMergePrediction(cu, comp, reader);
       return;
     }
     if (pic_data_->GetPredictionType() == PicturePredictionType::kBi) {
-      InterDir inter_dir = reader->ReadInterDir(*cu);
-      cu->SetInterDir(inter_dir);
+      cu->SetInterDir(reader->ReadInterDir(*cu));
     } else {
       cu->SetInterDir(InterDir::kL0);
+    }
+    if (cu->CanUseAffine()) {
+      cu->SetUseAffine(reader->ReadAffineFlag(*cu, false));
+    } else {
+      cu->SetUseAffine(false);
     }
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_pic_list = static_cast<RefPicList>(i);
@@ -148,20 +149,82 @@ void CuReader::ReadInterPrediction(CodingUnit *cu, YuvComponent comp,
         pic_data_->GetRefPicLists()->GetNumRefPics(ref_pic_list);
       assert(num_refs_available > 0);
       cu->SetRefIdx(reader->ReadInterRefIdx(num_refs_available), ref_pic_list);
-      cu->SetMvDelta(reader->ReadInterMvd(), ref_pic_list);
-      cu->SetMvpIdx(reader->ReadInterMvpIdx(), ref_pic_list);
+      if (cu->GetForceMvdZero(ref_pic_list)) {
+        cu->SetMvDelta(MvDelta(0, 0), ref_pic_list);
+      } else if (cu->GetUseAffine()) {
+        cu->SetMvdAffine(0, reader->ReadInterMvd(), ref_pic_list);
+        cu->SetMvdAffine(1, reader->ReadInterMvd(), ref_pic_list);
+      } else {
+        cu->SetMvDelta(reader->ReadInterMvd(), ref_pic_list);
+      }
+      cu->SetMvpIdx(reader->ReadInterMvpIdx(*cu), ref_pic_list);
+    }
+    if (!cu->HasZeroMvd() &&
+        !cu->GetUseAffine()) {
+      cu->SetFullpelMv(reader->ReadInterFullpelMvFlag(*cu));
+    }
+    if (pic_data_->GetUseLocalIlluminationCompensation() &&
+        !cu->GetUseAffine()) {
+      cu->SetUseLic(reader->ReadLicFlag());
     }
   }
 }
 
-void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
+void CuReader::ReadMergePrediction(CodingUnit *cu, YuvComponent comp,
+                                   SyntaxReader *reader) {
+  if (cu->CanAffineMerge()) {
+    cu->SetUseAffine(reader->ReadAffineFlag(*cu, true));
+  }
+  if (cu->GetUseAffine()) {
+    cu->SetMergeIdx(0);
+  } else {
+    cu->SetMergeIdx(reader->ReadMergeIdx());
+  }
+}
+
+void CuReader::ReadResidualData(CodingUnit *cu, YuvComponent comp,
                                 SyntaxReader *reader) {
-  bool signal_root_cbf = cu->IsInter() &&
-    !Restrictions::Get().disable_transform_root_cbf &&
-    (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
-  if (signal_root_cbf) {
+  bool cbf = ReadCbfInvariant(cu, comp, reader);
+  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
+  // coefficient parsing is sparse so zero out in any case
+  cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
+  if (cbf) {
+    ctu_has_coeffs_ = true;
+    ReadResidualDataInternal(cu, comp, reader);
+  }
+}
+
+void CuReader::ReadResidualDataInternal(CodingUnit *cu, YuvComponent comp,
+                                        SyntaxReader *reader) const {
+  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
+  bool use_transform_select = false;
+  if (util::IsLuma(comp)) {
+    use_transform_select = reader->ReadTransformSelectEnable(*cu);
+    if (!use_transform_select) {
+      cu->SetTransformFromSelectIdx(comp, -1);
+    }
+  }
+  bool transform_skip = reader->ReadTransformSkip(*cu, comp);
+  cu->SetTransformSkip(comp, transform_skip);
+  int num_coeff =
+    reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
+                             cu_coeff_buf.GetStride());
+  if (util::IsLuma(comp) && use_transform_select) {
+    int tx_select_idx = 0;
+    if (!transform_skip &&
+      (cu->IsInter() || num_coeff >= constants::kTransformSelectMinSigCoeffs)) {
+      tx_select_idx = reader->ReadTransformSelectIdx(*cu);
+    }
+    cu->SetTransformFromSelectIdx(comp, tx_select_idx);
+  }
+}
+
+bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
+                                SyntaxReader *reader) const {
+  if (cu->IsInter() &&
+    (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode)) {
     if (util::IsLuma(comp)) {
-      bool root_cbf = reader->ReadRootCbf();
+      const bool root_cbf = reader->ReadRootCbf();
       cu->SetRootCbf(root_cbf);
       if (!root_cbf) {
         if (cu->GetMergeFlag()) {
@@ -170,27 +233,26 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
         cu->SetCbf(YuvComponent::kY, false);
         cu->SetCbf(YuvComponent::kU, false);
         cu->SetCbf(YuvComponent::kV, false);
+        return false;
       }
-    }
-    if (!cu->GetRootCbf()) {
-      return;
+    } else if (!cu->GetRootCbf()) {
+      return false;
     }
   }
-
   bool cbf;
-  if (Restrictions::Get().disable_transform_cbf) {
-    cbf = true;
-  } else if (cu->IsIntra()) {
+  if (cu->IsIntra()) {
     cbf = reader->ReadCbf(*cu, comp);
   } else if (util::IsLuma(comp)) {
-    bool cbf_u = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
-    bool cbf_v = cbf = reader->ReadCbf(*cu, YuvComponent::kU);
+    // luma will read cbf for all components
+    bool cbf_u = reader->ReadCbf(*cu, YuvComponent::kU);
+    bool cbf_v = reader->ReadCbf(*cu, YuvComponent::kU);
     cu->SetCbf(YuvComponent::kU, cbf_u);
     cu->SetCbf(YuvComponent::kV, cbf_v);
     if (cbf_u || cbf_v || Restrictions::Get().disable_transform_root_cbf) {
       cbf = reader->ReadCbf(*cu, comp);
     } else {
-      cbf = true;   // implicitly signaled through root cbf
+      // implicitly signaled through root cbf
+      cbf = true;
     }
     if (Restrictions::Get().disable_inter_skip_mode &&
         cu->GetMergeFlag() && !cbf && !cbf_u && !cbf_v) {
@@ -200,15 +262,7 @@ void CuReader::ReadCoefficients(CodingUnit *cu, YuvComponent comp,
     cbf = cu->GetCbf(comp);   // signaled from luma
   }
   cu->SetCbf(comp, cbf);
-
-  CoeffBuffer cu_coeff_buf = cu->GetCoeff(comp);
-  // coefficient parsing is sparse so zero out in any case
-  cu_coeff_buf.ZeroOut(cu->GetWidth(comp), cu->GetHeight(comp));
-  if (cbf) {
-    ctu_has_coeffs_ = true;
-    reader->ReadCoefficients(*cu, comp, cu_coeff_buf.GetDataPtr(),
-                             cu_coeff_buf.GetStride());
-  }
+  return cbf;
 }
 
 }   // namespace xvc

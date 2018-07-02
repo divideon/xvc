@@ -20,7 +20,8 @@
 
 #include "googletest/include/gtest/gtest.h"
 
-#include "xvc_test/test_helper.h"
+#include "xvc_test/decoder_helper.h"
+#include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
 namespace {
@@ -33,9 +34,8 @@ class ResolutionTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
   void SetUp() override {
-    EncoderHelper::Init();
+    EncoderHelper::Init(GetParam());
     DecoderHelper::Init();
-    encoder_->SetInternalBitdepth(GetParam());
     encoder_->SetSubGopLength(1);
     encoder_->SetQp(kQp);
   }
@@ -69,6 +69,14 @@ protected:
     ASSERT_FALSE(DecoderFlushAndGet());
   }
 };
+
+TEST_P(ResolutionTest, OddWidthx16) {
+  EncodeDecode(xvc_test::TestYuvPic::kDefaultSize - 1, 16);
+}
+
+TEST_P(ResolutionTest, OddHeightx16) {
+  EncodeDecode(16, xvc_test::TestYuvPic::kDefaultSize - 1);
+}
 
 TEST_P(ResolutionTest, Size8xN) {
   EncodeDecode(8, xvc_test::TestYuvPic::kDefaultSize);

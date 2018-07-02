@@ -41,6 +41,8 @@ set(XVC_COMMON_LIB_SOURCES
     "xvc_common_lib/simd_functions.h"
     "xvc_common_lib/transform.cc"
     "xvc_common_lib/transform.h"
+    "xvc_common_lib/transform_data.cc"
+    "xvc_common_lib/transform_data.h"
     "xvc_common_lib/utils.cc"
     "xvc_common_lib/utils.h"
     "xvc_common_lib/utils_md5.cc"
@@ -85,7 +87,10 @@ set(XVC_ENC_LIB_SOURCES
     "xvc_enc_lib/cu_writer.h"
     "xvc_enc_lib/encoder.cc"
     "xvc_enc_lib/encoder.h"
+    "xvc_enc_lib/encoder_settings.cc"
     "xvc_enc_lib/encoder_settings.h"
+    "xvc_enc_lib/encoder_simd_functions.cc"
+    "xvc_enc_lib/encoder_simd_functions.h"
     "xvc_enc_lib/entropy_encoder.cc"
     "xvc_enc_lib/entropy_encoder.h"
     "xvc_enc_lib/inter_search.cc"
@@ -104,16 +109,23 @@ set(XVC_ENC_LIB_SOURCES
     "xvc_enc_lib/segment_header_writer.h"
     "xvc_enc_lib/syntax_writer.cc"
     "xvc_enc_lib/syntax_writer.h"
+    "xvc_enc_lib/thread_encoder.cc"
+    "xvc_enc_lib/thread_encoder.h"
     "xvc_enc_lib/transform_encoder.cc"
     "xvc_enc_lib/transform_encoder.h"
     "xvc_enc_lib/xvcenc.cc"
     "xvc_enc_lib/xvcenc.h")
+
+set(XVC_ENC_LIB_SIMD_SOURCES
+    "xvc_enc_lib/simd/sample_metric_simd.cc"
+    "xvc_enc_lib/simd/sample_metric_simd.h")
 
 # Restrictions control (internal)
 set(RESTRICTION_DEFINES "" CACHE INTERNAL "Restriction flag control (internal use only)")
 
 if(ENABLE_ASSERTIONS)
   add_definitions(-UNDEBUG)
+  string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " " CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
 if(ENABLE_ASSEMBLY)
@@ -129,31 +141,53 @@ else()
   message("-- xvc compile without assembly support")
 endif()
 
-set(cxx_simd_flags "")
+set(simd_cxx_flags "")
 if(MSVC)
   set(cxx_base_flags /GS /W4 /WX /Za)
   set(cxx_exception_flags "-EHsc")
-  set(cxx_strict_flags /we4388 /we4389 /wd4100 /wd4127)
+  set(cxx_strict_flags
+    /we4254 # error: conversion, possible loss of data
+    /we4296 # error: expression is always true/false
+    /we4388 # error: signed/unsigned mismatch
+    /we4389 # error: signed/unsigned mismatch
+    /we4706 # error: assignment within conditional expression
+    /wd4100 # disabled: unreferenced formal parameter
+    /wd4127 # disabled: conditional expression is constant
+    /wd4752 # disabled: found Intel(R) Advanced Vector Extensions; consider using /arch:AVX
+  )
   if(CODE_ANALYZE)
     set(cxx_base_flags ${cxx_base_flags} /analyze /wd6240 /wd6326)
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCXX)
   set(cxx_base_flags -Wall -Wshadow)
   set(cxx_exception_flags "-fexceptions")
-  set(cxx_strict_flags -Werror -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
+  set(cxx_strict_flags -Werror -Wextra -Wunused -Wold-style-cast -Wlogical-op -Wpointer-arith
+        -Wno-unused-parameter -Wno-missing-field-initializers)
+  list(APPEND simd_cxx_flags "-Wno-psabi")
+  if(ENABLE_ASSEMBLY AND XVC_TARGET_ARCH STREQUAL "x86" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    # gcc 4.8 and earlier will not define x86 intrinsics without corresponding -msse2 specified
+    if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+      # Force minimum SSE2 for 32-bit (if assembly is enabled) in order to define __m128i
+      # this is safe for the SIMD code since we still have runtime code that check for CPU support
+      list(APPEND simd_cxx_flags "-msse" "-msse2")
+    endif()
+    if(NOT CMAKE_CXX_FLAGS MATCHES "mavx2" AND NOT CMAKE_CXX_FLAGS MATCHES "-march=core-avx2")
+      message(WARNING "Building without any AVX2 support, force enable by adding \"-DCMAKE_CXX_FLAGS=-mavx2\" to cmake")
+    endif()
+  endif()
   if(XVC_HAVE_NEON)
-    set(cxx_simd_flags -mfpu=neon)
+    list(APPEND simd_cxx_flags "-mfpu=neon")
   endif()
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
     message(FATAL_ERROR "thread_local requires gcc >= 4.8")
     set(cxx_strict_flags ${cxx_strict_flags} -Wno-error=missing-braces)
   endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(cxx_base_flags -Wshadow)
+  set(cxx_base_flags -Wall -Wshadow)
   set(cxx_exception_flags "-fexceptions")
-  set(cxx_strict_flags -Werror)
+  set(cxx_strict_flags -Werror -Wextra -Wno-missing-braces -Wno-unused-const-variable -Wno-unused-parameter)
   if(XVC_HAVE_NEON)
-    set(cxx_simd_flags -mfpu=neon -Wno-error=unused-command-line-argument)
+    list(APPEND simd_cxx_flags "-mfpu=neon" "-Wno-error=unused-command-line-argument")
   endif()
 endif()
 set(cxx_default ${cxx_base_flags} ${cxx_exception_flags})
@@ -165,29 +199,39 @@ if(SANITIZE_BUILD)
   set(linker_flags ${linker_flags} "-fsanitize=${SANITIZE_BUILD}")
 endif()
 
+set(xvc_dec_src_extra "")
+set(xvc_enc_src_extra "")
+if(ENABLE_ASSEMBLY)
+  # xvc_common_lib_simd
+  add_library (xvc_common_lib_simd OBJECT ${XVC_COMMON_LIB_SIMD_SOURCES})
+  target_compile_options(xvc_common_lib_simd PRIVATE ${cxx_default} ${cxx_strict} ${simd_cxx_flags})
+  target_include_directories (xvc_common_lib_simd PUBLIC .)
+  set(xvc_dec_src_extra ${xvc_dec_src_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
+  set(xvc_enc_src_extra ${xvc_enc_src_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
+endif()
+
 # xvc_common_lib
 add_library (xvc_common_lib OBJECT ${XVC_COMMON_LIB_SOURCES})
 target_compile_options(xvc_common_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories(xvc_common_lib PUBLIC .)
-set(xvc_common_lib_extra "")
 
 if(ENABLE_ASSEMBLY)
-  # xvc_common_lib_simd
-  add_library (xvc_common_lib_simd OBJECT ${XVC_COMMON_LIB_SIMD_SOURCES})
-  target_compile_options(xvc_common_lib_simd PRIVATE ${cxx_default} ${cxx_strict} ${cxx_simd_flags})
-  target_include_directories (xvc_common_lib_simd PUBLIC .)
-  set(xvc_common_lib_extra ${xvc_common_lib_extra} $<TARGET_OBJECTS:xvc_common_lib_simd>)
+  # xvc_enc_lib_simd
+  add_library (xvc_enc_lib_simd OBJECT ${XVC_ENC_LIB_SIMD_SOURCES})
+  target_compile_options(xvc_enc_lib_simd PRIVATE ${cxx_default} ${cxx_strict} ${simd_cxx_flags})
+  target_include_directories (xvc_enc_lib_simd PUBLIC .)
+  set(xvc_enc_src_extra ${xvc_enc_src_extra} $<TARGET_OBJECTS:xvc_enc_lib_simd>)
 endif()
 
 # xvc_enc_lib
-add_library(xvc_enc_lib ${XVC_ENC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_enc_lib ${XVC_ENC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_enc_src_extra})
 set_target_properties(xvc_enc_lib PROPERTIES OUTPUT_NAME "xvcenc")
 target_compile_options(xvc_enc_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_enc_lib PUBLIC .)
-target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags})
+target_link_libraries(xvc_enc_lib INTERFACE ${linker_flags} PUBLIC Threads::Threads)
 
 # xvc_dec_lib
-add_library(xvc_dec_lib ${XVC_DEC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_common_lib_extra})
+add_library(xvc_dec_lib ${XVC_DEC_LIB_SOURCES} $<TARGET_OBJECTS:xvc_common_lib> ${xvc_dec_src_extra})
 set_target_properties(xvc_dec_lib PROPERTIES OUTPUT_NAME "xvcdec")
 target_compile_options(xvc_dec_lib PRIVATE ${cxx_default} ${cxx_strict})
 target_include_directories (xvc_dec_lib PUBLIC .)

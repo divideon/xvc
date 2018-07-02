@@ -47,11 +47,11 @@ enum class ChromaFormat : uint8_t {
   k422 = 2,
   k444 = 3,
   kArgb = 4,
-  kUndefinedChromaFormat = 255,
+  kUndefined = 255,
 };
 
 enum class ColorMatrix : uint8_t {
-  kUndefinedColorMatrix = 0,
+  kUndefined = 0,
   k601 = 1,
   k709 = 2,
   k2020 = 3,
@@ -72,22 +72,25 @@ namespace constants {
 
 // xvc version
 const uint32_t kXvcCodecIdentifier = 7894627;
-const uint32_t kXvcMajorVersion = 1;
+const uint32_t kXvcMajorVersion = 2;
 const uint32_t kXvcMinorVersion = 0;
+static const uint32_t kSupportedOldBitstreamVersions[1][2] = { { 1, 0 } };
 
 // Picture
 const int kMaxYuvComponents = 3;
+const int kMaxNumPlanes = 2;  // luma and chroma
 const int kMaxNumCuTrees = 2;
 
 // CU limits
-const int kCtuSize = 64;
+const int kCtuSizeLog2 = 6;
+const int kCtuSize = 1 << kCtuSizeLog2;
 // CU size and depth for luma
 const int kMaxCuDepth = 3;
 const int kMaxCuDepthChroma = kMaxCuDepth + 1;
 const int kMinCuSize = (kCtuSize >> kMaxCuDepth);
 // Binary split
 const int kMaxBinarySplitDepth = 3;
-const int kMaxBinarySplitSizeInter = 128;
+const int kMaxBinarySplitSizeInter = kCtuSize;
 const int kMaxBinarySplitSizeIntra1 = 32;
 const int kMaxBinarySplitSizeIntra2 = 16;
 const int kMinBinarySplitSize = 4;
@@ -104,15 +107,16 @@ const int kMaxBlockSamples = kMaxBlockSize * kMaxBlockSize;
 const int kQuadSplit = 4;
 
 // Transform
-const int kTransformExtendedPrecision = 2;
-const bool kZeroOutHighFreqLargeTransforms = true;
+const int kTransformSkipMaxArea = 4 * 4;
+const int kTransformSelectMinSigCoeffs = 3;
+const int kTransformZeroOutMinSize = 32;
+const int kMaxTransformSelectIdx = 4;
 
 // Prediction
 const int kNumIntraMpm = 3;
-const int kNumIntraChromaModes = 5;
+const int kNumIntraMpmExt = 6;
 const int kNumInterMvPredictors = 2;
 const int kNumInterMergeCandidates = 5;
-const int kMvPrecisionShift = 2;
 const bool kTemporalMvPrediction = true;
 
 // Quant
@@ -142,8 +146,7 @@ const int kMaxTid = 8;
 const int kFrameRateBitDepth = 24;
 const int kPicSizeBits = 16;
 const PicNum kMaxSubGopLength = 64;
-const int kEncapsulationCode1 = 182;
-const int kEncapsulationCode2 = 214;
+const int kEncapsulationCode = 86;
 
 // Min and Max
 const int16_t kInt16Max = INT16_MAX;

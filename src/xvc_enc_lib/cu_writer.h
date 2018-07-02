@@ -32,13 +32,9 @@ public:
     : pic_data_(pic_data),
     intra_pred_(intra_pred) {
   }
-  bool WriteCtu(const CodingUnit &cu, SyntaxWriter *writer) {
-    ctu_has_coeffs_ = false;
-    WriteCu(cu, SplitRestriction::kNone, writer);
-    return ctu_has_coeffs_;
-  }
-  void WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
-               SyntaxWriter *writer);
+  bool WriteCtu(CodingUnit *ctu, PictureData *cu_map, SyntaxWriter *writer);
+  void WriteCu(CodingUnit *cu, SplitRestriction split_restriction,
+               PictureData *cu_map, SyntaxWriter *writer);
   void WriteSplit(const CodingUnit &cu, SplitRestriction split_restriction,
                   SyntaxWriter *writer);
   void WriteComponent(const CodingUnit &cu, YuvComponent comp,
@@ -47,10 +43,20 @@ public:
                             SyntaxWriter *writer);
   void WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
                             SyntaxWriter *writer);
-  void WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+  void WriteMergePrediction(const CodingUnit &cu, YuvComponent comp,
+                           SyntaxWriter *writer);
+  void WriteResidualData(const CodingUnit &cu, YuvComponent comp,
                          SyntaxWriter *writer);
+  // Encoder only method with simplified cbf rdo signaling
+  void WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
+                               SyntaxWriter *writer) const;
 
 private:
+  void WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
+                                 SyntaxWriter *writer) const;
+  bool WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
+                         SyntaxWriter *writer) const;
+
   const PictureData &pic_data_;
   const IntraPrediction *intra_pred_;
   bool ctu_has_coeffs_ = false;

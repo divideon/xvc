@@ -23,22 +23,31 @@
 
 namespace xvc {
 
-void CuWriter::WriteCu(const CodingUnit &cu, SplitRestriction split_restriction,
-                       SyntaxWriter *writer) {
-  WriteSplit(cu, split_restriction, writer);
-  if (cu.GetSplit() != SplitType::kNone) {
+bool CuWriter::WriteCtu(CodingUnit *ctu, PictureData *cu_map,
+                        SyntaxWriter *writer) {
+  ctu_has_coeffs_ = false;
+  cu_map->ClearMarkCuInPic(ctu);
+  WriteCu(ctu, SplitRestriction::kNone, cu_map, writer);
+  return ctu_has_coeffs_;
+}
+
+void CuWriter::WriteCu(CodingUnit *cu, SplitRestriction split_restriction,
+                       PictureData *cu_map, SyntaxWriter *writer) {
+  WriteSplit(*cu, split_restriction, writer);
+  if (cu->GetSplit() != SplitType::kNone) {
     SplitRestriction sub_split_restriction = SplitRestriction::kNone;
     for (int i = 0; i < constants::kQuadSplit; i++) {
-      const CodingUnit *sub_cu = cu.GetSubCu(i);
+      CodingUnit *sub_cu = cu->GetSubCu(i);
       if (sub_cu) {
-        WriteCu(*sub_cu, sub_split_restriction, writer);
+        WriteCu(sub_cu, sub_split_restriction, cu_map, writer);
         sub_split_restriction =
-          sub_cu->DeriveSiblingSplitRestriction(cu.GetSplit());
+          sub_cu->DeriveSiblingSplitRestriction(cu->GetSplit());
       }
     }
   } else {
-    for (YuvComponent comp : pic_data_.GetComponents(cu.GetCuTree())) {
-      WriteComponent(cu, comp, writer);
+    cu_map->MarkUsedInPic(cu);
+    for (YuvComponent comp : pic_data_.GetComponents(cu->GetCuTree())) {
+      WriteComponent(*cu, comp, writer);
     }
   }
 }
@@ -68,9 +77,8 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
   if (util::IsLuma(comp)) {
     if (!pic_data_.IsIntraPic()) {
       writer->WriteSkipFlag(cu, cu.GetSkipFlag());
-      if (cu.GetSkipFlag() && !Restrictions::Get().disable_inter_skip_mode) {
-        assert(cu.GetMergeIdx() >= 0);
-        writer->WriteMergeIdx(cu.GetMergeIdx());
+      if (cu.GetSkipFlag()) {
+        WriteMergePrediction(cu, comp, writer);
         return;
       }
       writer->WritePredMode(cu.GetPredMode());
@@ -89,7 +97,7 @@ void CuWriter::WriteComponent(const CodingUnit &cu, YuvComponent comp,
   } else {
     WriteInterPrediction(cu, comp, writer);
   }
-  WriteCoefficients(cu, comp, writer);
+  WriteResidualData(cu, comp, writer);
 }
 
 void CuWriter::WriteIntraPrediction(const CodingUnit &cu, YuvComponent comp,
@@ -114,13 +122,18 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
     writer->WriteMergeFlag(cu.GetMergeFlag());
     if (cu.GetMergeFlag()) {
       assert(cu.GetHasAnyCbf() || Restrictions::Get().disable_inter_skip_mode);
-      writer->WriteMergeIdx(cu.GetMergeIdx());
+      WriteMergePrediction(cu, comp, writer);
       return;
     }
     if (pic_data_.GetPredictionType() == PicturePredictionType::kBi) {
       writer->WriteInterDir(cu, cu.GetInterDir());
     } else {
       assert(cu.GetInterDir() == InterDir::kL0);
+    }
+    if (cu.CanUseAffine()) {
+      writer->WriteAffineFlag(cu, false, cu.GetUseAffine());
+    } else {
+      assert(!cu.GetUseAffine());
     }
     for (int i = 0; i < static_cast<int>(RefPicList::kTotalNumber); i++) {
       RefPicList ref_pic_list = static_cast<RefPicList>(i);
@@ -132,51 +145,117 @@ void CuWriter::WriteInterPrediction(const CodingUnit &cu, YuvComponent comp,
         pic_data_.GetRefPicLists()->GetNumRefPics(ref_pic_list);
       assert(num_refs_available > 0);
       writer->WriteInterRefIdx(cu.GetRefIdx(ref_pic_list), num_refs_available);
-      writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
-      writer->WriteInterMvpIdx(cu.GetMvpIdx(ref_pic_list));
+      if (cu.GetForceMvdZero(ref_pic_list)) {
+        assert(cu.GetMvDelta(ref_pic_list) == MvDelta(0, 0));
+      } else if (cu.GetUseAffine()) {
+        writer->WriteInterMvd(cu.GetMvdAffine(0, ref_pic_list));
+        writer->WriteInterMvd(cu.GetMvdAffine(1, ref_pic_list));
+      } else {
+        writer->WriteInterMvd(cu.GetMvDelta(ref_pic_list));
+      }
+      writer->WriteInterMvpIdx(cu, cu.GetMvpIdx(ref_pic_list));
+    }
+    if (!cu.HasZeroMvd() &&
+        !cu.GetUseAffine()) {
+      writer->WriteInterFullpelMvFlag(cu, cu.GetFullpelMv());
+    }
+    if (pic_data_.GetUseLocalIlluminationCompensation() &&
+        !cu.GetUseAffine()) {
+      writer->WriteLicFlag(cu.GetUseLic());
+    } else {
+      assert(!cu.GetUseLic());
     }
   }
 }
 
-void CuWriter::WriteCoefficients(const CodingUnit &cu, YuvComponent comp,
+void CuWriter::WriteMergePrediction(const CodingUnit &cu, YuvComponent comp,
+                                    SyntaxWriter * writer) {
+  if (cu.CanAffineMerge()) {
+    writer->WriteAffineFlag(cu, true, cu.GetUseAffine());
+  } else {
+    assert(!cu.GetUseAffine());
+  }
+  if (cu.GetUseAffine()) {
+    assert(cu.GetMergeIdx() == 0);
+  } else {
+    writer->WriteMergeIdx(cu.GetMergeIdx());
+  }
+}
+
+void CuWriter::WriteResidualData(const CodingUnit &cu, YuvComponent comp,
                                  SyntaxWriter *writer) {
-  bool signal_root_cbf = cu.IsInter() &&
-    !Restrictions::Get().disable_transform_root_cbf &&
-    (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode);
-  if (signal_root_cbf) {
-    bool root_cbf = cu.GetRootCbf();
+  bool cbf = WriteCbfInvariant(cu, comp, writer);
+  if (cbf) {
+    ctu_has_coeffs_ = true;
+    WriteResidualDataInternal(cu, comp, writer);
+  }
+}
+
+void CuWriter::WriteResidualDataRdoCbf(const CodingUnit &cu, YuvComponent comp,
+                                       SyntaxWriter *writer) const {
+  bool cbf = cu.GetCbf(comp);
+  // Encoder rdo only, because normally cbf flags are written for all
+  // components during invocation of the luma component
+  writer->WriteCbf(cu, comp, cbf);
+  if (cbf) {
+    WriteResidualDataInternal(cu, comp, writer);
+  }
+}
+
+void
+CuWriter::WriteResidualDataInternal(const CodingUnit &cu, YuvComponent comp,
+                                    SyntaxWriter *writer) const {
+  CoeffBufferConst cu_coeff = cu.GetCoeff(comp);
+  bool use_transform_select = false;
+  if (util::IsLuma(comp)) {
+    use_transform_select = cu.HasTransformSelectIdx();
+    writer->WriteTransformSelectEnable(cu, use_transform_select);
+  }
+  writer->WriteTransformSkip(cu, comp, cu.GetTransformSkip(comp));
+  int num_coeff =
+    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
+                              cu_coeff.GetStride());
+  if (util::IsLuma(comp) && use_transform_select) {
+    if (!cu.GetTransformSkip(comp) &&
+      (cu.IsInter() || num_coeff >= constants::kTransformSelectMinSigCoeffs)) {
+      writer->WriteTransformSelectIdx(cu, cu.GetTransformSelectIdx());
+    } else {
+      assert(cu.GetTransformSelectIdx() == 0);
+    }
+  }
+}
+
+bool CuWriter::WriteCbfInvariant(const CodingUnit &cu, YuvComponent comp,
+                                 SyntaxWriter *writer) const {
+  if (cu.IsInter() &&
+    (!cu.GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode)) {
+    const bool root_cbf = cu.GetRootCbf();
     if (util::IsLuma(comp)) {
       writer->WriteRootCbf(root_cbf);
     }
     if (!root_cbf) {
-      return;
+      assert(!cu.GetCbf(comp));
+      return false;
     }
   }
-
-  bool cbf = cu.GetCbf(comp);
-  if (Restrictions::Get().disable_transform_cbf) {
-    assert(cbf);
-  } else if (cu.IsIntra()) {
+  const bool cbf = cu.GetCbf(comp);
+  if (cu.IsIntra()) {
     writer->WriteCbf(cu, comp, cbf);
   } else if (util::IsLuma(comp)) {
-    // For inter the luma comp will write all cbf flags
+    // Inter luma comp will write all cbf flags since chroma is written first
+    // TODO(PH) Check for monochrome chroma format
     writer->WriteCbf(cu, YuvComponent::kU, cu.GetCbf(YuvComponent::kU));
     writer->WriteCbf(cu, YuvComponent::kV, cu.GetCbf(YuvComponent::kV));
     if (cu.GetCbf(YuvComponent::kU) || cu.GetCbf(YuvComponent::kV) ||
         Restrictions::Get().disable_transform_root_cbf) {
-      writer->WriteCbf(cu, comp, cbf);
+      writer->WriteCbf(cu, YuvComponent::kY, cbf);
     } else {
       assert(cbf);  // implicit signaling through root cbf
     }
   } else {
     // signaled by luma
   }
-  if (cbf) {
-    ctu_has_coeffs_ = true;
-    DataBuffer<const Coeff> cu_coeff = cu.GetCoeff(comp);
-    writer->WriteCoefficients(cu, comp, cu_coeff.GetDataPtr(),
-                              cu_coeff.GetStride());
-  }
+  return cbf;
 }
 
 }   // namespace xvc

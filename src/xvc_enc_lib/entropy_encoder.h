@@ -38,10 +38,10 @@ public:
   void ResetBitCounting() { frac_bits_ &= 32767; }
   void Start();
   void Finish();
-  Bits GetNumWrittenBits() {
+  Bits GetNumWrittenBits() const {
     return static_cast<uint32_t>(frac_bits_ >> 15);
   }
-  Bits GetFractionalBits() {
+  Bits GetFractionalBits() const {
     return static_cast<uint32_t>(frac_bits_ & 32767);
   }
 

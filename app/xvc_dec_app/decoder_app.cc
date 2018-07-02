@@ -84,10 +84,12 @@ void DecoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.output_bitdepth;
     } else if (arg == "-max-framerate") {
       std::stringstream(argv[++i]) >> cli_.max_framerate;
-    } else if (arg == "-simd-mask") {
-      std::stringstream(argv[++i]) >> cli_.simd_mask;
     } else if (arg == "-threads") {
       std::stringstream(argv[++i]) >> cli_.threads;
+    } else if (arg == "-simd-mask") {
+      std::stringstream(argv[++i]) >> cli_.simd_mask;
+    } else if (arg == "-dither") {
+      std::stringstream(argv[++i]) >> cli_.dither;
     } else if (arg == "-loop") {
       std::stringstream(argv[++i]) >> cli_.loop;
     } else if (arg == "-verbose") {
@@ -160,11 +162,14 @@ void DecoderApp::CreateAndConfigureApi() {
   if (cli_.max_framerate != -1) {
     params_->max_framerate = cli_.max_framerate;
   }
+  if (cli_.threads != -1) {
+    params_->threads = cli_.threads;
+  }
   if (cli_.simd_mask != -1) {
     params_->simd_mask = cli_.simd_mask;
   }
-  if (cli_.threads != -1) {
-    params_->threads = cli_.threads;
+  if (cli_.dither != -1) {
+    params_->dither = cli_.dither;
   }
   if (xvc_api_->parameters_check(params_) != XVC_DEC_OK) {
     std::cerr << "Error. Invalid parameters. Please check the values of the"
@@ -226,7 +231,10 @@ void DecoderApp::MainDecoderLoop() {
 
     // Decode next Nal Unit.
     ret = xvc_api_->decoder_decode_nal(decoder_, &nal_bytes_[0], nal_size, 0);
-    if (ret == XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER) {
+    if (ret == XVC_DEC_BITSTREAM_VERSION_LOWER_THAN_SUPPORTED_BY_DECODER) {
+      std::cerr << xvc_api_->xvc_dec_get_error_text(ret) << std::endl;
+      std::exit(XVC_DEC_BITSTREAM_VERSION_LOWER_THAN_SUPPORTED_BY_DECODER);
+    } else if (ret == XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER) {
       std::cerr << xvc_api_->xvc_dec_get_error_text(ret) << std::endl;
       std::exit(XVC_DEC_BITSTREAM_VERSION_HIGHER_THAN_DECODER);
     } else if (ret == XVC_DEC_BITSTREAM_BITDEPTH_TOO_HIGH) {
@@ -328,6 +336,8 @@ void DecoderApp::PrintUsage() {
   GetLog() << "      3: 4:4:4" << std::endl;
   GetLog() << "  -output-bitdepth <int>" << std::endl;
   GetLog() << "  -max-framerate <int>" << std::endl;
+  GetLog() << "  -threads <int> default is -1 (auto-detect)" << std::endl;
+  GetLog() << "  -dither <0/1>" << std::endl;
   GetLog() << "  -loop <int>" << std::endl;
   GetLog() << "  -verbose <0/1>" << std::endl;
 }

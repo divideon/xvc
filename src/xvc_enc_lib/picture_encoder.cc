@@ -18,10 +18,13 @@
 
 #include "xvc_enc_lib/picture_encoder.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <numeric>
 #include <utility>
 
 #include "xvc_common_lib/deblocking_filter.h"
@@ -33,51 +36,59 @@
 
 namespace xvc {
 
-PictureEncoder::PictureEncoder(const SimdFunctions &simd,
-                               ChromaFormat chroma_format, int width,
-                               int height, int bitdepth)
+PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
+                               const PictureFormat &pic_fmt,
+                               int crop_width, int crop_height)
   : simd_(simd),
-  orig_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
-                                         bitdepth, false)),
-  pic_data_(std::make_shared<PictureData>(chroma_format, width, height,
-                                          bitdepth)),
-  rec_pic_(std::make_shared<YuvPicture>(chroma_format, width, height,
-                                        bitdepth, true)) {
+  orig_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
+                                         pic_fmt.height, pic_fmt.bitdepth,
+                                         false, crop_width, crop_height)),
+  pic_data_(std::make_shared<PictureData>(pic_fmt.chroma_format, pic_fmt.width,
+                                          pic_fmt.height, pic_fmt.bitdepth)),
+  rec_pic_(std::make_shared<YuvPicture>(pic_fmt.chroma_format, pic_fmt.width,
+                                        pic_fmt.height, pic_fmt.bitdepth,
+                                        true, 0, 0)) {
 }
 
-std::vector<uint8_t>*
+const std::vector<uint8_t>*
 PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
-                       PicNum sub_gop_length, int buffer_flag,
-                       bool flat_lambda,
+                       int buffer_flag,
                        const EncoderSettings &encoder_settings) {
-  int lambda_sub_gop_length =
-    !flat_lambda ? static_cast<int>(segment.max_sub_gop_length) : 1;
-  int lambda_max_tid = SegmentHeader::GetMaxTid(lambda_sub_gop_length);
-  int lambda_pic_tid = !flat_lambda ? pic_data_->GetTid() : 0;
-  int pic_qp = DerivePictureQp(*pic_data_, segment_qp);
-  double lambda =
-    Qp::CalculateLambda(pic_qp, pic_data_->GetPredictionType(),
-                        lambda_sub_gop_length, lambda_pic_tid, lambda_max_tid,
-                        encoder_settings.smooth_lambda_scaling);
-  int scaled_qp = Qp::GetQpFromLambda(pic_data_->GetBitdepth(), lambda);
+  const PicturePredictionType picture_type = pic_data_->GetPredictionType();
+  int sub_gop_length = static_cast<int>(segment.max_sub_gop_length);
+  int max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
+  int pic_tid = pic_data_->GetTid();
+  if (encoder_settings.flat_lambda > 0) {
+    sub_gop_length = std::min(sub_gop_length, encoder_settings.flat_lambda);
+    max_tid = SegmentHeader::GetMaxTid(sub_gop_length);
+    pic_tid = max_tid;
+  }
+  const int pic_qp =
+    DerivePictureQp(encoder_settings, segment_qp, picture_type, pic_tid);
+  const double pic_lambda =
+    CalculateLambda(encoder_settings, segment, pic_qp, picture_type,
+                    sub_gop_length, pic_tid, max_tid);
+  const int scaled_qp =
+    GetQpFromLambda(pic_data_->GetBitdepth(), pic_lambda);
   Qp base_qp(scaled_qp, pic_data_->GetChromaFormat(), pic_data_->GetBitdepth(),
-             lambda, encoder_settings.chroma_qp_offset_table,
+             pic_lambda, encoder_settings.chroma_qp_offset_table,
              encoder_settings.chroma_qp_offset_u,
              encoder_settings.chroma_qp_offset_v);
 
   pic_data_->Init(segment, base_qp, encoder_settings.adaptive_qp > 0);
+  const bool allow_lic = DetermineAllowLic(pic_data_->GetPredictionType(),
+                                           *pic_data_->GetRefPicLists());
+  pic_data_->SetUseLocalIlluminationCompensation(allow_lic);
 
   bit_writer_.Clear();
   if (encoder_settings.encapsulation_mode != 0) {
-    bit_writer_.WriteBits(constants::kEncapsulationCode1, 8);
+    bit_writer_.WriteBits(constants::kEncapsulationCode, 8);
     bit_writer_.WriteBits(1, 8);
   }
   WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
 
-  EntropyEncoder entropy_encoder(&bit_writer_);
-  entropy_encoder.Start();
   SyntaxWriter writer(base_qp, pic_data_->GetPredictionType(),
-                      &entropy_encoder);
+                      &bit_writer_);
   std::unique_ptr<CuEncoder>
     cu_encoder(new CuEncoder(simd_, *orig_pic_, rec_pic_.get(), pic_data_.get(),
                              encoder_settings));
@@ -91,23 +102,25 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                                pic_data_->GetTcOffset());
     deblocker.DeblockPicture();
   }
-  entropy_encoder.EncodeBinTrm(1);
-  entropy_encoder.Finish();
+  writer.Finish();
 
-  int pic_tid = pic_data_->GetTid();
-  if (pic_tid == 0 || !pic_data_->IsHighestLayer()) {
+  if (pic_data_->GetTid() == 0 || !pic_data_->IsHighestLayer()) {
     rec_pic_->PadBorder();
   }
   pic_data_->GetRefPicLists()->ZeroOutReferences();
-  if (pic_tid == 0 || segment.checksum_mode == Checksum::Mode::kMaxRobust) {
-    WriteChecksum(&bit_writer_, segment.checksum_mode);
+  if (pic_data_->GetTid() == 0 ||
+      segment.checksum_mode == Checksum::Mode::kMaxRobust) {
+    WriteChecksum(segment, &bit_writer_, segment.checksum_mode);
+  } else {
+    pic_hash_.clear();
   }
+  rec_sse_ = CalculatePicMetric(base_qp);
   return bit_writer_.GetBytes();
 }
 
 std::shared_ptr<YuvPicture>
-PictureEncoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
-                                     int height, int bitdepth) const {
+PictureEncoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
+                                     int crop_width, int crop_height) const {
   assert(0);
   return std::shared_ptr<YuvPicture>();
 }
@@ -115,39 +128,177 @@ PictureEncoder::GetAlternativeRecPic(ChromaFormat chroma_format, int width,
 void PictureEncoder::WriteHeader(const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
                                  BitWriter *bit_writer) {
-  bit_writer->WriteBits(0, 2);  // nal_rfe
+  bit_writer->WriteBits(1, 1);  // xvc_bit_one
+  bit_writer->WriteBits(0, 1);  // nal_rfe
   bit_writer->WriteBits(static_cast<uint8_t>(pic_data.GetNalType()), 5);
   bit_writer->WriteBits(1, 1);  // nal_rfl
   bit_writer->WriteBits(buffer_flag, 1);
   assert(pic_data.GetTid() >= 0);
   bit_writer->WriteBits(pic_data.GetTid(), 3);
-  int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
+  const int pic_qp = pic_data.GetPicQp()->GetQpRaw(YuvComponent::kY);
   assert(pic_qp + constants::kQpSignalBase < (1 << 7));
   bit_writer->WriteBits(pic_qp + constants::kQpSignalBase, 7);
+  const bool allow_lic = pic_data.GetUseLocalIlluminationCompensation();
+  if (!Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
+    bit_writer->WriteBit(allow_lic ? 1 : 0);
+  } else {
+    assert(!allow_lic);
+  }
   bit_writer->PadZeroBits();
 }
 
-void PictureEncoder::WriteChecksum(BitWriter *bit_writer,
+void PictureEncoder::WriteChecksum(const SegmentHeader &segment,
+                                   BitWriter *bit_writer,
                                    Checksum::Mode checksum_mode) {
-  checksum_.Clear();
   Checksum::Method checksum_method =
     Restrictions::Get().disable_high_level_default_checksum_method ?
     Checksum::kFallbackMethod : Checksum::kDefaultMethod;
-  checksum_.HashPicture(*rec_pic_, checksum_method, checksum_mode);
-  std::vector<uint8_t> hash = checksum_.GetHash();
-  assert(hash.size() < UINT8_MAX);
-  bit_writer->WriteByte(static_cast<uint8_t>(hash.size()));
-  bit_writer->WriteBytes(&hash[0], hash.size());
+  Checksum checksum(checksum_method, checksum_mode);
+  checksum.HashPicture(*rec_pic_);
+  pic_hash_ = checksum.GetHash();
+  assert(pic_hash_.size() < UINT8_MAX);
+  if (segment.major_version <= 1) {
+    // TODO(PH) This is only needed to generate bitstream for hls unit tests
+    bit_writer->WriteByte(static_cast<uint8_t>(pic_hash_.size()));
+  }
+  bit_writer->WriteBytes(&pic_hash_[0], pic_hash_.size());
 }
 
-int PictureEncoder::DerivePictureQp(const PictureData &pic_data,
-                                    int segment_qp) const {
-  int pic_qp = segment_qp;
-  if (pic_data.GetPredictionType() != PicturePredictionType::kIntra) {
-    pic_qp = segment_qp + pic_data.GetTid() + 1;
+int
+PictureEncoder::DerivePictureQp(const EncoderSettings &encoder_settings,
+                                int segment_qp, PicturePredictionType pic_type,
+                                int tid) const {
+  int pic_qp;
+  if (pic_type == PicturePredictionType::kIntra) {
+    pic_qp = segment_qp + encoder_settings.intra_qp_offset;
+  } else {
+    pic_qp = segment_qp + tid + 1;
   }
   return util::Clip3(pic_qp, constants::kMinAllowedQp,
                      constants::kMaxAllowedQp);
+}
+
+bool
+PictureEncoder::DetermineAllowLic(PicturePredictionType pic_type,
+                                  const ReferencePictureLists &ref_pics) const {
+  static const double kSampleThreshold = 0.06;
+  const YuvComponent comp = YuvComponent::kY;
+  const int pic_width = orig_pic_->GetWidth(comp);
+  const int pic_height = orig_pic_->GetHeight(comp);
+  const int num_buckets = 1 << orig_pic_->GetBitdepth();
+  const auto build_histogram =
+    [pic_width, pic_height](const SampleBufferConst &buffer, bool increment,
+                            std::vector<int32_t> *histogram) {
+    const Sample *sample = buffer.GetDataPtr();
+    for (int y = 0; y < pic_height; y++) {
+      for (int x = 0; x < pic_width; x++) {
+        Sample val = sample[x];
+        (*histogram)[val] += increment ? 1 : -1;
+      }
+      sample += buffer.GetStride();
+    }
+  };
+
+  if (pic_type == PicturePredictionType::kIntra ||
+      Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
+    return false;
+  }
+
+  std::vector<int32_t> histogram_orig(num_buckets, 0);
+  std::vector<int32_t> histogram_ref(num_buckets, 0);
+  SampleBuffer orig_buffer = orig_pic_->GetSampleBuffer(comp, 0, 0);
+  build_histogram(orig_buffer, true, &histogram_orig);
+
+  int num_ref_lists = pic_type == PicturePredictionType::kBi ? 2 : 1;
+  for (int ref_list_idx = 0; ref_list_idx < num_ref_lists; ref_list_idx++) {
+    const RefPicList ref_list = static_cast<RefPicList>(ref_list_idx);
+    const int num_ref_pics = ref_pics.GetNumRefPics(ref_list);
+    for (int ref_idx = 0; ref_idx < num_ref_pics; ref_idx++) {
+      const YuvPicture *ref_pic = ref_pics.GetRefOrigPic(ref_list, ref_idx);
+      SampleBufferConst ref_buffer = ref_pic->GetSampleBuffer(comp, 0, 0);
+      histogram_ref = histogram_orig;
+      build_histogram(ref_buffer, false, &histogram_ref);
+      int err_sum = 0;
+      for (int i = 0; i < num_buckets; i++) {
+        err_sum += std::abs(histogram_ref[i]);
+      }
+      if (err_sum >
+          static_cast<int>(kSampleThreshold * pic_width * pic_height)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+uint64_t PictureEncoder::CalculatePicMetric(const Qp &qp) const {
+  // TODO(PH) Force bitdepth 8 to prevent truncating metric precision
+  const int metric_bitdepth = 8;
+  // TODO(PH) Force luma component to prevent distortion scaling for chroma
+  const YuvComponent metric_comp = YuvComponent::kY;
+  SampleMetric metric(simd_.sample_metric, metric_bitdepth, MetricType::kSsd);
+  uint64_t mse = 0;
+  for (int c = 0; c < pic_data_->GetMaxNumComponents(); c++) {
+    const YuvComponent comp = static_cast<YuvComponent>(c);
+    const int width = orig_pic_->GetWidth(comp);
+    const int height = orig_pic_->GetHeight(comp);
+    SampleBufferConst orig_buffer = orig_pic_->GetSampleBuffer(comp, 0, 0);
+    SampleBufferConst rec_buffer = rec_pic_->GetSampleBuffer(comp, 0, 0);
+    mse += metric.CompareSample(qp, metric_comp, width, height,
+                                orig_buffer, rec_buffer);
+  }
+  return mse;
+}
+
+int PictureEncoder::GetQpFromLambda(int bitdepth, double lambda) {
+  int qp = static_cast<int>(
+    std::floor((3.0 * (log(lambda / 0.57) / log(2.0))) + 0.5));
+  return util::Clip3(12 + qp, constants::kMinAllowedQp,
+                     constants::kMaxAllowedQp);
+}
+
+double
+PictureEncoder::CalculateLambda(const EncoderSettings &encoder_settings,
+                                const SegmentHeader &segment_header,
+                                int qp, PicturePredictionType pic_type,
+                                int sub_gop_length, int temporal_id,
+                                int max_temporal_id) {
+  const int qp_temp = qp - 12;
+  const double lambda = pow(2.0, qp_temp / 3.0);
+  double scale_factor = encoder_settings.lambda_scale_a *
+    pow(2.0, encoder_settings.lambda_scale_b * qp_temp);
+  double pic_type_factor =
+    (pic_type == PicturePredictionType::kIntra ? 0.57 : 0.68);
+  double subgop_factor =
+    1.0 - util::Clip3(0.05 * (sub_gop_length - 1), 0.0, 0.5);
+  double hierarchical_factor = 1;
+  if (temporal_id > 0 && temporal_id == max_temporal_id &&
+      !segment_header.low_delay) {
+    subgop_factor = 1.0;
+    hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+  } else if (temporal_id > 0) {
+    hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+    hierarchical_factor *= 0.8;
+  }
+  if (sub_gop_length == 16 && pic_type != PicturePredictionType::kIntra &&
+      !segment_header.low_delay) {
+    if (encoder_settings.smooth_lambda_scaling == 0) {
+      static const std::array<double, 5> temporal_factor = { {
+          0.6, 0.2, 0.33, 0.33, 0.4
+        } };
+      hierarchical_factor =
+        temporal_id == 0 ? 1 : util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+      return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+    } else {
+      static const std::array<double, 5> temporal_factor = { {
+          0.14, 0.2, 0.33, 0.33, 0.4
+        } };
+      hierarchical_factor = util::Clip3(qp_temp / 6.0, 2.0, 4.0);
+      return temporal_factor[temporal_id] * hierarchical_factor * lambda;
+    }
+  }
+  return lambda *
+    scale_factor * pic_type_factor * subgop_factor * hierarchical_factor;
 }
 
 }   // namespace xvc

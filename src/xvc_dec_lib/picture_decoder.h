@@ -19,6 +19,7 @@
 #ifndef XVC_DEC_LIB_PICTURE_DECODER_H_
 #define XVC_DEC_LIB_PICTURE_DECODER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "xvc_common_lib/checksum.h"
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/picture_data.h"
+#include "xvc_common_lib/resample.h"
 #include "xvc_common_lib/segment_header.h"
 #include "xvc_common_lib/simd_functions.h"
 #include "xvc_common_lib/yuv_pic.h"
@@ -45,47 +47,65 @@ public:
     int tid;
     int pic_qp;
     bool highest_layer;
+    bool allow_lic;
   };
 
-  PictureDecoder(const SimdFunctions &simd, ChromaFormat chroma_format,
-                 int width, int height, int bitdepth);
+  PictureDecoder(const SimdFunctions &simd, const PictureFormat &pic_format,
+                 int crop_width, int crop_height);
   void Init(const SegmentHeader &segment, const PicNalHeader &header,
-            ReferencePictureLists &&ref_pic_list, int64_t user_data);
-  bool Decode(const SegmentHeader &segment, BitReader *bit_reader);
+            ReferencePictureLists &&ref_pic_list,
+            const PictureFormat &output_pic_format, int64_t user_data);
+  bool Decode(const SegmentHeader &segment,
+              const SegmentHeader &prev_segment_header, BitReader *bit_reader,
+              bool post_process);
+  bool Postprocess(const SegmentHeader &segment, BitReader *bit_reader);
+  std::shared_ptr<const YuvPicture> GetOrigPic() const { return nullptr; }
   std::shared_ptr<const PictureData> GetPicData() const { return pic_data_; }
   std::shared_ptr<PictureData> GetPicData() { return pic_data_; }
   std::shared_ptr<const YuvPicture> GetRecPic() const { return rec_pic_; }
   std::shared_ptr<YuvPicture> GetRecPic() { return rec_pic_; }
   int64_t GetNalUserData() const { return user_data_; }
-  void SetOutputStatus(OutputStatus status) { output_status_ = status; }
-  OutputStatus GetOutputStatus() const { return output_status_; }
+  void SetOutputStatus(OutputStatus status) {
+    output_status_.store(status, std::memory_order_release);
+  }
+  OutputStatus GetOutputStatus() const {
+    return output_status_.load(std::memory_order_acquire);
+  }
+  const std::vector<uint8_t>& GetOutputPictureBytes() const {
+    return output_pic_bytes_;
+  }
   void SetIsConforming(bool conforming) { conforming_ = conforming; }
   bool GetIsConforming() const { return conforming_; }
   bool IsReferenced() const { return ref_count > 0; }
   void AddReferenceCount(int val) const { ref_count += val; }
   void RemoveReferenceCount(int val) const { ref_count -= val; }
-  std::vector<uint8_t> GetLastChecksum() const { return checksum_.GetHash(); }
+  const std::vector<uint8_t>& GetLastChecksum() const { return pic_hash_; }
   std::shared_ptr<YuvPicture> GetAlternativeRecPic(
-    ChromaFormat chroma_format, int width, int height, int bitdepth) const;
+    const PictureFormat &pic_fmt, int crop_width, int crop_height) const;
   static PicNalHeader
-    DecodeHeader(BitReader *bit_reader, PicNum *sub_gop_end_poc,
-                 PicNum *sub_gop_start_poc, PicNum *sub_gop_length,
-                 PicNum max_sub_gop_length, PicNum prev_sub_gop_length,
+    DecodeHeader(const SegmentHeader &segment_header, BitReader *bit_reader,
+                 PicNum *sub_gop_end_poc, PicNum *sub_gop_start_poc,
+                 PicNum *sub_gop_length, PicNum prev_sub_gop_length,
                  PicNum doc, SegmentNum soc, int num_buffered_nals);
 
 private:
-  bool ValidateChecksum(BitReader *bit_reader, Checksum::Mode checksum_mode);
+  void GenerateAlternativeRecPic(const SegmentHeader &segment,
+                               const SegmentHeader &prev_segment_header) const;
+  bool ValidateChecksum(const SegmentHeader &segment,
+                        BitReader *bit_reader, Checksum::Mode checksum_mode);
 
   const SimdFunctions &simd_;
+  Resampler output_resampler_;
+  PictureFormat output_format_;
   std::shared_ptr<PictureData> pic_data_;
   std::shared_ptr<YuvPicture> rec_pic_;
   std::shared_ptr<YuvPicture> alt_rec_pic_;
-  Checksum checksum_;
+  std::vector<uint8_t> pic_hash_;
+  std::vector<uint8_t> output_pic_bytes_;
   bool conforming_ = false;
   int pic_qp_ = -1;
   int64_t user_data_ = 0;
-  // TODO(PH) Consider using memory barrier and relax global mutex requirement
-  OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
+  std::atomic<OutputStatus> output_status_ = { OutputStatus::kHasBeenOutput };
   // TODO(PH) Mutable isn't really needed if const handling is relaxed...
   // Note that ref_count should only be modified on "main thread"
   mutable int ref_count = 0;

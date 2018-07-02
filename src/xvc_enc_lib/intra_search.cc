@@ -18,7 +18,6 @@
 
 #include "xvc_enc_lib/intra_search.h"
 
-#include <utility>
 #include <limits>
 
 #include "xvc_common_lib/restrictions.h"
@@ -26,20 +25,170 @@
 
 namespace xvc {
 
-IntraSearch::IntraSearch(int bitdepth, const PictureData &pic_data,
+IntraSearch::IntraSearch(const EncoderSimdFunctions &simd, int bitdepth,
+                         const PictureData &pic_data,
                          const YuvPicture &orig_pic,
                          const EncoderSettings &encoder_settings)
   : IntraPrediction(bitdepth),
   pic_data_(pic_data),
   orig_pic_(orig_pic),
   encoder_settings_(encoder_settings),
+  satd_metric_(simd.sample_metric, bitdepth, MetricType::kSatd),
   cu_writer_(pic_data, this) {
 }
 
-IntraMode
-IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
-                             const SyntaxWriter &bitstream_writer,
-                             TransformEncoder *encoder, YuvPicture *rec_pic) {
+Distortion
+IntraSearch::CompressIntraLuma(CodingUnit *cu, const Qp &qp,
+                               const SyntaxWriter &bitstream_writer,
+                               TransformEncoder *encoder, YuvPicture *rec_pic) {
+  const YuvComponent comp = YuvComponent::kY;
+  IntraPrediction::RefState ref_state;
+  IntraModeSet intra_modes;
+  FillReferenceState(*cu, comp, *rec_pic, &ref_state);
+  int num_modes_for_slow_rdo =
+    DetermineSlowIntraModes(cu, qp, bitstream_writer, ref_state, encoder,
+                            rec_pic, &intra_modes);
+
+  IntraMode best_mode = IntraMode::kInvalid;
+  Cost best_cost = std::numeric_limits<Cost>::max();
+  Distortion best_dist = std::numeric_limits<Distortion>::max();
+  bool best_is_applied = false;
+  bool best_uses_tx_select = false;
+  for (int i = 0; i < num_modes_for_slow_rdo; i++) {
+    IntraMode intra_mode = intra_modes[i].first;
+    cu->SetIntraModeLuma(intra_mode);
+    best_is_applied = false;
+
+    // Full reconstruction
+    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+    Distortion ssd = PredictAndTransform(cu, comp, qp, rdo_writer, ref_state,
+                                         encoder, rec_pic);
+    cu_writer_.WriteComponent(*cu, comp, &rdo_writer);
+
+    Bits bits = rdo_writer.GetNumWrittenBits();
+    Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+    const bool bias_normal_tx_type = cost == best_cost &&
+      best_uses_tx_select && !cu->HasTransformSelectIdx();
+    if (cost < best_cost || bias_normal_tx_type) {
+      best_cost = cost;
+      best_dist = ssd;
+      best_mode = intra_mode;
+      best_uses_tx_select = cu->HasTransformSelectIdx();
+      best_is_applied = true;
+      cu->SaveStateTo(&best_cu_state_, *rec_pic, YuvComponent::kY);
+    }
+  }
+
+  cu->SetIntraModeLuma(best_mode);
+  if (!best_is_applied) {
+    cu->LoadStateFrom(best_cu_state_, rec_pic, YuvComponent::kY);
+  }
+  return best_dist;
+}
+
+Distortion
+IntraSearch::CompressIntraChroma(CodingUnit *cu, const Qp &qp,
+                                 const SyntaxWriter &bitstream_writer,
+                                 TransformEncoder *enc, YuvPicture *rec_pic) {
+  const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
+  IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
+  IntraPredictorChroma chroma_modes = GetPredictorsChroma(luma_mode);
+  IntraPrediction::RefState ref_state_u;
+  IntraPrediction::RefState ref_state_v;
+  Distortion best_dist = 0;
+
+  FillReferenceState(*cu, YuvComponent::kU, *rec_pic, &ref_state_u);
+  FillReferenceState(*cu, YuvComponent::kV, *rec_pic, &ref_state_v);
+  if (Restrictions::Get().disable_intra_chroma_predictor) {
+    cu->SetIntraModeChroma(IntraChromaMode::kDmChroma);
+    best_dist += PredictAndTransform(cu, YuvComponent::kU, qp, bitstream_writer,
+                                     ref_state_u, enc, rec_pic);
+    best_dist += PredictAndTransform(cu, YuvComponent::kV, qp, bitstream_writer,
+                                     ref_state_v, enc, rec_pic);
+    return best_dist;
+  }
+
+  Cost best_cost = std::numeric_limits<Cost>::max();
+  IntraChromaMode best_mode = IntraChromaMode::kInvalid;
+  bool best_is_applied = false;
+
+  for (int i = 0; i < static_cast<int>(chroma_modes.size()); i++) {
+    IntraChromaMode chroma_mode = chroma_modes[i];
+    if (chroma_mode == IntraChromaMode::kInvalid) {
+      continue;
+    }
+    cu->SetIntraModeChroma(chroma_mode);
+    best_is_applied = false;
+
+    // Full reconstruction
+    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+    Distortion dist = 0;
+    dist += PredictAndTransform(cu, YuvComponent::kU, qp, rdo_writer,
+                                ref_state_u, enc, rec_pic);
+    cu_writer_.WriteResidualData(*cu, YuvComponent::kU, &rdo_writer);
+    dist += PredictAndTransform(cu, YuvComponent::kV, qp, rdo_writer,
+                                ref_state_v, enc, rec_pic);
+    cu_writer_.WriteResidualData(*cu, YuvComponent::kV, &rdo_writer);
+
+    // TODO(PH) Should optimally be done before rdo quant
+    cu_writer_.WriteIntraPrediction(*cu, YuvComponent::kU, &rdo_writer);
+    cu_writer_.WriteIntraPrediction(*cu, YuvComponent::kV, &rdo_writer);
+    Bits bits = rdo_writer.GetNumWrittenBits();
+
+    Cost cost = dist + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
+    if (cost < best_cost) {
+      best_cost = cost;
+      best_dist = dist;
+      best_mode = chroma_modes[i];
+      best_is_applied = true;
+      cu->SaveStateTo(&best_cu_state_, *rec_pic, YuvComponent::kU);
+      cu->SaveStateTo(&best_cu_state_, *rec_pic, YuvComponent::kV);
+    }
+  }
+  assert(best_mode != IntraChromaMode::kInvalid);
+  cu->SetIntraModeChroma(best_mode);
+  if (!best_is_applied) {
+    cu->LoadStateFrom(best_cu_state_, rec_pic, YuvComponent::kU);
+    cu->LoadStateFrom(best_cu_state_, rec_pic, YuvComponent::kV);
+  }
+  return best_dist;
+}
+
+Distortion
+IntraSearch::CompressIntraFast(CodingUnit *cu, YuvComponent comp,
+                               const Qp & qp, const SyntaxWriter &writer,
+                               TransformEncoder *encoder,
+                               YuvPicture *rec_pic) {
+  IntraPrediction::RefState ref_state;
+  FillReferenceState(*cu, comp, *rec_pic, &ref_state);
+  // TODO(PH) Make faster method without transform evaluation
+  return PredictAndTransform(cu, comp, qp, writer, ref_state, encoder,
+                             rec_pic);
+}
+
+Distortion
+IntraSearch::PredictAndTransform(CodingUnit *cu, YuvComponent comp,
+                                 const Qp & qp, const SyntaxWriter &writer,
+                                 const IntraPrediction::RefState &ref_state,
+                                 TransformEncoder *encoder,
+                                 YuvPicture *rec_pic) {
+  SampleBuffer &pred_buffer = encoder->GetPredBuffer(comp);
+  IntraMode intra_mode = cu->GetIntraMode(comp);
+  Predict(intra_mode, *cu, comp, ref_state, *rec_pic, &pred_buffer);
+  TxSearchFlags tx_flags = TxSearchFlags::kFullEval & ~TxSearchFlags::kCbfZero;
+  TransformEncoder::RdCost tx_cost =
+    encoder->CompressAndEvalTransform(cu, comp, qp, writer, orig_pic_, tx_flags,
+                                      nullptr, nullptr, &cu_writer_, rec_pic);
+  return tx_cost.dist_reco;
+}
+
+int
+IntraSearch::DetermineSlowIntraModes(CodingUnit *cu, const Qp &qp,
+                                     const SyntaxWriter &bitstream_writer,
+                                     const IntraPrediction::RefState &ref_state,
+                                     TransformEncoder *encoder,
+                                     YuvPicture *rec_pic,
+                                     IntraModeSet *modes_cost) {
   static const std::array<std::array<uint8_t, 8>, 8> kNumIntraFastModesExt = { {
       // 1, 2, 4, 8, 16, 32, 64, 128
     { 0, 0, 0, 0, 0, 0, 0, 0 },   // 1
@@ -55,39 +204,44 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
     /*1x1: */ 0, /*2x2: */ 3, /*4x4: */ 8, /*8x8: */ 8, /*16x16: */ 3,
     /*32x32: */ 3, /*64x64: */ 3
   };
-  Sample *reco =
-    rec_pic->GetSamplePtr(comp, cu->GetPosX(comp), cu->GetPosY(comp));
-  const ptrdiff_t reco_stride = rec_pic->GetStride(comp);
-  IntraPredictorLuma mpm = GetPredictorLuma(*cu);
-  IntraPrediction::State intra_state =
-    ComputeReferenceState(*cu, comp, reco, reco_stride);
+  const YuvComponent comp = YuvComponent::kY;
+  const int num_intra_modes =
+    !Restrictions::Get().disable_ext2_intra_67_modes ?
+    kNbrIntraModesExt : kNbrIntraModes;
+  const bool two_fast_search_passes =
+    !Restrictions::Get().disable_ext2_intra_67_modes;
+  SampleBuffer &pred_buf = encoder->GetPredBuffer(comp);
+  std::array<bool, kNbrIntraModesExt> evaluated_modes = { false };
 
-  SampleBuffer &pred_buf = encoder->GetPredBuffer();
-  SampleMetric metric(MetricType::kSatd, qp, rec_pic->GetBitdepth());
-  std::array<std::pair<IntraMode, double>, IntraMode::kTotalNumber> modes_cost;
-  for (int i = 0; i < IntraMode::kTotalNumber; i++) {
+  IntraPredictorLuma mpm = GetPredictorLuma(*cu);
+  for (int i = 0; i < num_intra_modes; i++) {
     IntraMode intra_mode = static_cast<IntraMode>(i);
-    Predict(intra_mode, *cu, comp, intra_state,
-            pred_buf.GetDataPtr(), pred_buf.GetStride());
+    if (two_fast_search_passes && intra_mode > IntraMode::kDc && (i % 2) != 0) {
+      (*modes_cost)[i] = std::make_pair(intra_mode,
+                                        std::numeric_limits<double>::max());
+      continue;
+    }
+    Predict(intra_mode, *cu, comp, ref_state, *rec_pic, &pred_buf);
 
     // Bits
     RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
     rdo_writer.WriteIntraMode(intra_mode, mpm);
-    size_t bits = rdo_writer.GetNumWrittenBits();
+    Bits bits = rdo_writer.GetNumWrittenBits();
 
-    uint64_t sad = metric.CompareSample(*cu, comp, orig_pic_,
-                                        pred_buf.GetDataPtr(),
-                                        pred_buf.GetStride());
-    double cost = sad + bits * qp.GetLambdaSqrt();
-    modes_cost[i] = std::make_pair(intra_mode, cost);
+    uint64_t dist =
+      satd_metric_.CompareSample(*cu, comp, orig_pic_,
+                                 pred_buf.GetDataPtr(), pred_buf.GetStride());
+    double cost = dist + bits * qp.GetLambdaSqrt();
+    (*modes_cost)[i] = std::make_pair(intra_mode, cost);
+    evaluated_modes[intra_mode] = true;
   }
-  std::stable_sort(modes_cost.begin(), modes_cost.end(),
+  std::stable_sort(modes_cost->begin(), modes_cost->begin() + num_intra_modes,
                    [](std::pair<IntraMode, double> p1,
                       std::pair<IntraMode, double> p2) {
     return p1.second < p2.second;
   });
 
-  // Extend shortlist with mpm modes if not already included
+  // Number of modes to evaluate in slow pass
   int width_log2 = util::SizeToLog2(cu->GetWidth(comp));
   int height_log2 = util::SizeToLog2(cu->GetHeight(comp));
   int num_modes_for_slow_rdo = kNumIntraFastModesNoExt[width_log2];
@@ -96,94 +250,53 @@ IntraSearch::SearchIntraLuma(CodingUnit *cu, YuvComponent comp, const Qp &qp,
   } else if (encoder_settings_.fast_intra_mode_eval_level == 0) {
     num_modes_for_slow_rdo = 33;
   }
+
+  if (two_fast_search_passes) {
+    int modes_added = num_modes_for_slow_rdo;
+    for (int i = 0; i < num_modes_for_slow_rdo; i++) {
+      int base_mode = static_cast<int>((*modes_cost)[i].first);
+      if (base_mode <= (IntraMode::kDc + 1) ||
+          base_mode >= kNbrIntraModesExt - 1) {
+        continue;
+      }
+      for (int offset = -1; offset <= 1; offset += 2) {
+        IntraMode intra_mode = static_cast<IntraMode>(base_mode + offset);
+        if (evaluated_modes[intra_mode]) {
+          continue;
+        }
+        Predict(intra_mode, *cu, comp, ref_state, *rec_pic, &pred_buf);
+        // Bits
+        RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
+        rdo_writer.WriteIntraMode(intra_mode, mpm);
+        Bits bits = rdo_writer.GetNumWrittenBits();
+        uint64_t dist =
+          satd_metric_.CompareSample(*cu, comp, orig_pic_, pred_buf);
+        double cost = dist + bits * qp.GetLambdaSqrt();
+        (*modes_cost)[modes_added++] = std::make_pair(intra_mode, cost);
+        evaluated_modes[intra_mode] = true;
+      }
+    }
+    std::stable_sort(modes_cost->begin(), modes_cost->begin() + modes_added,
+                     [](std::pair<IntraMode, double> p1,
+                        std::pair<IntraMode, double> p2) {
+      return p1.second < p2.second;
+    });
+  }
+
+  // Extend shortlist with predictor modes
   for (int i = 0; i < mpm.num_neighbor_modes; i++) {
     bool found = false;
     for (int j = 0; j < num_modes_for_slow_rdo; j++) {
-      if (modes_cost[j].first == mpm[i]) {
+      if ((*modes_cost)[j].first == mpm[i]) {
         found = true;
         break;
       }
     }
     if (!found) {
-      modes_cost[num_modes_for_slow_rdo++].first = mpm[i];
+      (*modes_cost)[num_modes_for_slow_rdo++].first = mpm[i];
     }
   }
-
-  IntraMode best_mode = static_cast<IntraMode>(0);
-  Cost best_cost = std::numeric_limits<Cost>::max();
-  for (int i = 0; i < num_modes_for_slow_rdo; i++) {
-    IntraMode intra_mode = modes_cost[i].first;
-    cu->SetIntraModeLuma(intra_mode);
-
-    // Full reconstruction
-    Distortion ssd =
-      CompressIntra(cu, comp, qp, bitstream_writer, encoder, rec_pic);
-
-    // Bits
-    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-    cu_writer_.WriteComponent(*cu, comp, &rdo_writer);
-    size_t bits = rdo_writer.GetNumWrittenBits();
-
-    Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
-    if (cost < best_cost) {
-      best_cost = cost;
-      best_mode = intra_mode;
-    }
-  }
-  return best_mode;
-}
-
-IntraChromaMode
-IntraSearch::SearchIntraChroma(CodingUnit *cu, const Qp &qp,
-                               const SyntaxWriter &bitstream_writer,
-                               TransformEncoder *enc, YuvPicture *rec_pic) {
-  const CodingUnit *luma_cu = pic_data_.GetLumaCu(cu);
-  IntraMode luma_mode = luma_cu->GetIntraMode(YuvComponent::kY);
-  IntraPredictorChroma chroma_modes = GetPredictorsChroma(luma_mode);
-  IntraChromaMode best_mode = IntraChromaMode::kDmChroma;
-  Cost best_cost = std::numeric_limits<Cost>::max();
-  if (Restrictions::Get().disable_intra_chroma_predictor) {
-    return best_mode;
-  }
-  for (int i = 0; i < static_cast<int>(chroma_modes.size()); i++) {
-    IntraChromaMode chroma_mode = chroma_modes[i];
-    cu->SetIntraModeChroma(chroma_mode);
-
-    // Full reconstruction
-    Distortion ssd = 0;
-    ssd +=
-      CompressIntra(cu, YuvComponent::kU, qp, bitstream_writer, enc, rec_pic);
-    ssd +=
-      CompressIntra(cu, YuvComponent::kV, qp, bitstream_writer, enc, rec_pic);
-
-    // Bits
-    RdoSyntaxWriter rdo_writer(bitstream_writer, 0);
-    cu_writer_.WriteComponent(*cu, YuvComponent::kU, &rdo_writer);
-    cu_writer_.WriteComponent(*cu, YuvComponent::kV, &rdo_writer);
-    size_t bits = rdo_writer.GetNumWrittenBits();
-
-    Cost cost = ssd + static_cast<Cost>(bits * qp.GetLambda() + 0.5);
-    if (cost < best_cost) {
-      best_cost = cost;
-      best_mode = chroma_modes[i];
-    }
-  }
-  return best_mode;
-}
-
-Distortion IntraSearch::CompressIntra(CodingUnit *cu, YuvComponent comp,
-                                      const Qp &qp, const SyntaxWriter &writer,
-                                      TransformEncoder *encoder,
-                                      YuvPicture *rec_pic) {
-  int cu_x = cu->GetPosX(comp);
-  int cu_y = cu->GetPosY(comp);
-  SampleBuffer reco_buffer = rec_pic->GetSampleBuffer(comp, cu_x, cu_y);
-  SampleBuffer &pred_buf = encoder->GetPredBuffer();
-  IntraMode intra_mode = cu->GetIntraMode(comp);
-  Predict(intra_mode, *cu, comp, reco_buffer.GetDataPtr(),
-          reco_buffer.GetStride(), pred_buf.GetDataPtr(), pred_buf.GetStride());
-  return encoder->TransformAndReconstruct(cu, comp, qp, writer, orig_pic_,
-                                          rec_pic);
+  return num_modes_for_slow_rdo;
 }
 
 }   // namespace xvc

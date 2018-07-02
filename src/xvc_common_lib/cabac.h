@@ -29,23 +29,7 @@
 
 namespace xvc {
 
-class Cabac {
-public:
-  static inline uint8_t RenormTable(uint32_t lps) {
-    return kRenormTable_[lps];
-  }
-  static inline uint8_t RangeTable(uint32_t state, uint32_t range) {
-    return kRangeTable_[state][range];
-  }
-
-private:
-  static const uint8_t kRenormTable_[32];
-  static const std::array<std::array<const uint8_t, 4>,
-    1 << ContextModel::CONTEXT_STATE_BITS> kRangeTable_;
-};
-
-struct CabacContexts {
-public:
+struct CabacCommon {
   static const int kNumSplitQuadFlagCtx = 5;
   static const int kNumSplitBinaryCtx = 6;
   static const int kNumSkipFlagCtx = 3;
@@ -53,10 +37,12 @@ public:
   static const int kNumMergeIdxCtx = 1;
   static const int kNumPartSizeCtx = 4;
   static const int kNumPredModeCtx = 1;
-  static const int kNumIntraPredCtx = 2;
-  static const int kNumIntraPredCtxLuma = 1;
-  static const int kNumIntraPredCtxChroma = 1;
+  static const int kNumIntraPredCtxLuma = 9;
+  static const int kNumIntraPredCtxChroma = 2;
   static const int kNumInterDirCtx = 5;
+  static const int kNumInterFullpelMvCtx = 3;
+  static const int kNumAffineCtx = 3;
+  static const int kNumLicFlagCtx = 1;
   static const int kNumMvdCtx = 2;
   static const int kNumRefIdxCtx = 2;
   static const int kNumTransSubdivFlagCtx = 3;
@@ -68,12 +54,21 @@ public:
   static const int kNumSubblockCsbfCtx = 4;
   static const int kNumSubblockCsbfCtxLuma = 2;
   static const int kNumSubblockCsbfCtxChroma = 2;
+  static const int kNumExtSubblockCsbfCtx = 4;
+  static const int kNumExtSubblockCsbfCtxLuma = 2;
+  static const int kNumExtSubblockCsbfCtxChroma = 2;
   static const int kNumCoeffSigCtx = 42;
   static const int kNumCoeffSigCtxLuma = 27;
   static const int kNumCoeffSigCtxChroma = 15;
+  static const int kNumExtCoeffSigCtx = 66;
+  static const int kNumExtCoeffSigCtxLuma = 54;
+  static const int kNumExtCoeffSigCtxChroma = 12;
   static const int kNumCoeffGreater1Ctx = 24;
   static const int kNumCoeffGreater1CtxLuma = 16;
   static const int kNumCoeffGreater1CtxChroma = 8;
+  static const int kNumExtCoeffGreater1Ctx = 22;
+  static const int kNumExtCoeffGreater1CtxLuma = 16;
+  static const int kNumExtCoeffGreater1CtxChroma = 6;
   static const int kNumCoeffGreater2Ctx = 6;
   static const int kNumCoeffGreater2CtxLuma = 4;
   static const int kNumCoeffGreater2CtxChroma = 2;
@@ -83,25 +78,43 @@ public:
   static const int kNumMvpIdxCtx = 1;
   static const int kNumSaoMergeFlagCtx = 1;
   static const int kNumSaoTypeIdxCtx = 1;
-  static const int kNumTransformSkipFlagCtx = 1;
+  static const int kNumTransformSkipFlagCtx = 2;
+  static const int kNumTransformSelectEnableCtx = 6;
+  static const int kNumTransformSelectIdxCtx = 4;
   static const int kNumTquantBypassFlagCtx = 1;
+};
 
+template<typename ContextModel>
+struct CabacContexts : public CabacCommon {
+public:
+  CabacContexts() {}
   void ResetStates(const Qp &qp, PicturePredictionType pic_type);
 
+  ContextModel& GetAffineCtx(const CodingUnit &cu);
   ContextModel& GetSkipFlagCtx(const CodingUnit &cu);
   ContextModel& GetSplitBinaryCtx(const CodingUnit &cu);
   ContextModel& GetSplitFlagCtx(const CodingUnit &cu, int max_depth);
+  ContextModel& GetIntraPredictorCtx(IntraMode intra_mode);
   ContextModel& GetInterDirBiCtx(const CodingUnit &cu);
+  ContextModel& GetInterFullpelMvCtx(const CodingUnit &cu);
   ContextModel& GetSubblockCsbfCtx(YuvComponent comp,
                                    const uint8_t *sig_sublock, int posx,
                                    int posy, int width, int height,
                                    int *pattern_sig_ctx);
   ContextModel& GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
                                ScanOrder scan_order, int posx, int posy,
+                               const Coeff *coeff, ptrdiff_t coeff_stride,
                                int width_log2, int height_log2);
-  ContextModel& GetCoeffGreaterThan1Ctx(YuvComponent comp, int ctx_set,
-                                        int c1);
-  ContextModel& GetCoeffGreaterThan2Ctx(YuvComponent comp, int ctx_set);
+  ContextModel& GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
+                                    int posx, int posy, bool is_last_coeff,
+                                    const Coeff *coeff, ptrdiff_t coeff_stride,
+                                    int width_log2, int height_log2);
+  ContextModel& GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
+                                    int posx, int posy, bool is_last_coeff,
+                                    const Coeff *coeff, ptrdiff_t coeff_stride,
+                                    int width_log2, int height_log2);
+  uint32_t GetCoeffGolombRiceK(int posx, int posy, int width, int height,
+                               const Coeff *coeff, ptrdiff_t coeff_stride);
   ContextModel& GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
                                    int pos, bool is_pos_x);
 
@@ -114,6 +127,7 @@ public:
   std::array<ContextModel, kNumSplitQuadFlagCtx> cu_split_quad_flag;
   std::array<ContextModel, kNumSplitBinaryCtx> cu_split_binary;
   std::array<ContextModel, kNumInterDirCtx> inter_dir;
+  std::array<ContextModel, kNumInterFullpelMvCtx> inter_fullpel_mv;
   std::array<ContextModel, kNumMergeFlagCtx> inter_merge_flag;
   std::array<ContextModel, kNumMergeIdxCtx> inter_merge_idx;
   std::array<ContextModel, kNumMvdCtx> inter_mvd;
@@ -121,19 +135,41 @@ public:
   std::array<ContextModel, kNumRefIdxCtx> inter_ref_idx;
   std::array<ContextModel, kNumIntraPredCtxLuma> intra_pred_luma;
   std::array<ContextModel, kNumIntraPredCtxChroma> intra_pred_chroma;
-  std::array<ContextModel, kNumSubblockCsbfCtxLuma> subblock_csbf_luma;
-  std::array<ContextModel, kNumSubblockCsbfCtxChroma> subblock_csbf_chroma;
-  std::array<ContextModel, kNumCoeffSigCtxLuma> coeff_sig_luma;
-  std::array<ContextModel, kNumCoeffSigCtxChroma> coeff_sig_chroma;
-  std::array<ContextModel, kNumCoeffGreater1CtxLuma> coeff_greater1_luma;
-  std::array<ContextModel, kNumCoeffGreater1CtxChroma> coeff_greater1_chroma;
-  std::array<ContextModel, kNumCoeffGreater2CtxLuma> coeff_greater2_luma;
-  std::array<ContextModel, kNumCoeffGreater2CtxChroma> coeff_greater2_chroma;
+  std::array<ContextModel, kNumAffineCtx> affine_flag;
+  std::array<ContextModel, kNumLicFlagCtx> lic_flag;
+  std::array<ContextModel, kNumDeltaQpCtx> delta_qp;
+  union {
+    struct {
+      std::array<ContextModel, kNumSubblockCsbfCtxLuma> csbf_luma;
+      std::array<ContextModel, kNumSubblockCsbfCtxChroma> csbf_chroma;
+      std::array<ContextModel, kNumCoeffSigCtxLuma> sig_luma;
+      std::array<ContextModel, kNumCoeffSigCtxChroma> sig_chroma;
+      std::array<ContextModel, kNumCoeffGreater1CtxLuma> greater1_luma;
+      std::array<ContextModel, kNumCoeffGreater1CtxChroma> greater1_chroma;
+      std::array<ContextModel, kNumCoeffGreater2CtxLuma> greater2_luma;
+      std::array<ContextModel, kNumCoeffGreater2CtxChroma> greater2_chroma;
+    } coeff;
+    struct {
+      std::array<ContextModel, kNumExtSubblockCsbfCtxLuma> csbf_luma;
+      std::array<ContextModel, kNumExtSubblockCsbfCtxChroma> csbf_chroma;
+      std::array<ContextModel, kNumExtCoeffSigCtxLuma> sig_luma;
+      std::array<ContextModel, kNumExtCoeffSigCtxChroma> sig_chroma;
+      std::array<ContextModel, kNumExtCoeffGreater1CtxLuma> greater1_luma;
+      std::array<ContextModel, kNumExtCoeffGreater1CtxChroma> greater1_chroma;
+    } coeff_ext;
+  };
   std::array<ContextModel, kNumCoeffLastPosCtxLuma> coeff_last_pos_x_luma;
   std::array<ContextModel, kNumCoeffLastPosCtxChroma> coeff_last_pos_x_chroma;
   std::array<ContextModel, kNumCoeffLastPosCtxLuma> coeff_last_pos_y_luma;
   std::array<ContextModel, kNumCoeffLastPosCtxChroma> coeff_last_pos_y_chroma;
+  std::array<ContextModel, kNumTransformSkipFlagCtx> transform_skip_flag;
+  std::array<ContextModel, kNumTransformSelectEnableCtx> transform_select_flag;
+  std::array<ContextModel, kNumTransformSelectIdxCtx> transform_select_idx;
 };
+
+extern template struct CabacContexts<ContextModel>;
+extern template struct CabacContexts<ContextModelDynamic>;
+extern template struct CabacContexts<ContextModelStatic>;
 
 }   // namespace xvc
 

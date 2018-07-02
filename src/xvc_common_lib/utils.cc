@@ -25,17 +25,28 @@ namespace util {
 // TODO(dev) this should really be a lookup table
 int SizeToLog2(int size) {
   int log2 = 1;
-  while ((1 << log2) < size)
+  while ((1 << log2) < size) {
     log2++;
+  }
   return log2;
 }
 
 // TODO(dev) this should really be a lookup table
 int SizeLog2Bits(int size) {
   int log2 = 1;
-  while ((1 << log2) < size)
+  while ((1 << log2) < size) {
     log2++;
+  }
   return log2 - 2;
+}
+
+int Log2Floor(int x) {
+  int log2 = 0;
+  while (x > 1) {
+    log2++;
+    x >>= 1;
+  }
+  return log2;
 }
 
 int GetChromaShiftX(ChromaFormat chroma_format) {
@@ -52,7 +63,7 @@ int GetChromaShiftX(ChromaFormat chroma_format) {
     case ChromaFormat::k444:
       return 0;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;
@@ -74,7 +85,7 @@ int GetChromaShiftY(ChromaFormat chroma_format) {
     case ChromaFormat::k444:
       return 0;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;
@@ -99,7 +110,7 @@ int ScaleChromaX(int size, ChromaFormat chroma_format) {
     case ChromaFormat::kArgb:
       return size;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;
@@ -124,7 +135,7 @@ int ScaleChromaY(int size, ChromaFormat chroma_format) {
     case ChromaFormat::kArgb:
       return size;
       break;
-    case ChromaFormat::kUndefinedChromaFormat:
+    case ChromaFormat::kUndefined:
     default:
       assert(0);
       return 0;

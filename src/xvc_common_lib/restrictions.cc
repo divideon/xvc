@@ -272,6 +272,66 @@ Restrictions::Restrictions() {
 #if RESTRICTION_DISABLE_EXT_DEBLOCK_SUBBLOCK_SIZE_4
   disable_ext_deblock_subblock_size_4 = true;
 #endif
+
+#if RESTRICTION_DISABLE_EXT2_INTRA_67_MODES
+  disable_ext2_intra_67_modes = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTRA_6_PREDICTORS
+  disable_ext2_intra_6_predictors = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTRA_CHROMA_FROM_LUMA
+  disable_ext2_intra_chroma_from_luma = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_ADAPTIVE_FULLPEL_MV
+  disable_ext2_inter_adaptive_fullpel_mv = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_AFFINE
+  disable_ext2_inter_affine = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_AFFINE_MERGE
+  disable_ext2_inter_affine_merge = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_AFFINE_MVP
+  disable_ext2_inter_affine_mvp = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_BIPRED_L1_MVD_ZERO
+  disable_ext2_inter_bipred_l1_mvd_zero = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_HIGH_PRECISION_MV
+  disable_ext2_inter_high_precision_mv = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_INTER_LOCAL_ILLUMINATION_COMP
+  disable_ext2_inter_local_illumination_comp = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_SKIP
+  disable_ext2_transform_skip = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_HIGH_PRECISION
+  disable_ext2_transform_high_precision = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_SELECT
+  disable_ext2_transform_select = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_TRANSFORM_DST
+  disable_ext2_transform_dst = true;
+#endif
+
+#if RESTRICTION_DISABLE_EXT2_CABAC_ALT_RESIDUAL_CTX
+  disable_ext2_cabac_alt_residual_ctx = true;
+#endif
 }
 
 void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
@@ -294,6 +354,87 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
     disable_ext_two_cu_trees = true;
     disable_ext_transform_size_64 = true;
     disable_ext_deblock_subblock_size_4 = true;
+    disable_ext2_intra_67_modes = true;
+    disable_ext2_intra_6_predictors = true;
+    disable_ext2_intra_chroma_from_luma = true;
+    disable_ext2_inter_adaptive_fullpel_mv = true;
+    disable_ext2_inter_affine = true;
+    disable_ext2_inter_affine_merge = true;
+    disable_ext2_inter_high_precision_mv = true;
+    disable_ext2_inter_local_illumination_comp = true;
+    disable_ext2_transform_high_precision = true;
+    disable_ext2_transform_select = true;
+    disable_ext2_cabac_alt_residual_ctx = true;
+  }
+  if (mode == RestrictedMode::kModeC) {
+    disable_intra_ref_sample_filter = !disable_intra_ref_sample_filter;
+    disable_intra_dc_post_filter = !disable_intra_dc_post_filter;
+    disable_intra_ver_hor_post_filter = !disable_intra_ver_hor_post_filter;
+    disable_inter_mvp = !disable_inter_mvp;
+    disable_inter_scaling_mvp = !disable_inter_scaling_mvp;
+    disable_inter_tmvp_mvp = !disable_inter_tmvp_mvp;
+    disable_inter_tmvp_ref_list_derivation =
+      !disable_inter_tmvp_ref_list_derivation;
+    disable_inter_merge_bipred = !disable_inter_merge_bipred;
+    disable_inter_skip_mode = !disable_inter_skip_mode;
+    disable_inter_mvd_greater_than_flags =
+      !disable_inter_mvd_greater_than_flags;
+    disable_transform_adaptive_scan_order =
+      !disable_transform_adaptive_scan_order;
+    disable_transform_residual_greater2 = !disable_transform_residual_greater2;
+    disable_transform_root_cbf = !disable_transform_root_cbf;
+    disable_transform_subblock_csbf = !disable_transform_subblock_csbf;
+    disable_transform_sign_hiding = !disable_transform_sign_hiding;
+    disable_transform_adaptive_exp_golomb =
+      !disable_transform_adaptive_exp_golomb;
+    disable_cabac_skip_flag_ctx = !disable_cabac_skip_flag_ctx;
+    disable_cabac_inter_dir_ctx = !disable_cabac_inter_dir_ctx;
+    disable_cabac_subblock_csbf_ctx = !disable_cabac_subblock_csbf_ctx;
+    disable_cabac_coeff_greater2_ctx = !disable_cabac_coeff_greater2_ctx;
+    disable_cabac_coeff_last_pos_ctx = !disable_cabac_coeff_last_pos_ctx;
+    disable_cabac_init_per_pic_type = !disable_cabac_init_per_pic_type;
+    disable_cabac_init_per_qp = !disable_cabac_init_per_qp;
+    disable_deblock_strong_filter = !disable_deblock_strong_filter;
+    disable_deblock_boundary_strength_zero =
+      !disable_deblock_boundary_strength_zero;
+    disable_deblock_boundary_strength_one =
+      !disable_deblock_boundary_strength_one;
+    disable_deblock_weak_sample_decision =
+      !disable_deblock_weak_sample_decision;
+    disable_deblock_two_samples_weak_filter =
+      !disable_deblock_two_samples_weak_filter;
+    disable_ext_sink = !disable_ext_sink;
+    disable_ext_implicit_last_ctu = !disable_ext_implicit_last_ctu;
+    disable_ext_tmvp_full_resolution = !disable_ext_tmvp_full_resolution;
+    disable_ext_tmvp_exclude_intra_from_ref_list =
+      !disable_ext_tmvp_exclude_intra_from_ref_list;
+    disable_ext_ref_list_l0_trim = !disable_ext_ref_list_l0_trim;
+    disable_ext_implicit_partition_type = !disable_ext_implicit_partition_type;
+    disable_ext_cabac_alt_split_flag_ctx =
+      !disable_ext_cabac_alt_split_flag_ctx;
+    disable_ext_cabac_alt_inter_dir_ctx = !disable_ext_cabac_alt_inter_dir_ctx;
+    disable_ext_cabac_alt_last_pos_ctx = !disable_ext_cabac_alt_last_pos_ctx;
+    disable_ext_two_cu_trees = !disable_ext_two_cu_trees;
+    disable_ext_intra_unrestricted_predictor =
+      !disable_ext_intra_unrestricted_predictor;
+    disable_ext_deblock_subblock_size_4 = !disable_ext_deblock_subblock_size_4;
+    disable_ext2_intra_67_modes = !disable_ext2_intra_67_modes;
+    disable_ext2_intra_6_predictors = !disable_ext2_intra_6_predictors;
+    disable_ext2_inter_adaptive_fullpel_mv =
+      !disable_ext2_inter_adaptive_fullpel_mv;
+    disable_ext2_inter_affine = !disable_ext2_inter_affine;
+    disable_ext2_inter_affine_merge = !disable_ext2_inter_affine_merge;
+    disable_ext2_inter_affine_mvp = !disable_ext2_inter_affine_mvp;
+    disable_ext2_inter_bipred_l1_mvd_zero =
+      !disable_ext2_inter_bipred_l1_mvd_zero;
+    disable_ext2_inter_high_precision_mv =
+      !disable_ext2_inter_high_precision_mv;
+    disable_ext2_inter_local_illumination_comp =
+      !disable_ext2_inter_local_illumination_comp;
+    disable_ext2_transform_skip = !disable_ext2_transform_skip;
+    disable_ext2_transform_high_precision =
+      !disable_ext2_transform_high_precision;
+    disable_ext2_transform_dst = !disable_ext2_transform_dst;
   }
 }
 

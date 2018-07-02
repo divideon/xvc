@@ -18,6 +18,7 @@
 
 #include "xvc_common_lib/reference_picture_lists.h"
 
+#include <algorithm>
 #include <cassert>
 
 #include "xvc_common_lib/picture_data.h"
@@ -41,50 +42,56 @@ bool ReferencePictureLists::IsRefPicListUsed(RefPicList ref_pic_list,
   }
 }
 
+bool ReferencePictureLists::HasRefPoc(RefPicList ref_list, PicNum poc) const {
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  return std::find_if(entry_list.begin(), entry_list.end(),
+                      [poc](const RefEntry &entry) {
+    return entry.poc == poc;
+  }) != entry_list.end();
+}
+
 PicturePredictionType
 ReferencePictureLists::GetRefPicType(RefPicList ref_list, int ref_idx) const {
-  const std::vector<RefEntry> *entry_list =
-    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
-  if (static_cast<int>(entry_list->size()) <= ref_idx) {
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  if (static_cast<int>(entry_list.size()) <= ref_idx) {
     return PicturePredictionType::kInvalid;
   }
-  return (*entry_list)[ref_idx].data->GetPredictionType();
+  return entry_list[ref_idx].data->GetPredictionType();
 }
 
 int
 ReferencePictureLists::GetRefPicTid(RefPicList ref_list, int ref_idx) const {
-  const std::vector<RefEntry> *entry_list =
-    ref_list == RefPicList::kL0 ? &l0_ : &l1_;
-  if (static_cast<int>(entry_list->size()) <= ref_idx) {
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  if (static_cast<int>(entry_list.size()) <= ref_idx) {
     return -1;
   }
-  return (*entry_list)[ref_idx].data->GetTid();
+  return entry_list[ref_idx].data->GetTid();
 }
 
 const CodingUnit*
 ReferencePictureLists::GetCodingUnitAt(RefPicList ref_list, int index,
                                        CuTree cu_tree, int posx,
                                        int posy) const {
-  std::shared_ptr<const PictureData> pic_data;
-  if (ref_list == RefPicList::kL0) {
-    pic_data = l0_[index].data;
-  } else {
-    pic_data = l1_[index].data;
-  }
+  const std::vector<RefEntry> &entry_list =
+    ref_list == RefPicList::kL0 ? l0_ : l1_;
+  std::shared_ptr<const PictureData> pic_data = entry_list[index].data;
   return pic_data->GetCuAt(cu_tree, posx, posy);
 }
 
-void
-ReferencePictureLists::SetRefPic(RefPicList list, int index, PicNum ref_poc,
-                                 const std::shared_ptr<const PictureData>
-                                 &pic_data,
-                                 const std::shared_ptr<const YuvPicture>
-                                 &ref_pic) {
+void ReferencePictureLists::SetRefPic(
+  RefPicList list, int index, PicNum ref_poc,
+  const std::shared_ptr<const PictureData> &pic_data,
+  const std::shared_ptr<const YuvPicture> &ref_pic,
+  const std::shared_ptr<const YuvPicture> &orig_pic) {
   std::vector<RefEntry> *entry_list = list == RefPicList::kL0 ? &l0_ : &l1_;
   if (index >= static_cast<int>(entry_list->size())) {
     entry_list->resize(index + 1);
   }
-  (*entry_list)[index].pic = ref_pic;
+  (*entry_list)[index].ref_pic = ref_pic;
+  (*entry_list)[index].orig_pic = orig_pic;
   (*entry_list)[index].data = pic_data;
   (*entry_list)[index].poc = ref_poc;
   if (ref_poc > current_poc_) {
@@ -92,32 +99,34 @@ ReferencePictureLists::SetRefPic(RefPicList list, int index, PicNum ref_poc,
   }
 }
 
-void
-ReferencePictureLists::GetSamePocMappingFor(RefPicList ref_list,
-                                            std::vector<int> *mapping) const {
+std::vector<int>
+ReferencePictureLists::GetSamePocMappingFor(RefPicList ref_list) const {
   RefPicList other_list = ReferencePictureLists::Inverse(ref_list);
   int num_ref_pics = GetNumRefPics(ref_list);
   int other_ref_pics = GetNumRefPics(other_list);
-  mapping->resize(num_ref_pics);
+  std::vector<int> mapping(num_ref_pics);
   for (int i = 0; i < num_ref_pics; i++) {
-    (*mapping)[i] = -1;
+    mapping[i] = -1;
     PicNum ref_poc = GetRefPoc(ref_list, i);
     for (int j = 0; j < other_ref_pics; j++) {
       if (ref_poc == GetRefPoc(other_list, j)) {
-        (*mapping)[i] = j;
+        mapping[i] = j;
         break;
       }
     }
   }
+  return mapping;
 }
 
 void ReferencePictureLists::ZeroOutReferences() {
   for (auto &ref : l0_) {
-    ref.pic.reset();
+    ref.ref_pic.reset();
+    ref.orig_pic.reset();
     ref.data.reset();
   }
   for (auto &ref : l1_) {
-    ref.pic.reset();
+    ref.ref_pic.reset();
+    ref.orig_pic.reset();
     ref.data.reset();
   }
 }

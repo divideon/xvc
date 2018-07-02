@@ -19,9 +19,48 @@
 #ifndef XVC_COMMON_LIB_RESAMPLE_H_
 #define XVC_COMMON_LIB_RESAMPLE_H_
 
+#include <vector>
+
 #include "xvc_common_lib/common.h"
+#include "xvc_common_lib/yuv_pic.h"
 
 namespace xvc {
+
+class Resampler {
+public:
+  Resampler() {}
+  void ConvertFrom(const PictureFormat &src_format, const uint8_t *src_bytes,
+                   YuvPicture *out_picm);
+  void ConvertTo(const YuvPicture &src_pic, const PictureFormat &output_format,
+                 std::vector<uint8_t> *out_bytes);
+
+private:
+  static const int kColorConversionBitdepth = 12;
+  void CopyFromBytesFast(const uint8_t *src_bytes, int input_bitdepth,
+                         YuvPicture *out_pic) const;
+  void CopyFromBytesWithPadding(const uint8_t *src_bytes,
+                                const PictureFormat &src_format,
+                                YuvPicture *out_pic) const;
+  void CopyFromBytesWithResampling(const uint8_t *src_bytes,
+                                   const PictureFormat &src_format,
+                                   YuvPicture *out_pic) const;
+  uint8_t* CopyToBytesWithShift(YuvComponent comp, const YuvPicture &src_pic,
+                                int out_bitdepth, int dither,
+                                uint8_t *out8) const;
+  void CopyToWithResize(const YuvPicture &src_pic,
+                        const PictureFormat &output_format,
+                        int dst_bitdepth, uint8_t *out8) const;
+  template <typename T>
+  void ConvertColorSpace(uint8_t *dst, int width, int height,
+                         const uint16_t *src, int bitdepth,
+                         ColorMatrix color_matrix) const;
+  void ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
+                                const uint16_t *src) const;
+
+  std::vector<uint8_t> tmp_bytes_;
+};
+
+// TODO(PH) Refactor into class above
 
 namespace resample {
 

@@ -36,9 +36,7 @@ EntropyEncoder::EntropyEncoder(BitWriter *bit_writer, uint32_t written_bits,
 
 void EntropyEncoder::EncodeBin(uint32_t binval, ContextModel *ctx) {
   uint32_t ctxmps = ctx->GetMps();
-  uint32_t ctxstate = ctx->GetState();
-  uint32_t qrange = (range_ >> 6) & 3;
-  uint8_t lps = Cabac::RangeTable(ctxstate, qrange);
+  uint32_t lps = ctx->GetLps(range_);
 
   if (!bit_writer_) {
     frac_bits_ += ctx->GetEntropyBits(binval);
@@ -56,7 +54,7 @@ void EntropyEncoder::EncodeBin(uint32_t binval, ContextModel *ctx) {
 
   int num_bits;
   if (binval != ctxmps) {
-    num_bits = Cabac::RenormTable(lps >> 3);
+    num_bits = ctx->GetRenormBitsLps(lps);
     low_ += range_;
     range_ = lps;
     ctx->UpdateLPS();

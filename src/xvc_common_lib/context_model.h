@@ -19,37 +19,65 @@
 #ifndef XVC_COMMON_LIB_CONTEXT_MODEL_H_
 #define XVC_COMMON_LIB_CONTEXT_MODEL_H_
 
+#include <array>
+
 #include "xvc_common_lib/common.h"
 
 namespace xvc {
 
 class ContextModel {
 public:
-  static const int CONTEXT_STATE_BITS = 6;
   static const int kFracBitsPrecision = 15;
   static const uint32_t kEntropyBypassBits = 1 << kFracBitsPrecision;
+
+  void Init(int qp, int init_value);
+  void UpdateLPS();
+  void UpdateMPS();
+  uint32_t GetState() const { return (state_ >> 1); }
+  uint32_t GetMps() const { return (state_ & 1); }
+  uint32_t GetLps(int range) const {
+    return kRangeTable_[state_ >> 1][(range >> 6) & 3];
+  }
+  uint32_t GetEntropyBits(uint32_t bin) const {
+    return kEntropyBits_[state_ ^ bin];
+  }
+  uint8_t GetRenormBitsLps(uint32_t lps) const {
+    return kRenormTable_[lps >> 3];
+  }
   static uint32_t GetEntropyBitsTrm(uint32_t bin) {
     return kEntropyBits_[126 ^ bin];
   }
 
-  ContextModel() : state_(0) {}
-  void SetState(uint8_t state, uint8_t mps) { state_ = (state << 1) + mps; }
-  void Init(int qp, int init_value);
-  uint32_t GetState() const { return (state_ >> 1); }
-  uint32_t GetMps() const { return (state_ & 1); }
-  uint32_t GetEntropyBits(uint32_t bin) const {
-    return kEntropyBits_[state_ ^ bin];
+protected:
+  static const int kNumCtxStates = 64;
+  static const std::array<uint8_t, 2 * kNumCtxStates> kNextStateMps_;
+  static const std::array<uint8_t, 2 * kNumCtxStates> kNextStateLps_;
+  static const std::array<uint32_t, 2 * kNumCtxStates>  kEntropyBits_;
+  static const std::array<uint8_t, 32> kRenormTable_;
+  static const std::array<std::array<uint8_t, 4>, kNumCtxStates> kRangeTable_;
+  uint8_t state_ = 0;
+};
+
+// TODO(PH) Following classes gives performance boost to decoder by not having
+// to check restriction flags for every bin but are not used by encoder due to
+// adding extra code complexity together with rdo
+
+class ContextModelDynamic : public ContextModel {
+public:
+  // Override parent methods without virtual to avoid restriction check
+  void UpdateLPS() {
+    state_ = kNextStateLps_[state_];
   }
-  void UpdateLPS();
-  void UpdateMPS();
+  void UpdateMPS() {
+    state_ = kNextStateMps_[state_];
+  }
+};
 
-private:
-  static const int kNumTotalStates_ = 1 << (CONTEXT_STATE_BITS + 1);
-  static const uint8_t kNextStateMps_[kNumTotalStates_];
-  static const uint8_t kNextStateLps_[kNumTotalStates_];
-  static const uint32_t kEntropyBits_[ContextModel::kNumTotalStates_];
-
-  uint8_t state_;
+class ContextModelStatic : public ContextModel {
+public:
+  // Override parent methods without virtual to avoid restriction check
+  void UpdateLPS() {}
+  void UpdateMPS() {}
 };
 
 }   // namespace xvc

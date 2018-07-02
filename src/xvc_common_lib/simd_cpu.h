@@ -19,6 +19,7 @@
 #ifndef XVC_COMMON_LIB_SIMD_CPU_H_
 #define XVC_COMMON_LIB_SIMD_CPU_H_
 
+#include <stdint.h>
 #include <set>
 
 namespace xvc {

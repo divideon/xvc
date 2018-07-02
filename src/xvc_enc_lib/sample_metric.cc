@@ -18,10 +18,13 @@
 
 #include "xvc_enc_lib/sample_metric.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+
+#include "xvc_common_lib/utils.h"
 
 #if _MSC_VER
 // Disable warning C6201: buffer overrun detection, which causes a lot of false
@@ -31,9 +34,9 @@
 
 namespace xvc {
 
-Distortion
-SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &src1, const YuvPicture &src2) {
+Distortion SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
+                                       const YuvPicture &src1,
+                                       const YuvPicture &src2) const {
   const Sample *src2_ptr =
     src2.GetSamplePtr(comp, cu.GetPosX(comp), cu.GetPosY(comp));
   ptrdiff_t stride2 = src2.GetStride(comp);
@@ -42,94 +45,141 @@ SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
 
 Distortion
 SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                            const YuvPicture &src1, const SampleBuffer &src2) {
-  return CompareSample(cu, comp, src1, src2.GetDataPtr(), src2.GetStride());
-}
-
-Distortion
-SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                            const SampleBuffer &src1,
-                            const SampleBuffer &src2) {
-  return CompareSample(comp, cu.GetWidth(comp), cu.GetHeight(comp),
-                       src1.GetDataPtr(), src1.GetStride(),
-                       src2.GetDataPtr(), src2.GetStride());
-}
-
-Distortion
-SampleMetric::CompareSample(YuvComponent comp, int width, int height,
-                            const Sample *src1, ptrdiff_t stride1,
-                            const Sample *src2, ptrdiff_t stride2) {
-  return Compare(comp, width, height, src1, stride1, src2, stride2);
-}
-
-Distortion
-SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &src1,
-                            const Sample *src2, ptrdiff_t stride2) {
+                            const Sample *src2, ptrdiff_t stride2) const {
   int posx = cu.GetPosX(comp);
   int posy = cu.GetPosY(comp);
   int width = cu.GetWidth(comp);
   int height = cu.GetHeight(comp);
   const Sample *src1_ptr = src1.GetSamplePtr(comp, posx, posy);
   ptrdiff_t stride1 = src1.GetStride(comp);
-  return Compare(comp, width, height, src1_ptr, stride1, src2, stride2);
+  return Compare(cu.GetQp(), comp, width, height, src1_ptr, stride1,
+                 src2, stride2);
 }
 
 Distortion
-SampleMetric::CompareSample(YuvComponent comp, int width, int height,
-                            const Residual *src1, ptrdiff_t stride1,
-                            const Sample *src2, ptrdiff_t stride2) {
-  return Compare(comp, width, height, src1, stride1, src2, stride2);
-}
-
-Distortion SampleMetric::CompareShort(YuvComponent comp, int width, int height,
-                                      const DataBuffer<Residual> &src1,
-                                      const DataBuffer<Residual> &src2) {
-  return Compare(comp, width, height, src1.GetDataPtr(), src1.GetStride(),
-                 src2.GetDataPtr(), src2.GetStride());
-}
-
-Distortion SampleMetric::CompareShort(YuvComponent comp, int width, int height,
-                                      const Residual *src1, ptrdiff_t stride1,
-                                      const Residual *src2, ptrdiff_t stride2) {
-  return Compare(comp, width, height, src1, stride1, src2, stride2);
-}
-
-template<typename SampleT1, typename SampleT2>
-Distortion
-SampleMetric::Compare(YuvComponent comp, int width, int height,
-                      const SampleT1 *src1, ptrdiff_t stride1,
-                      const SampleT2 *src2, ptrdiff_t stride2) {
-  double weight = qp_.GetDistortionWeight(comp);
+SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
+                      const Sample *src1, ptrdiff_t stride1,
+                      const Sample *src2, ptrdiff_t stride2) const {
+  const int widx = util::SizeToLog2(width);
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
       dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kSatd:
-      dist = ComputeSatd(width, height, src1, stride1, src2, stride2);
+      dist = ComputeSatd<false>(width, height, 0, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSatdAcOnly:
+      dist = ComputeSatdAcOnly(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kSad:
-      dist = ComputeSad(width, height, src1, stride1, src2, stride2);
+      dist = simd_func_.sad_sample_sample[widx](width, height, src1, stride1,
+                                                src2, stride2);
+      dist = dist >> (bitdepth_ - 8);
       break;
     case MetricType::kSadFast:
-      dist = ComputeSadFast(width, height, src1, stride1, src2, stride2);
+      dist =
+        simd_func_.sad_sample_sample[widx](width, height / 2, src1, stride1 * 2,
+                                           src2, stride2 * 2);
+      dist = (dist * 2) >> (bitdepth_ - 8);
+      break;
+    case MetricType::kSadAcOnly:
+      dist = ComputeSadAcOnly<0>(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSadAcOnlyFast:
+      dist = ComputeSadAcOnly<1>(width, height, src1, stride1, src2, stride2);
       break;
     case MetricType::kStructuralSsd:
-      dist = ComputeStructuralSsd(width, height, src1, stride1, src2, stride2);
+      if (util::IsLuma(comp)) {
+        dist =
+          ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
+      } else {
+        dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      }
       break;
     default:
       assert(0);
       return std::numeric_limits<Distortion>::max();
       break;
   }
+  const double weight = qp.GetDistortionWeight(comp);
+  return static_cast<Distortion>(dist * weight);
+}
+
+Distortion
+SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
+                      const Residual *src1, ptrdiff_t stride1,
+                      const Sample *src2, ptrdiff_t stride2) const {
+  const int widx = util::SizeToLog2(width);
+  uint64_t dist;
+  switch (type_) {
+    case MetricType::kSsd:
+      dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSatd:
+      dist = ComputeSatd<false>(width, height, 0, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSatdAcOnly:
+      dist = ComputeSatdAcOnly(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSad:
+      dist = simd_func_.sad_short_sample[widx](width, height, src1, stride1,
+                                               src2, stride2);
+      dist = dist >> (bitdepth_ - 8);
+      break;
+    case MetricType::kSadFast:
+      dist =
+        simd_func_.sad_short_sample[widx](width, height / 2, src1, stride1 * 2,
+                                               src2, stride2 * 2);
+      dist = (dist * 2) >> (bitdepth_ - 8);
+      break;
+    case MetricType::kSadAcOnly:
+      dist = ComputeSadAcOnly<0>(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kSadAcOnlyFast:
+      dist = ComputeSadAcOnly<1>(width, height, src1, stride1, src2, stride2);
+      break;
+    case MetricType::kStructuralSsd:
+      if (util::IsLuma(comp)) {
+        dist =
+          ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
+      } else {
+        dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      }
+      break;
+    default:
+      assert(0);
+      return std::numeric_limits<Distortion>::max();
+      break;
+  }
+  const double weight = qp.GetDistortionWeight(comp);
+  return static_cast<Distortion>(dist * weight);
+}
+
+Distortion
+SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
+                      const Residual *src1, ptrdiff_t stride1,
+                      const Residual *src2, ptrdiff_t stride2) const {
+  uint64_t dist;
+  switch (type_) {
+    case MetricType::kSsd:
+      dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      break;
+    default:
+      assert(0);
+      return std::numeric_limits<Distortion>::max();
+      break;
+  }
+  const double weight = qp.GetDistortionWeight(comp);
   return static_cast<Distortion>(dist * weight);
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSsd(int width, int height,
-                                  const SampleT1 *sample1, ptrdiff_t stride1,
-                                  const SampleT2 *sample2, ptrdiff_t stride2) {
+uint64_t
+SampleMetric::ComputeSsd(int width, int height,
+                         const SampleT1 *sample1, ptrdiff_t stride1,
+                         const SampleT2 *sample2, ptrdiff_t stride2) const {
   int shift = (2 * (bitdepth_ - 8));
   uint64_t ssd = 0;
   for (int y = 0; y < height; y++) {
@@ -144,16 +194,26 @@ uint64_t SampleMetric::ComputeSsd(int width, int height,
   return ssd;
 }
 
-template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSatd(int width, int height,
-                                   const SampleT1 *sample1, ptrdiff_t stride1,
-                                   const SampleT2 *sample2, ptrdiff_t stride2) {
-  static_assert(constants::kMinBlockSize >= 4, "SATD only implmented for 4x4");
+template<bool RemoveAvg, typename SampleT1, typename SampleT2>
+uint64_t
+SampleMetric::ComputeSatd(int width, int height, int offset,
+                          const SampleT1 *sample1, ptrdiff_t stride1,
+                          const SampleT2 *sample2, ptrdiff_t stride2) const {
   uint64_t sad = 0;
-  if (width == 4 && height == 4) {
+  if (width == 2 || height == 2) {
+    for (int y = 0; y < height; y += 2) {
+      for (int x = 0; x < width; x += 2) {
+        sad += ComputeSatd2x2<RemoveAvg>(sample1 + x, stride1,
+                                         sample2 + x, stride2, offset);
+      }
+      sample1 += stride1 * 2;
+      sample2 += stride2 * 2;
+    }
+  } else if (width == 4 && height == 4) {
     for (int y = 0; y < height; y += 4) {
       for (int x = 0; x < width; x += 4) {
-        sad += ComputeSatdNxM<4, 4>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 4, 4>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 4;
       sample2 += stride2 * 4;
@@ -161,7 +221,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   } else if (height == 4 && width > height) {
     for (int y = 0; y < height; y += 4) {
       for (int x = 0; x < width; x += 8) {
-        sad += ComputeSatdNxM<8, 4>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 8, 4>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 4;
       sample2 += stride2 * 4;
@@ -169,7 +230,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   } else if (width == 4 && height > width) {
     for (int y = 0; y < height; y += 8) {
       for (int x = 0; x < width; x += 4) {
-        sad += ComputeSatdNxM<4, 8>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 4, 8>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 8;
       sample2 += stride2 * 8;
@@ -178,7 +240,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
     for (int y = 0; y < height; y += 8) {
       for (int x = 0; x < width; x += 16) {
         sad +=
-          ComputeSatdNxM<16, 8>(sample1 + x, stride1, sample2 + x, stride2);
+          ComputeSatdNxM<RemoveAvg, 16, 8>(sample1 + x, stride1,
+                                           sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 8;
       sample2 += stride2 * 8;
@@ -187,7 +250,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
     for (int y = 0; y < height; y += 16) {
       for (int x = 0; x < width; x += 8) {
         sad +=
-          ComputeSatdNxM<8, 16>(sample1 + x, stride1, sample2 + x, stride2);
+          ComputeSatdNxM<RemoveAvg, 8, 16>(sample1 + x, stride1,
+                                           sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 16;
       sample2 += stride2 * 16;
@@ -195,7 +259,8 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   } else {
     for (int y = 0; y < height; y += 8) {
       for (int x = 0; x < width; x += 8) {
-        sad += ComputeSatdNxM<8, 8>(sample1 + x, stride1, sample2 + x, stride2);
+        sad += ComputeSatdNxM<RemoveAvg, 8, 8>(sample1 + x, stride1,
+                                               sample2 + x, stride2, offset);
       }
       sample1 += stride1 * 8;
       sample2 += stride2 * 8;
@@ -204,33 +269,46 @@ uint64_t SampleMetric::ComputeSatd(int width, int height,
   return sad >> (bitdepth_ - 8);
 }
 
-template<int W, int H, typename SampleT1, typename SampleT2>
+template<typename SampleT1, typename SampleT2>
+uint64_t
+SampleMetric::ComputeSatdAcOnly(int width, int height,
+                                const SampleT1 *sample1, ptrdiff_t stride1,
+                                const SampleT2 *sample2,
+                                ptrdiff_t stride2) const {
+  const int avg =
+    CalcMeanDiff<0>(width, height, sample1, stride1, sample2, stride2);
+  return
+    ComputeSatd<true>(width, height, avg, sample1, stride1, sample2, stride2);
+}
+
+template<bool RemoveAvg, int W, int H, typename SampleT1, typename SampleT2>
 int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
-                                 const SampleT2 *sample2, ptrdiff_t stride2) {
+                                 const SampleT2 *sample2, ptrdiff_t stride2,
+                                 int offset) const {
   int diff[W*H], m1[H][W], m2[H][W];
-  static_assert(W == 4 || W == 8 || W == 16, "Only W = 8 or 16 supported");
-  static_assert(H == 4 || H == 8 || H == 16, "Only H = 8 or 16 supported");
+  static_assert(W == 4 || W == 8 || W == 16, "Only W = 4, 8 and 16 supported");
+  static_assert(H == 4 || H == 8 || H == 16, "Only H = 4, 8 and 16 supported");
 
   for (int k = 0; k < W*H; k += W) {
-    diff[k + 0] = sample1[0] - sample2[0];
-    diff[k + 1] = sample1[1] - sample2[1];
-    diff[k + 2] = sample1[2] - sample2[2];
-    diff[k + 3] = sample1[3] - sample2[3];
+    diff[k + 0] = sample1[0] - sample2[0] - (RemoveAvg ? offset : 0);
+    diff[k + 1] = sample1[1] - sample2[1] - (RemoveAvg ? offset : 0);
+    diff[k + 2] = sample1[2] - sample2[2] - (RemoveAvg ? offset : 0);
+    diff[k + 3] = sample1[3] - sample2[3] - (RemoveAvg ? offset : 0);
     if (W > 4) {
-      diff[k + 4] = sample1[4] - sample2[4];
-      diff[k + 5] = sample1[5] - sample2[5];
-      diff[k + 6] = sample1[6] - sample2[6];
-      diff[k + 7] = sample1[7] - sample2[7];
+      diff[k + 4] = sample1[4] - sample2[4] - (RemoveAvg ? offset : 0);
+      diff[k + 5] = sample1[5] - sample2[5] - (RemoveAvg ? offset : 0);
+      diff[k + 6] = sample1[6] - sample2[6] - (RemoveAvg ? offset : 0);
+      diff[k + 7] = sample1[7] - sample2[7] - (RemoveAvg ? offset : 0);
     }
     if (W > 8) {
-      diff[k + 8] = sample1[8] - sample2[8];
-      diff[k + 9] = sample1[9] - sample2[9];
-      diff[k + 10] = sample1[10] - sample2[10];
-      diff[k + 11] = sample1[11] - sample2[11];
-      diff[k + 12] = sample1[12] - sample2[12];
-      diff[k + 13] = sample1[13] - sample2[13];
-      diff[k + 14] = sample1[14] - sample2[14];
-      diff[k + 15] = sample1[15] - sample2[15];
+      diff[k + 8] = sample1[8] - sample2[8] - (RemoveAvg ? offset : 0);
+      diff[k + 9] = sample1[9] - sample2[9] - (RemoveAvg ? offset : 0);
+      diff[k + 10] = sample1[10] - sample2[10] - (RemoveAvg ? offset : 0);
+      diff[k + 11] = sample1[11] - sample2[11] - (RemoveAvg ? offset : 0);
+      diff[k + 12] = sample1[12] - sample2[12] - (RemoveAvg ? offset : 0);
+      diff[k + 13] = sample1[13] - sample2[13] - (RemoveAvg ? offset : 0);
+      diff[k + 14] = sample1[14] - sample2[14] - (RemoveAvg ? offset : 0);
+      diff[k + 15] = sample1[15] - sample2[15] - (RemoveAvg ? offset : 0);
     }
     sample1 += stride1;
     sample2 += stride2;
@@ -443,11 +521,38 @@ int SampleMetric::ComputeSatdNxM(const SampleT1 *sample1, ptrdiff_t stride1,
   return sum;
 }
 
+template<bool RemoveAvg, typename SampleT1, typename SampleT2>
+int SampleMetric::ComputeSatd2x2(const SampleT1 *sample1, ptrdiff_t stride1,
+                                 const SampleT2 *sample2, ptrdiff_t stride2,
+                                 int offset) const {
+  int diff[2 * 2], m[2 * 2];
+  diff[0] = sample1[0 + 0 * stride1] - sample2[0 + 0 * stride2];
+  diff[1] = sample1[1 + 0 * stride1] - sample2[1 + 0 * stride2];
+  diff[2] = sample1[0 + 1 * stride1] - sample2[0 + 1 * stride2];
+  diff[3] = sample1[1 + 1 * stride1] - sample2[1 + 1 * stride2];
+  if (RemoveAvg) {
+    diff[0] -= offset;
+    diff[1] -= offset;
+    diff[2] -= offset;
+    diff[3] -= offset;
+  }
+  m[0] = diff[0] + diff[2];
+  m[1] = diff[1] + diff[3];
+  m[2] = diff[0] - diff[2];
+  m[3] = diff[1] - diff[3];
+  int sum = 0;
+  sum += std::abs(m[0] + m[1]);
+  sum += std::abs(m[0] - m[1]);
+  sum += std::abs(m[2] + m[3]);
+  sum += std::abs(m[2] - m[3]);
+  return sum;
+}
+
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeSad(int width, int height,
-                                  const SampleT1 *sample1, ptrdiff_t stride1,
-                                  const SampleT2 *sample2, ptrdiff_t stride2) {
-  uint64_t sum = 0;
+static int ComputeSad_c(int width, int height,
+                        const SampleT1 *sample1, ptrdiff_t stride1,
+                        const SampleT2 *sample2, ptrdiff_t stride2) {
+  int sum = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int diff = sample1[x] - sample2[x];
@@ -456,47 +561,52 @@ uint64_t SampleMetric::ComputeSad(int width, int height,
     sample1 += stride1;
     sample2 += stride2;
   }
-  return sum >> (bitdepth_ - 8);
+  return sum;
 }
 
-template<typename SampleT1, typename SampleT2>
+template<int SkipLines, typename SampleT1, typename SampleT2>
 uint64_t
-SampleMetric::ComputeSadFast(int width, int height,
-                             const SampleT1 *sample1, ptrdiff_t stride1,
-                             const SampleT2 *sample2, ptrdiff_t stride2) {
-  stride1 <<= 1;
-  stride2 <<= 1;
-  uint64_t sum = 0;
-  for (int y = 0; y < height; y += 2) {
+SampleMetric::ComputeSadAcOnly(int width, int height,
+                               const SampleT1 *sample1, ptrdiff_t stride1,
+                               const SampleT2 *sample2,
+                               ptrdiff_t stride2) const {
+  const int avg =
+    CalcMeanDiff<SkipLines>(width, height, sample1, stride1, sample2, stride2);
+  int sum = 0;
+  for (int y = 0; y < height; y += (1 + SkipLines)) {
     for (int x = 0; x < width; x++) {
-      int diff = sample1[x] - sample2[x];
-      sum += std::abs(diff);
+      sum += std::abs(sample1[x] - sample2[x] - avg);
     }
-    sample1 += stride1;
-    sample2 += stride2;
+    sample1 += stride1 * (1 + SkipLines);
+    sample2 += stride2 * (1 + SkipLines);
   }
-  sum <<= 1;
-  return sum >> (bitdepth_ - 8);
+  return (sum * (1 + SkipLines)) >> (bitdepth_ - 8);
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
-                                             ptrdiff_t stride1,
-                                             const SampleT2 *sample2,
-                                             ptrdiff_t stride2) {
+uint64_t SampleMetric::ComputeStructuralSsdBlock(const Qp &qp, int size,
+                                                 const SampleT1 *sample1,
+                                                 ptrdiff_t stride1,
+                                                 const SampleT2 *sample2,
+                                                 ptrdiff_t stride2) const {
   int64_t orig_sum = 0;
   int64_t reco_sum = 0;
   int64_t orig_orig_sum = 0;
   int64_t reco_reco_sum = 0;
   int64_t orig_reco_sum = 0;
-  const int n = 64;
+  const int n = size * size;;
   const int shift = (2 * (bitdepth_ - 8));
   const int64_t c1 = (n * n * 26634ull >> 12) << shift;
   const int64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const int64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
+  const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
+  const int z = qp.GetQpRaw(YuvComponent::kY);
+  const int w = std::max(0, static_cast<int>((4 * z - 0.054 * z * z - 70)
+                          * structural_strength_)) >> 4;
+  const int w1 = 64 - (w >> 1);
+  const int w2 = 2 * w;
   int64_t ssd = 0;
-  for (int y = 0; y < 8; y++) {
-    for (int x = 0; x < 8; x++) {
+  for (int y = 0; y < size; y++) {
+    for (int x = 0; x < size; x++) {
       orig_sum += sample1[x];
       reco_sum += sample2[x];
       orig_orig_sum += sample1[x] * sample1[x];
@@ -513,78 +623,62 @@ uint64_t SampleMetric::ComputeStructuralSsd8(const SampleT1 *sample1,
   double b = (2.0 * n * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
     (n * orig_orig_sum - orig_sum * orig_sum +
      n * reco_reco_sum - reco_sum * reco_sum + c2);
-
   ssd >>= shift;
-  return static_cast<uint64_t>((ssd + c4 * (1 - a * b))) >> 1;
+  return static_cast<uint64_t>(w1 * ssd + w2 * (c4 >> ((8 - size) >> 1)) *
+    (1 - a * b)) >> 6;
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsd4(const SampleT1 *sample1,
-                                             ptrdiff_t stride1,
-                                             const SampleT2 *sample2,
-                                             ptrdiff_t stride2) {
-  int64_t orig_sum = 0;
-  int64_t reco_sum = 0;
-  int64_t orig_orig_sum = 0;
-  int64_t reco_reco_sum = 0;
-  int64_t orig_reco_sum = 0;
-  const int n = 16;
-  const int shift = (2 * (bitdepth_ - 8));
-  const int64_t c1 = (n * n * 26634ull >> 12) << shift;
-  const int64_t c2 = (n * n * 239708ull >> 12) << shift;
-  const int64_t c4 = ((1ull << bitdepth_) - 1) * ((1 << bitdepth_) - 1);
-  int64_t ssd = 0;
-  for (int y = 0; y < 4; y++) {
-    for (int x = 0; x < 4; x++) {
-      orig_sum += sample1[x];
-      reco_sum += sample2[x];
-      orig_orig_sum += sample1[x] * sample1[x];
-      reco_reco_sum += sample2[x] * sample2[x];
-      orig_reco_sum += sample1[x] * sample2[x];
-      int diff = sample1[x] - sample2[x];
-      ssd += diff * diff;
-    }
-    sample1 += stride1;
-    sample2 += stride2;
-  }
-  double m = (1.0 * orig_sum - reco_sum) / n;
-  double a = (c4 - m * m + c1) / (c4 + c1);
-  double b = (2.0 * n * orig_reco_sum - 2 * orig_sum * reco_sum + c2) /
-    (n * orig_orig_sum - orig_sum * orig_sum +
-     n * reco_reco_sum - reco_sum * reco_sum + c2);
-
-  ssd >>= shift;
-  return static_cast<uint64_t>(ssd + (c4 >> 2) * (1 - a * b)) >> 1;
-}
-
-template<typename SampleT1, typename SampleT2>
-uint64_t SampleMetric::ComputeStructuralSsd(int width, int height,
+uint64_t SampleMetric::ComputeStructuralSsd(const Qp &qp, int width, int height,
                                             const SampleT1 *sample1,
                                             ptrdiff_t stride1,
                                             const SampleT2 *sample2,
-                                            ptrdiff_t stride2) {
-  if (height < 8 || width < 8) {
-    uint64_t ssim = 0;
-    for (int i = 0; i < height / 4; i++) {
-      for (int j = 0; j < width / 4; j++) {
-        ssim += ComputeStructuralSsd4(sample1 + 4 * j, stride1,
-                                      sample2 + 4 * j, stride2);
-      }
-      sample1 += 4 * stride1;
-      sample2 += 4 * stride2;
-    }
-    return ssim;
-  }
+                                            ptrdiff_t stride2) const {
+  int size = (height < 8 || width < 8) ? 4 : 8;
   uint64_t ssim = 0;
-  for (int i = 0; i < height / 8; i++) {
-    for (int j = 0; j < width / 8; j++) {
-      ssim += ComputeStructuralSsd8(sample1 + 8 * j, stride1,
-                                    sample2 + 8 * j, stride2);
+  for (int i = 0; i < height / size; i++) {
+    for (int j = 0; j < width / size; j++) {
+      ssim += ComputeStructuralSsdBlock(qp, size, sample1 + size * j, stride1,
+                                        sample2 + size * j, stride2);
     }
-    sample1 += 8 * stride1;
-    sample2 += 8 * stride2;
+    sample1 += size * stride1;
+    sample2 += size * stride2;
   }
   return ssim;
+}
+
+template<int SkipLines, typename SampleT1, typename SampleT2>
+int
+SampleMetric::CalcMeanDiff(int width, int height,
+                           const SampleT1 *sample1, ptrdiff_t stride1,
+                           const SampleT2 * sample2, ptrdiff_t stride2) const {
+  int delta_sum = 0;
+  for (int y = 0; y < height; y += (1 + SkipLines)) {
+    for (int x = 0; x < width; x++) {
+      delta_sum += (sample1[x] - sample2[x]);
+    }
+    sample1 += stride1 * (1 + SkipLines);
+    sample2 += stride2 * (1 + SkipLines);
+  }
+  return (delta_sum * (1 + SkipLines)) / (width * height);
+}
+
+SampleMetric::SimdFunc::SimdFunc() {
+  static_assert(constants::kMaxBlockSize == 64, "Assume max block size 64");
+  sad_sample_sample[0] = nullptr;
+  sad_sample_sample[1] = &ComputeSad_c<Sample, Sample>;  // 2
+  sad_sample_sample[2] = &ComputeSad_c<Sample, Sample>;  // 4
+  sad_sample_sample[3] = &ComputeSad_c<Sample, Sample>;  // 8
+  sad_sample_sample[4] = &ComputeSad_c<Sample, Sample>;  // 16
+  sad_sample_sample[5] = &ComputeSad_c<Sample, Sample>;  // 32
+  sad_sample_sample[6] = &ComputeSad_c<Sample, Sample>;  // 64
+  sad_short_sample[0] = nullptr;
+  sad_short_sample[1] = &ComputeSad_c<Residual, Sample>;  // 2
+  sad_short_sample[2] = &ComputeSad_c<Residual, Sample>;  // 4
+  sad_short_sample[3] = &ComputeSad_c<Residual, Sample>;  // 8
+  sad_short_sample[4] = &ComputeSad_c<Residual, Sample>;  // 16
+  sad_short_sample[5] = &ComputeSad_c<Residual, Sample>;  // 32
+  sad_short_sample[6] = &ComputeSad_c<Residual, Sample>;  // 64
 }
 
 }   // namespace xvc

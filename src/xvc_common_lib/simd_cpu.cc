@@ -123,7 +123,7 @@ std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {
 }
 
 #elif XVC_ARCH_ARM
-
+#if XVC_HAVE_NEON
 #ifdef _MSC_VER
 static int cpu_has_neon_arm() {
   return -1;
@@ -155,6 +155,7 @@ static int cpu_has_neon_arm() {
 }
 #else
 #error "Unknown architecture for runtime NEON detection"
+#endif
 #endif
 
 std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {

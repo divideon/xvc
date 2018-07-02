@@ -23,13 +23,17 @@
 
 #include "xvc_common_lib/coding_unit.h"
 #include "xvc_common_lib/quantize.h"
+#include "xvc_enc_lib/encoder_settings.h"
 #include "xvc_enc_lib/syntax_writer.h"
 
 namespace xvc {
 
 class RdoQuant {
 public:
-  explicit RdoQuant(int bitdepth) : bitdepth_(bitdepth) {}
+  RdoQuant(int bitdepth, const EncoderSettings &encoder_settings)
+    : bitdepth_(bitdepth),
+    encoder_settings_(encoder_settings) {
+  }
   int QuantFast(const CodingUnit &cu, YuvComponent comp, const Qp &qp,
                 PicturePredictionType pic_type,
                 const Coeff *in, ptrdiff_t in_stride,
@@ -49,18 +53,19 @@ private:
                PicturePredictionType pic_type, const SyntaxWriter &writer,
                const Coeff *in, ptrdiff_t in_stride,
                Coeff *out, ptrdiff_t out_stride);
-  void CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
-                         int width, int height,
-                         const Coeff *in, ptrdiff_t in_stride,
-                         const Coeff *delta, ptrdiff_t delta_stride,
-                         Coeff *out, ptrdiff_t out_stride) const;
-  void CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
-                        const Qp &qp,
-                        const Coeff *src, ptrdiff_t src_stride,
+  int CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
+                        int width, int height,
+                        const Coeff *in, ptrdiff_t in_stride,
+                        const Coeff *delta, ptrdiff_t delta_stride,
                         Coeff *out, ptrdiff_t out_stride) const;
+  int CoeffSignHideRdo(const CodingUnit &cu, YuvComponent comp,
+                       const Qp &qp,
+                       const Coeff *src, ptrdiff_t src_stride,
+                       Coeff *out, ptrdiff_t out_stride) const;
   Coeff QuantCoeffRdo(YuvComponent comp, Coeff orig_coeff, Coeff level,
                       const CoeffCodingState &code_state, Bits sig1_bits,
-                      int64_t lambda, int cost_scale, CabacContexts *contexts,
+                      int64_t lambda, int cost_scale,
+                      const ContextModel &c1_ctx, const ContextModel &c2_ctx,
                       const std::function<Coeff(Coeff)> &inv_quant,
                       int64_t *out_cost) const;
   bool EvalZeroSubblock(int subblock_index, int size, bool subblock_csbf,
@@ -70,19 +75,20 @@ private:
                         int64_t *subblock_code_cost) const;
   template<int SubBlockShift>
   int EvalLastPos(const CodingUnit &cu, YuvComponent comp,
-                  ScanOrder scan_order, CabacContexts *contexts,
+                  ScanOrder scan_order, Contexts *contexts,
                   int last_pos_index, int64_t lambda,
                   int64_t comp_code_cost, int64_t comp_zero_dist,
                   const Coeff *out, ptrdiff_t out_stride,
                   const uint8_t *subblock_csbf,
                   const Bits *csbf_bits_to_zero) const;
   Bits GetAbsLevelBits(YuvComponent comp, Coeff quant_level,
-                       CabacContexts *contexts,
+                       const ContextModel &c1_ctx,
+                       const ContextModel &c2_ctx,
                        const CoeffCodingState &state) const;
   void UpdateCodeState(YuvComponent comp, Coeff quant_level,
                        CoeffCodingState *state) const;
   Bits GetLastPosBits(int width, int height, YuvComponent comp,
-                      ScanOrder scan_order, CabacContexts *contexts,
+                      ScanOrder scan_order, Contexts *contexts,
                       int last_pos_x, int last_pos_y) const;
   std::function<Coeff(Coeff)> GetFwdQuantFunc(YuvComponent comp, const Qp &qp,
                                               int width, int height);
@@ -92,7 +98,8 @@ private:
     return (bits * lambda) >> kLambdaPrecision;
   }
 
-  int bitdepth_;
+  const int bitdepth_;
+  const EncoderSettings &encoder_settings_;
   // Last position eval state
   std::array<int64_t, kStorageSize> coeff_cost_to_zero_;
   std::array<Bits, kStorageSize> coeff_sig_bits_;

@@ -21,13 +21,22 @@
 
 #include <fstream>
 
+#include "xvc_enc_lib/xvcenc.h"
+
 namespace xvc_app {
+
+struct PictureFormat {
+  int width = 0;
+  int height = 0;
+  double framerate = 0;
+  int input_bitdepth = 8;
+  xvc_enc_chroma_format chroma_format = XVC_ENC_CHROMA_FORMAT_420;
+};
 
 class Y4mReader {
 public:
   explicit Y4mReader(std::istream *ifs) : ifs_(ifs) {}
-  bool Read(int &width, int &height, double &framerate,
-            int &input_bitdepth, std::streamoff &start_skip,
+  bool Read(PictureFormat *pic_format, std::streamoff *start_skip,
             std::streamoff *picture_skip);
 private:
   std::istream *ifs_;

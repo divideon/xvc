@@ -20,61 +20,76 @@
 
 #include <cassert>
 
+#include "xvc_common_lib/picture_types.h"
 #include "xvc_common_lib/restrictions.h"
 
 namespace xvc {
 
-void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
-                                BitWriter *bit_writer,
-                                double framerate,
-                                int open_gop) {
-  bit_writer->WriteBits(33, 8);  // Nal Unit header with nal_unit_type == 16
-  bit_writer->WriteBits(segment_header->codec_identifier, 24);
-  bit_writer->WriteBits(segment_header->major_version, 16);
-  bit_writer->WriteBits(segment_header->minor_version, 16);
-  bit_writer->WriteBits(segment_header->GetOutputWidth(),
+void SegmentHeaderWriter::Write(const SegmentHeader &segment_header,
+                                BitWriter *bit_writer, double framerate) {
+  bit_writer->WriteBits(1, 1);  // xvc_bit_one
+  bit_writer->WriteBits(0, 1);  // nal_rfe
+  bit_writer->WriteBits(static_cast<uint8_t>(NalUnitType::kSegmentHeader), 5);
+  bit_writer->WriteBits(1, 1);  // nal_rfl
+  bit_writer->WriteBits(segment_header.codec_identifier, 24);
+  bit_writer->WriteBits(segment_header.major_version, 16);
+  bit_writer->WriteBits(segment_header.minor_version, 16);
+  bit_writer->WriteBits(segment_header.GetOutputWidth(),
                         constants::kPicSizeBits);
-  bit_writer->WriteBits(segment_header->GetOutputHeight(),
+  bit_writer->WriteBits(segment_header.GetOutputHeight(),
                         constants::kPicSizeBits);
-  bit_writer->WriteBits(static_cast<uint8_t>(segment_header->chroma_format), 4);
-  bit_writer->WriteBits(segment_header->internal_bitdepth - 8, 4);
+  bit_writer->WriteBits(static_cast<uint8_t>(segment_header.chroma_format), 4);
+  bit_writer->WriteBits(segment_header.internal_bitdepth - 8, 4);
   bit_writer->WriteBits(static_cast<uint32_t>(constants::kTimeScale
                                               / framerate), 24);
   bit_writer->WriteBits(
-    static_cast<uint32_t>(segment_header->max_sub_gop_length), 8);
-  bit_writer->WriteBits(static_cast<uint8_t>(segment_header->color_matrix), 3);
+    static_cast<uint32_t>(segment_header.max_sub_gop_length), 8);
+
+  bit_writer->WriteBits(static_cast<uint8_t>(segment_header.color_matrix), 3);
   // The open gop flag is set to 0 if the tail pictures
   // do not predict from the Intra picture in the next segment.
-  bit_writer->WriteBit(open_gop);
-  bit_writer->WriteBits(segment_header->num_ref_pics, 4);
+  bit_writer->WriteBit(segment_header.open_gop ? 1 : 0);
+  bit_writer->WriteBits(segment_header.num_ref_pics, 4);
   static_assert(constants::kMaxBinarySplitDepth < (1 << 2),
                 "max binary split depth signaling");
-  bit_writer->WriteBits(segment_header->max_binary_split_depth, 2);
-  bit_writer->WriteBits(static_cast<uint32_t>(segment_header->checksum_mode),
+  bit_writer->WriteBits(segment_header.max_binary_split_depth, 2);
+  bit_writer->WriteBits(static_cast<uint32_t>(segment_header.checksum_mode),
                         1);
-  assert(segment_header->adaptive_qp >= 0 && segment_header->adaptive_qp <= 3);
-  bit_writer->WriteBits(segment_header->adaptive_qp, 2);
-  bit_writer->WriteBits(segment_header->chroma_qp_offset_table, 2);
-  int chroma_qp_offsets = (segment_header->chroma_qp_offset_u != 0 ||
-                           segment_header->chroma_qp_offset_v != 0) ? 1 : 0;
+
+  assert(segment_header.adaptive_qp >= 0 && segment_header.adaptive_qp <= 3);
+  bit_writer->WriteBits(segment_header.adaptive_qp, 2);
+  bit_writer->WriteBits(segment_header.chroma_qp_offset_table, 2);
+  int chroma_qp_offsets = (segment_header.chroma_qp_offset_u != 0 ||
+                           segment_header.chroma_qp_offset_v != 0) ? 1 : 0;
   bit_writer->WriteBits(chroma_qp_offsets, 1);
   if (chroma_qp_offsets) {
     int d = constants::kChromaOffsetBits;
-    bit_writer->WriteBits(segment_header->chroma_qp_offset_u + (1 << (d - 1)),
+    bit_writer->WriteBits(segment_header.chroma_qp_offset_u + (1 << (d - 1)),
                           d);
-    bit_writer->WriteBits(segment_header->chroma_qp_offset_v + (1 << (d - 1)),
+    bit_writer->WriteBits(segment_header.chroma_qp_offset_v + (1 << (d - 1)),
                           d);
   }
 
-  assert(segment_header->deblock >= 0 && segment_header->deblock <= 3);
-  bit_writer->WriteBits(segment_header->deblock, 2);
-  if (segment_header->deblock == 3) {
+  assert(segment_header.deblock >= 0 && segment_header.deblock <= 3);
+  bit_writer->WriteBits(segment_header.deblock, 2);
+  if (segment_header.deblock == 3) {
     int d = constants::kDeblockOffsetBits;
-    bit_writer->WriteBits(segment_header->beta_offset + (1 << (d - 1)), d);
-    bit_writer->WriteBits(segment_header->tc_offset + (1 << (d - 1)), d);
+    bit_writer->WriteBits(segment_header.beta_offset + (1 << (d - 1)), d);
+    bit_writer->WriteBits(segment_header.tc_offset + (1 << (d - 1)), d);
+  }
+  // Checking major version on encoder side is only needed for unit tests
+  if (segment_header.major_version > 1) {
+    bit_writer->WriteBit(segment_header.low_delay ? 1 : 0);
+    bit_writer->WriteBit(segment_header.leading_pictures > 0 ? 1 : 0);
+    bit_writer->WriteBit(segment_header.source_padding ? 1 : 0);
   }
 
-  auto &restr = Restrictions::Get();
+  WriteRestrictions(segment_header.restrictions, bit_writer);
+  bit_writer->PadZeroBits();
+}
+
+void SegmentHeaderWriter::WriteRestrictions(const Restrictions &restr,
+                                            BitWriter *bit_writer) {
   if (restr.GetIntraRestrictions()) {
     bit_writer->WriteBit(1);  // intra_restrictions
     bit_writer->WriteBit(restr.disable_intra_ref_padding);
@@ -172,7 +187,26 @@ void SegmentHeaderWriter::Write(SegmentHeader* segment_header,
   } else {
     bit_writer->WriteBit(0);  // ext_restrictions
   }
-  bit_writer->PadZeroBits();
+  if (restr.GetExt2Restrictions()) {
+    bit_writer->WriteBit(1);  // ext2_restrictions
+    bit_writer->WriteBit(restr.disable_ext2_intra_67_modes);
+    bit_writer->WriteBit(restr.disable_ext2_intra_6_predictors);
+    bit_writer->WriteBit(restr.disable_ext2_intra_chroma_from_luma);
+    bit_writer->WriteBit(restr.disable_ext2_inter_adaptive_fullpel_mv);
+    bit_writer->WriteBit(restr.disable_ext2_inter_affine);
+    bit_writer->WriteBit(restr.disable_ext2_inter_affine_merge);
+    bit_writer->WriteBit(restr.disable_ext2_inter_affine_mvp);
+    bit_writer->WriteBit(restr.disable_ext2_inter_bipred_l1_mvd_zero);
+    bit_writer->WriteBit(restr.disable_ext2_inter_high_precision_mv);
+    bit_writer->WriteBit(restr.disable_ext2_inter_local_illumination_comp);
+    bit_writer->WriteBit(restr.disable_ext2_transform_skip);
+    bit_writer->WriteBit(restr.disable_ext2_transform_high_precision);
+    bit_writer->WriteBit(restr.disable_ext2_transform_select);
+    bit_writer->WriteBit(restr.disable_ext2_transform_dst);
+    bit_writer->WriteBit(restr.disable_ext2_cabac_alt_residual_ctx);
+  } else {
+    bit_writer->WriteBit(0);  // ext2_restrictions
+  }
 }
 
 }   // namespace xvc

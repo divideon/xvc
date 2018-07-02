@@ -42,12 +42,23 @@ public:
   std::vector<std::shared_ptr<const T>>
     Prepare(PicNum curr_poc, int curr_tid, bool is_intra_pic,
             const std::vector<std::shared_ptr<T>> &pic_buffer,
-            ReferencePictureLists* rpl) {
+            ReferencePictureLists* rpl, int leading_pictures) {
     std::vector<std::shared_ptr<const T>> dependencies;
     if (rpl) {
       rpl->Reset(curr_poc);
     }
     if (is_intra_pic) {
+      return dependencies;
+    }
+    if (segment_header_.low_delay) {
+      int num_l0 = FillPrevPoc(RefPicList::kL0, 0, curr_poc, curr_tid,
+                               pic_buffer, &dependencies, rpl);
+      num_l0 = FillLowerPoc(RefPicList::kL0, num_l0, curr_poc, 0,
+                            pic_buffer, &dependencies, rpl);
+      int num_l1 = FillPrevPoc(RefPicList::kL1, 0, curr_poc, curr_tid,
+                               pic_buffer, &dependencies, rpl);
+      num_l1 = FillLowerPoc(RefPicList::kL1, num_l1, curr_poc, 0,
+                            pic_buffer, &dependencies, rpl);
       return dependencies;
     }
     if (Restrictions::Get().disable_inter_bipred) {
@@ -57,7 +68,8 @@ public:
     }
     int num_l0 = FillLowerPoc(RefPicList::kL0, 0, curr_poc, curr_tid,
                               pic_buffer, &dependencies, rpl);
-    if (Restrictions::Get().disable_ext_ref_list_l0_trim) {
+    if (Restrictions::Get().disable_ext_ref_list_l0_trim
+        || num_l0 == 0) {
       FillHigherPoc(RefPicList::kL0, num_l0, curr_poc, curr_tid, pic_buffer,
                     &dependencies, rpl);
     }
@@ -82,8 +94,9 @@ private:
       PicNum highest_poc_plus1 = 0;
       std::shared_ptr<const T> pic_enc_dec;
       for (auto &pic : pic_buffer) {
-        auto pic_data = pic->GetPicData();
-        if (pic_data->GetSoc() == segment_header_.soc &&
+        std::shared_ptr<const PictureData> pic_data = pic->GetPicData();
+        if (!rpl->HasRefPoc(ref_pic_list, pic_data->GetPoc()) &&
+            pic_data->GetSoc() == segment_header_.soc &&
             pic_data->GetPoc() < last_added_poc &&
             pic_data->GetPoc() + 1 > highest_poc_plus1 &&
             (pic_data->GetTid() < last_added_tid || pic_data->GetTid() == 0)) {
@@ -99,7 +112,8 @@ private:
       if (rpl) {
         rpl->SetRefPic(ref_pic_list, ref_idx,
                        pic_enc_dec->GetPicData()->GetPoc(),
-                       pic_enc_dec->GetPicData(), pic_enc_dec->GetRecPic());
+                       pic_enc_dec->GetPicData(), pic_enc_dec->GetRecPic(),
+                       pic_enc_dec->GetOrigPic());
       }
       dependencies->push_back(pic_enc_dec);
       ref_idx++;
@@ -120,7 +134,7 @@ private:
       PicNum lowest_poc = std::numeric_limits<PicNum>::max();
       std::shared_ptr<const T> pic_enc_dec;
       for (auto &pic : pic_buffer) {
-        auto pic_data = pic->GetPicData();
+        std::shared_ptr<const PictureData> pic_data = pic->GetPicData();
         SegmentNum curr_soc = segment_header_.soc;
         bool same_or_previous_segment = pic_data->GetSoc() == curr_soc ||
           (pic_data->GetSoc() == static_cast<SegmentNum>(curr_soc + 1) &&
@@ -143,14 +157,43 @@ private:
       if (segment_header_.soc != ref_data->GetSoc() &&
           !IsSameDimension(segment_header_, *ref_data)) {
         ref_pic = pic_enc_dec->GetAlternativeRecPic(
-          segment_header_.chroma_format,
-          segment_header_.GetInternalWidth(),
-          segment_header_.GetInternalHeight(),
-          segment_header_.internal_bitdepth);
+          segment_header_.GetInternalPicFormat(),
+          segment_header_.GetCropWidth(),
+          segment_header_.GetCropHeight());
       }
       if (rpl) {
         rpl->SetRefPic(ref_pic_list, ref_idx, ref_data->GetPoc(),
-                       ref_data, ref_pic);
+                       ref_data, ref_pic, pic_enc_dec->GetOrigPic());
+      }
+      dependencies->push_back(pic_enc_dec);
+      ref_idx++;
+    }
+    return ref_idx;
+  }
+
+  int FillPrevPoc(RefPicList ref_pic_list, int start_idx,
+                  PicNum curr_poc, int curr_tid,
+                  const std::vector<std::shared_ptr<T>> &pic_buffer,
+                  std::vector<std::shared_ptr<const T>> *dependencies,
+                  ReferencePictureLists* rpl) {
+    int ref_idx = start_idx;
+
+    if (ref_idx < segment_header_.num_ref_pics) {
+      std::shared_ptr<const T> pic_enc_dec;
+      for (auto &pic : pic_buffer) {
+        std::shared_ptr<const PictureData> pic_data = pic->GetPicData();
+        if (pic_data->GetPoc() + 1 == curr_poc) {
+          pic_enc_dec = pic;
+        }
+      }
+      if (!pic_enc_dec) {
+        return ref_idx;
+      }
+      if (rpl) {
+        rpl->SetRefPic(ref_pic_list, ref_idx,
+                       pic_enc_dec->GetPicData()->GetPoc(),
+                       pic_enc_dec->GetPicData(), pic_enc_dec->GetRecPic(),
+                       pic_enc_dec->GetOrigPic());
       }
       dependencies->push_back(pic_enc_dec);
       ref_idx++;
@@ -175,7 +218,7 @@ private:
       std::shared_ptr<const T> pic_enc_dec0;
       std::shared_ptr<const T> pic_enc_dec1;
       for (auto &pic : pic_buffer) {
-        auto pic_data = pic->GetPicData();
+        std::shared_ptr<const PictureData> pic_data = pic->GetPicData();
         SegmentNum curr_soc = segment_header_.soc;
         bool same_or_previous_segment = pic_data->GetSoc() == curr_soc ||
           (pic_data->GetSoc() == static_cast<SegmentNum>(curr_soc + 1) &&
@@ -207,15 +250,15 @@ private:
         if (segment_header_.soc != ref_data->GetSoc() &&
             !IsSameDimension(segment_header_, *ref_data)) {
           ref_pic = pic_enc_dec1->GetAlternativeRecPic(
-            segment_header_.chroma_format,
-            segment_header_.GetInternalWidth(),
-            segment_header_.GetInternalHeight(),
-            segment_header_.internal_bitdepth);
+            segment_header_.GetInternalPicFormat(),
+            segment_header_.GetCropWidth(),
+            segment_header_.GetCropHeight());
         }
         if (rpl) {
           rpl->SetRefPic(ref_pic_list, ref_idx,
                          pic_enc_dec1->GetPicData()->GetPoc(),
-                         pic_enc_dec1->GetPicData(), ref_pic);
+                         pic_enc_dec1->GetPicData(), ref_pic,
+                         pic_enc_dec1->GetOrigPic());
         }
         dependencies->push_back(pic_enc_dec1);
       } else {
@@ -225,7 +268,8 @@ private:
           rpl->SetRefPic(ref_pic_list, ref_idx,
                          pic_enc_dec0->GetPicData()->GetPoc(),
                          pic_enc_dec0->GetPicData(),
-                         pic_enc_dec0->GetRecPic());
+                         pic_enc_dec0->GetRecPic(),
+                         pic_enc_dec0->GetOrigPic());
         }
         dependencies->push_back(pic_enc_dec0);
       }

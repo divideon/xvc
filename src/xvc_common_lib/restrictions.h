@@ -26,7 +26,8 @@ enum class RestrictedMode {
   kUnrestricted = 0,
   kModeA = 1,
   kModeB = 2,
-  kTotalNumber = 3,
+  kModeC = 3,
+  kTotalNumber = 4,
 };
 
 // The Restrictions struct is used globally in the xvc namespace to check if
@@ -37,7 +38,7 @@ enum class RestrictedMode {
 typedef struct Restrictions {
 public:
   Restrictions();
-  static const Restrictions &Get() {
+  static const Restrictions& Get() {
     return instance;
   }
 
@@ -124,6 +125,24 @@ public:
       disable_ext_deblock_subblock_size_4;
   }
 
+  bool GetExt2Restrictions() const {
+    return disable_ext2_intra_67_modes ||
+      disable_ext2_intra_6_predictors ||
+      disable_ext2_intra_chroma_from_luma ||
+      disable_ext2_inter_adaptive_fullpel_mv ||
+      disable_ext2_inter_affine ||
+      disable_ext2_inter_affine_merge ||
+      disable_ext2_inter_affine_mvp ||
+      disable_ext2_inter_bipred_l1_mvd_zero ||
+      disable_ext2_inter_high_precision_mv ||
+      disable_ext2_inter_local_illumination_comp ||
+      disable_ext2_transform_skip ||
+      disable_ext2_transform_high_precision ||
+      disable_ext2_transform_select ||
+      disable_ext2_transform_dst ||
+      disable_ext2_cabac_alt_residual_ctx;
+  }
+
   bool disable_intra_ref_padding = false;
   bool disable_intra_ref_sample_filter = false;
   bool disable_intra_dc_post_filter = false;
@@ -186,6 +205,21 @@ public:
   bool disable_ext_transform_size_64 = false;
   bool disable_ext_intra_unrestricted_predictor = false;
   bool disable_ext_deblock_subblock_size_4 = false;
+  bool disable_ext2_intra_67_modes = false;
+  bool disable_ext2_intra_6_predictors = false;
+  bool disable_ext2_intra_chroma_from_luma = false;
+  bool disable_ext2_inter_adaptive_fullpel_mv = false;
+  bool disable_ext2_inter_affine = false;
+  bool disable_ext2_inter_affine_merge = false;
+  bool disable_ext2_inter_affine_mvp = false;
+  bool disable_ext2_inter_bipred_l1_mvd_zero = false;
+  bool disable_ext2_inter_high_precision_mv = false;
+  bool disable_ext2_inter_local_illumination_comp = false;
+  bool disable_ext2_transform_skip = false;
+  bool disable_ext2_transform_high_precision = false;
+  bool disable_ext2_transform_select = false;
+  bool disable_ext2_transform_dst = false;
+  bool disable_ext2_cabac_alt_residual_ctx = false;
 
 private:
   // The GetRW function shall be used only when there is a need to
@@ -199,8 +233,9 @@ private:
   friend class Encoder;
   friend class Decoder;
   friend class ThreadDecoder;
+  friend class ThreadEncoder;
   static thread_local Restrictions instance;
-  static Restrictions &GetRW() { return instance; }
+  static Restrictions& GetRW() { return instance; }
 
   void EnableRestrictedMode(RestrictedMode mode);
 } Restrictions;

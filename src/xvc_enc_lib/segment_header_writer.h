@@ -27,10 +27,12 @@ namespace xvc {
 
 class SegmentHeaderWriter {
 public:
-  static void Write(SegmentHeader* segment_header,
-                    BitWriter *bit_writer,
-                    double framerate,
-                    int open_gop);
+  static void Write(const SegmentHeader &segment_header, BitWriter *bit_writer,
+                    double framerate);
+
+private:
+  static void WriteRestrictions(const Restrictions &restrictions,
+                                BitWriter *bit_writer);
 };
 
 }   // namespace xvc

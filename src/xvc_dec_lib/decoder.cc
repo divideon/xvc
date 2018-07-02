@@ -50,20 +50,10 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
                         int64_t user_data) {
   // Nal header parsing
   BitReader bit_reader(nal_unit, nal_unit_size);
-  uint8_t header = bit_reader.ReadByte();
-  // Check the nal_rfe to see if the Nal Unit shall be ignored.
-  int nal_rfe = ((header >> 6) & 3);
-  if (nal_rfe > 0) {
-    // Accept the nal unit only if it uses one of the encapsulation codes.
-    if (header == constants::kEncapsulationCode1 ||
-        header == constants::kEncapsulationCode2) {
-      bit_reader.ReadByte();
-      header = bit_reader.ReadByte();
-    } else {
-      return false;
-    }
+  NalUnitType nal_unit_type;
+  if (!ParseNalUnitHeader(&bit_reader, &nal_unit_type, accept_xvc_bit_zero_)) {
+    return false;
   }
-  NalUnitType nal_unit_type = NalUnitType((header >> 1) & 31);
 
   // Segment header parsing
   if (nal_unit_type == NalUnitType::kSegmentHeader) {
@@ -71,58 +61,50 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
   }
   if (state_ == State::kNoSegmentHeader ||
       state_ == State::kDecoderVersionTooLow ||
-      state_ == State::kBitstreamBitdepthTooHigh) {
+      state_ == State::kBitstreamBitdepthTooHigh ||
+      state_ == State::kBitstreamVersionTooLow) {
     // Do not decode anything else than a segment header if
     // no segment header has been decoded or if the xvc version
     // of the decoder is identified to be too low or if the
     // bitstream bitdepth is too high.
     return false;
   }
-
   if (nal_unit_type >= NalUnitType::kIntraPicture &&
       nal_unit_type <= NalUnitType::kReservedPictureType10) {
-    // All picture types are decoded using the same process.
-    // First, the buffer flag is checked to see if the picture
-    // should be decoded or buffered.
-    int buffer_flag = bit_reader.ReadBit();
-    int tid = bit_reader.ReadBits(3);
-    int new_desired_max_tid = SegmentHeader::GetFramerateMaxTid(
-      decoder_ticks_, curr_segment_header_->bitstream_ticks,
-      curr_segment_header_->max_sub_gop_length);
-    if (new_desired_max_tid < max_tid_ || tid == 0) {
-      // Number of temporal layers can always be decreased,
-      // but only increased at temporal layer 0 pictures.
-      max_tid_ = new_desired_max_tid;
-    }
-    if (tid > max_tid_) {
-      // Ignore (drop) picture if it belongs to a temporal layer that
-      // should not be decoded.
-      return true;
-    }
-    enforce_sliding_window_ = true;
-    num_pics_in_buffer_++;
-    bit_reader.Rewind(4);
-
-    NalUnitPtr nal_element(new std::vector<uint8_t>(&nal_unit[0], &nal_unit[0]
-                                                    + nal_unit_size));
-    if (buffer_flag == 0 && num_tail_pics_ > 0) {
-      nal_buffer_.push_front({ std::move(nal_element), user_data });
-    } else {
-      nal_buffer_.push_back({ std::move(nal_element), user_data });
-    }
-    if (buffer_flag) {
-      num_tail_pics_++;
-      return true;
-    }
-    while (nal_buffer_.size() > 0 &&
-           num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
-      auto &&nal = nal_buffer_.front();
-      DecodeOneBufferedNal(std::move(nal.first), nal.second);
-      nal_buffer_.pop_front();
-    }
-    return true;
+    return DecodePictureNal(nal_unit, nal_unit_size, user_data, &bit_reader);
   }
-  return false;
+  return false;   // unknown nal type
+}
+
+bool Decoder::ParseNalUnitHeader(BitReader *bit_reader,
+                                 NalUnitType *nal_unit_type,
+                                 bool accept_xvc_bit_zero) {
+  uint8_t header = bit_reader->ReadByte();
+  // Check the xvc_bit_one to see if the Nal Unit shall be ignored.
+  int xvc_bit_one = ((header >> 7) & 1);
+  if (xvc_bit_one == 0) {
+    if (accept_xvc_bit_zero &&
+      (NalUnitType((header >> 1) & 31) == NalUnitType::kIntraAccessPicture ||
+       NalUnitType((header >> 1) & 31) == NalUnitType::kPredictedPicture ||
+       NalUnitType((header >> 1) & 31) == NalUnitType::kBipredictedPicture ||
+       NalUnitType((header >> 1) & 31) == NalUnitType::kSegmentHeader)) {
+      // The above NAL unit types of xvc version 1 bitstreams are allowed
+      // to not have xvc_bit_one set to 1.
+    } else if (header == constants::kEncapsulationCode) {
+      // Nal units with an encapsulation code consisting of two bytes
+      bit_reader->ReadByte();
+      header = bit_reader->ReadByte();
+    } else {
+      return false;
+    }
+  }
+  // Check the nal_rfe to see if the Nal Unit shall be ignored.
+  int nal_rfe = ((header >> 6) & 1);
+  if (nal_rfe == 1) {
+    return false;
+  }
+  *nal_unit_type = NalUnitType((header >> 1) & 31);
+  return true;
 }
 
 void Decoder::DecodeAllBufferedNals() {
@@ -142,6 +124,12 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   // If there are old nal units buffered that are not tail pictures,
   // they are discarded before decoding the new segment.
   if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
+    // When all intra we may have some buffered nals that can be decoded
+    while (!nal_buffer_.empty() && num_pics_in_buffer_ < pic_buffering_num_) {
+      auto &&nal = nal_buffer_.front();
+      DecodeOneBufferedNal(std::move(nal.first), nal.second);
+      nal_buffer_.pop_front();
+    }
     num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());
     nal_buffer_.clear();
     num_tail_pics_ = 0;
@@ -150,7 +138,11 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   curr_segment_header_ = std::make_shared<SegmentHeader>();
   soc_++;
   state_ =
-    SegmentHeaderReader::Read(curr_segment_header_.get(), bit_reader, soc_);
+    SegmentHeaderReader::Read(curr_segment_header_.get(), bit_reader, soc_,
+                              &accept_xvc_bit_zero_);
+  if (doc_ == 0 && curr_segment_header_->leading_pictures > 0) {
+    doc_++;
+  }
   if (state_ != State::kSegmentHeaderDecoded) {
     return false;
   }
@@ -161,23 +153,70 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   pic_buffering_num_ =
     sliding_window_length_ + curr_segment_header_->num_ref_pics;
 
-  if (output_width_ == 0) {
-    output_width_ = curr_segment_header_->GetOutputWidth();
+  if (output_pic_format_.width == 0) {
+    output_pic_format_.width = curr_segment_header_->GetOutputWidth();
   }
-  if (output_height_ == 0) {
-    output_height_ = curr_segment_header_->GetOutputHeight();
+  if (output_pic_format_.height == 0) {
+    output_pic_format_.height = curr_segment_header_->GetOutputHeight();
   }
-  if (output_chroma_format_ == ChromaFormat::kUndefinedChromaFormat) {
-    output_chroma_format_ = curr_segment_header_->chroma_format;
+  if (output_pic_format_.chroma_format == ChromaFormat::kUndefined) {
+    output_pic_format_.chroma_format = curr_segment_header_->chroma_format;
   }
-  if (output_color_matrix_ == ColorMatrix::kUndefinedColorMatrix) {
-    output_color_matrix_ = curr_segment_header_->color_matrix;
+  if (output_pic_format_.color_matrix == ColorMatrix::kUndefined) {
+    output_pic_format_.color_matrix = curr_segment_header_->color_matrix;
   }
-  if (output_bitdepth_ == 0) {
-    output_bitdepth_ = curr_segment_header_->internal_bitdepth;
+  if (output_pic_format_.bitdepth == 0) {
+    output_pic_format_.bitdepth = curr_segment_header_->internal_bitdepth;
   }
   max_tid_ = SegmentHeader::GetFramerateMaxTid(
     decoder_ticks_, curr_segment_header_->bitstream_ticks, sub_gop_length_);
+  return true;
+}
+
+bool Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
+                               int64_t user_data, BitReader *bit_reader) {
+  // All picture types are decoded using the same process.
+  // First, the buffer flag is checked to see if the picture
+  // should be decoded or buffered.
+  int buffer_flag = bit_reader->ReadBit();
+  int tid = bit_reader->ReadBits(3);
+  int new_desired_max_tid = SegmentHeader::GetFramerateMaxTid(
+    decoder_ticks_, curr_segment_header_->bitstream_ticks,
+    curr_segment_header_->max_sub_gop_length);
+  if (new_desired_max_tid < max_tid_ || tid == 0) {
+    // Number of temporal layers can always be decreased,
+    // but only increased at temporal layer 0 pictures.
+    max_tid_ = new_desired_max_tid;
+  }
+  if (tid > max_tid_) {
+    // Ignore (drop) picture if it belongs to a temporal layer that
+    // should not be decoded.
+    return true;
+  }
+
+  enforce_sliding_window_ = true;
+  num_pics_in_buffer_++;
+
+  NalUnitPtr nal_element(new std::vector<uint8_t>(&nal_unit[0], &nal_unit[0]
+                                                  + nal_unit_size));
+  if (buffer_flag == 0 && num_tail_pics_ > 0) {
+    nal_buffer_.push_front({ std::move(nal_element), user_data });
+  } else {
+    nal_buffer_.push_back({ std::move(nal_element), user_data });
+  }
+  if (state_ == State::kSegmentHeaderDecoded) {
+    state_ = State::kPicDecoded;
+  }
+  if (buffer_flag) {
+    num_tail_pics_++;
+    return true;
+  }
+  while (nal_buffer_.size() > 0 &&
+         num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
+    auto &&nal = nal_buffer_.front();
+    DecodeOneBufferedNal(std::move(nal.first), nal.second);
+    nal_buffer_.pop_front();
+  }
   return true;
 }
 
@@ -185,10 +224,11 @@ void
 Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   BitReader pic_bit_reader(&(*nal)[0], nal->size());
   std::shared_ptr<SegmentHeader> segment_header = curr_segment_header_;
+  std::shared_ptr<SegmentHeader> prev_segment_header = prev_segment_header_;
 
   int header = pic_bit_reader.ReadByte();
-  int nal_rfe = ((header >> 6) & 3);
-  if (nal_rfe > 0) {
+  int xvc_bit_one = ((header >> 7) & 1);
+  if (xvc_bit_one == 0 && !accept_xvc_bit_zero_) {
     // Read two more bytes if encapsulation is used.
     pic_bit_reader.ReadBits(16);
   }
@@ -203,9 +243,9 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
 
   // Parse picture header to determine poc
   PictureDecoder::PicNalHeader pic_header =
-    PictureDecoder::DecodeHeader(&pic_bit_reader, &sub_gop_end_poc_,
-                                 &sub_gop_start_poc_, &sub_gop_length_,
-                                 segment_header->max_sub_gop_length,
+    PictureDecoder::DecodeHeader(*segment_header, &pic_bit_reader,
+                                 &sub_gop_end_poc_, &sub_gop_start_poc_,
+                                 &sub_gop_length_,
                                  prev_segment_header_->max_sub_gop_length,
                                  doc_, soc_, num_tail_pics_);
   doc_ = pic_header.doc + 1;
@@ -225,7 +265,8 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   ReferencePictureLists ref_pic_list;
   auto inter_dependencies =
     ref_list_sorter.Prepare(pic_header.poc, pic_header.tid, is_intra_nal,
-                            pic_decoders_, &ref_pic_list);
+                            pic_decoders_, &ref_pic_list,
+                            segment_header->leading_pictures);
 
   // Bump ref count before finding an available picture decoder
   for (auto &pic_dep : inter_dependencies) {
@@ -248,7 +289,7 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
 
   // Setup poc and output status on main thread
   pic_dec->Init(*segment_header, pic_header, std::move(ref_pic_list),
-                user_data);
+                output_pic_format_, user_data);
 
   // Special handling of inter dependency ref counting for lowest layer
   if (pic_header.tid == 0) {
@@ -266,7 +307,9 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
   }
 
   if (thread_decoder_) {
-    thread_decoder_->DecodeAsync(std::move(segment_header), std::move(pic_dec),
+    thread_decoder_->DecodeAsync(std::move(segment_header),
+                                 std::move(prev_segment_header),
+                                 std::move(pic_dec),
                                  std::move(inter_dependencies), std::move(nal),
                                  pic_bit_reader.GetPosition());
     if (state_ == State::kSegmentHeaderDecoded) {
@@ -274,7 +317,8 @@ Decoder::DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data) {
     }
   } else {
     // Synchronous decode
-    bool success = pic_dec->Decode(*segment_header, &pic_bit_reader);
+    bool success = pic_dec->Decode(*segment_header, *prev_segment_header,
+                                   &pic_bit_reader, true);
     OnPictureDecoded(pic_dec, success, inter_dependencies);
   }
 }
@@ -288,16 +332,21 @@ void Decoder::FlushBufferedNalUnits() {
   prev_segment_header_ = curr_segment_header_;
   // Check if there are buffered nal units.
   if (nal_buffer_.size() > 0) {
-    if (curr_segment_header_->open_gop) {
-      // Throw away buffered Nal Units.
+    if (curr_segment_header_->open_gop &&
+        curr_segment_header_->num_ref_pics > 0) {
+      // throw away buffered nals that are impossible to decode without the
+      // next random acess picture available as reference
       num_pics_in_buffer_ -= static_cast<uint32_t>(nal_buffer_.size());
       nal_buffer_.clear();
     } else {
-      // Step over the missing key picture and then decode the buffered
-      // Nal Units.
-      doc_++;
-      sub_gop_start_poc_ = sub_gop_end_poc_;
-      sub_gop_end_poc_ += sub_gop_length_;
+      if (curr_segment_header_->num_ref_pics == 0) {
+        soc_--;
+      } else if (sub_gop_length_ > 1) {
+        // Step over the missing key picture and then decode the buffered nals
+        doc_++;
+        sub_gop_start_poc_ = sub_gop_end_poc_;
+        sub_gop_end_poc_ += sub_gop_length_;
+      }
       DecodeAllBufferedNals();
     }
   }
@@ -351,33 +400,29 @@ bool Decoder::GetDecodedPicture(xvc_decoded_picture *output_pic) {
 
   pic_dec->SetOutputStatus(OutputStatus::kHasBeenOutput);
   SetOutputStats(pic_dec, output_pic);
-  auto decoded_pic = pic_dec->GetRecPic();
-  decoded_pic->CopyTo(&output_pic_bytes_, output_width_, output_height_,
-                      output_chroma_format_, output_bitdepth_,
-                      output_color_matrix_);
-  const int sample_size = output_bitdepth_ == 8 ? 1 : 2;
-  output_pic->size = output_pic_bytes_.size();
-  output_pic->bytes = output_pic_bytes_.empty() ? nullptr :
-    reinterpret_cast<char *>(&output_pic_bytes_[0]);
+  const int sample_size = output_pic_format_.bitdepth == 8 ? 1 : 2;
+  // TODO(PH) Potential dangerous race-condition, the output_pic->bytes will
+  // be modified concurrently when pic_dec is assigned a new nal to decode,
+  // so we don't do that until next call to 'decoder_decode_nal'
+  const std::vector<uint8_t> &output_pic_bytes =
+    pic_dec->GetOutputPictureBytes();
+  output_pic->size = output_pic_bytes.size();
+  output_pic->bytes = output_pic_bytes.empty() ? nullptr :
+    reinterpret_cast<const char *>(&output_pic_bytes[0]);
   output_pic->planes[0] = output_pic->bytes;
-  output_pic->stride[0] = output_width_ * sample_size;
+  output_pic->stride[0] = output_pic_format_.width * sample_size;
   output_pic->planes[1] =
-    output_pic->planes[0] + output_pic->stride[0] * output_height_;
+    output_pic->planes[0] + output_pic->stride[0] * output_pic_format_.height;
   output_pic->stride[1] =
-    util::ScaleChromaX(output_width_, output_chroma_format_) * sample_size;
+    util::ScaleChromaX(output_pic_format_.width,
+                       output_pic_format_.chroma_format) * sample_size;
   output_pic->planes[2] = output_pic->planes[1] + output_pic->stride[1] *
-    util::ScaleChromaY(output_height_, output_chroma_format_);
+    util::ScaleChromaY(output_pic_format_.height,
+                       output_pic_format_.chroma_format);
   output_pic->stride[2] = output_pic->stride[1];
 
   // Decrease counter for how many decoded pictures are buffered.
   num_pics_in_buffer_--;
-
-  if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_) &&
-      num_pics_in_buffer_ - nal_buffer_.size() < pic_buffering_num_) {
-    auto &&nal = nal_buffer_.front();
-    DecodeOneBufferedNal(std::move(nal.first), nal.second);
-    nal_buffer_.pop_front();
-  }
   return true;
 }
 
@@ -385,10 +430,9 @@ std::shared_ptr<PictureDecoder>
 Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
   if (pic_decoders_.size() < pic_buffering_num_) {
     auto pic =
-      std::make_shared<PictureDecoder>(simd_, segment.chroma_format,
-                                       segment.GetInternalWidth(),
-                                       segment.GetInternalHeight(),
-                                       segment.internal_bitdepth);
+      std::make_shared<PictureDecoder>(simd_, segment.GetInternalPicFormat(),
+                                       segment.GetCropWidth(),
+                                       segment.GetCropHeight());
     pic_decoders_.push_back(pic);
     return pic;
   }
@@ -420,10 +464,9 @@ Decoder::GetFreePictureDecoder(const SegmentHeader &segment) {
       pic_data->GetPictureHeight(YuvComponent::kY) ||
       segment.chroma_format != pic_data->GetChromaFormat() ||
       segment.internal_bitdepth != pic_data->GetBitdepth()) {
-    pic_dec_it->reset(new PictureDecoder(simd_, segment.chroma_format,
-                                         segment.GetInternalWidth(),
-                                         segment.GetInternalHeight(),
-                                         segment.internal_bitdepth));
+    pic_dec_it->reset(new PictureDecoder(simd_, segment.GetInternalPicFormat(),
+                                         segment.GetCropWidth(),
+                                         segment.GetCropHeight()));
   }
   return *pic_dec_it;
 }
@@ -447,15 +490,16 @@ void Decoder::OnPictureDecoded(std::shared_ptr<PictureDecoder> pic_dec,
 
 void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
                              xvc_decoded_picture *output_pic) {
+  const int poc_offset = (curr_segment_header_->leading_pictures != 0 ? -1 : 0);
   auto pic_data = pic_dec->GetPicData();
   output_pic->user_data = pic_dec->GetNalUserData();
-  output_pic->stats.width = output_width_;
-  output_pic->stats.height = output_height_;
-  output_pic->stats.bitdepth = output_bitdepth_;
+  output_pic->stats.width = output_pic_format_.width;
+  output_pic->stats.height = output_pic_format_.height;
+  output_pic->stats.bitdepth = output_pic_format_.bitdepth;
   output_pic->stats.chroma_format =
-    xvc_dec_chroma_format(output_chroma_format_);
+    xvc_dec_chroma_format(output_pic_format_.chroma_format);
   output_pic->stats.color_matrix =
-    xvc_dec_color_matrix(output_color_matrix_);
+    xvc_dec_color_matrix(output_pic_format_.color_matrix);
   output_pic->stats.bitstream_bitdepth = pic_data->GetBitdepth();
   output_pic->stats.framerate =
     SegmentHeader::GetFramerate(max_tid_, curr_segment_header_->bitstream_ticks,
@@ -466,8 +510,10 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
     static_cast<uint32_t>(pic_data->GetNalType());
 
   // Expose the 32 least significant bits of poc and doc.
-  output_pic->stats.poc = static_cast<uint32_t>(pic_data->GetPoc());
-  output_pic->stats.doc = static_cast<uint32_t>(pic_data->GetDoc());
+  output_pic->stats.poc =
+    static_cast<uint32_t>(pic_data->GetPoc() + poc_offset);
+  output_pic->stats.doc =
+    static_cast<uint32_t>(pic_data->GetDoc() + poc_offset);
   output_pic->stats.soc = static_cast<uint32_t>(pic_data->GetSoc());
   output_pic->stats.tid = pic_data->GetTid();
   output_pic->stats.qp = pic_data->GetPicQp()->GetQpRaw(YuvComponent::kY);
@@ -479,13 +525,13 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
   for (int i = 0; i < length; i++) {
     if (i < rpl->GetNumRefPics(RefPicList::kL0)) {
       output_pic->stats.l0[i] =
-        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i));
+        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL0, i) + poc_offset);
     } else {
       output_pic->stats.l0[i] = -1;
     }
     if (i < rpl->GetNumRefPics(RefPicList::kL1)) {
       output_pic->stats.l1[i] =
-        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i));
+        static_cast<int32_t>(rpl->GetRefPoc(RefPicList::kL1, i) + poc_offset);
     } else {
       output_pic->stats.l1[i] = -1;
     }
