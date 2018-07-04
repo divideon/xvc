@@ -1,11 +1,10 @@
 # xvc codec
 
-The xvc codec is a next generation block-based video coding format built using
+The xvc codec is a next-generation software-defined video compression format, built using
 world-class compression technologies.
 
-Redistribution and use in source and binary form, with or without modifications
-is permitted only under the terms and conditions set forward in the
-xvc License Agreement.
+The xvc software is available under a dual-licensing scheme with an LGPL option and a
+commercial option.
 
 Visit [xvc.io](https://xvc.io) for more information.
 
