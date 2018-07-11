@@ -104,6 +104,7 @@ private:
     int speed_mode = -1;
     int tune_mode = -1;
     int threads = -1;
+    int profile = -1;
     int simd_mask = -1;
     std::string explicit_encoder_settings;
     int verbose = 0;

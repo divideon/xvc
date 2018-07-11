@@ -1,19 +1,22 @@
 /******************************************************************************
-* Copyright (C) 2017, Divideon.
+* Copyright (C) 2018, Divideon.
 *
-* Redistribution and use in source and binary form, with or without
-* modifications is permitted only under the terms and conditions set forward
-* in the xvc Licence Agreement. For commercial redistribution and use, you are
-* required to send a signed copy of the xvc License Agreement to Divideon.
+* This library is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Lesser General Public
+* License as published by the Free Software Foundation; either
+* version 2.1 of the License, or (at your option) any later version.
 *
-* Redistribution and use in source and binary form is permitted free of charge
-* for non-commercial purposes. See definition of non-commercial in the xvc
-* License Agreement.
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Lesser General Public License for more details.
 *
-* All redistribution of source code must retain this copyright notice
-* unmodified.
+* You should have received a copy of the GNU Lesser General Public
+* License along with this library; if not, write to the Free Software
+* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 *
-* The xvc Licence Agreement is available at https://xvc.io/license/.
+* This library is also available under a commercial license.
+* Please visit https://xvc.io/license/ for more information.
 ******************************************************************************/
 
 #include "xvc_enc_app/encoder_app.h"
@@ -136,6 +139,8 @@ void EncoderApp::ReadArguments(int argc, const char *argv[]) {
       std::stringstream(argv[++i]) >> cli_.speed_mode;
     } else if (arg == "-tune") {
       std::stringstream(argv[++i]) >> cli_.tune_mode;
+    } else if (arg == "-profile") {
+      std::stringstream(argv[++i]) >> cli_.profile;
     } else if (arg == "-threads") {
       std::stringstream(argv[++i]) >> cli_.threads;
     } else if (arg == "-simd-mask") {
@@ -351,6 +356,9 @@ EncoderApp::ConfigureApiParams(xvc_encoder_parameters *params) {
   }
   if (cli_.tune_mode != -1) {
     params->tune_mode = cli_.tune_mode;
+  }
+  if (cli_.profile == 1) {
+    params->restricted_mode = 3;
   }
   if (cli_.threads != -1) {
     params->threads = cli_.threads;
@@ -794,6 +802,9 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -tune <0..1>" << std::endl;
   std::cout << "      0: Visual quality (default)" << std::endl;
   std::cout << "      1: PSNR" << std::endl;
+  std::cout << "  -profile <0..1>" << std::endl;
+  std::cout << "      0: Full (default)" << std::endl;
+  std::cout << "      1: Baseline" << std::endl;
   std::cout << "  -threads <int>" << std::endl;
   std::cout << "     -1: auto-detect" << std::endl;
   std::cout << "      0: disabled (default)" << std::endl;
