@@ -92,6 +92,7 @@ extern "C" {
     double framerate;
     double bitstream_framerate;
     int32_t conforming;
+    int32_t profile;
   } xvc_dec_pic_stats;
 
   // Represents a decoded picture

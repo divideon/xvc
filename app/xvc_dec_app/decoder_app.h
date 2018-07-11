@@ -62,6 +62,7 @@ private:
 
   int num_pictures_decoded_ = 0;
   int segment_info_printed_ = 0;
+  bool all_pictures_baseline_ = true;
 
   // command line arguments
   struct {

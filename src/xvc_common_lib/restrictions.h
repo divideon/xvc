@@ -45,6 +45,8 @@ public:
     return instance;
   }
 
+  bool CheckBaselineCompatibility() const;
+
   bool GetIntraRestrictions() const {
     return disable_intra_ref_padding ||
       disable_intra_ref_sample_filter ||

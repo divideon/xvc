@@ -511,6 +511,8 @@ void Decoder::SetOutputStats(std::shared_ptr<PictureDecoder> pic_dec,
     SegmentHeader::GetFramerate(0, curr_segment_header_->bitstream_ticks, 1);
   output_pic->stats.nal_unit_type =
     static_cast<uint32_t>(pic_data->GetNalType());
+  output_pic->stats.profile =
+    Restrictions::Get().CheckBaselineCompatibility() ? 1 : 0;
 
   // Expose the 32 least significant bits of poc and doc.
   output_pic->stats.poc =

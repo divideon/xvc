@@ -256,6 +256,7 @@ void DecoderApp::MainDecoderLoop() {
       if (cli_.verbose) {
         PrintPictureInfo(decoded_pic.stats);
       }
+      all_pictures_baseline_ &= (decoded_pic.stats.profile == 1);
       num_pictures_decoded_++;
     }
   }
@@ -274,6 +275,7 @@ void DecoderApp::MainDecoderLoop() {
       output_stream.write(decoded_pic.bytes, decoded_pic.size);
     }
     PrintPictureInfo(decoded_pic.stats);
+    all_pictures_baseline_ &= (decoded_pic.stats.profile == 1);
     num_pictures_decoded_++;
   }
 
@@ -317,6 +319,10 @@ int DecoderApp::CheckConformance() {
     GetLog() << std::endl;
     GetLog() << "Conformance verified." << std::endl;
     GetLog() << "The bitstream is a conforming bitstream." << std::endl;
+    if (all_pictures_baseline_) {
+      GetLog() << "The bitstream conforms to the baseline profile."
+        << std::endl;
+    }
     GetLog() << std::endl;
     return ret;
   }
