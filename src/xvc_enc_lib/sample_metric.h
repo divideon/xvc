@@ -118,10 +118,6 @@ private:
   Distortion Compare(const Qp &qp, YuvComponent comp, int width, int height,
                      const Residual *src1, ptrdiff_t stride1,
                      const Residual *src2, ptrdiff_t stride2) const;
-  template<typename SampleT1, typename SampleT2>
-  uint64_t ComputeSsd(int width, int height,
-                      const SampleT1 *sample1, ptrdiff_t stride1,
-                      const SampleT2 *sample2, ptrdiff_t stride2) const;
   template<bool RemoveAvg, typename SampleT1, typename SampleT2>
   uint64_t ComputeSatd(int width, int height, int offset,
                        const SampleT1 *sample1, ptrdiff_t stride1,
@@ -173,6 +169,18 @@ struct SampleMetric::SimdFunc {
   int(*sad_short_sample[kMaxSize])(int width, int height,
                                    const int16_t *sample1, ptrdiff_t stride1,
                                    const Sample *sample2, ptrdiff_t stride2);
+  void(*ssd_sample_sample[kMaxSize])(int width, int height,
+                                   const Sample *sample1, ptrdiff_t stride1,
+                                   const Sample *sample2, ptrdiff_t stride2,
+                                   uint64_t *result);
+  void(*ssd_short_sample[kMaxSize])(int width, int height,
+                                   const int16_t *sample1, ptrdiff_t stride1,
+                                   const Sample *sample2, ptrdiff_t stride2,
+                                   uint64_t *result);
+  void(*ssd_short_short[kMaxSize])(int width, int height,
+                                   const int16_t *sample1, ptrdiff_t stride1,
+                                   const int16_t *sample2, ptrdiff_t stride2,
+                                   uint64_t *result);
 };
 
 }   // namespace xvc

@@ -68,7 +68,9 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-      dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      simd_func_.ssd_sample_sample[widx](width, height, src1, stride1,
+                                                src2, stride2, &dist);
+      dist = dist >> (2 * (bitdepth_ - 8));
       break;
     case MetricType::kSatd:
       dist = ComputeSatd<false>(width, height, 0, src1, stride1, src2, stride2);
@@ -98,7 +100,9 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
         dist =
           ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
       } else {
-        dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+        simd_func_.ssd_sample_sample[widx](width, height, src1, stride1,
+                                                    src2, stride2, &dist);
+        dist = dist >> (2 * (bitdepth_ - 8));
       }
       break;
     default:
@@ -118,7 +122,9 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-      dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+      simd_func_.ssd_short_sample[widx](width, height, src1, stride1,
+                                               src2, stride2, &dist);
+      dist = dist >> (2 * (bitdepth_ - 8));
       break;
     case MetricType::kSatd:
       dist = ComputeSatd<false>(width, height, 0, src1, stride1, src2, stride2);
@@ -148,7 +154,9 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
         dist =
           ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
       } else {
-        dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+        simd_func_.ssd_short_sample[widx](width, height, src1, stride1,
+                                                   src2, stride2, &dist);
+        dist = dist >> (2 * (bitdepth_ - 8));
       }
       break;
     default:
@@ -164,10 +172,13 @@ Distortion
 SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
                       const Residual *src1, ptrdiff_t stride1,
                       const Residual *src2, ptrdiff_t stride2) const {
+  const int widx = util::SizeToLog2(width);
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-      dist = ComputeSsd(width, height, src1, stride1, src2, stride2);
+        simd_func_.ssd_short_short[widx](width, height, src1, stride1,
+                                                 src2, stride2, &dist);
+        dist = dist >> (2 * (bitdepth_ - 8));
       break;
     default:
       assert(0);
@@ -179,11 +190,10 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
 }
 
 template<typename SampleT1, typename SampleT2>
-uint64_t
-SampleMetric::ComputeSsd(int width, int height,
+static void ComputeSsd_c(int width, int height,
                          const SampleT1 *sample1, ptrdiff_t stride1,
-                         const SampleT2 *sample2, ptrdiff_t stride2) const {
-  int shift = (2 * (bitdepth_ - 8));
+                         const SampleT2 *sample2, ptrdiff_t stride2,
+                         uint64_t *result){
   uint64_t ssd = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
@@ -193,8 +203,7 @@ SampleMetric::ComputeSsd(int width, int height,
     sample1 += stride1;
     sample2 += stride2;
   }
-  ssd >>= shift;
-  return ssd;
+  *result = ssd;
 }
 
 template<bool RemoveAvg, typename SampleT1, typename SampleT2>
@@ -682,6 +691,28 @@ SampleMetric::SimdFunc::SimdFunc() {
   sad_short_sample[4] = &ComputeSad_c<Residual, Sample>;  // 16
   sad_short_sample[5] = &ComputeSad_c<Residual, Sample>;  // 32
   sad_short_sample[6] = &ComputeSad_c<Residual, Sample>;  // 64
+
+  ssd_sample_sample[0] = nullptr;
+  ssd_sample_sample[1] = &ComputeSsd_c<Sample, Sample>;  // 2
+  ssd_sample_sample[2] = &ComputeSsd_c<Sample, Sample>;  // 4
+  ssd_sample_sample[3] = &ComputeSsd_c<Sample, Sample>;  // 8
+  ssd_sample_sample[4] = &ComputeSsd_c<Sample, Sample>;  // 16
+  ssd_sample_sample[5] = &ComputeSsd_c<Sample, Sample>;  // 32
+  ssd_sample_sample[6] = &ComputeSsd_c<Sample, Sample>;  // 64
+  ssd_short_sample[0] = nullptr;
+  ssd_short_sample[1] = &ComputeSsd_c<Residual, Sample>;  // 2
+  ssd_short_sample[2] = &ComputeSsd_c<Residual, Sample>;  // 4
+  ssd_short_sample[3] = &ComputeSsd_c<Residual, Sample>;  // 8
+  ssd_short_sample[4] = &ComputeSsd_c<Residual, Sample>;  // 16
+  ssd_short_sample[5] = &ComputeSsd_c<Residual, Sample>;  // 32
+  ssd_short_sample[6] = &ComputeSsd_c<Residual, Sample>;  // 64
+  ssd_short_short[0] = nullptr;
+  ssd_short_short[1] = &ComputeSsd_c<Residual, Residual>;  // 2
+  ssd_short_short[2] = &ComputeSsd_c<Residual, Residual>;  // 4
+  ssd_short_short[3] = &ComputeSsd_c<Residual, Residual>;  // 8
+  ssd_short_short[4] = &ComputeSsd_c<Residual, Residual>;  // 16
+  ssd_short_short[5] = &ComputeSsd_c<Residual, Residual>;  // 32
+  ssd_short_short[6] = &ComputeSsd_c<Residual, Residual>;  // 64
 }
 
 }   // namespace xvc
