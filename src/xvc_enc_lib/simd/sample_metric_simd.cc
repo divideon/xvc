@@ -117,7 +117,7 @@ static void ComputeSsd_8x2_sse2(int width, int height,
             __m128i ssd_l1 = _mm_unpacklo_epi32(ssd_01, zero_vec);
             __m128i ssd_h1 = _mm_unpackhi_epi32(ssd_01, zero_vec);
             sum = _mm_add_epi64(sum, ssd_l1);
-            sum = _mm_add_epi64(sum, sum_h1);
+            sum = _mm_add_epi64(sum, ssd_h1);
         }
         src1 += stride1 * 2;
         src2 += stride2 * 2;
