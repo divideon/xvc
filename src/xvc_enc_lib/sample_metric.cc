@@ -68,8 +68,8 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-      simd_func_.ssd_sample_sample[widx](width, height, src1, stride1,
-                                                src2, stride2, &dist);
+      dist = simd_func_.ssd_sample_sample[widx](width, height, src1, stride1,
+                                                src2, stride2);
       dist = dist >> (2 * (bitdepth_ - 8));
       break;
     case MetricType::kSatd:
@@ -100,8 +100,8 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
         dist =
           ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
       } else {
-        simd_func_.ssd_sample_sample[widx](width, height, src1, stride1,
-                                                    src2, stride2, &dist);
+        dist = simd_func_.ssd_sample_sample[widx](width, height, src1, stride1,
+                                                  src2, stride2);
         dist = dist >> (2 * (bitdepth_ - 8));
       }
       break;
@@ -122,8 +122,8 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-      simd_func_.ssd_short_sample[widx](width, height, src1, stride1,
-                                               src2, stride2, &dist);
+      dist = simd_func_.ssd_short_sample[widx](width, height, src1, stride1,
+                                               src2, stride2);
       dist = dist >> (2 * (bitdepth_ - 8));
       break;
     case MetricType::kSatd:
@@ -154,8 +154,8 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
         dist =
           ComputeStructuralSsd(qp, width, height, src1, stride1, src2, stride2);
       } else {
-        simd_func_.ssd_short_sample[widx](width, height, src1, stride1,
-                                                   src2, stride2, &dist);
+        dist = simd_func_.ssd_short_sample[widx](width, height, src1, stride1,
+                                                 src2, stride2);
         dist = dist >> (2 * (bitdepth_ - 8));
       }
       break;
@@ -176,8 +176,8 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-        simd_func_.ssd_short_short[widx](width, height, src1, stride1,
-                                                 src2, stride2, &dist);
+        dist = simd_func_.ssd_short_short[widx](width, height, src1, stride1,
+                                                src2, stride2);
         dist = dist >> (2 * (bitdepth_ - 8));
       break;
     default:
@@ -190,10 +190,9 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
 }
 
 template<typename SampleT1, typename SampleT2>
-static void ComputeSsd_c(int width, int height,
-                         const SampleT1 *sample1, ptrdiff_t stride1,
-                         const SampleT2 *sample2, ptrdiff_t stride2,
-                         uint64_t *result){
+static uint64_t ComputeSsd_c(int width, int height,
+                             const SampleT1 *sample1, ptrdiff_t stride1,
+                             const SampleT2 *sample2, ptrdiff_t stride2) {
   uint64_t ssd = 0;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
@@ -203,7 +202,7 @@ static void ComputeSsd_c(int width, int height,
     sample1 += stride1;
     sample2 += stride2;
   }
-  *result = ssd;
+  return ssd;
 }
 
 template<bool RemoveAvg, typename SampleT1, typename SampleT2>

@@ -169,18 +169,21 @@ struct SampleMetric::SimdFunc {
   int(*sad_short_sample[kMaxSize])(int width, int height,
                                    const int16_t *sample1, ptrdiff_t stride1,
                                    const Sample *sample2, ptrdiff_t stride2);
-  void(*ssd_sample_sample[kMaxSize])(int width, int height,
-                                   const Sample *sample1, ptrdiff_t stride1,
-                                   const Sample *sample2, ptrdiff_t stride2,
-                                   uint64_t *result);
-  void(*ssd_short_sample[kMaxSize])(int width, int height,
-                                   const int16_t *sample1, ptrdiff_t stride1,
-                                   const Sample *sample2, ptrdiff_t stride2,
-                                   uint64_t *result);
-  void(*ssd_short_short[kMaxSize])(int width, int height,
-                                   const int16_t *sample1, ptrdiff_t stride1,
-                                   const int16_t *sample2, ptrdiff_t stride2,
-                                   uint64_t *result);
+  uint64_t(*ssd_sample_sample[kMaxSize])(int width, int height,
+                                         const Sample *sample1,
+                                         ptrdiff_t stride1,
+                                         const Sample *sample2,
+                                         ptrdiff_t stride2);
+  uint64_t(*ssd_short_sample[kMaxSize])(int width, int height,
+                                        const int16_t *sample1,
+                                        ptrdiff_t stride1,
+                                        const Sample *sample2,
+                                        ptrdiff_t stride2);
+  uint64_t(*ssd_short_short[kMaxSize])(int width, int height,
+                                       const int16_t *sample1,
+                                       ptrdiff_t stride1,
+                                       const int16_t *sample2,
+                                       ptrdiff_t stride2);
 };
 
 }   // namespace xvc

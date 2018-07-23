@@ -45,6 +45,8 @@
 #ifdef XVC_ARCH_X86
 #define CAST_M128i_CONST(VAL) reinterpret_cast<const __m128i*>((VAL))
 #define CAST_M256i_CONST(VAL) reinterpret_cast<const __m256i*>((VAL))
+#define CAST_M128i(VAL) reinterpret_cast<__m128i*>((VAL))
+#define CAST_M256i(VAL) reinterpret_cast<__m256i*>((VAL))
 #endif  // XVC_ARCH_X86
 
 static const std::array<int16_t, 16> kOnes16bit alignas(32) = { {
@@ -96,35 +98,37 @@ static int ComputeSad_8x2_sse2(int width, int height,
 
 template<typename SampleT1, typename Sample>
 __attribute__((target("sse2")))
-static void ComputeSsd_8x2_sse2(int width, int height,
-    const SampleT1 *src1, ptrdiff_t stride1,
-    const Sample *src2, ptrdiff_t stride2, uint64_t *result) {
-    static_assert((std::is_same<Sample, uint16_t>::value) ||
-        (std::is_same<Sample, int16_t>::value), "assume high bitdepth");
-    __m128i sum = _mm_setzero_si128();
-    __m128i zero_vec = _mm_setzero_si128();
-    for (int y = 0; y < height; y += 2) {
-        for (int x = 0; x < width; x += 8) {
-            __m128i src1_row0 = _mm_loadu_si128((__m128i*)&src1[x]);
-            __m128i src1_row1 = _mm_loadu_si128((__m128i*)&src1[x + stride1]);
-            __m128i src2_row0 = _mm_loadu_si128((__m128i*)&src2[x]);
-            __m128i src2_row1 = _mm_loadu_si128((__m128i*)&src2[x + stride2]);
-            __m128i diff_row0 = _mm_sub_epi16(src1_row0, src2_row0);
-            __m128i diff_row1 = _mm_sub_epi16(src1_row1, src2_row1);
-            __m128i ssd0 = _mm_madd_epi16(diff_row0, diff_row0);
-            __m128i ssd1 = _mm_madd_epi16(diff_row1, diff_row1);
-            __m128i ssd_01 = _mm_add_epi32(ssd0, ssd1);
-            __m128i ssd_l1 = _mm_unpacklo_epi32(ssd_01, zero_vec);
-            __m128i ssd_h1 = _mm_unpackhi_epi32(ssd_01, zero_vec);
-            sum = _mm_add_epi64(sum, ssd_l1);
-            sum = _mm_add_epi64(sum, ssd_h1);
-        }
-        src1 += stride1 * 2;
-        src2 += stride2 * 2;
+static uint64_t ComputeSsd_8x2_sse2(int width, int height,
+                                    const SampleT1 *src1, ptrdiff_t stride1,
+                                    const Sample *src2, ptrdiff_t stride2) {
+  static_assert((std::is_same<Sample, uint16_t>::value) ||
+    (std::is_same<Sample, int16_t>::value), "assume high bitdepth");
+  __m128i sum = _mm_setzero_si128();
+  __m128i zero_vec = _mm_setzero_si128();
+  uint64_t result = 0;
+  for (int y = 0; y < height; y += 2) {
+    for (int x = 0; x < width; x += 8) {
+      __m128i src1_row0 = _mm_loadu_si128(CAST_M128i(src1[x]));
+      __m128i src1_row1 = _mm_loadu_si128(CAST_M128i(src1[x + stride1]));
+      __m128i src2_row0 = _mm_loadu_si128(CAST_M128i(src2[x]));
+      __m128i src2_row1 = _mm_loadu_si128(CAST_M128i(src2[x + stride2]));
+      __m128i diff_row0 = _mm_sub_epi16(src1_row0, src2_row0);
+      __m128i diff_row1 = _mm_sub_epi16(src1_row1, src2_row1);
+      __m128i ssd0 = _mm_madd_epi16(diff_row0, diff_row0);
+      __m128i ssd1 = _mm_madd_epi16(diff_row1, diff_row1);
+      __m128i ssd_01 = _mm_add_epi32(ssd0, ssd1);
+      __m128i ssd_l1 = _mm_unpacklo_epi32(ssd_01, zero_vec);
+      __m128i ssd_h1 = _mm_unpackhi_epi32(ssd_01, zero_vec);
+      sum = _mm_add_epi64(sum, ssd_l1);
+      sum = _mm_add_epi64(sum, ssd_h1);
     }
-    __m128i sum64_hi = _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2));
-    __m128i out = _mm_add_epi64(sum, sum64_hi);
-    _mm_storel_epi64(reinterpret_cast<__m128i*>(result), out);
+    src1 += stride1 * 2;
+    src2 += stride2 * 2;
+  }
+  __m128i sum64_hi = _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2));
+  __m128i out = _mm_add_epi64(sum, sum64_hi);
+  _mm_storel_epi64(reinterpret_cast<__m128i*>(result), out);
+  return result;
 }
 #endif
 #endif  // XVC_ARCH_X86
@@ -171,19 +175,20 @@ static int ComputeSad_16x2_avx2(int width, int height,
 
 template<typename SampleT1, typename Sample>
 __attribute__((target("avx2")))
-static void ComputeSsd_16x2_avx2(int width, int height,
-  const SampleT1 *src1, ptrdiff_t stride1,
-  const Sample *src2, ptrdiff_t stride2, uint64_t *result) {
+static uint64_t ComputeSsd_16x2_avx2(int width, int height,
+                                     const SampleT1 *src1, ptrdiff_t stride1,
+                                     const Sample *src2, ptrdiff_t stride2) {
   static_assert((std::is_same<Sample, uint16_t>::value) ||
     (std::is_same<Sample, int16_t>::value), "assume high bitdepth");
   __m256i sum = _mm256_setzero_si256();
   __m256i zero_vec = _mm256_setzero_si256();
+  uint64_t result = 0;
   for (int y = 0; y < height; y += 2) {
     for (int x = 0; x < width; x += 16) {
-      __m256i src1_row0 = _mm256_lddqu_si256((__m256i*)&src1[x]);
-      __m256i src1_row1 = _mm256_lddqu_si256((__m256i*)&src1[x + stride1]);
-      __m256i src2_row0 = _mm256_lddqu_si256((__m256i*)&src2[x]);
-      __m256i src2_row1 = _mm256_lddqu_si256((__m256i*)&src2[x + stride2]);
+      __m256i src1_row0 = _mm256_lddqu_si256(CAST_M256i(src1[x]));
+      __m256i src1_row1 = _mm256_lddqu_si256(CAST_M256i(src1[x + stride1]));
+      __m256i src2_row0 = _mm256_lddqu_si256(CAST_M256i(src2[x]));
+      __m256i src2_row1 = _mm256_lddqu_si256(CAST_M256i(src2[x + stride2]));
       __m256i diff_row0 = _mm256_sub_epi16(src1_row0, src2_row0);
       __m256i diff_row1 = _mm256_sub_epi16(src1_row1, src2_row1);
       __m256i ssd0 = _mm256_madd_epi16(diff_row0, diff_row0);
@@ -203,6 +208,7 @@ static void ComputeSsd_16x2_avx2(int width, int height,
   __m256i out1 = _mm256_add_epi64(out_imm, out_imm1);
   __m128i out = _mm256_extracti128_si256(out1, 0);
   _mm_storel_epi64(reinterpret_cast<__m128i*>(result), out);
+  return result;
 }
 #endif
 #endif  // XVC_ARCH_X86
