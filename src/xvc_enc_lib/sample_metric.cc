@@ -176,9 +176,9 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
   uint64_t dist;
   switch (type_) {
     case MetricType::kSsd:
-        dist = simd_func_.ssd_short_short[widx](width, height, src1, stride1,
-                                                src2, stride2);
-        dist = dist >> (2 * (bitdepth_ - 8));
+      dist = simd_func_.ssd_short_short[widx](width, height, src1, stride1,
+                                              src2, stride2);
+      dist = dist >> (2 * (bitdepth_ - 8));
       break;
     default:
       assert(0);
