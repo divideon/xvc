@@ -45,8 +45,8 @@
 #ifdef XVC_ARCH_X86
 #define CAST_M128i_CONST(VAL) reinterpret_cast<const __m128i*>((VAL))
 #define CAST_M256i_CONST(VAL) reinterpret_cast<const __m256i*>((VAL))
-#define CAST_M128i(VAL) reinterpret_cast<__m128i*>((VAL))
-#define CAST_M256i(VAL) reinterpret_cast<__m256i*>((VAL))
+#define CAST_M128i(VAL) (__m128i*)(&(VAL))
+#define CAST_M256i(VAL) (__m256i*)(&(VAL))
 #endif  // XVC_ARCH_X86
 
 static const std::array<int16_t, 16> kOnes16bit alignas(32) = { {
@@ -127,7 +127,7 @@ static uint64_t ComputeSsd_8x2_sse2(int width, int height,
   }
   __m128i sum64_hi = _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2));
   __m128i out = _mm_add_epi64(sum, sum64_hi);
-  _mm_storel_epi64(reinterpret_cast<__m128i*>(result), out);
+  _mm_storel_epi64(reinterpret_cast<__m128i*>(&result), out);
   return result;
 }
 #endif
@@ -207,7 +207,7 @@ static uint64_t ComputeSsd_16x2_avx2(int width, int height,
   __m256i out_imm1 = _mm256_permute4x64_epi64(out_imm, _MM_SHUFFLE(1, 0, 3, 2));
   __m256i out1 = _mm256_add_epi64(out_imm, out_imm1);
   __m128i out = _mm256_extracti128_si256(out1, 0);
-  _mm_storel_epi64(reinterpret_cast<__m128i*>(result), out);
+  _mm_storel_epi64(reinterpret_cast<__m128i*>(&result), out);
   return result;
 }
 #endif
