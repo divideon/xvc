@@ -45,8 +45,6 @@
 #ifdef XVC_ARCH_X86
 #define CAST_M128i_CONST(VAL) reinterpret_cast<const __m128i*>((VAL))
 #define CAST_M256i_CONST(VAL) reinterpret_cast<const __m256i*>((VAL))
-#define CAST_M128i(VAL) (__m128i*)(&(VAL))
-#define CAST_M256i(VAL) (__m256i*)(&(VAL))
 #endif  // XVC_ARCH_X86
 
 static const std::array<int16_t, 16> kOnes16bit alignas(32) = { {
@@ -108,10 +106,10 @@ static uint64_t ComputeSsd_8x2_sse2(int width, int height,
   uint64_t result = 0;
   for (int y = 0; y < height; y += 2) {
     for (int x = 0; x < width; x += 8) {
-      __m128i src1_row0 = _mm_loadu_si128(CAST_M128i(src1[x]));
-      __m128i src1_row1 = _mm_loadu_si128(CAST_M128i(src1[x + stride1]));
-      __m128i src2_row0 = _mm_loadu_si128(CAST_M128i(src2[x]));
-      __m128i src2_row1 = _mm_loadu_si128(CAST_M128i(src2[x + stride2]));
+      __m128i src1_row0 = _mm_loadu_si128(CAST_M128i_CONST(&src1[x]));
+      __m128i src1_row1 = _mm_loadu_si128(CAST_M128i_CONST(&src1[x + stride1]));
+      __m128i src2_row0 = _mm_loadu_si128(CAST_M128i_CONST(&src2[x]));
+      __m128i src2_row1 = _mm_loadu_si128(CAST_M128i_CONST(&src2[x + stride2]));
       __m128i diff_row0 = _mm_sub_epi16(src1_row0, src2_row0);
       __m128i diff_row1 = _mm_sub_epi16(src1_row1, src2_row1);
       __m128i ssd0 = _mm_madd_epi16(diff_row0, diff_row0);
@@ -185,10 +183,12 @@ static uint64_t ComputeSsd_16x2_avx2(int width, int height,
   uint64_t result = 0;
   for (int y = 0; y < height; y += 2) {
     for (int x = 0; x < width; x += 16) {
-      __m256i src1_row0 = _mm256_lddqu_si256(CAST_M256i(src1[x]));
-      __m256i src1_row1 = _mm256_lddqu_si256(CAST_M256i(src1[x + stride1]));
-      __m256i src2_row0 = _mm256_lddqu_si256(CAST_M256i(src2[x]));
-      __m256i src2_row1 = _mm256_lddqu_si256(CAST_M256i(src2[x + stride2]));
+      __m256i src1_row0 = _mm256_lddqu_si256(CAST_M256i_CONST(&src1[x]));
+      __m256i src1_row1 =
+        _mm256_lddqu_si256(CAST_M256i_CONST(&src1[x + stride1]));
+      __m256i src2_row0 = _mm256_lddqu_si256(CAST_M256i_CONST(&src2[x]));
+      __m256i src2_row1 =
+        _mm256_lddqu_si256(CAST_M256i_CONST(&src2[x + stride2]));
       __m256i diff_row0 = _mm256_sub_epi16(src1_row0, src2_row0);
       __m256i diff_row1 = _mm256_sub_epi16(src1_row1, src2_row1);
       __m256i ssd0 = _mm256_madd_epi16(diff_row0, diff_row0);

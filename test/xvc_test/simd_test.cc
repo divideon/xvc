@@ -27,6 +27,8 @@
 #include "xvc_test/encoder_helper.h"
 #include "xvc_test/yuv_helper.h"
 
+using xvc_test::NalUnit;
+
 namespace {
 
 static constexpr int kWidth = 32;
@@ -38,16 +40,23 @@ static constexpr int kSegmentLength = kSubGopLength * 3;
 class SimdTest : public ::testing::TestWithParam<int>,
   public ::xvc_test::EncoderHelper, public ::xvc_test::DecoderHelper {
 protected:
-  void Encode(int width, int height, int frames, bool use_simd) {
+  void SetUp() override {
+    no_simd_caps_ = std::set<xvc::CpuCapability>();
+    all_simd_caps_ = xvc::SimdCpu::GetRuntimeCapabilities();
+    encoder_separate_caps_ = xvc::SimdCpu::GetMaskedCaps(
+      (1 << static_cast<int>(xvc::CpuCapability::kSse2)) |
+      (1 << static_cast<int>(xvc::CpuCapability::kSse4_2)) |
+      (1 << static_cast<int>(xvc::CpuCapability::kAvx)) |
+      (1 << static_cast<int>(xvc::CpuCapability::kAvx2)));
+  }
+
+  std::vector<NalUnit> Encode(int width, int height, int frames,
+                              const std::set<xvc::CpuCapability> &simd_caps) {
     EncoderHelper::Init(GetParam());
     encoder_->SetSubGopLength(kSubGopLength);
     encoder_->SetSegmentLength(kSegmentLength);
     encoder_->SetQp(kQp);
-    if (use_simd) {
-      encoder_->SetCpuCapabilities(xvc::SimdCpu::GetRuntimeCapabilities());
-    } else {
-      encoder_->SetCpuCapabilities(std::set<xvc::CpuCapability>());
-    }
+    encoder_->SetCpuCapabilities(simd_caps);
     encoder_->SetResolution(width, height);
     for (int i = 0; i < frames; i++) {
       auto orig_pic = xvc_test::TestYuvPic(width, height, GetParam(), i, i);
@@ -56,16 +65,15 @@ protected:
       verified_.push_back(false);
     }
     EncoderFlush();
+    return encoded_nal_units_;
   }
 
-  std::vector<std::vector<uint8_t>> Decode(int width, int height, int frames,
-                                           bool use_simd) {
+  std::vector<std::vector<uint8_t>>
+    Decode(int width, int height, int frames,
+           const std::set<xvc::CpuCapability> &simd_caps) {
+    ResetBitstreamPosition();
     DecoderHelper::Init();
-    if (use_simd) {
-      decoder_->SetCpuCapabilities(xvc::SimdCpu::GetRuntimeCapabilities());
-    } else {
-      decoder_->SetCpuCapabilities(std::set<xvc::CpuCapability>());
-    }
+    decoder_->SetCpuCapabilities(simd_caps);
     std::vector<std::vector<uint8_t>> dec_pic_bytes(verified_.size());
     DecodeSegmentHeaderSuccess(GetNextNalToDecode());
     for (int i = 0; i < frames; i++) {
@@ -96,29 +104,75 @@ protected:
     verified_[poc] = true;
   }
 
-  void AssertPicturesEqual(const std::vector<std::vector<uint8_t>> &seq1,
-                           const std::vector<std::vector<uint8_t>> &seq2) {
-    ASSERT_EQ(seq1.size(), seq2.size());
+  ::testing::AssertionResult
+    IsPicturesEqual(const std::vector<std::vector<uint8_t>> &seq1,
+                    const std::vector<std::vector<uint8_t>> &seq2) {
+    if (seq1.size() != seq2.size()) {
+      return ::testing::AssertionFailure() <<
+        seq1.size() << " not equal to " << seq2.size();
+    }
     for (int poc = 0; poc < static_cast<int>(seq1.size()); poc++) {
-      ASSERT_EQ(seq1[poc].size(), seq2[poc].size());
+      if (seq1[poc].size() != seq2[poc].size()) {
+        return ::testing::AssertionFailure() <<
+          "different size for poc=" << poc;
+      }
       for (int pos = 0; pos < static_cast<int>(seq1[poc].size()); pos++) {
-        ASSERT_TRUE(seq1[poc][pos] == seq2[poc][pos])
-          << "for poc= " << poc << " pos= " << pos;
+        if (seq1[poc][pos] != seq2[poc][pos]) {
+          return ::testing::AssertionFailure() <<
+            "for poc= " << poc << " pos= " << pos;
+        }
       }
     }
+    return ::testing::AssertionSuccess();
   }
 
+  ::testing::AssertionResult
+    IsBitsteramEqual(std::vector<NalUnit> bitstream1,
+                     std::vector<NalUnit> bitstream2) {
+    EXPECT_EQ(bitstream1.size(), bitstream2.size());
+    for (size_t i = 0; i < bitstream1.size(); i++) {
+      if (bitstream1[i] != bitstream2[i]) {
+        return ::testing::AssertionFailure() <<
+          "bitstreams not equal for nal unit " << i;
+      }
+    }
+    return ::testing::AssertionSuccess();
+  }
+
+  std::set<xvc::CpuCapability> no_simd_caps_;
+  std::set<xvc::CpuCapability> all_simd_caps_;
+  std::set<xvc::CpuCapability> encoder_separate_caps_;
   std::vector<xvc_test::TestYuvPic> orig_pics_;
   std::vector<bool> verified_;
 };
 
-TEST_P(SimdTest, VerifyDecodeWithWithout) {
-  Encode(kWidth, kHeight, kSubGopLength + 1, false);
-  ResetBitstreamPosition();
-  auto dec_plain = Decode(kWidth, kHeight, kSubGopLength + 1, false);
-  ResetBitstreamPosition();
-  auto dec_simd = Decode(kWidth, kHeight, kSubGopLength + 1, true);
-  AssertPicturesEqual(dec_plain, dec_simd);
+TEST_P(SimdTest, EncoderSimd) {
+  std::vector<NalUnit> nals_without =
+    Encode(kWidth, kHeight, kSubGopLength + 1, no_simd_caps_);
+  Decode(kWidth, kHeight, kSubGopLength + 1, all_simd_caps_);  // can decode
+  std::vector<NalUnit> nals_with =
+    Encode(kWidth, kHeight, kSubGopLength + 1, all_simd_caps_);
+  ASSERT_TRUE(IsBitsteramEqual(nals_without, nals_with));
+  // Run *a limited set* of supported vector instruction sets individually
+  for (xvc::CpuCapability cpu_cap : encoder_separate_caps_) {
+    std::vector<NalUnit> bitstream =
+      Encode(kWidth, kHeight, kSubGopLength + 1, { cpu_cap });
+    ASSERT_TRUE(IsBitsteramEqual(nals_without, bitstream)) <<
+      "for cap=" << static_cast<int>(cpu_cap);
+  }
+}
+
+TEST_P(SimdTest, DecoderSimd) {
+  Encode(kWidth, kHeight, kSubGopLength + 1, no_simd_caps_);
+  auto dec_plain = Decode(kWidth, kHeight, kSubGopLength + 1, no_simd_caps_);
+  auto dec_simd = Decode(kWidth, kHeight, kSubGopLength + 1, all_simd_caps_);
+  ASSERT_TRUE(IsPicturesEqual(dec_plain, dec_simd));
+  // Run *all* supported vector instruction sets individually
+  for (xvc::CpuCapability cpu_cap : all_simd_caps_) {
+    auto dec_single = Decode(kWidth, kHeight, kSubGopLength + 1, { cpu_cap });
+    ASSERT_TRUE(IsPicturesEqual(dec_plain, dec_single)) <<
+      "for cap=" << static_cast<int>(cpu_cap);
+  }
 }
 
 INSTANTIATE_TEST_CASE_P(NormalBitdepth, SimdTest,

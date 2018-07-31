@@ -39,6 +39,7 @@ public:
   static const int kDefaultQp = 27;
 
   void Init(int internal_bitdepth = 8) {
+    encoded_nal_units_.clear();
     xvc::EncoderSettings encoder_settings = GetDefaultEncoderSettings();
     SetupEncoder(encoder_settings, 0, 0, internal_bitdepth, kDefaultQp);
   }
