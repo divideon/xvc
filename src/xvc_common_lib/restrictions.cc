@@ -439,6 +439,34 @@ void Restrictions::EnableRestrictedMode(RestrictedMode mode) {
       !disable_ext2_transform_high_precision;
     disable_ext2_transform_dst = !disable_ext2_transform_dst;
   }
+  if (mode == RestrictedMode::kModeD) {
+    // same as B
+    disable_ext_implicit_last_ctu = true;
+    disable_ext_tmvp_full_resolution = true;
+    disable_ext_tmvp_exclude_intra_from_ref_list = true;
+    disable_ext_ref_list_l0_trim = true;
+    disable_ext_intra_unrestricted_predictor = true;
+    // same as A
+    disable_ext_sink = true;
+    disable_ext_two_cu_trees = true;
+    disable_ext2_intra_67_modes = true;
+    disable_ext2_intra_6_predictors = true;
+    disable_ext2_intra_chroma_from_luma = true;
+    disable_ext2_inter_adaptive_fullpel_mv = true;
+    disable_ext2_inter_affine = true;
+    disable_ext2_inter_affine_merge = true;
+    disable_ext2_inter_high_precision_mv = true;
+    disable_ext2_inter_local_illumination_comp = true;
+    disable_ext2_transform_high_precision = true;
+    disable_ext2_transform_select = true;
+    disable_ext2_cabac_alt_residual_ctx = true;
+    // Other
+    disable_intra_dc_post_filter = true;
+    disable_intra_ver_hor_post_filter = true;
+    disable_transform_sign_hiding = true;
+    disable_transform_adaptive_scan_order = true;
+    disable_ext2_transform_dst = true;
+  }
 }
 
 bool Restrictions::CheckBaselineCompatibility() const {

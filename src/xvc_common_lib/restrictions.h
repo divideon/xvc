@@ -30,7 +30,8 @@ enum class RestrictedMode {
   kModeA = 1,
   kModeB = 2,
   kModeC = 3,
-  kTotalNumber = 4,
+  kModeD = 4,
+  kTotalNumber,
 };
 
 // The Restrictions struct is used globally in the xvc namespace to check if
