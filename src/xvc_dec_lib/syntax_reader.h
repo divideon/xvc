@@ -77,33 +77,34 @@ class SyntaxReaderCabac final : public SyntaxReader {
 public:
   SyntaxReaderCabac(const Qp &qp, PicturePredictionType pic_type,
                     BitReader *bit_reader);
-  bool Finish();
-  bool ReadAffineFlag(const CodingUnit &cu, bool is_merge);
-  bool ReadCbf(const CodingUnit &cu, YuvComponent comp);
+  bool Finish() override;
+  bool ReadAffineFlag(const CodingUnit &cu, bool is_merge) override;
+  bool ReadCbf(const CodingUnit &cu, YuvComponent comp) override;
   int ReadCoefficients(const CodingUnit &cu, YuvComponent comp,
-                       Coeff *dst_coeff, ptrdiff_t dst_coeff_stride);
-  bool ReadEndOfSlice();
-  InterDir ReadInterDir(const CodingUnit &cu);
-  bool ReadInterFullpelMvFlag(const CodingUnit &cu);
-  MvDelta ReadInterMvd();
-  int ReadInterMvpIdx(const CodingUnit &cu);
-  int ReadInterRefIdx(int num_refs_available);
-  IntraMode ReadIntraMode(const IntraPredictorLuma &mpm);
-  IntraChromaMode ReadIntraChromaMode(IntraPredictorChroma chroma_preds);
-  bool ReadLicFlag();
-  bool ReadMergeFlag();
-  int ReadMergeIdx();
-  PartitionType ReadPartitionType(const CodingUnit &cu);
-  PredictionMode ReadPredMode();
-  int ReadQp(int predicted_qp, int base_qp, int aqp_mode);
-  bool ReadRootCbf();
-  bool ReadSkipFlag(const CodingUnit &cu);
+                       Coeff *dst_coeff, ptrdiff_t dst_coeff_stride) override;
+  bool ReadEndOfSlice() override;
+  InterDir ReadInterDir(const CodingUnit &cu) override;
+  bool ReadInterFullpelMvFlag(const CodingUnit &cu) override;
+  MvDelta ReadInterMvd() override;
+  int ReadInterMvpIdx(const CodingUnit &cu) override;
+  int ReadInterRefIdx(int num_refs_available) override;
+  IntraMode ReadIntraMode(const IntraPredictorLuma &mpm) override;
+  IntraChromaMode
+    ReadIntraChromaMode(IntraPredictorChroma chroma_preds) override;
+  bool ReadLicFlag() override;
+  bool ReadMergeFlag() override;
+  int ReadMergeIdx() override;
+  PartitionType ReadPartitionType(const CodingUnit &cu) override;
+  PredictionMode ReadPredMode() override;
+  int ReadQp(int predicted_qp, int base_qp, int aqp_mode) override;
+  bool ReadRootCbf() override;
+  bool ReadSkipFlag(const CodingUnit &cu) override;
   SplitType ReadSplitBinary(const CodingUnit &cu,
-                            SplitRestriction split_restriction);
-  SplitType ReadSplitQuad(const CodingUnit &cu, int max_depth);
-  bool ReadTransformSkip(const CodingUnit &cu, YuvComponent comp);
-  bool ReadTransformSelectEnable(const CodingUnit &cu);
-  int ReadTransformSelectIdx(const CodingUnit &cu);
+                            SplitRestriction split_restriction) override;
+  SplitType ReadSplitQuad(const CodingUnit &cu, int max_depth) override;
+  bool ReadTransformSkip(const CodingUnit &cu, YuvComponent comp) override;
+  bool ReadTransformSelectEnable(const CodingUnit &cu) override;
+  int ReadTransformSelectIdx(const CodingUnit &cu) override;
 
 private:
   template<int SubBlockShift>

@@ -244,7 +244,7 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
     return std::numeric_limits<Distortion>::max();
   }
   if (util::IsLuma(comp) && cu->HasTransformSelectIdx() &&
-      cu->IsInter() & !non_zero) {
+      cu->IsInter() && !non_zero) {
     // enforce transform select idx signaling invariant for inter
     return std::numeric_limits<Distortion>::max();
   }
