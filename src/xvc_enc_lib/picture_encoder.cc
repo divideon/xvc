@@ -243,12 +243,7 @@ uint64_t PictureEncoder::CalculatePicMetric(const Qp &qp) const {
   uint64_t mse = 0;
   for (int c = 0; c < pic_data_->GetMaxNumComponents(); c++) {
     const YuvComponent comp = static_cast<YuvComponent>(c);
-    const int width = orig_pic_->GetWidth(comp);
-    const int height = orig_pic_->GetHeight(comp);
-    SampleBufferConst orig_buffer = orig_pic_->GetSampleBuffer(comp, 0, 0);
-    SampleBufferConst rec_buffer = rec_pic_->GetSampleBuffer(comp, 0, 0);
-    mse += metric.CompareSample(qp, metric_comp, width, height,
-                                orig_buffer, rec_buffer);
+    mse += metric.ComparePicture(qp, comp, metric_comp, *orig_pic_, *rec_pic_);
   }
   return mse;
 }

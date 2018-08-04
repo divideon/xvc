@@ -37,13 +37,55 @@
 
 namespace xvc {
 
-Distortion SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
-                                       const YuvPicture &src1,
-                                       const YuvPicture &src2) const {
-  const Sample *src2_ptr =
-    src2.GetSamplePtr(comp, cu.GetPosX(comp), cu.GetPosY(comp));
-  ptrdiff_t stride2 = src2.GetStride(comp);
-  return CompareSample(cu, comp, src1, src2_ptr, stride2);
+Distortion
+SampleMetric::ComparePicture(const Qp &qp, YuvComponent comp,
+                             YuvComponent metric_comp, const YuvPicture &pic1,
+                             const YuvPicture &pic2) const {
+  constexpr int kBlockSize = constants::kCtuSize;
+  assert(pic1.GetWidth(comp) == pic2.GetWidth(comp));
+  assert(pic1.GetHeight(comp) == pic2.GetHeight(comp));
+  const int width = pic1.GetWidth(comp);
+  const int height = pic1.GetHeight(comp);
+  const int min_block_x = width & ~(width - 1);
+  const int min_block_y = height & ~(height - 1);
+  assert((width & (min_block_x - 1)) == 0);
+  assert((height & (min_block_y - 1)) == 0);
+  const SampleBufferConst src1_buffer = pic1.GetSampleBuffer(comp, 0, 0);
+  const Sample *src1_ptr = src1_buffer.GetDataPtr();
+  const intptr_t src1_stride = src1_buffer.GetStride();
+  const SampleBufferConst src2_buffer = pic2.GetSampleBuffer(comp, 0, 0);
+  const Sample *src2_ptr = src2_buffer.GetDataPtr();
+  const intptr_t src2_stride = src2_buffer.GetStride();
+
+  Distortion dist = 0;
+  for (int y = 0; y < height - kBlockSize; y += kBlockSize) {
+    for (int x = 0; x < width - kBlockSize; x += kBlockSize) {
+      dist += Compare(qp, metric_comp, kBlockSize, kBlockSize,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+    }
+    // remaining right side
+    for (int x = width & ~(kBlockSize - 1); x < width; x += min_block_x) {
+      dist += Compare(qp, metric_comp, min_block_x, kBlockSize,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+    }
+    src1_ptr += src1_stride * kBlockSize;
+    src2_ptr += src2_stride * kBlockSize;
+  }
+  // remaining bottom side
+  for (int y = height & ~(kBlockSize - 1); y < height; y += min_block_y) {
+    for (int x = 0; x < width - kBlockSize; x += kBlockSize) {
+      dist += Compare(qp, metric_comp, kBlockSize, min_block_y,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+    }
+    // remaining bottom right side
+    for (int x = width & ~(kBlockSize - 1); x < width; x += min_block_x) {
+      dist += Compare(qp, metric_comp, min_block_x, min_block_y,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+    }
+    src1_ptr += src1_stride * min_block_y;
+    src2_ptr += src2_stride * min_block_y;
+  }
+  return dist;
 }
 
 Distortion
@@ -140,7 +182,7 @@ SampleMetric::Compare(const Qp &qp, YuvComponent comp, int width, int height,
     case MetricType::kSadFast:
       dist =
         simd_func_.sad_short_sample[widx](width, height / 2, src1, stride1 * 2,
-                                               src2, stride2 * 2);
+                                          src2, stride2 * 2);
       dist = (dist * 2) >> (bitdepth_ - 8);
       break;
     case MetricType::kSadAcOnly:
@@ -612,7 +654,7 @@ uint64_t SampleMetric::ComputeStructuralSsdBlock(const Qp &qp, int size,
   const int64_t c4 = ((1ull << 8) - 1) * ((1 << 8) - 1);
   const int z = qp.GetQpRaw(YuvComponent::kY);
   const int w = std::max(0, static_cast<int>((4 * z - 0.054 * z * z - 70)
-                          * structural_strength_)) >> 4;
+                                             * structural_strength_)) >> 4;
   const int w1 = 64 - (w >> 1);
   const int w2 = 2 * w;
   int64_t ssd = 0;

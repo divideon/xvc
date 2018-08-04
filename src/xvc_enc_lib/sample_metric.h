@@ -52,10 +52,11 @@ public:
     structural_strength_(structural_strength) {
   }
   SampleMetric(const SampleMetric&) = delete;
+  // Compare sample blocks of arbitrary size
+  Distortion ComparePicture(const Qp &qp, YuvComponent comp,
+                            YuvComponent metric_comp, const YuvPicture &pic1,
+                            const YuvPicture &pic2) const;
   // Sample vs Sample
-  Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
-                           const YuvPicture &src1,
-                           const YuvPicture &src2) const;
   Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
                            const YuvPicture &src1,
                            const Sample *src2, ptrdiff_t stride2) const;
