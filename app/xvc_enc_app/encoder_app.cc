@@ -196,7 +196,8 @@ void EncoderApp::CheckParameters() {
   if (y4m_reader.Read(&picture_format, &start_skip_, &picture_skip_)) {
     cli_.width = picture_format.width;
     cli_.height = picture_format.height;
-    cli_.framerate = picture_format.framerate;
+    cli_.framerate = picture_format.framerate /
+      (cli_.temporal_subsample > 0 ? cli_.temporal_subsample : 1);
     cli_.input_bitdepth = picture_format.input_bitdepth;
     cli_.chroma_format = picture_format.chroma_format;
   } else {
