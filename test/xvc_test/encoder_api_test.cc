@@ -136,7 +136,7 @@ TEST(EncoderAPI, ParamCheck) {
   EXPECT_EQ(XVC_ENC_INVALID_PARAMETER, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
-  params->restricted_mode = 4;
+  params->restricted_mode = 5;
   EXPECT_EQ(XVC_ENC_INVALID_PARAMETER, api->parameters_check(params));
 
   EXPECT_EQ(XVC_ENC_OK, api->parameters_set_default(params));
