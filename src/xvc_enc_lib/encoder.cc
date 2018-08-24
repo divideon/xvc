@@ -669,6 +669,9 @@ void Encoder::SetNalStats(const PictureData &pic_data,
     nal_stats->qp = constants::kMaxAllowedQp + 1;
   }
   nal_stats->sse = pic_enc.GetRecPicErrSum();
+  nal_stats->psnr_y = pic_enc.GetRecPicPsnr(YuvComponent::kY);
+  nal_stats->psnr_u = pic_enc.GetRecPicPsnr(YuvComponent::kU);
+  nal_stats->psnr_v = pic_enc.GetRecPicPsnr(YuvComponent::kV);
 
   // Expose the first reference pictures in L0 and L1.
   const ReferencePictureLists* rpl = pic_data.GetRefPicLists();

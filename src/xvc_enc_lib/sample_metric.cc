@@ -88,6 +88,69 @@ SampleMetric::ComparePicture(const Qp &qp, YuvComponent comp,
   return dist;
 }
 
+double
+SampleMetric::ComputePsnr(const Qp &qp, YuvComponent comp,
+                          YuvComponent metric_comp, const YuvPicture &pic1,
+                          const YuvPicture &pic2) const {
+  constexpr int kBlockSize = constants::kCtuSize;
+  assert(pic1.GetWidth(comp) == pic2.GetWidth(comp));
+  assert(pic1.GetHeight(comp) == pic2.GetHeight(comp));
+  const int width = pic1.GetWidth(comp);
+  const int height = pic1.GetHeight(comp);
+  const int min_block_x = width & ~(width - 1);
+  const int min_block_y = height & ~(height - 1);
+  assert((width & (min_block_x - 1)) == 0);
+  assert((height & (min_block_y - 1)) == 0);
+  const SampleBufferConst src1_buffer = pic1.GetSampleBuffer(comp, 0, 0);
+  const Sample *src1_ptr = src1_buffer.GetDataPtr();
+  const intptr_t src1_stride = src1_buffer.GetStride();
+  const SampleBufferConst src2_buffer = pic2.GetSampleBuffer(comp, 0, 0);
+  const Sample *src2_ptr = src2_buffer.GetDataPtr();
+  const intptr_t src2_stride = src2_buffer.GetStride();
+
+  Distortion dist = 0;
+  uint64_t samples = 0;
+  for (int y = 0; y < height - kBlockSize; y += kBlockSize) {
+    for (int x = 0; x < width - kBlockSize; x += kBlockSize) {
+      dist += Compare(qp, metric_comp, kBlockSize, kBlockSize,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+      samples += kBlockSize*kBlockSize;
+    }
+    // remaining right side
+    for (int x = width & ~(kBlockSize - 1); x < width; x += min_block_x) {
+      dist += Compare(qp, metric_comp, min_block_x, kBlockSize,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+      samples += min_block_x*kBlockSize;
+    }
+    src1_ptr += src1_stride * kBlockSize;
+    src2_ptr += src2_stride * kBlockSize;
+  }
+  // remaining bottom side
+  for (int y = height & ~(kBlockSize - 1); y < height; y += min_block_y) {
+    for (int x = 0; x < width - kBlockSize; x += kBlockSize) {
+      dist += Compare(qp, metric_comp, kBlockSize, min_block_y,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+      samples += kBlockSize*min_block_y;
+    }
+    // remaining bottom right side
+    for (int x = width & ~(kBlockSize - 1); x < width; x += min_block_x) {
+      dist += Compare(qp, metric_comp, min_block_x, min_block_y,
+                      src1_ptr + x, src1_stride, src2_ptr + x, src2_stride);
+      samples += min_block_x*min_block_y;
+    }
+    src1_ptr += src1_stride * min_block_y;
+    src2_ptr += src2_stride * min_block_y;
+  }
+
+  double mse = static_cast<double>(dist) / samples;
+  int max = 255;
+  if (mse > 0) {
+    return 10 * log10(max*max / mse);
+  } else {
+    return 99.999;
+  }
+}
+
 Distortion
 SampleMetric::CompareSample(const CodingUnit &cu, YuvComponent comp,
                             const YuvPicture &src1,

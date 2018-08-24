@@ -118,6 +118,9 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
     pic_hash_.clear();
   }
   rec_sse_ = CalculatePicMetric(base_qp);
+  rec_psnr_y_ = CalculatePsnr(base_qp, YuvComponent::kY);
+  rec_psnr_u_ = CalculatePsnr(base_qp, YuvComponent::kU);
+  rec_psnr_v_ = CalculatePsnr(base_qp, YuvComponent::kV);
   return bit_writer_.GetBytes();
 }
 
@@ -246,6 +249,14 @@ uint64_t PictureEncoder::CalculatePicMetric(const Qp &qp) const {
     mse += metric.ComparePicture(qp, comp, metric_comp, *orig_pic_, *rec_pic_);
   }
   return mse;
+}
+
+double PictureEncoder::CalculatePsnr(const Qp &qp, YuvComponent c) const {
+  // Force luma component to prevent distortion scaling for chroma
+  const YuvComponent metric_comp = YuvComponent::kY;
+  SampleMetric metric(simd_.sample_metric, pic_data_->GetBitdepth(),
+                      MetricType::kSsd);
+  return metric.ComputePsnr(qp, c, metric_comp, *orig_pic_, *rec_pic_);
 }
 
 int PictureEncoder::GetQpFromLambda(int bitdepth, double lambda) {

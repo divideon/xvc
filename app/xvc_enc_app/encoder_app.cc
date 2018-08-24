@@ -504,6 +504,9 @@ EncoderApp::EncodeOnePass(xvc_encoder_parameters *params, bool last) {
         current_segment_pics = -1;
       } else {
         total_sse += nal_units[i].stats.sse;
+        sum_psnr_y_ += nal_units[i].stats.psnr_y;
+        sum_psnr_u_ += nal_units[i].stats.psnr_u;
+        sum_psnr_v_ += nal_units[i].stats.psnr_v;
         highest_qp = std::max(highest_qp, nal_units[i].stats.qp);
       }
       current_segment_bytes += nal_units[i].size;
@@ -569,6 +572,22 @@ void EncoderApp::PrintStatistics() {
   std::cout << "Peak bitrate:  " <<
     (max_segment_bytes_ * 8 / (1000 * (max_segment_pics_ / params_->framerate)))
     << " kbit/s" << std::endl;
+  std::cout << "Average PSNR:";
+  std::stringstream psnr_str_y;
+  psnr_str_y << std::fixed << std::setprecision(3) <<
+    sum_psnr_y_ / picture_index_;
+  std::cout << "  Y: " << std::setw(6) << psnr_str_y.str();
+  if (params_->chroma_format != XVC_ENC_CHROMA_FORMAT_MONOCHROME) {
+    std::stringstream psnr_str_u;
+    psnr_str_u << std::fixed << std::setprecision(3) <<
+      sum_psnr_u_ / picture_index_;
+    std::cout << "  U: " << std::setw(6) << psnr_str_u.str();
+    std::stringstream psnr_str_v;
+    psnr_str_v << std::fixed << std::setprecision(3) <<
+      sum_psnr_v_ / picture_index_;
+    std::cout << "  V: " << std::setw(6) << psnr_str_v.str();
+  }
+  std::cout << std::endl;
 }
 
 void EncoderApp::StartPictureDetermination(xvc_encoder_parameters *out_params) {
@@ -832,6 +851,17 @@ void EncoderApp::PrintNalInfo(xvc_enc_nal_unit nal_unit) {
     std::stringstream bpp_str;
     bpp_str << std::fixed << std::setprecision(5) << bpp;
     std::cout << "  Bpp: " << std::setw(10) << bpp_str.str();
+    std::stringstream psnr_str_y;
+    psnr_str_y << std::fixed << std::setprecision(3) << nal_unit.stats.psnr_y;
+    std::cout << "  PSNR-Y: " << std::setw(6) << psnr_str_y.str();
+    if (params_->chroma_format != XVC_ENC_CHROMA_FORMAT_MONOCHROME) {
+      std::stringstream psnr_str_u;
+      psnr_str_u << std::fixed << std::setprecision(3) << nal_unit.stats.psnr_u;
+      std::cout << "  PSNR-U: " << std::setw(6) << psnr_str_u.str();
+      std::stringstream psnr_str_v;
+      psnr_str_v << std::fixed << std::setprecision(3) << nal_unit.stats.psnr_v;
+      std::cout << "  PSNR-V: " << std::setw(6) << psnr_str_v.str();
+    }
     if (nal_unit.stats.l0[0] >= 0 || nal_unit.stats.l1[0] >= 0) {
       std::cout << "  RefPics: L0: { ";
       int length_l0 = sizeof(nal_unit.stats.l0) / sizeof(nal_unit.stats.l0[0]);

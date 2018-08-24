@@ -62,6 +62,23 @@ public:
   void SetReferenceCount(int ref_count) { ref_count_ = ref_count; }
   void RemoveReferenceCount(int val) const { ref_count_ -= val; }
   uint64_t GetRecPicErrSum() const { return rec_sse_; }
+  double GetRecPicPsnr(YuvComponent c) const {
+    switch (c) {
+      case YuvComponent::kY:
+        return rec_psnr_y_;
+        break;
+      case YuvComponent::kU:
+        return rec_psnr_u_;
+        break;
+      case YuvComponent::kV:
+        return rec_psnr_v_;
+        break;
+      default:
+        assert(0);
+        return 0;
+        break;
+    }
+  }
 
   const std::vector<uint8_t>*
     Encode(const SegmentHeader &segment, int segment_qp, int buffer_flag,
@@ -80,6 +97,7 @@ private:
   bool DetermineAllowLic(PicturePredictionType pic_type,
                          const ReferencePictureLists &ref_list) const;
   uint64_t CalculatePicMetric(const Qp &qp) const;
+  double CalculatePsnr(const Qp & qp, YuvComponent c) const;
   static double CalculateLambda(const EncoderSettings &encoder_settings,
                                 const SegmentHeader &segment_header,
                                 int pic_qp, PicturePredictionType pic_type,
@@ -94,6 +112,9 @@ private:
   std::shared_ptr<YuvPicture> rec_pic_;
   std::vector<uint8_t> pic_hash_;
   uint64_t rec_sse_ = 0;
+  double rec_psnr_y_ = 0;
+  double rec_psnr_u_ = 0;
+  double rec_psnr_v_ = 0;
   OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
   bool buffer_flag_ = false;
   mutable int ref_count_ = 0;

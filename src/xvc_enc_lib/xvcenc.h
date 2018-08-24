@@ -85,6 +85,9 @@ extern "C" {
     uint32_t tid;
     int32_t qp;
     uint64_t sse;
+    double psnr_y;
+    double psnr_u;
+    double psnr_v;
     int32_t l0[5];
     int32_t l1[5];
   } xvc_enc_nal_stats;

@@ -69,6 +69,9 @@ private:
   size_t total_bytes_ = 0;
   size_t max_segment_bytes_ = 0;
   int max_segment_pics_ = 0;
+  double sum_psnr_y_ = 0;
+  double sum_psnr_u_ = 0;
+  double sum_psnr_v_ = 0;
 
   // command line arguments
   struct {

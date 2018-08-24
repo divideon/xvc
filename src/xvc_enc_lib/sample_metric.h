@@ -56,6 +56,9 @@ public:
   Distortion ComparePicture(const Qp &qp, YuvComponent comp,
                             YuvComponent metric_comp, const YuvPicture &pic1,
                             const YuvPicture &pic2) const;
+  double ComputePsnr(const Qp & qp, YuvComponent comp,
+                     YuvComponent metric_comp, const YuvPicture & pic1,
+                     const YuvPicture & pic2) const;
   // Sample vs Sample
   Distortion CompareSample(const CodingUnit &cu, YuvComponent comp,
                            const YuvPicture &src1,
