@@ -164,7 +164,7 @@ void PictureEncoder::WriteChecksum(const SegmentHeader &segment,
   pic_hash_ = checksum.GetHash();
   assert(pic_hash_.size() < UINT8_MAX);
   if (segment.major_version <= 1) {
-    // TODO(PH) This is only needed to generate bitstream for hls unit tests
+    // This is only needed to generate bitstream for hls unit tests
     bit_writer->WriteByte(static_cast<uint8_t>(pic_hash_.size()));
   }
   bit_writer->WriteBytes(&pic_hash_[0], pic_hash_.size());
@@ -238,9 +238,9 @@ PictureEncoder::DetermineAllowLic(PicturePredictionType pic_type,
 }
 
 uint64_t PictureEncoder::CalculatePicMetric(const Qp &qp) const {
-  // TODO(PH) Force bitdepth 8 to prevent truncating metric precision
+  // Force bitdepth 8 to prevent truncating metric precision
   const int metric_bitdepth = 8;
-  // TODO(PH) Force luma component to prevent distortion scaling for chroma
+  // Force luma component to prevent distortion scaling for chroma
   const YuvComponent metric_comp = YuvComponent::kY;
   SampleMetric metric(simd_.sample_metric, metric_bitdepth, MetricType::kSsd);
   uint64_t mse = 0;

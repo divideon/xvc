@@ -142,7 +142,10 @@ SampleMetric::ComputePsnr(const Qp &qp, YuvComponent comp,
     src2_ptr += src2_stride * min_block_y;
   }
 
-  double mse = static_cast<double>(dist) / samples;
+  double mse = 0;
+  if (samples > 0) {
+    mse = static_cast<double>(dist) / samples;
+  }
   int max = 255;
   if (mse > 0) {
     return 10 * log10(max*max / mse);
