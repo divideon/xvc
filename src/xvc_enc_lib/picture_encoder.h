@@ -79,6 +79,8 @@ public:
         break;
     }
   }
+  void SetUserData(int64_t user_data) { user_data_ = user_data; }
+  int64_t GetUserData() const { return user_data_; }
 
   const std::vector<uint8_t>*
     Encode(const SegmentHeader &segment, int segment_qp, int buffer_flag,
@@ -115,6 +117,7 @@ private:
   double rec_psnr_y_ = 0;
   double rec_psnr_u_ = 0;
   double rec_psnr_v_ = 0;
+  int64_t user_data_ = 0;
   OutputStatus output_status_ = OutputStatus::kHasBeenOutput;
   bool buffer_flag_ = false;
   mutable int ref_count_ = 0;

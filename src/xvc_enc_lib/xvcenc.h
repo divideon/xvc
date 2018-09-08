@@ -99,6 +99,7 @@ extern "C" {
     size_t size;
     int buffer_flag;
     xvc_enc_nal_stats stats;
+    int64_t user_data;
   } xvc_enc_nal_unit;
 
   // Represents one reconstructed picture
@@ -170,6 +171,13 @@ extern "C" {
                                          xvc_enc_nal_unit **nal_units,
                                          int *num_nal_units,
                                          xvc_enc_pic_buffer *rec_pic);
+    xvc_enc_return_code(*encoder_encode2)(xvc_encoder *encoder,
+                                          const uint8_t *plane_bytes[3],
+                                          int plane_stride[3],
+                                          xvc_enc_nal_unit **nal_units,
+                                          int *num_nal_units,
+                                          xvc_enc_pic_buffer *rec_pic,
+                                          int64_t user_data);
     xvc_enc_return_code(*encoder_flush)(xvc_encoder *encoder,
                                         xvc_enc_nal_unit **nal_units,
                                         int *num_nal_units,

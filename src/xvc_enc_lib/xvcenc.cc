@@ -365,6 +365,32 @@ extern "C" {
   }
 
   static xvc_enc_return_code
+    xvc_enc_encoder_encode2(xvc_encoder *encoder, const uint8_t *plane_bytes[3],
+                            int plane_stride[3], xvc_enc_nal_unit **nal_units,
+                            int *num_nal_units, xvc_enc_pic_buffer *rec_pic,
+                            int64_t user_data) {
+    if (!encoder || !plane_bytes || !nal_units || !num_nal_units) {
+      return XVC_ENC_INVALID_ARGUMENT;
+    }
+    xvc::Encoder::PicPlanes pic_planes = {
+      std::make_pair(plane_bytes[0], plane_stride[0]),
+      std::make_pair(plane_bytes[1], plane_stride[1]),
+      std::make_pair(plane_bytes[2], plane_stride[2])
+    };
+    xvc::Encoder *lib_encoder = reinterpret_cast<xvc::Encoder*>(encoder);
+    bool success = lib_encoder->Encode(pic_planes, rec_pic, user_data);
+    std::vector<xvc_enc_nal_unit> &output_nals = lib_encoder->GetOutputNals();
+    if (output_nals.size() > 0) {
+      *nal_units = &output_nals[0];
+      *num_nal_units = static_cast<int>(output_nals.size());
+    } else {
+      *nal_units = nullptr;
+      *num_nal_units = 0;
+    }
+    return success ? XVC_ENC_OK : XVC_ENC_INVALID_ARGUMENT;
+  }
+
+  static xvc_enc_return_code
     xvc_enc_encoder_flush(xvc_encoder *encoder, xvc_enc_nal_unit **nal_units,
                           int *num_nal_units, xvc_enc_pic_buffer *rec_pic) {
     if (!encoder || !nal_units || !num_nal_units) {
@@ -438,6 +464,7 @@ extern "C" {
     &xvc_enc_encoder_create,
     &xvc_enc_encoder_destroy,
     &xvc_enc_encoder_encode,
+    &xvc_enc_encoder_encode2,
     &xvc_enc_encoder_flush,
     &xvc_enc_get_error_text,
   };

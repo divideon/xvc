@@ -22,6 +22,7 @@
 #ifndef XVC_COMMON_LIB_RESAMPLE_H_
 #define XVC_COMMON_LIB_RESAMPLE_H_
 
+#include <utility>
 #include <vector>
 
 #include "xvc_common_lib/common.h"
@@ -31,19 +32,28 @@ namespace xvc {
 
 class Resampler {
 public:
+  using PicPlane = std::pair<const uint8_t *, ptrdiff_t>;
+  using PicPlanes = std::array<PicPlane, constants::kMaxYuvComponents>;
   Resampler() {}
   void ConvertFrom(const PictureFormat &src_format, const uint8_t *src_bytes,
-                   YuvPicture *out_picm);
+                   YuvPicture *out_pic);
+  void ConvertFrom(const PictureFormat &src_format,
+                   const PicPlanes &input_planes,
+                   YuvPicture *out_pic);
   void ConvertTo(const YuvPicture &src_pic, const PictureFormat &output_format,
                  std::vector<uint8_t> *out_bytes);
 
 private:
   static const int kColorConversionBitdepth = 12;
-  void CopyFromBytesFast(const uint8_t *src_bytes, int input_bitdepth,
-                         YuvPicture *out_pic) const;
-  void CopyFromBytesWithPadding(const uint8_t *src_bytes,
-                                const PictureFormat &src_format,
-                                YuvPicture *out_pic) const;
+  const uint8_t*
+    CopyFromBytesFast(YuvComponent comp, const uint8_t *input_bytes,
+                      ptrdiff_t input_stride, int input_bitdepth,
+                      YuvPicture *out_pic) const;
+  const uint8_t *
+    CopyFromBytesWithPadding(YuvComponent comp, const uint8_t *src_bytes,
+                             ptrdiff_t src_stride,
+                             const PictureFormat &src_format,
+                             YuvPicture *out_pic) const;
   void CopyFromBytesWithResampling(const uint8_t *src_bytes,
                                    const PictureFormat &src_format,
                                    YuvPicture *out_pic) const;

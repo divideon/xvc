@@ -49,9 +49,14 @@ class ThreadEncoder;
 
 class Encoder : public xvc_encoder {
 public:
+  using PicPlane = std::pair<const uint8_t *, ptrdiff_t>;
+  using PicPlanes = std::array<PicPlane, constants::kMaxYuvComponents>;
   explicit Encoder(int internal_bitdepth, int num_threads = 0);
   ~Encoder();
-  bool Encode(const uint8_t *pic_bytes, xvc_enc_pic_buffer *rec_pic);
+  bool Encode(const uint8_t *pic_bytes, xvc_enc_pic_buffer *rec_pic,
+              int64_t user_data = 0);
+  bool Encode(const PicPlanes &planes,
+              xvc_enc_pic_buffer *rec_pic, int64_t user_data = 0);
   bool Flush(xvc_enc_pic_buffer *rec_pic);
   std::vector<xvc_enc_nal_unit>& GetOutputNals() {
     return api_output_nals_;
@@ -116,6 +121,8 @@ public:
 private:
   using NalBuffer = std::unique_ptr<std::vector<uint8_t>>;
   using PicEncList = std::vector<std::shared_ptr<const PictureEncoder>>;
+  bool Encode(const uint8_t *pic_bytes, const PicPlanes *planes,
+              xvc_enc_pic_buffer *rec_pic, int64_t user_data);
   void Initialize();
   void StartNewSegment();
   void EncodeOnePicture(std::shared_ptr<PictureEncoder> pic);
@@ -127,7 +134,8 @@ private:
   std::shared_ptr<PictureEncoder>
     PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc, PicNum poc,
                            int tid, bool is_access_picture,
-                           const uint8_t *pic_bytes);
+                           const uint8_t *pic_bytes,
+                           const PicPlanes *pic_planes, int64_t user_data);
   void DetermineBufferFlags(const PictureEncoder &pic_enc);
   void UpdateReferenceCounts(PicNum last_subgop_end_poc);
   std::shared_ptr<PictureEncoder> GetNewPictureEncoder();

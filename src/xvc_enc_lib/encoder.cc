@@ -59,7 +59,17 @@ Encoder::~Encoder() {
 }
 
 bool Encoder::Encode(const uint8_t *pic_bytes,
-                     xvc_enc_pic_buffer *out_rec_pic) {
+                     xvc_enc_pic_buffer *out_rec_pic, int64_t user_data) {
+  return Encode(pic_bytes, nullptr, out_rec_pic, user_data);
+}
+
+bool Encoder::Encode(const PicPlanes &planes, xvc_enc_pic_buffer *out_rec_pic,
+                     int64_t user_data) {
+  return Encode(nullptr, &planes, out_rec_pic, user_data);
+}
+
+bool Encoder::Encode(const uint8_t *pic_bytes, const PicPlanes *pic_planes,
+                     xvc_enc_pic_buffer *out_rec_pic, int64_t user_data) {
   if (!initialized_) {
     initialized_ = true;
     Initialize();
@@ -93,7 +103,9 @@ bool Encoder::Encode(const uint8_t *pic_bytes,
   // Set picture parameters and get bytes for original picture
   std::shared_ptr<PictureEncoder> pic_enc =
     PrepareNewInputPicture(*segment_header_, doc, poc_, tid,
-                           encode_segment_header, pic_bytes);
+                           encode_segment_header, pic_bytes, pic_planes,
+                           user_data);
+
   if (encode_segment_header) {
     DetermineBufferFlags(*pic_enc);
   }
@@ -190,6 +202,7 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   assert(poc_ == 0);
   encoder_settings_ = settings;
   segment_header_->num_ref_pics = settings.default_num_ref_pics;
+  segment_header_->leading_pictures = settings.leading_pictures;
   segment_header_->max_binary_split_depth = settings.max_binary_split_depth;
   segment_header_->source_padding = settings.source_padding != 0;
   segment_header_->chroma_qp_offset_table = settings.chroma_qp_offset_table;
@@ -324,6 +337,7 @@ void Encoder::OnPictureEncoded(std::shared_ptr<PictureEncoder> pic_enc,
   nal.bytes = const_cast<uint8_t*>(&(*pic_nal_buffer)[0]);
   nal.size = pic_nal_buffer->size();
   nal.buffer_flag = pic_enc->GetBufferFlag();
+  nal.user_data = pic_enc ? pic_enc->GetUserData() : 0;
   SetNalStats(*pic_enc->GetPicData(), *pic_enc, &nal.stats);
   auto &nal_stats_pair =
     pending_out_nal_buffers_[pic_enc->GetPicData()->GetDoc()];
@@ -431,7 +445,9 @@ void Encoder::ReconstructNextPicture(xvc_enc_pic_buffer *out_pic) {
 std::shared_ptr<PictureEncoder>
 Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
                                 PicNum poc, int tid, bool is_access_picture,
-                                const uint8_t *pic_bytes) {
+                                const uint8_t *pic_bytes,
+                                const PicPlanes *pic_planes,
+                                int64_t user_data) {
   const int max_tid = SegmentHeader::GetMaxTid(segment.max_sub_gop_length);
   // Start with assuming all picture in sub-gop reference each other
   // clean-up later in UpdateReferenceCounts, also special case for first intra
@@ -450,6 +466,7 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
   pic_enc->SetOutputStatus(OutputStatus::kReady);
   pic_enc->SetBufferFlag(false);
   pic_enc->SetReferenceCount(ref_cnt);
+  pic_enc->SetUserData(user_data);
 
   std::shared_ptr<PictureData> pic_data = pic_enc->GetPicData();
   if (is_access_picture) {
@@ -476,8 +493,13 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
                              segment.GetOutputHeight(),
                              input_bitdepth_, segment.chroma_format,
                              segment.color_matrix, false);
-  input_resampler_.ConvertFrom(input_format, pic_bytes,
-                               pic_enc->GetOrigPic().get());
+  if (pic_bytes) {
+    input_resampler_.ConvertFrom(input_format, pic_bytes,
+                                 pic_enc->GetOrigPic().get());
+  } else if (pic_planes) {
+    input_resampler_.ConvertFrom(input_format, *pic_planes,
+                                 pic_enc->GetOrigPic().get());
+  }
   return pic_enc;
 }
 
@@ -648,6 +670,7 @@ Encoder::WriteSegmentHeaderNal(const SegmentHeader &segment_header,
   nal.stats.nal_unit_type = static_cast<uint32_t>(NalUnitType::kSegmentHeader);
   nal.stats.soc = segment_header.soc;
   nal.stats.tid = 0;
+  nal.user_data = 0;
   return nal;
 }
 
