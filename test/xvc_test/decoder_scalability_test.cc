@@ -69,7 +69,7 @@ protected:
     int decoded_pictures = 0;
     while (HasMoreNals()) {
       auto &nal = GetNextNalToDecode();
-      EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
+      EXPECT_EQ(nal.size(), decoder_->DecodeNal(&nal[0], nal.size()));
       if (decoder_->GetDecodedPicture(&last_decoded_picture_)) {
         decoded_pictures++;
       }

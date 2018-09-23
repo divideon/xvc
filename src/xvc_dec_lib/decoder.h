@@ -46,6 +46,7 @@ class ThreadDecoder;
 
 class Decoder : public xvc_decoder {
 public:
+  static constexpr size_t kInvalidNal = 0;
   enum class State {
     kNoSegmentHeader,
     kSegmentHeaderDecoded,
@@ -58,8 +59,8 @@ public:
 
   explicit Decoder(int num_threads);
   ~Decoder();
-  bool DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
-                 int64_t user_data = 0);
+  size_t DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                   int64_t user_data = 0);
   bool GetDecodedPicture(xvc_decoded_picture *dec_pic);
   void FlushBufferedNalUnits();
   PicNum GetNumDecodedPics() { return num_pics_in_buffer_; }
@@ -95,9 +96,9 @@ private:
   using NalUnitPtr = std::unique_ptr<std::vector<uint8_t>>;
   using PicDecList = std::vector<std::shared_ptr<const PictureDecoder>>;
   void DecodeAllBufferedNals();
-  bool DecodeSegmentHeaderNal(BitReader *bit_reader);
-  bool DecodePictureNal(const uint8_t *nal_unit, size_t nal_unit_size,
-                        int64_t user_data, BitReader *bit_reader);
+  size_t DecodeSegmentHeaderNal(BitReader *bit_reader);
+  size_t DecodePictureNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                          int64_t user_data, BitReader *bit_reader);
   void DecodeOneBufferedNal(NalUnitPtr &&nal, int64_t user_data);
   std::shared_ptr<PictureDecoder>
     GetFreePictureDecoder(const SegmentHeader &segment_header);

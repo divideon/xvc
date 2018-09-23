@@ -119,7 +119,7 @@ TEST_P(RestrictionsTest, SupportParallelDecodeWhenRestrictionChanges) {
   for (int iterations = 0; iterations < num_iterations; iterations++) {
     for (int i = 0; i < static_cast<int>(encoded_nal_units_.size()); i++) {
       auto &nal = encoded_nal_units_[i];
-      decoder_->DecodeNal(&nal[0], nal.size());
+      ASSERT_EQ(nal.size(), decoder_->DecodeNal(&nal[0], nal.size()));
       if (decoder_->GetDecodedPicture(&last_decoded_picture_)) {
         decoded_pictures++;
       }

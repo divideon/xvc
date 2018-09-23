@@ -42,7 +42,8 @@ public:
 
   void DecodeSegmentHeaderSuccess(const NalUnit &nal) {
     xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size()));
+    size_t decoded_bytes = decoder_->DecodeNal(&nal[0], nal.size());
+    EXPECT_EQ(nal.size(), decoded_bytes);
     EXPECT_EQ(::xvc::Decoder::State::kSegmentHeaderDecoded,
               decoder_->GetState());
     EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
@@ -54,7 +55,8 @@ public:
 
   void DecodeSegmentHeaderFailed(const NalUnit &nal) {
     xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
+    size_t decoded_bytes = decoder_->DecodeNal(&nal[0], nal.size());
+    EXPECT_EQ(xvc::Decoder::kInvalidNal, decoded_bytes);
     EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
     EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
     EXPECT_EQ(nullptr, last_decoded_picture_.bytes);
@@ -63,7 +65,8 @@ public:
 
   bool DecodePictureSuccess(const NalUnit &nal, int64_t user_data = 0) {
     xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_TRUE(decoder_->DecodeNal(&nal[0], nal.size(), user_data));
+    size_t decoded_bytes = decoder_->DecodeNal(&nal[0], nal.size(), user_data);
+    EXPECT_EQ(nal.size(), decoded_bytes);
     EXPECT_EQ(::xvc::Decoder::State::kPicDecoded, decoder_->GetState());
     EXPECT_EQ(before_num_decoded_pics + 1, decoder_->GetNumDecodedPics());
     EXPECT_EQ(0, decoder_->GetNumCorruptedPics());
@@ -72,7 +75,8 @@ public:
 
   void DecodePictureFailed(const NalUnit &nal) {
     xvc::PicNum before_num_decoded_pics = decoder_->GetNumDecodedPics();
-    EXPECT_FALSE(decoder_->DecodeNal(&nal[0], nal.size()));
+    size_t decoded_bytes = decoder_->DecodeNal(&nal[0], nal.size());
+    EXPECT_EQ(xvc::Decoder::kInvalidNal, decoded_bytes);
     EXPECT_EQ(before_num_decoded_pics, decoder_->GetNumDecodedPics());
     EXPECT_FALSE(decoder_->GetDecodedPicture(&last_decoded_picture_));
     EXPECT_EQ(0, last_decoded_picture_.size);

@@ -33,6 +33,8 @@
 
 namespace xvc {
 
+constexpr size_t Decoder::kInvalidNal;
+
 Decoder::Decoder(int num_threads)
   : curr_segment_header_(std::make_shared<SegmentHeader>()),
   prev_segment_header_(std::make_shared<SegmentHeader>()),
@@ -49,13 +51,13 @@ Decoder::~Decoder() {
   }
 }
 
-bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
-                        int64_t user_data) {
+size_t Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
+                          int64_t user_data) {
   // Nal header parsing
   BitReader bit_reader(nal_unit, nal_unit_size);
   NalUnitType nal_unit_type;
   if (!ParseNalUnitHeader(&bit_reader, &nal_unit_type, accept_xvc_bit_zero_)) {
-    return false;
+    return kInvalidNal;
   }
 
   // Segment header parsing
@@ -70,13 +72,13 @@ bool Decoder::DecodeNal(const uint8_t *nal_unit, size_t nal_unit_size,
     // no segment header has been decoded or if the xvc version
     // of the decoder is identified to be too low or if the
     // bitstream bitdepth is too high.
-    return false;
+    return kInvalidNal;
   }
   if (nal_unit_type >= NalUnitType::kIntraPicture &&
       nal_unit_type <= NalUnitType::kReservedPictureType10) {
     return DecodePictureNal(nal_unit, nal_unit_size, user_data, &bit_reader);
   }
-  return false;   // unknown nal type
+  return kInvalidNal;   // unknown nal type
 }
 
 bool Decoder::ParseNalUnitHeader(BitReader *bit_reader,
@@ -123,7 +125,7 @@ void Decoder::DecodeAllBufferedNals() {
   nal_buffer_.clear();
 }
 
-bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
+size_t Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   // If there are old nal units buffered that are not tail pictures,
   // they are discarded before decoding the new segment.
   if (nal_buffer_.size() > static_cast<size_t>(num_tail_pics_)) {
@@ -147,7 +149,7 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
     doc_++;
   }
   if (state_ != State::kSegmentHeaderDecoded) {
-    return false;
+    return kInvalidNal;
   }
   sub_gop_length_ = curr_segment_header_->max_sub_gop_length;
   if (sub_gop_length_ + 1 > sliding_window_length_) {
@@ -173,11 +175,11 @@ bool Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   }
   max_tid_ = SegmentHeader::GetFramerateMaxTid(
     decoder_ticks_, curr_segment_header_->bitstream_ticks, sub_gop_length_);
-  return true;
+  return bit_reader->GetPosition();
 }
 
-bool Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
-                               int64_t user_data, BitReader *bit_reader) {
+size_t Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
+                                 int64_t user_data, BitReader *bit_reader) {
   // All picture types are decoded using the same process.
   // First, the buffer flag is checked to see if the picture
   // should be decoded or buffered.
@@ -194,7 +196,7 @@ bool Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
   if (tid > max_tid_) {
     // Ignore (drop) picture if it belongs to a temporal layer that
     // should not be decoded.
-    return true;
+    return nal_unit_size;
   }
 
   enforce_sliding_window_ = true;
@@ -212,7 +214,7 @@ bool Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
   }
   if (buffer_flag) {
     num_tail_pics_++;
-    return true;
+    return nal_unit_size;
   }
   while (nal_buffer_.size() > 0 &&
          num_pics_in_buffer_ - nal_buffer_.size() + 1 < pic_buffering_num_) {
@@ -220,7 +222,7 @@ bool Decoder::DecodePictureNal(const uint8_t * nal_unit, size_t nal_unit_size,
     DecodeOneBufferedNal(std::move(nal.first), nal.second);
     nal_buffer_.pop_front();
   }
-  return true;
+  return nal_unit_size;
 }
 
 void
