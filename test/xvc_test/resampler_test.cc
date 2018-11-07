@@ -190,7 +190,7 @@ TEST_P(ResamplerTest, ToYuvBytesOddResolutionWithResample_34to40to34) {
     ConvertFromAndBack(kModeResampling, src_bytes, fmt_34x34_yuv420p8,
                        fmt_40x40_internal, fmt_34x34_yuv420p8);
   double psnr_y = orig_pic.CalcPsnr(reinterpret_cast<char*>(&out_bytes[0]));
-  ASSERT_GE(psnr_y, 40.0);
+  ASSERT_GE(psnr_y, 32.0);
   ASSERT_LT(psnr_y, 45.0);
 }
 
@@ -238,7 +238,7 @@ TEST_P(ResamplerTest, ToRgbBytesOddResolutionWithResample_34to40to34) {
   std::vector<uint8_t> rec_luma =
     ConvertArgb601ToLuma(fmt_34x34_rgba8, out_rgba_bytes);
   double psnr_y = orig_pic.CalcPsnr(reinterpret_cast<char*>(&rec_luma[0]));
-  ASSERT_GE(psnr_y, 40.0);
+  ASSERT_GE(psnr_y, 32.0);
   ASSERT_LT(psnr_y, 55.0);
 }
 

@@ -539,6 +539,7 @@ namespace resample {
 static const int kFilterPrecision = 6;
 static const int kInternalPrecision = 16;
 static const int kPositionPrecision = 15;
+static const int kScaleFactor = 1 << kPositionPrecision;
 
 static const int16_t kUpsampleFilter[16][8] = {
   { 0,  0,   0, 64,  0,   0,  0,  0 },
@@ -708,19 +709,19 @@ static const int16_t kDownsampleFilters[8][16][12] = {
 
 static int GetFilterFromScale(int scale) {
   int filter = 0;
-  if (scale > 245760) {
+  if (scale > 15 * kScaleFactor / 4) {
     filter = 7;
-  } else if (scale > 187245) {
+  } else if (scale > 20 * kScaleFactor / 7) {
     filter = 6;
-  } else if (scale > 163840) {
+  } else if (scale > 5 * kScaleFactor / 2) {
     filter = 5;
-  } else if (scale > 131072) {
+  } else if (scale > 2 * kScaleFactor) {
     filter = 4;
-  } else if (scale > 109226) {
+  } else if (scale > 5 * kScaleFactor / 3) {
     filter = 3;
-  } else if (scale > 81920) {
+  } else if (scale > 5 * kScaleFactor / 4) {
     filter = 2;
-  } else if (scale > 68985) {
+  } else if (scale > 20 * kScaleFactor / 19) {
     filter = 1;
   }
   return filter;
@@ -730,12 +731,12 @@ template <typename T>
 static uint16_t FilterHor(const T* src, int sub_pel, int shift,
                           int scale_factor) {
   int sum = 0;
-  if (scale_factor < 65536) {
+  if (scale_factor < kScaleFactor) {
     // Upsampling.
     for (int i = 0; i < 8; i++) {
       sum += src[i - 3] * kUpsampleFilter[sub_pel][i];
     }
-  } else if (scale_factor == 65536) {
+  } else if (scale_factor == kScaleFactor) {
     // No resampling.
     sum += src[0] << 6;
   } else {
@@ -754,12 +755,12 @@ template <typename T>
 static T FilterVer(const uint16_t* src, int sub_pel, int shift, int stride,
                    T max, int scale_factor) {
   int sum = 0;
-  if (scale_factor < 65536) {
+  if (scale_factor < kScaleFactor) {
     // Upsampling.
     for (int i = 0; i < 8; i++) {
       sum += src[(i - 3) * stride] * kUpsampleFilter[sub_pel][i];
     }
-  } else if (scale_factor == 65536) {
+  } else if (scale_factor == kScaleFactor) {
     // No resampling.
     sum += src[0] << 6;
   } else {
