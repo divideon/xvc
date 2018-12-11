@@ -57,6 +57,7 @@ extern "C" {
     param->threads = -1;
     param->simd_mask = static_cast<uint32_t>(-1);
     param->dither = 1;
+    param->additional_decoder_buffers = 0;
     return XVC_DEC_OK;
   }
 

@@ -123,6 +123,7 @@ extern "C" {
     int threads;
     uint32_t simd_mask;
     int dither;
+    int additional_decoder_buffers;
   } xvc_decoder_parameters;
 
   // xvc decoder api

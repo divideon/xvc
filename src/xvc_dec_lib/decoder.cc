@@ -153,8 +153,8 @@ size_t Decoder::DecodeSegmentHeaderNal(BitReader *bit_reader) {
   }
   sub_gop_length_ = curr_segment_header_->max_sub_gop_length;
   if (sub_gop_length_ + 1 > sliding_window_length_) {
-    sliding_window_length_ =
-      2 * sub_gop_length_ + 1 + (thread_decoder_ ? 1 : 0);
+    sliding_window_length_ = additional_decoder_buffers_ +
+      sub_gop_length_ + 1 + (thread_decoder_ ? 1 : 0);
   }
   pic_buffering_num_ =
     sliding_window_length_ + curr_segment_header_->num_ref_pics;

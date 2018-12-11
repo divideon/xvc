@@ -72,6 +72,9 @@ public:
   void SetCpuCapabilities(std::set<CpuCapability> capabilities) {
     simd_ = SimdFunctions(capabilities);
   }
+  void SetAdditionalDecoderBuffers(int nr_of_buffers) {
+    additional_decoder_buffers_ = static_cast<PicNum>(nr_of_buffers);
+  }
   void SetOutputWidth(int width) { output_pic_format_.width = width; }
   void SetOutputHeight(int height) { output_pic_format_.height = height; }
   void SetOutputChromaFormat(xvc_dec_chroma_format chroma_format) {
@@ -117,6 +120,7 @@ private:
   PicNum num_corrupted_pics_ = 0;
   PicNum sliding_window_length_ = 0;
   PicNum pic_buffering_num_ = 0;
+  PicNum additional_decoder_buffers_ = 0;
   PicNum sub_gop_length_ = 0;
   int num_tail_pics_ = 0;
   int decoder_ticks_ = 0;
