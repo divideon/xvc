@@ -80,8 +80,9 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                                  ResidualBuffer *out_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  const bool can_dst_4x4 = !Restrictions::Get().disable_ext2_transform_dst &&
-    util::IsLuma(comp) && cu.IsIntra();
+  const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra() &&
+    cu.GetTransformType(comp, 1) == TransformType::kDefault &&
+    cu.GetTransformType(comp, 0) == TransformType::kDefault;
   const bool default_high_precision =
     !Restrictions::Get().disable_ext2_transform_high_precision;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
@@ -98,15 +99,19 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   Coeff *temp_ptr = &coeff_temp_[0];
   const ptrdiff_t temp_stride = kBufferStride_;
 
+  if (can_dst_4x4 && width == 4 && height == 4 &&
+      !Restrictions::Get().disable_ext2_transform_dst) {
+    InvPartialDst4(shift1, high_prec1, coeff, coeff_stride,
+                   temp_ptr, temp_stride);
+    InvPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
+                   resi, resi_stride);
+    return;
+  }
+
   switch (cu.GetTransformType(comp, 0)) {
     case TransformType::kDefault:
-      if (can_dst_4x4 && width == 4 && height == 4) {
-        InvPartialDst4(shift1, high_prec1, coeff, coeff_stride,
-                       temp_ptr, temp_stride);
-      } else {
-        InvDct2(height, shift1, width, high_prec1, true,
-                coeff, coeff_stride, temp_ptr, temp_stride);
-      }
+      InvDct2(height, shift1, width, high_prec1, true,
+              coeff, coeff_stride, temp_ptr, temp_stride);
       break;
     case TransformType::kDct2:
       InvDct2(height, shift1, width, high_prec1, true,
@@ -135,13 +140,8 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
 
   switch (cu.GetTransformType(comp, 1)) {
     case TransformType::kDefault:
-      if (can_dst_4x4 && width == 4 && height == 4) {
-        InvPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
-                       resi, resi_stride);
-      } else {
-        InvDct2(width, shift2, height, high_prec2, false,
-                temp_ptr, temp_stride, resi, resi_stride);
-      }
+      InvDct2(width, shift2, height, high_prec2, false,
+              temp_ptr, temp_stride, resi, resi_stride);
       break;
     case TransformType::kDct2:
       InvDct2(width, shift2, height, high_prec2, false,
@@ -840,8 +840,9 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                                  CoeffBuffer *out_buffer) {
   const int width = cu.GetWidth(comp);
   const int height = cu.GetHeight(comp);
-  const bool can_dst_4x4 = !Restrictions::Get().disable_ext2_transform_dst &&
-    util::IsLuma(comp) && cu.IsIntra();
+  const bool can_dst_4x4 = util::IsLuma(comp) && cu.IsIntra() &&
+    cu.GetTransformType(comp, 1) == TransformType::kDefault &&
+    cu.GetTransformType(comp, 0) == TransformType::kDefault;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool default_high_precision =
     !Restrictions::Get().disable_ext2_transform_high_precision;
@@ -858,15 +859,19 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   Coeff *temp_ptr = &coeff_temp_[0];
   const ptrdiff_t temp_stride = kBufferStride_;
 
+  if (can_dst_4x4 && width == 4 && height == 4 &&
+      !Restrictions::Get().disable_ext2_transform_dst) {
+    FwdPartialDst4(shift1, high_prec1, resi_ptr, resi_stride,
+                   temp_ptr, temp_stride);
+    FwdPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
+                   coeff_ptr, coeff_stride);
+    return;
+  }
+
   switch (cu.GetTransformType(comp, 1)) {
     case TransformType::kDefault:
-      if (can_dst_4x4 && width == 4 && height == 4) {
-        FwdPartialDst4(shift1, high_prec1, resi_ptr, resi_stride,
-                       temp_ptr, temp_stride);
-      } else {
-        FwdDct2(width, shift1, height, high_prec1, false,
-                resi_ptr, resi_stride, temp_ptr, temp_stride);
-      }
+      FwdDct2(width, shift1, height, high_prec1, false,
+              resi_ptr, resi_stride, temp_ptr, temp_stride);
       break;
     case TransformType::kDct2:
       FwdDct2(width, shift1, height, high_prec1, false,
@@ -895,13 +900,8 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
 
   switch (cu.GetTransformType(comp, 0)) {
     case TransformType::kDefault:
-      if (can_dst_4x4 && width == 4 && height == 4) {
-        FwdPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
-                       coeff_ptr, coeff_stride);
-      } else {
-        FwdDct2(height, shift2, width, high_prec2, true,
-                temp_ptr, temp_stride, coeff_ptr, coeff_stride);
-      }
+      FwdDct2(height, shift2, width, high_prec2, true,
+              temp_ptr, temp_stride, coeff_ptr, coeff_stride);
       break;
     case TransformType::kDct2:
       FwdDct2(height, shift2, width, high_prec2, true,
