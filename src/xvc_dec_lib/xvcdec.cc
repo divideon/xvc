@@ -189,14 +189,10 @@ extern "C" {
       return XVC_DEC_INVALID_ARGUMENT;
     }
     xvc::Decoder *lib_decoder = reinterpret_cast<xvc::Decoder*>(decoder);
-    if (lib_decoder->GetDecodedPicture(pic_bytes)) {
-      return XVC_DEC_OK;
+    if (!lib_decoder->GetDecodedPicture(pic_bytes)) {
+      return XVC_DEC_NO_DECODED_PIC;
     }
-    xvc::Decoder::State dec_state = lib_decoder->GetState();
-    if (dec_state == xvc::Decoder::State::kNoSegmentHeader) {
-      return XVC_DEC_NO_SEGMENT_HEADER_DECODED;
-    }
-    return XVC_DEC_NO_DECODED_PIC;
+    return XVC_DEC_OK;
   }
 
   static

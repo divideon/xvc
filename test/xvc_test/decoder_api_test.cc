@@ -106,7 +106,7 @@ TEST(DecoderAPI, DecoderGetDecodedPic) {
   EXPECT_EQ(XVC_DEC_OK, api->parameters_destroy(params));
   EXPECT_EQ(XVC_DEC_INVALID_ARGUMENT, api->decoder_get_picture(decoder,
                                                                nullptr));
-  EXPECT_EQ(XVC_DEC_NO_SEGMENT_HEADER_DECODED,
+  EXPECT_EQ(XVC_DEC_NO_DECODED_PIC,
             api->decoder_get_picture(decoder, &decoded_pic));
   EXPECT_EQ(XVC_DEC_OK, api->decoder_destroy(decoder));
 }
