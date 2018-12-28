@@ -107,6 +107,13 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                    resi, resi_stride);
     return;
   }
+  if (cu.GetDcCoeffOnly(comp) &&
+    (cu.GetTransformType(comp, 0) == TransformType::kDefault ||
+     cu.GetTransformType(comp, 0) == TransformType::kDct2) &&
+     (cu.GetTransformType(comp, 1) == TransformType::kDefault ||
+      cu.GetTransformType(comp, 1) == TransformType::kDct2)) {
+    return InvDct2Dc(height, width, coeff, coeff_stride, resi, resi_stride);
+  }
 
   switch (cu.GetTransformType(comp, 0)) {
     case TransformType::kDefault:
@@ -261,6 +268,20 @@ void InverseTransform::InvDct2(int size, int shift, int lines,
     default:
       assert(0);
       break;
+  }
+}
+
+void InverseTransform::InvDct2Dc(int height, int width,
+                                 const Coeff *in, ptrdiff_t in_stride,
+                                 Coeff *out, ptrdiff_t out_stride) {
+  const int shift = 14 - bitdepth_;
+  const int add = 1 << (shift - 1);
+  Coeff coeff = (((in[0] + 1) >> 1) + add) >> shift;
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      out[x] = coeff;
+    }
+    out += out_stride;
   }
 }
 

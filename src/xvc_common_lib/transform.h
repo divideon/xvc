@@ -54,6 +54,9 @@ private:
   void InvDct2(int size, int shift, int lines, bool high_prec, bool zero_out,
                const Coeff *in, ptrdiff_t in_stride,
                Coeff *out, ptrdiff_t out_stride);
+  void InvDct2Dc(int size, int lines,
+                 const Coeff *in, ptrdiff_t in_stride,
+                 Coeff *out, ptrdiff_t out_stride);
   void InvDct5(int size, int shift, int lines, bool high_prec, bool zero_out,
                const Coeff *in, ptrdiff_t in_stride,
                Coeff *out, ptrdiff_t out_stride);

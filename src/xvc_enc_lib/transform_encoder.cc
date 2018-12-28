@@ -238,6 +238,7 @@ TransformEncoder::TransformAndReconstruct(CodingUnit *cu, YuvComponent comp,
                            temp_coeff_.GetDataPtr(), temp_coeff_.GetStride(),
                            cu_coeff.GetDataPtr(), cu_coeff.GetStride());
   }
+  cu->SetDcCoeffOnly(comp, non_zero == 1 && *cu_coeff.GetDataPtr());
   if (util::IsLuma(comp) && cu->GetTransformSelectIdx() > 0 &&
       cu->IsIntra() && non_zero < constants::kTransformSelectMinSigCoeffs) {
     // enforce transform select idx signaling invariant for intra

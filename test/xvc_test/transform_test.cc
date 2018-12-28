@@ -48,7 +48,7 @@ static const std::array<double, 7> kZeroOutThresholdHeight = {
   1000, 1000, 30.5, 29.5, 30.0, 30.0, 27.0    // 1, 2, 4, 8, 16, 32, 64
 };
 static_assert(xvc::constants::kMaxBlockSize <= 64,
-              "Only upto 64x64 transform tested");
+              "Only up to 64x64 transform tested");
 
 class TransformTest : public ::testing::TestWithParam<int> {
 protected:
@@ -68,6 +68,7 @@ protected:
       for (int tx2 = 0; tx2 < xvc::kNbrTransformTypes; tx2++) {
         cu->SetTransformType(comp, static_cast<xvc::TransformType>(tx1),
                              static_cast<xvc::TransformType>(tx2));
+        cu->SetDcCoeffOnly(comp, false);
         xvc::ForwardTransform fwd_transform(bitdepth_);
         fwd_transform.Transform(*cu, comp, resi_input, &coeff_buffer);
 
@@ -164,9 +165,43 @@ TEST_P(TransformTest, PerfectTxDcPred) {
   }
 }
 
+TEST_P(TransformTest, IdenticalDcOnlyInvTransform) {
+  static const xvc::Coeff kDcCoeff = 1024;
+  xvc::PictureData pic_data(chroma_format, xvc::constants::kMaxBlockSize,
+                            xvc::constants::kMaxBlockSize, bitdepth_);
+  xvc::InverseTransform inv_transform(bitdepth_);
+  xvc::ResidualBufferStorage resi_slow(xvc::constants::kMaxBlockSize,
+                                       xvc::constants::kMaxBlockSize);
+  xvc::ResidualBufferStorage resi_fast(xvc::constants::kMaxBlockSize,
+                                       xvc::constants::kMaxBlockSize);
+  xvc::CoeffBufferStorage coeff_buffer(xvc::constants::kMaxBlockSize,
+                                       xvc::constants::kMaxBlockSize);
+  coeff_buffer.ZeroOut(xvc::constants::kMaxBlockSize,
+                       xvc::constants::kMaxBlockSize);
+  *coeff_buffer.GetDataPtr() = kDcCoeff;
+
+  for (int height : kFullTransformSizes) {
+    for (int width : kFullTransformSizes) {
+      xvc::CodingUnit *cu = pic_data.CreateCu(cu_tree, 0, 0, 0, width, height);
+      for (int tx1 = 0; tx1 < xvc::kNbrTransformTypes; tx1++) {
+        for (int tx2 = 0; tx2 < xvc::kNbrTransformTypes; tx2++) {
+          cu->SetTransformType(comp, static_cast<xvc::TransformType>(tx1),
+                               static_cast<xvc::TransformType>(tx2));
+          cu->SetDcCoeffOnly(comp, false);
+          inv_transform.Transform(*cu, comp, coeff_buffer, &resi_slow);
+          cu->SetDcCoeffOnly(comp, true);
+          inv_transform.Transform(*cu, comp, coeff_buffer, &resi_fast);
+          VerifyEqual(width, height, tx1, tx2, resi_slow, resi_fast);
+        }
+      }
+      pic_data.ReleaseCu(cu);
+    }
+  }
+}
+
 TEST_P(TransformTest, ZeroOutWidthWithDcPred) {
   static_assert(kMaxCuSize >= xvc_test::TestYuvPic::kInternalPicSize,
-                "Cannot generate orig sample data for lage CU sizes");
+                "Cannot generate orig sample data for large CU sizes");
   xvc::SampleBufferStorage orig_buffer(kMaxCuSize, kMaxCuSize);
   xvc_test::TestYuvPic orig_yuv(xvc_test::TestYuvPic::kInternalPicSize,
                                 xvc_test::TestYuvPic::kInternalPicSize,

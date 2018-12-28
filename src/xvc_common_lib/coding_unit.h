@@ -50,6 +50,7 @@ public:
     bool root_cbf;
     std::array<bool, constants::kMaxYuvComponents> cbf;
     std::array<bool, constants::kMaxYuvComponents> transform_skip;
+    std::array<bool, constants::kMaxYuvComponents> dc_only;
     std::array<std::array<TransformType, 2>,
       constants::kMaxNumPlanes> transform_type;
     int transform_select_idx;
@@ -174,6 +175,12 @@ public:
   }
   void SetTransformSkip(YuvComponent comp, bool tx_skip) {
     tx_.transform_skip[comp] = tx_skip;
+  }
+  bool GetDcCoeffOnly(YuvComponent comp) const {
+    return tx_.dc_only[comp];
+  }
+  void SetDcCoeffOnly(YuvComponent comp, bool dc_only) {
+    tx_.dc_only[comp] = dc_only;
   }
   TransformType GetTransformType(YuvComponent comp, int idx) const {
     return tx_.transform_type[comp != YuvComponent::kY][idx];

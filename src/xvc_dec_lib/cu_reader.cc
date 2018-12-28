@@ -220,6 +220,7 @@ void CuReader::ReadResidualDataInternal(CodingUnit *cu, YuvComponent comp,
     }
     cu->SetTransformFromSelectIdx(comp, tx_select_idx);
   }
+  cu->SetDcCoeffOnly(comp, num_coeff == 1 && *cu_coeff_buf.GetDataPtr());
 }
 
 bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
