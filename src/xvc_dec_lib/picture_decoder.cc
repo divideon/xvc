@@ -82,7 +82,14 @@ PictureDecoder::DecodeHeader(const SegmentHeader &segment_header,
     *sub_gop_length = segment_header.max_sub_gop_length;
   }
   int pic_qp_ = bit_reader->ReadBits(7) - constants::kQpSignalBase;
-  bool allow_lic = bit_reader->ReadBit() != 0;
+  bool allow_lic = false;
+  if (!Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
+    allow_lic = bit_reader->ReadBit() != 0;
+  }
+  bool deblock = segment_header.deblocking_mode != DeblockingMode::kDisabled;
+  if (segment_header.deblocking_mode == DeblockingMode::kPerPicture) {
+    deblock = bit_reader->ReadBit() != 0;
+  }
   bit_reader->SkipBits();
 
   // Ensure that Sub Gop start is updated to include the current doc.
@@ -128,6 +135,7 @@ PictureDecoder::DecodeHeader(const SegmentHeader &segment_header,
   header.tid = tid;
   header.pic_qp = pic_qp_;
   header.highest_layer = tid == SegmentHeader::GetMaxTid(*sub_gop_length);
+  header.deblock = deblock;
   header.allow_lic = allow_lic;
   return header;
 }
@@ -151,7 +159,7 @@ void PictureDecoder::Init(const SegmentHeader &segment,
   pic_data_->SetSubGopLength(segment.max_sub_gop_length);
   pic_data_->SetHighestLayer(header.highest_layer && !segment.low_delay);
   pic_data_->SetAdaptiveQp(segment.adaptive_qp);
-  pic_data_->SetDeblock(segment.deblock > 0);
+  pic_data_->SetDeblock(header.deblock);
   pic_data_->SetBetaOffset(segment.beta_offset);
   pic_data_->SetTcOffset(segment.tc_offset);
   pic_data_->SetUseLocalIlluminationCompensation(header.allow_lic);

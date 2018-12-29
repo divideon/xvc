@@ -82,6 +82,8 @@ public:
   void SetUserData(int64_t user_data) { user_data_ = user_data; }
   int64_t GetUserData() const { return user_data_; }
 
+  void Init(const SegmentHeader &segment, PicNum doc, PicNum poc, int tid,
+            bool is_access_picture);
   const std::vector<uint8_t>*
     Encode(const SegmentHeader &segment, int segment_qp, int buffer_flag,
            const EncoderSettings &encoder_settings);
@@ -90,8 +92,9 @@ public:
     const PictureFormat &pic_fmt, int crop_width, int crop_height) const;
 
 private:
-  void WriteHeader(const PictureData &pic_data, PicNum sub_gop_length,
-                   int buffer_flag, BitWriter *bit_writer);
+  void WriteHeader(const SegmentHeader &segment, const PictureData &pic_data,
+                   PicNum sub_gop_length, int buffer_flag,
+                   BitWriter *bit_writer);
   void WriteChecksum(const SegmentHeader &segment, BitWriter *bit_writer,
                      Checksum::Mode checksum_mode);
   int DerivePictureQp(const EncoderSettings &encoder_settings, int segment_qp,

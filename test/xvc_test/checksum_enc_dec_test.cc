@@ -57,7 +57,7 @@ protected:
     sh.num_ref_pics = 1;
     sh.max_binary_split_depth = xvc::constants::kMaxBinarySplitDepth;
     sh.checksum_mode = checksum_mode;
-    sh.deblock = true;
+    sh.deblocking_mode = xvc::DeblockingMode::kEnabled;
     return sh;
   }
 

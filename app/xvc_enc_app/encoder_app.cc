@@ -806,7 +806,10 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -checksum-mode <0..1>" << std::endl;
   std::cout << "      0: Reduced checksum verification (default)" << std::endl;
   std::cout << "      1: Maximum checksum robustness" << std::endl;
-  std::cout << "  -deblock <0..1> (default: 1)" << std::endl;
+  std::cout << "  -deblock <0..2>" << std::endl;
+  std::cout << "      0: disabled" << std::endl;
+  std::cout << "      1: enabled (default)" << std::endl;
+  std::cout << "      2: low complexity" << std::endl;
   std::cout << "  -beta-offset <-32..31>" << std::endl;
   std::cout << "  -tc-offset <-32..31>" << std::endl;
   std::cout << "  -qp <-64..63> (default: 32)" << std::endl;

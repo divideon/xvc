@@ -62,7 +62,7 @@ public:
     encoder_->SetSubGopLength(1);
     encoder_->SetFramerate(30);
     encoder_->SetChecksumMode(xvc::Checksum::Mode::kMaxRobust);
-    encoder_->SetDeblock(1);
+    encoder_->SetDeblockingMode(xvc::DeblockingMode::kEnabled);
     encoder_->SetQp(qp);
   }
 

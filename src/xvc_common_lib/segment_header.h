@@ -29,6 +29,13 @@
 
 namespace xvc {
 
+enum class DeblockingMode {
+  kDisabled = 0,
+  kEnabled = 1,
+  kPerPicture = 2,
+  kCustom = 3,
+};
+
 struct SegmentHeader {
   static PicNum CalcDocFromPoc(PicNum poc, PicNum sub_gop_length,
                                PicNum sub_gop_start_poc_);
@@ -86,7 +93,7 @@ struct SegmentHeader {
   int chroma_qp_offset_table = -1;
   int chroma_qp_offset_u = 0;
   int chroma_qp_offset_v = 0;
-  int deblock = -1;
+  DeblockingMode deblocking_mode = DeblockingMode::kDisabled;
   int beta_offset = 0;
   int tc_offset = 0;
   Restrictions restrictions;

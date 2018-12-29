@@ -72,8 +72,9 @@ Decoder::State SegmentHeaderReader::Read(SegmentHeader* segment_header,
     segment_header->chroma_qp_offset_v =
       bit_reader->ReadBits(d) - (1 << (d - 1));
   }
-  segment_header->deblock = bit_reader->ReadBits(2);
-  if (segment_header->deblock == 3) {
+  segment_header->deblocking_mode =
+    static_cast<DeblockingMode>(bit_reader->ReadBits(2));
+  if (segment_header->deblocking_mode == DeblockingMode::kCustom) {
     int d = constants::kDeblockOffsetBits;
     segment_header->beta_offset = bit_reader->ReadBits(d) - (1 << (d - 1));
     segment_header->tc_offset = bit_reader->ReadBits(d) - (1 << (d - 1));

@@ -53,6 +53,45 @@ PictureEncoder::PictureEncoder(const EncoderSimdFunctions &simd,
                                         true, 0, 0)) {
 }
 
+void PictureEncoder::Init(const SegmentHeader &segment, PicNum doc, PicNum poc,
+                          int tid, bool is_access_picture) {
+  const int max_tid = SegmentHeader::GetMaxTid(segment.max_sub_gop_length);
+  output_status_ = OutputStatus::kReady;
+  buffer_flag_ = false;
+  pic_data_->SetDoc(doc);
+  pic_data_->SetPoc(poc);
+  pic_data_->SetTid(tid);
+  pic_data_->SetSoc(segment.soc);
+  pic_data_->SetSubGopLength(segment.max_sub_gop_length);
+  pic_data_->SetHighestLayer(tid == max_tid && !segment.low_delay);
+  pic_data_->SetAdaptiveQp(segment.adaptive_qp);
+  pic_data_->SetBetaOffset(segment.beta_offset);
+  pic_data_->SetTcOffset(segment.tc_offset);
+  switch (segment.deblocking_mode) {
+    case DeblockingMode::kDisabled:
+      pic_data_->SetDeblock(false);
+      break;
+    case DeblockingMode::kEnabled:
+    case DeblockingMode::kCustom:
+      pic_data_->SetDeblock(true);
+      break;
+    case DeblockingMode::kPerPicture:
+      pic_data_->SetDeblock(tid == 0);
+      break;
+    default:
+      assert(0);
+  }
+  if (is_access_picture) {
+    pic_data_->SetNalType(NalUnitType::kIntraAccessPicture);
+  } else if (segment.num_ref_pics == 0) {
+    pic_data_->SetNalType(NalUnitType::kIntraPicture);
+  } else if (Restrictions::Get().disable_inter_bipred) {
+    pic_data_->SetNalType(NalUnitType::kPredictedPicture);
+  } else {
+    pic_data_->SetNalType(NalUnitType::kBipredictedPicture);
+  }
+}
+
 const std::vector<uint8_t>*
 PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
                        int buffer_flag,
@@ -88,7 +127,7 @@ PictureEncoder::Encode(const SegmentHeader &segment, int segment_qp,
     bit_writer_.WriteBits(constants::kEncapsulationCode, 8);
     bit_writer_.WriteBits(1, 8);
   }
-  WriteHeader(*pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
+  WriteHeader(segment, *pic_data_, sub_gop_length, buffer_flag, &bit_writer_);
 
   SyntaxWriter writer(base_qp, pic_data_->GetPredictionType(),
                       &bit_writer_);
@@ -131,7 +170,8 @@ PictureEncoder::GetAlternativeRecPic(const PictureFormat &pic_fmt,
   return std::shared_ptr<YuvPicture>();
 }
 
-void PictureEncoder::WriteHeader(const PictureData &pic_data,
+void PictureEncoder::WriteHeader(const SegmentHeader &segment,
+                                 const PictureData &pic_data,
                                  PicNum sub_gop_length, int buffer_flag,
                                  BitWriter *bit_writer) {
   bit_writer->WriteBits(1, 1);  // xvc_bit_one
@@ -149,6 +189,9 @@ void PictureEncoder::WriteHeader(const PictureData &pic_data,
     bit_writer->WriteBit(allow_lic ? 1 : 0);
   } else {
     assert(!allow_lic);
+  }
+  if (segment.deblocking_mode == DeblockingMode::kPerPicture) {
+    bit_writer->WriteBit(pic_data.GetDeblock() ? 1 : 0);
   }
   bit_writer->PadZeroBits();
 }

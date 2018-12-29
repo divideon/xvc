@@ -183,6 +183,9 @@ extern "C" {
         static_cast<int>(xvc::Checksum::Mode::kTotalNumber)) {
       return XVC_ENC_INVALID_PARAMETER;
     }
+    if (param->deblock < 0 || param->deblock > 2) {
+      return XVC_ENC_DEBLOCKING_SETTINGS_INVALID;
+    }
     if (param->deblock == 0 &&
       (param->beta_offset || param->tc_offset)) {
       return XVC_ENC_DEBLOCKING_SETTINGS_INVALID;
@@ -311,10 +314,23 @@ extern "C" {
     }
     encoder->SetBetaOffset(param->beta_offset);
     encoder->SetTcOffset(param->tc_offset);
-    if (param->beta_offset != 0 || param->tc_offset != 0) {
-      encoder->SetDeblock(3);
+    if (param->deblock == 1 &&
+      (param->beta_offset != 0 || param->tc_offset != 0)) {
+      encoder->SetDeblockingMode(xvc::DeblockingMode::kCustom);
     } else {
-      encoder->SetDeblock(param->deblock);
+      switch (param->deblock) {
+        case 0:
+          encoder->SetDeblockingMode(xvc::DeblockingMode::kDisabled);
+          break;
+        case 1:
+          encoder->SetDeblockingMode(xvc::DeblockingMode::kEnabled);
+          break;
+        case 2:
+          encoder->SetDeblockingMode(xvc::DeblockingMode::kPerPicture);
+          break;
+        default:
+          assert(0);
+      }
     }
     encoder->SetQp(param->qp);
     encoder->SetLowDelay(param->low_delay != 0);

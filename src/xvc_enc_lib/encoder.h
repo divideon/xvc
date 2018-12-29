@@ -104,7 +104,9 @@ public:
   void SetChromaQpOffsetV(int offset) {
     segment_header_->chroma_qp_offset_v = offset;
   }
-  void SetDeblock(int deblock) { segment_header_->deblock = deblock; }
+  void SetDeblockingMode(DeblockingMode deblocking_mode) {
+    segment_header_->deblocking_mode = deblocking_mode;
+  }
   void SetBetaOffset(int offset) { segment_header_->beta_offset = offset; }
   void SetTcOffset(int offset) { segment_header_->tc_offset = offset; }
   void SetQp(int qp) {

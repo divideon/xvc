@@ -448,7 +448,6 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
                                 const uint8_t *pic_bytes,
                                 const PicPlanes *pic_planes,
                                 int64_t user_data) {
-  const int max_tid = SegmentHeader::GetMaxTid(segment.max_sub_gop_length);
   // Start with assuming all picture in sub-gop reference each other
   // clean-up later in UpdateReferenceCounts, also special case for first intra
   int ref_cnt = encoder_settings_.leading_pictures || poc > 0 ?
@@ -463,32 +462,9 @@ Encoder::PrepareNewInputPicture(const SegmentHeader &segment, PicNum doc,
     ref_cnt += segment.num_ref_pics + extra_num_buffered_subgops_;
   }
   std::shared_ptr<PictureEncoder> pic_enc = GetNewPictureEncoder();
-  pic_enc->SetOutputStatus(OutputStatus::kReady);
-  pic_enc->SetBufferFlag(false);
+  pic_enc->Init(segment, doc, poc, tid, is_access_picture);
   pic_enc->SetReferenceCount(ref_cnt);
   pic_enc->SetUserData(user_data);
-
-  std::shared_ptr<PictureData> pic_data = pic_enc->GetPicData();
-  if (is_access_picture) {
-    pic_data->SetNalType(NalUnitType::kIntraAccessPicture);
-  } else if (segment.num_ref_pics == 0) {
-    pic_data->SetNalType(NalUnitType::kIntraPicture);
-  } else if (Restrictions::Get().disable_inter_bipred) {
-    pic_data->SetNalType(NalUnitType::kPredictedPicture);
-  } else {
-    pic_data->SetNalType(NalUnitType::kBipredictedPicture);
-  }
-  pic_data->SetDoc(doc);
-  pic_data->SetPoc(poc);
-  pic_data->SetTid(tid);
-  pic_data->SetSoc(segment.soc);
-  pic_data->SetSubGopLength(segment.max_sub_gop_length);
-  pic_data->SetHighestLayer(tid == max_tid && !segment.low_delay);
-  pic_data->SetAdaptiveQp(segment_header_->adaptive_qp);
-  pic_data->SetDeblock(segment.deblock > 0);
-  pic_data->SetBetaOffset(segment.beta_offset);
-  pic_data->SetTcOffset(segment.tc_offset);
-
   PictureFormat input_format(segment.GetOutputWidth(),
                              segment.GetOutputHeight(),
                              input_bitdepth_, segment.chroma_format,

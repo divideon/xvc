@@ -73,9 +73,10 @@ void SegmentHeaderWriter::Write(const SegmentHeader &segment_header,
                           d);
   }
 
-  assert(segment_header.deblock >= 0 && segment_header.deblock <= 3);
-  bit_writer->WriteBits(segment_header.deblock, 2);
-  if (segment_header.deblock == 3) {
+  int deblocking_mode = static_cast<int>(segment_header.deblocking_mode);
+  assert(deblocking_mode >= 0 && deblocking_mode <= 3);
+  bit_writer->WriteBits(deblocking_mode, 2);
+  if (segment_header.deblocking_mode == DeblockingMode::kCustom) {
     int d = constants::kDeblockOffsetBits;
     bit_writer->WriteBits(segment_header.beta_offset + (1 << (d - 1)), d);
     bit_writer->WriteBits(segment_header.tc_offset + (1 << (d - 1)), d);

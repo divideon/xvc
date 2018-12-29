@@ -50,6 +50,7 @@ public:
     int tid;
     int pic_qp;
     bool highest_layer;
+    bool deblock;
     bool allow_lic;
   };
 
