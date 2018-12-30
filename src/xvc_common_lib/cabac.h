@@ -90,7 +90,7 @@ struct CabacCommon {
 template<typename ContextModel>
 struct CabacContexts : public CabacCommon {
 public:
-  CabacContexts() {}
+  CabacContexts();
   void ResetStates(const Qp &qp, PicturePredictionType pic_type);
 
   ContextModel& GetAffineCtx(const CodingUnit &cu);
@@ -121,6 +121,7 @@ public:
   ContextModel& GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
                                    int pos, bool is_pos_x);
 
+  const Restrictions *restrictions_;
   std::array<ContextModel, kNumCuCbfCtxLuma> cu_cbf_luma;
   std::array<ContextModel, kNumCuCbfCtxChroma> cu_cbf_chroma;
   std::array<ContextModel, kNumPartSizeCtx> cu_part_size;

@@ -26,6 +26,12 @@
 
 namespace xvc {
 
+CuReader::CuReader(PictureData *pic_data, const IntraPrediction &intra_pred)
+  : restrictions_(Restrictions::Get()),
+  pic_data_(pic_data),
+  intra_pred_(intra_pred) {
+}
+
 void CuReader::ReadCu(CodingUnit *cu, SplitRestriction split_restriction,
                       SyntaxReader *reader) {
   SplitType split = ReadSplit(cu, split_restriction, reader);
@@ -87,7 +93,7 @@ void CuReader::ReadComponent(CodingUnit *cu, YuvComponent comp,
       cu->SetPredMode(PredictionMode::kIntra);
       cu->SetSkipFlag(false);
     }
-    if (Restrictions::Get().disable_ext_implicit_partition_type) {
+    if (restrictions_.disable_ext_implicit_partition_type) {
       PartitionType partition_type = reader->ReadPartitionType(*cu);
       cu->SetPartitionType(partition_type);
     }
@@ -116,7 +122,7 @@ void CuReader::ReadIntraPrediction(CodingUnit *cu, YuvComponent comp,
     IntraPredictorChroma chroma_pred =
       intra_pred_.GetPredictorsChroma(luma_mode);
     IntraChromaMode chroma_mode = IntraChromaMode::kDmChroma;
-    if (!Restrictions::Get().disable_intra_chroma_predictor) {
+    if (!restrictions_.disable_intra_chroma_predictor) {
       chroma_mode = reader->ReadIntraChromaMode(chroma_pred);
     }
     cu->SetIntraModeChroma(chroma_mode);
@@ -226,7 +232,7 @@ void CuReader::ReadResidualDataInternal(CodingUnit *cu, YuvComponent comp,
 bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
                                 SyntaxReader *reader) const {
   if (cu->IsInter() &&
-    (!cu->GetMergeFlag() || Restrictions::Get().disable_inter_skip_mode)) {
+    (!cu->GetMergeFlag() || restrictions_.disable_inter_skip_mode)) {
     if (util::IsLuma(comp)) {
       const bool root_cbf = reader->ReadRootCbf();
       cu->SetRootCbf(root_cbf);
@@ -252,13 +258,13 @@ bool CuReader::ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
     bool cbf_v = reader->ReadCbf(*cu, YuvComponent::kU);
     cu->SetCbf(YuvComponent::kU, cbf_u);
     cu->SetCbf(YuvComponent::kV, cbf_v);
-    if (cbf_u || cbf_v || Restrictions::Get().disable_transform_root_cbf) {
+    if (cbf_u || cbf_v || restrictions_.disable_transform_root_cbf) {
       cbf = reader->ReadCbf(*cu, comp);
     } else {
       // implicitly signaled through root cbf
       cbf = true;
     }
-    if (Restrictions::Get().disable_inter_skip_mode &&
+    if (restrictions_.disable_inter_skip_mode &&
         cu->GetMergeFlag() && !cbf && !cbf_u && !cbf_v) {
       cu->SetSkipFlag(true);
     }

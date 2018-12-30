@@ -30,10 +30,7 @@ namespace xvc {
 
 class CuReader {
 public:
-  CuReader(PictureData *pic_data, const IntraPrediction &intra_pred)
-    : pic_data_(pic_data),
-    intra_pred_(intra_pred) {
-  }
+  CuReader(PictureData *pic_data, const IntraPrediction &intra_pred);
   bool ReadCtu(CodingUnit *cu, SyntaxReader *reader) {
     ctu_has_coeffs_ = false;
     ReadCu(cu, SplitRestriction::kNone, reader);
@@ -59,6 +56,7 @@ private:
   bool ReadCbfInvariant(CodingUnit *cu, YuvComponent comp,
                         SyntaxReader *reader) const;
 
+  const Restrictions &restrictions_;
   PictureData *pic_data_;
   const IntraPrediction &intra_pred_;
   bool ctu_has_coeffs_ = false;

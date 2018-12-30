@@ -72,7 +72,8 @@ struct IntraPrediction::LmParams {
 };
 
 IntraPrediction::IntraPrediction(int bitdepth)
-  : bitdepth_(bitdepth),
+  : restrictions_(Restrictions::Get()),
+  bitdepth_(bitdepth),
   temp_pred_buffer_(constants::kMaxBlockSize + kDownscaleLumaPadding,
                     constants::kMaxBlockSize + kDownscaleLumaPadding) {
 }
@@ -86,7 +87,7 @@ void IntraPrediction::Predict(IntraMode intra_mode, const CodingUnit &cu,
   Sample *out_ptr = output_buffer->GetDataPtr();
   const ptrdiff_t out_stride = output_buffer->GetStride();
   const Sample *ref_samples = &ref_state.ref_samples[0];
-  if (Restrictions::Get().disable_intra_planar &&
+  if (restrictions_.disable_intra_planar &&
       intra_mode == IntraMode::kPlanar) {
     intra_mode = IntraMode::kDc;
   }
@@ -146,24 +147,24 @@ IntraPrediction::FillReferenceState(const CodingUnit &cu, YuvComponent comp,
 
 IntraPredictorLuma
 IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
-  const int max_modes = !Restrictions::Get().disable_ext2_intra_67_modes ?
+  const int max_modes = !restrictions_.disable_ext2_intra_67_modes ?
     kNbrIntraModesExt : kNbrIntraModes - 1;
-  const int offset = !Restrictions::Get().disable_ext2_intra_67_modes ?
+  const int offset = !restrictions_.disable_ext2_intra_67_modes ?
     kNbrIntraModesExt - 5 : kNbrIntraModes - 6;
   IntraPredictorLuma mpm;
-  if (Restrictions::Get().disable_intra_mpm_prediction) {
+  if (restrictions_.disable_intra_mpm_prediction) {
     mpm.num_neighbor_modes = 1;
     mpm[0] = IntraMode::kPlanar;
     mpm[1] = IntraMode::kDc;
     mpm[2] = Convert(IntraAngle::kVertical);
-    if (!Restrictions::Get().disable_ext2_intra_6_predictors) {
+    if (!restrictions_.disable_ext2_intra_6_predictors) {
       mpm[3] = Convert(IntraAngle::kHorizontal);
       mpm[4] = Convert(IntraAngle::kDiagonal);
       mpm[5] = static_cast<IntraMode>(2);
     }
     return mpm;
   }
-  if (Restrictions::Get().disable_ext2_intra_6_predictors) {
+  if (restrictions_.disable_ext2_intra_6_predictors) {
     FillPredictorLumaDefault(cu, &mpm);
     return mpm;
   }
@@ -248,9 +249,9 @@ IntraPrediction::GetPredictorLuma(const CodingUnit &cu) const {
 void IntraPrediction::FillPredictorLumaDefault(const CodingUnit &cu,
                                                IntraPredictorLuma *mpm) const {
   constexpr YuvComponent comp = YuvComponent::kY;
-  const int max_modes = !Restrictions::Get().disable_ext2_intra_67_modes ?
+  const int max_modes = !restrictions_.disable_ext2_intra_67_modes ?
     kNbrIntraModesExt : kNbrIntraModes - 1;
-  const int offset = !Restrictions::Get().disable_ext2_intra_67_modes ?
+  const int offset = !restrictions_.disable_ext2_intra_67_modes ?
     kNbrIntraModesExt - 5 : kNbrIntraModes - 6;
   const CodingUnit *cu_left = cu.GetCodingUnitLeft();
   IntraMode left = IntraMode::kDc;
@@ -258,7 +259,7 @@ void IntraPrediction::FillPredictorLumaDefault(const CodingUnit &cu,
     left = cu_left->GetIntraMode(comp);
   }
   const CodingUnit *cu_above;
-  if (Restrictions::Get().disable_ext_intra_unrestricted_predictor) {
+  if (restrictions_.disable_ext_intra_unrestricted_predictor) {
     cu_above = cu.GetCodingUnitAboveIfSameCtu();
   } else {
     cu_above = cu.GetCodingUnitAbove();
@@ -299,7 +300,7 @@ IntraPrediction::GetPredictorsChroma(IntraMode luma_mode) const {
   chroma_preds[1] = Convert(IntraChromaAngle::kVertical);
   chroma_preds[2] = Convert(IntraChromaAngle::kHorizontal);
   chroma_preds[3] = IntraChromaMode::kDc;
-  if (!Restrictions::Get().disable_ext2_intra_chroma_from_luma) {
+  if (!restrictions_.disable_ext2_intra_chroma_from_luma) {
     chroma_preds[4] = IntraChromaMode::kLmChroma;
     chroma_preds[5] = Convert(IntraChromaAngle::kDmChroma);
   } else {
@@ -340,7 +341,7 @@ IntraChromaMode IntraPrediction::Convert(IntraChromaAngle angle) {
 
 bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
                                             IntraMode intra_mode) {
-  if (Restrictions::Get().disable_intra_ref_sample_filter) {
+  if (restrictions_.disable_intra_ref_sample_filter) {
     return false;
   }
   static const std::array<int8_t, 8> kFilterRefThreshold = {
@@ -355,7 +356,7 @@ bool IntraPrediction::UseFilteredRefSamples(const CodingUnit & cu,
   int mode_diff = std::min(
     std::abs(intra_mode - Convert(IntraAngle::kHorizontal)),
     std::abs(intra_mode - Convert(IntraAngle::kVertical)));
-  if (Restrictions::Get().disable_ext2_intra_67_modes) {
+  if (restrictions_.disable_ext2_intra_67_modes) {
     return mode_diff > kFilterRefThreshold[size];
   }
   return mode_diff > kFilterRefThresholdExt[size];
@@ -381,7 +382,7 @@ IntraPrediction::PredIntraDC(int width, int height, bool dc_filter,
     output_buffer += output_stride;
   }
 
-  if (dc_filter && !Restrictions::Get().disable_intra_dc_post_filter) {
+  if (dc_filter && !restrictions_.disable_intra_dc_post_filter) {
     for (int y = height - 1; y > 0; y--) {
       output_buffer -= output_stride;
       output_buffer[0] =
@@ -451,7 +452,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
   int angle_offset = is_horizontal ?
     Convert(IntraAngle::kHorizontal) - dir_mode :
     dir_mode - Convert(IntraAngle::kVertical);
-  int angle = !Restrictions::Get().disable_ext2_intra_67_modes ?
+  int angle = !restrictions_.disable_ext2_intra_67_modes ?
     kAngleTableExt[16 + angle_offset] : kAngleTable[8 + angle_offset];
 
   if (!angle) {
@@ -461,7 +462,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
         output_buffer[y * output_stride + x] = ref_ptr[1 + x];
       }
     }
-    if (filter && !Restrictions::Get().disable_intra_ver_hor_post_filter) {
+    if (filter && !restrictions_.disable_intra_ver_hor_post_filter) {
       const Sample above_left = ref_ptr[0];
       const Sample above = ref_ptr[1];
       const Sample max_val = (1 << bitdepth_) - 1;
@@ -473,7 +474,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
   } else {
     Sample ref_line_buffer[kRefSampleStride_];
     const Sample *ref_line = ref_ptr + 1;
-    auto *inv_angle_ptr = !Restrictions::Get().disable_ext2_intra_67_modes ?
+    auto *inv_angle_ptr = !restrictions_.disable_ext2_intra_67_modes ?
       &kInvAngleTableExt[0] : &kInvAngleTable[0];
 
     // Project the side direction to the prediction line
@@ -514,8 +515,8 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
       }
     }
     if (filter && std::abs(angle) <= 1 &&
-        !Restrictions::Get().disable_ext2_intra_67_modes &&
-        !Restrictions::Get().disable_intra_ver_hor_post_filter) {
+        !restrictions_.disable_ext2_intra_67_modes &&
+        !restrictions_.disable_intra_ver_hor_post_filter) {
       const Sample max_val = (1 << bitdepth_) - 1;
       for (int y = 0; y < height; y++) {
         int16_t val = output_buffer[y * output_stride] +
@@ -559,7 +560,7 @@ IntraPrediction::AngularPred(int width, int height, IntraMode dir_mode,
 void IntraPrediction::PredLmChroma(const CodingUnit &cu, YuvComponent comp,
                                    const YuvPicture &rec_pic,
                                    SampleBuffer *output_buffer) {
-  assert(!Restrictions::Get().disable_ext2_intra_chroma_from_luma);
+  assert(!restrictions_.disable_ext2_intra_chroma_from_luma);
   assert(!util::IsLuma(comp));
   const YuvComponent luma = YuvComponent::kY;
   const int width = cu.GetWidth(comp);
@@ -791,7 +792,7 @@ void IntraPrediction::ComputeRefSamples(int width, int height,
       }
     }
   }
-  if (!Restrictions::Get().disable_intra_ref_padding) {
+  if (!restrictions_.disable_intra_ref_padding) {
     // 3a. Pad missing bottom left
     if (!neighbors.has_below_left) {
       Sample ref;

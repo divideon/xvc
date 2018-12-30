@@ -322,15 +322,20 @@ inline static void Init(int qp, int slice_type,
   }
 }
 
+template<typename ContextModel>
+CabacContexts<ContextModel>::CabacContexts()
+  : restrictions_(&Restrictions::Get()) {
+}
+
 template<typename Ctx>
 void
 CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   int q = qp.GetQpRaw(YuvComponent::kY);
-  if (Restrictions::Get().disable_cabac_init_per_qp) {
+  if (restrictions_->disable_cabac_init_per_qp) {
     q = 32;
   }
   int s = static_cast<int>(pic_type);
-  if (Restrictions::Get().disable_cabac_init_per_pic_type) {
+  if (restrictions_->disable_cabac_init_per_pic_type) {
     s = static_cast<int>(PicturePredictionType::kBi);
   }
   Init(q, s, &cu_cbf_luma, &cu_cbf_chroma, kInitCuCbf);
@@ -352,7 +357,7 @@ CabacContexts<Ctx>::ResetStates(const Qp &qp, PicturePredictionType pic_type) {
   Init(q, s, &affine_flag, kInitAffineFlag);
   Init(q, s, &lic_flag, kInitLicFlag);
   Init(q, s, &delta_qp, kInitDqp);
-  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
+  if (!restrictions_->disable_ext2_cabac_alt_residual_ctx) {
     Init(q, s, &coeff_ext.csbf_luma, &coeff_ext.csbf_chroma,
          kInitExtSubblockCsbf);
     Init(q, s, &coeff_ext.sig_luma, &coeff_ext.sig_chroma, kInitExtCoeffSig);
@@ -389,7 +394,7 @@ Ctx& CabacContexts<Ctx>::GetAffineCtx(const CodingUnit &cu) {
 template<typename Ctx>
 Ctx& CabacContexts<Ctx>::GetSkipFlagCtx(const CodingUnit &cu) {
   int offset = 0;
-  if (!Restrictions::Get().disable_cabac_skip_flag_ctx) {
+  if (!restrictions_->disable_cabac_skip_flag_ctx) {
     const CodingUnit *tmp;
     if ((tmp = cu.GetCodingUnitLeft()) != nullptr && tmp->GetSkipFlag()) {
       offset++;
@@ -424,7 +429,7 @@ Ctx& CabacContexts<Ctx>::GetSplitFlagCtx(const CodingUnit &cu,
   int offset = 0;
   const CodingUnit *left = cu.GetCodingUnitLeft();
   const CodingUnit *above = cu.GetCodingUnitAbove();
-  if (!Restrictions::Get().disable_cabac_split_flag_ctx) {
+  if (!restrictions_->disable_cabac_split_flag_ctx) {
     if (left) {
       offset += left->GetDepth() > cu.GetDepth();
     }
@@ -432,7 +437,7 @@ Ctx& CabacContexts<Ctx>::GetSplitFlagCtx(const CodingUnit &cu,
       offset += above->GetDepth() > cu.GetDepth();
     }
   }
-  if (!Restrictions::Get().disable_ext_cabac_alt_split_flag_ctx) {
+  if (!restrictions_->disable_ext_cabac_alt_split_flag_ctx) {
     int min_depth = pic_max_depth;
     int max_depth = 0;
     auto update_min_max =
@@ -460,7 +465,7 @@ Ctx& CabacContexts<Ctx>::GetSplitFlagCtx(const CodingUnit &cu,
 
 template<typename Ctx>
 Ctx& CabacContexts<Ctx>::GetIntraPredictorCtx(IntraMode intra_mode) {
-  assert(!Restrictions::Get().disable_ext2_intra_6_predictors);
+  assert(!restrictions_->disable_ext2_intra_6_predictors);
   static const std::array<uint8_t, kNbrIntraModesExt> kModeToCtxMapExt = {
     1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -470,7 +475,7 @@ Ctx& CabacContexts<Ctx>::GetIntraPredictorCtx(IntraMode intra_mode) {
     1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
   };
-  if (Restrictions::Get().disable_ext2_intra_67_modes) {
+  if (restrictions_->disable_ext2_intra_67_modes) {
     return intra_pred_luma[kModeToCtxMap[intra_mode]];
   }
   return intra_pred_luma[kModeToCtxMapExt[intra_mode]];
@@ -478,11 +483,11 @@ Ctx& CabacContexts<Ctx>::GetIntraPredictorCtx(IntraMode intra_mode) {
 
 template<typename Ctx>
 Ctx& CabacContexts<Ctx>::GetInterDirBiCtx(const CodingUnit &cu) {
-  if (Restrictions::Get().disable_cabac_inter_dir_ctx) {
+  if (restrictions_->disable_cabac_inter_dir_ctx) {
     return inter_dir[0];
   }
   int idx = std::min(cu.GetDepth(), static_cast<int>(inter_dir.size()) - 1);
-  if (!Restrictions::Get().disable_ext_cabac_alt_inter_dir_ctx) {
+  if (!restrictions_->disable_ext_cabac_alt_inter_dir_ctx) {
     static const int kMaxSize128Log2 = 7;
     int log2_size = (util::SizeToLog2(cu.GetWidth(YuvComponent::kY)) +
                      util::SizeToLog2(cu.GetHeight(YuvComponent::kY)) + 1) >> 1;
@@ -513,7 +518,7 @@ CabacContexts<Ctx>::GetSubblockCsbfCtx(YuvComponent comp,
   int below = false;
   int right = false;
   Ctx *ctx_base;
-  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
+  if (!restrictions_->disable_ext2_cabac_alt_residual_ctx) {
     ctx_base = util::IsLuma(comp) ?
       &coeff_ext.csbf_luma[0] : &coeff_ext.csbf_chroma[0];
   } else {
@@ -526,7 +531,7 @@ CabacContexts<Ctx>::GetSubblockCsbfCtx(YuvComponent comp,
     below = sublock_csbf[(posy + 1) * width + posx] != 0;
   }
   *pattern_sig_ctx = right + (below << 1);
-  if (Restrictions::Get().disable_cabac_subblock_csbf_ctx) {
+  if (restrictions_->disable_cabac_subblock_csbf_ctx) {
     return ctx_base[0];
   }
   return ctx_base[right | below];
@@ -542,12 +547,12 @@ CabacContexts<Ctx>::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
   static const uint8_t kCtxIndexMap[16] = {
     0, 1, 4, 5, 2, 3, 4, 5, 6, 6, 8, 8, 7, 7, 8, 8
   };
-  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
+  if (!restrictions_->disable_ext2_cabac_alt_residual_ctx) {
     const int width = 1 << width_log2;
     const int height = 1 << height_log2;
     const int size = (width_log2 + height_log2) >> 1;
     const int posxy = posx + posy;
-    if (Restrictions::Get().disable_cabac_coeff_sig_ctx) {
+    if (restrictions_->disable_cabac_coeff_sig_ctx) {
       return coeff_ext.sig_luma[0];
     }
     in_coeff += posx + posy * in_coeff_stride;
@@ -577,7 +582,7 @@ CabacContexts<Ctx>::GetCoeffSigCtx(YuvComponent comp, int pattern_sig_ctx,
   } else {
     Ctx *ctx_base = util::IsLuma(comp) ?
       &coeff.sig_luma[0] : &coeff.sig_chroma[0];
-    if ((!posx && !posy) || Restrictions::Get().disable_cabac_coeff_sig_ctx) {
+    if ((!posx && !posy) || restrictions_->disable_cabac_coeff_sig_ctx) {
       return ctx_base[0];
     }
     if (width_log2 == 2 && height_log2 == 2) {
@@ -613,9 +618,9 @@ CabacContexts<Ctx>::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
                                         const Coeff *in_coeff,
                                         ptrdiff_t in_coeff_stride,
                                         int width, int height) {
-  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
+  if (!restrictions_->disable_ext2_cabac_alt_residual_ctx) {
     const int posxy = posx + posy;
-    if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
+    if (is_last_coeff || restrictions_->disable_cabac_coeff_greater1_ctx) {
       return util::IsLuma(comp) ?
         coeff_ext.greater1_luma[0] : coeff_ext.greater1_chroma[0];
     }
@@ -642,7 +647,7 @@ CabacContexts<Ctx>::GetCoeffGreater1Ctx(YuvComponent comp, int ctx_set, int c1,
     return util::IsLuma(comp) ? coeff_ext.greater1_luma[start_offset + offset] :
       coeff_ext.greater1_chroma[start_offset + offset];
   } else {
-    if (Restrictions::Get().disable_cabac_coeff_greater1_ctx) {
+    if (restrictions_->disable_cabac_coeff_greater1_ctx) {
       return util::IsLuma(comp) ?
         coeff.greater1_luma[0] : coeff.greater1_chroma[0];
     }
@@ -659,9 +664,9 @@ CabacContexts<Ctx>::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
                                         const Coeff *in_coeff,
                                         ptrdiff_t in_coeff_stride,
                                         int width, int height) {
-  if (!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx) {
+  if (!restrictions_->disable_ext2_cabac_alt_residual_ctx) {
     const int posxy = posx + posy;
-    if (is_last_coeff || Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
+    if (is_last_coeff || restrictions_->disable_cabac_coeff_greater2_ctx) {
       return util::IsLuma(comp) ?
         coeff_ext.greater1_luma[0] : coeff_ext.greater1_chroma[0];
     }
@@ -689,7 +694,7 @@ CabacContexts<Ctx>::GetCoeffGreater2Ctx(YuvComponent comp, int ctx_set,
       coeff_ext.greater1_chroma[start_offset + offset];
   } else {
     static_assert(1 == constants::kMaxNumC2Flags, "Assumes only 1 c2 flag");
-    if (Restrictions::Get().disable_cabac_coeff_greater2_ctx) {
+    if (restrictions_->disable_cabac_coeff_greater2_ctx) {
       return util::IsLuma(comp) ?
         coeff_ext.greater1_luma[0] : coeff_ext.greater1_chroma[0];
     }
@@ -704,7 +709,7 @@ CabacContexts<Ctx>::GetCoeffGolombRiceK(int posx, int posy,
                                         int width, int height,
                                         const Coeff *in_coeff,
                                         ptrdiff_t in_coeff_stride) {
-  assert(!Restrictions::Get().disable_ext2_cabac_alt_residual_ctx);
+  assert(!restrictions_->disable_ext2_cabac_alt_residual_ctx);
   in_coeff += posx + posy * in_coeff_stride;
   int offset = 0;
   int num = 0;
@@ -746,12 +751,12 @@ CabacContexts<Ctx>::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
   const int size = is_pos_x ? width : height;
   if (util::IsLuma(comp)) {
     auto &ctx_base = is_pos_x ? coeff_last_pos_x_luma : coeff_last_pos_y_luma;
-    if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx &&
-        Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
+    if (restrictions_->disable_cabac_coeff_last_pos_ctx &&
+        restrictions_->disable_ext_cabac_alt_last_pos_ctx) {
       return ctx_base[0];
     }
     int offset, shift;
-    if (!Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
+    if (!restrictions_->disable_ext_cabac_alt_last_pos_ctx) {
       static const std::array<uint8_t, 8> kOffsetMappingExt = {
         0, 0, 0, 3, 6, 10, 15, 21   // 1, 2, 4, 8, 16, 32, 64, 128
       };
@@ -767,13 +772,13 @@ CabacContexts<Ctx>::GetCoeffLastPosCtx(YuvComponent comp, int width, int height,
   } else {
     auto &ctx_base =
       is_pos_x ? coeff_last_pos_x_chroma : coeff_last_pos_y_chroma;
-    if (Restrictions::Get().disable_cabac_coeff_last_pos_ctx &&
-        Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
+    if (restrictions_->disable_cabac_coeff_last_pos_ctx &&
+        restrictions_->disable_ext_cabac_alt_last_pos_ctx) {
       return ctx_base[0];
     }
     int offset = 0;
     int shift;
-    if (!Restrictions::Get().disable_ext_cabac_alt_last_pos_ctx) {
+    if (!restrictions_->disable_ext_cabac_alt_last_pos_ctx) {
       shift = util::Clip3(size >> 3, 0, 2);
     } else {
       shift = util::SizeLog2Bits(size);

@@ -40,7 +40,7 @@ enum class ScanOrder : int {
 
 class InverseTransform : public TransformData {
 public:
-  explicit InverseTransform(int bitdepth) : bitdepth_(bitdepth) {}
+  explicit InverseTransform(int bitdepth);
   void Transform(const CodingUnit &cu, YuvComponent comp,
                  const CoeffBuffer &in_buffer, ResidualBuffer *out_buffer);
   void TransformSkip(int width, int height,
@@ -99,13 +99,14 @@ private:
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
 
+  const Restrictions &restrictions_;
   int bitdepth_;
   std::array<Coeff, kBufferStride_ * kBufferStride_> coeff_temp_;
 };
 
 class ForwardTransform : public TransformData {
 public:
-  explicit ForwardTransform(int bitdepth) : bitdepth_(bitdepth) {}
+  explicit ForwardTransform(int bitdepth);
   void Transform(const CodingUnit &cu, YuvComponent comp,
                  const ResidualBuffer &in_buffer, CoeffBuffer *out_buffer);
   void TransformSkip(int width, int height,
@@ -161,6 +162,7 @@ private:
                             const Coeff *in, ptrdiff_t in_stride,
                             Coeff *out, ptrdiff_t out_stride);
 
+  const Restrictions &restrictions_;
   int bitdepth_;
   std::array<Coeff, kBufferStride_ * kBufferStride_> coeff_temp_;
 };

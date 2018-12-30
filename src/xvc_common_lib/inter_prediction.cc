@@ -133,10 +133,18 @@ static const std::array<std::array<uint8_t, 2>, 12> kMergeCandL0L1Idx = { {
   { 0, 3 }, { 3, 0 }, { 1, 3 }, { 3, 1 }, { 2, 3 }, { 3, 2 },
 } };
 
+InterPrediction::InterPrediction(const SimdFunc &simd,
+                                 const YuvPicture &rec_pic, int bitdepth)
+  : simd_(simd),
+  restrictions_(Restrictions::Get()),
+  rec_pic_(rec_pic),
+  bitdepth_(bitdepth) {
+}
+
 InterPredictorList
 InterPrediction::GetMvpList(const CodingUnit &cu, RefPicList ref_list,
                             int ref_idx) {
-  if (Restrictions::Get().disable_inter_mvp) {
+  if (restrictions_.disable_inter_mvp) {
     MotionVector mvp(0, 0);
     MvCorner corner;
     const CodingUnit *tmp;
@@ -217,7 +225,7 @@ InterPrediction::GetMvpList(const CodingUnit &cu, RefPicList ref_list,
   }
 
   if (constants::kTemporalMvPrediction && cu.GetPicData()->GetTmvpValid() &&
-      !Restrictions::Get().disable_inter_tmvp_mvp && i < 2) {
+      !restrictions_.disable_inter_tmvp_mvp && i < 2) {
     if (GetTemporalMvPredictor(cu, ref_list, ref_idx, &list[i], nullptr)) {
       if (cu.GetFullpelMv()) {
         list[i].RoundToFullpel();
@@ -251,7 +259,7 @@ InterPrediction::GetMvpListAffine(const CodingUnit &cu, RefPicList ref_list,
   std::array<MotionVector, 2> list1;
   std::array<MotionVector, 2> list2;
   AffinePredictorList list;
-  if (Restrictions::Get().disable_ext2_inter_affine_mvp) {
+  if (restrictions_.disable_ext2_inter_affine_mvp) {
     MotionVector3 mvp = {};
     const CodingUnit *tmp;
     if ((tmp = cu.GetCodingUnitLeft()) != nullptr &&
@@ -474,7 +482,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
   }
 
   if (constants::kTemporalMvPrediction && num < static_cast<int>(list.size()) &&
-      !Restrictions::Get().disable_inter_tmvp_merge &&
+      !restrictions_.disable_inter_tmvp_merge &&
       cu.GetPicData()->GetTmvpValid()) {
     bool use_lic = false;
     bool found_any = GetTemporalMvPredictor(cu, RefPicList::kL0, 0,
@@ -495,7 +503,7 @@ InterPrediction::GetMergeCandidates(const CodingUnit &cu, int merge_cand_idx) {
     }
   }
 
-  if (pic_bipred && !Restrictions::Get().disable_inter_merge_bipred) {
+  if (pic_bipred && !restrictions_.disable_inter_merge_bipred) {
     const ReferencePictureLists *ref_pic_lists = cu.GetRefPicLists();
     int max_num_bi_cand = num * (num - 1);
     for (int i = 0; i < max_num_bi_cand &&
@@ -820,7 +828,7 @@ void InterPrediction::ScaleMv(PicNum poc_current1, PicNum poc_ref1,
     util::Clip3(static_cast<int>(poc_current2 - poc_ref2), -128, 127);
   int iX = (16384 + abs(diff2 / 2)) / diff2;
   int scale_factor = util::Clip3((diff1 * iX + 32) >> 6, -4096, 4095);
-  if (Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (restrictions_.disable_ext2_inter_high_precision_mv) {
     mv->x >>= MotionVector::kHighToNormalShiftDelta;
     mv->y >>= MotionVector::kHighToNormalShiftDelta;
   }
@@ -828,7 +836,7 @@ void InterPrediction::ScaleMv(PicNum poc_current1, PicNum poc_ref1,
     (scale_factor * mv->x < 0)) >> 8, -32768, 32767);
   mv->y = util::Clip3((scale_factor * mv->y + 127 +
     (scale_factor * mv->y < 0)) >> 8, -32768, 32767);
-  if (Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (restrictions_.disable_ext2_inter_high_precision_mv) {
     mv->x = mv->x * (1 << MotionVector::kHighToNormalShiftDelta);
     mv->y = mv->y * (1 << MotionVector::kHighToNormalShiftDelta);
   }
@@ -890,7 +898,7 @@ InterPrediction::GetScaledMvpCand(const CodingUnit *cu_this, NeighborDir dir,
       continue;
     }
     if ((i == 0 && cu_ref_idx == ref_idx) ||
-        Restrictions::Get().disable_inter_scaling_mvp) {
+        restrictions_.disable_inter_scaling_mvp) {
       const MotionVector &mv = cu->GetMv(ref_list, mv_corner);
       bool unique = true;
       for (int j = 0; j < index; j++) {
@@ -936,10 +944,10 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   RefPicList tmvp_mv_ref_list = ref_pic_list->HasOnlyBackReferences() ?
     ref_list : ReferencePictureLists::Inverse(tmvp_cu_ref_list);
 
-  auto get_temporal_mv = [&cu_poc, &cu_ref_poc](const CodingUnit *col_cu,
-                                                RefPicList col_ref_list,
-                                                int x, int y,
-                                                MotionVector *col_mv) {
+  auto get_temporal_mv = [this, &cu_poc, &cu_ref_poc](const CodingUnit *col_cu,
+                                                      RefPicList col_ref_list,
+                                                      int x, int y,
+                                                      MotionVector *col_mv) {
     if (!col_cu->IsInter()) {
       return false;
     }
@@ -962,7 +970,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   if ((cu.GetPosY(comp) / constants::kMaxBlockSize) ==
     (col_y / constants::kMaxBlockSize)) {
     bool valid = true;
-    if (Restrictions::Get().disable_ext_tmvp_full_resolution) {
+    if (restrictions_.disable_ext_tmvp_full_resolution) {
       valid = col_x < cu.GetPicData()->GetPictureWidth(comp) &&
         col_y < cu.GetPicData()->GetPictureHeight(comp);
       col_x = ((col_x >> 4) << 4);
@@ -984,7 +992,7 @@ InterPrediction::GetTemporalMvPredictor(const CodingUnit &cu,
   // Center CU
   col_x = cu.GetPosX(comp) + cu.GetWidth(comp) / 2;
   col_y = cu.GetPosY(comp) + cu.GetHeight(comp) / 2;
-  if (Restrictions::Get().disable_ext_tmvp_full_resolution) {
+  if (restrictions_.disable_ext_tmvp_full_resolution) {
     col_x = ((col_x >> 4) << 4);
     col_y = ((col_y >> 4) << 4);
   }
@@ -1173,7 +1181,7 @@ InterPrediction::GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
   if (util::IsLuma(comp)) {
     *frac_x = mv_x & ((1 << shift_x) - 1);
     *frac_y = mv_y & ((1 << shift_y) - 1);
-  } else  if (Restrictions::Get().disable_inter_chroma_subpel) {
+  } else  if (restrictions_.disable_inter_chroma_subpel) {
     pel_x = (mv_x + (1 << (shift_x - 1))) >> shift_x;
     pel_y = (mv_y + (1 << (shift_y - 1))) >> shift_y;
     *frac_x = 0;
@@ -1184,7 +1192,7 @@ InterPrediction::GetFullpelRef(const CodingUnit &cu, YuvComponent comp,
     *frac_y =
       (mv_y & ((1 << (shift_y)) - 1)) << (1 - ref_pic.GetSizeShiftY(comp));
   }
-  if (Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (restrictions_.disable_ext2_inter_high_precision_mv) {
     *frac_x >>= MotionVector::kHighToNormalShiftDelta;
     *frac_y >>= MotionVector::kHighToNormalShiftDelta;
   }
@@ -1381,7 +1389,7 @@ void InterPrediction::FilterLuma(int width, int height, int frac_x, int frac_y,
   const int N = kNumTapsLuma;
   const int16_t *filter_hor;
   const int16_t *filter_ver;
-  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (!restrictions_.disable_ext2_inter_high_precision_mv) {
     filter_hor = &kLumaFilterHighPrec[frac_x][0];
     filter_ver = &kLumaFilterHighPrec[frac_y][0];
   } else {
@@ -1413,7 +1421,7 @@ void InterPrediction::FilterChroma(int width, int height,
   const int N = kNumTapsChroma;
   const int16_t *filter_hor;
   const int16_t *filter_ver;
-  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (!restrictions_.disable_ext2_inter_high_precision_mv) {
     filter_hor = &kChromaFilterHighPrec[frac_x][0];
     filter_ver = &kChromaFilterHighPrec[frac_y][0];
   } else {
@@ -1470,7 +1478,7 @@ InterPrediction::FilterLumaBipred(int width, int height, int frac_x, int frac_y,
   const int N = kNumTapsLuma;
   const int16_t *filter_hor;
   const int16_t *filter_ver;
-  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (!restrictions_.disable_ext2_inter_high_precision_mv) {
     filter_hor = &kLumaFilterHighPrec[frac_x][0];
     filter_ver = &kLumaFilterHighPrec[frac_y][0];
   } else {
@@ -1503,7 +1511,7 @@ InterPrediction::FilterChromaBipred(int width, int height,
   const int N = kNumTapsChroma;
   const int16_t *filter_hor;
   const int16_t *filter_ver;
-  if (!Restrictions::Get().disable_ext2_inter_high_precision_mv) {
+  if (!restrictions_.disable_ext2_inter_high_precision_mv) {
     filter_hor = &kChromaFilterHighPrec[frac_x][0];
     filter_ver = &kChromaFilterHighPrec[frac_y][0];
   } else {
@@ -1548,7 +1556,7 @@ InterPrediction::LocalIlluminationComp(const CodingUnit &cu, YuvComponent comp,
                                        int mv_x, int mv_y,
                                        const YuvPicture &ref_pic,
                                        SampleBuffer *pred_buffer) {
-  assert(!Restrictions::Get().disable_ext2_inter_local_illumination_comp);
+  assert(!restrictions_.disable_ext2_inter_local_illumination_comp);
   const int shift_x =
     MotionVector::kPrecisionShift + ref_pic.GetSizeShiftX(comp);
   const int shift_y =

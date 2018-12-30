@@ -63,12 +63,8 @@ public:
   static const int kMergeLevelShift = 2;
   struct SimdFunc;
 
-  InterPrediction(const SimdFunc &simd, const YuvPicture &rec_pic, int bitdepth)
-    : simd_(simd),
-    rec_pic_(rec_pic),
-    bitdepth_(bitdepth) {
-  }
-
+  InterPrediction(const SimdFunc &simd, const YuvPicture &rec_pic,
+                  int bitdepth);
   InterPredictorList GetMvpList(const CodingUnit &cu, RefPicList ref_list,
                                 int ref_idx);
   AffinePredictorList GetMvpListAffine(const CodingUnit &cu,
@@ -108,8 +104,8 @@ public:
 private:
   static const int kBufSize = constants::kMaxBlockSize *
     (constants::kMaxBlockSize + kNumTapsLuma - 1);
-  static void ScaleMv(PicNum poc_current1, PicNum poc_ref1, PicNum poc_current2,
-                      PicNum poc_ref2, MotionVector *out);
+  void ScaleMv(PicNum poc_current1, PicNum poc_ref1, PicNum poc_current2,
+               PicNum poc_ref2, MotionVector *out);
   struct LicParams;
 
   bool GetMvpCand(const CodingUnit *cu, NeighborDir dir,
@@ -170,6 +166,7 @@ private:
   MergeCandidate GetMergeCandidateFromCu(const CodingUnit &cu, MvCorner corner);
 
   const InterPrediction::SimdFunc &simd_;
+  const Restrictions &restrictions_;
   const YuvPicture &rec_pic_;    // current picture, used for template matching
   std::array<int16_t, kBufSize> filter_buffer_;
   std::array<std::array<int16_t, constants::kMaxBlockSamples>, 2> bipred_temp_;

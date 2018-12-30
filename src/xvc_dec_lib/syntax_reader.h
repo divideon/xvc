@@ -125,6 +125,7 @@ private:
 
   CabacContexts<ContextModel> ctx_;
   EntropyDecoder<ContextModel> decoder_;
+  const Restrictions &restrictions_;
 };
 
 }   // namespace xvc

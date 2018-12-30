@@ -44,11 +44,20 @@ static const std::array<uint8_t, constants::kMaxAllowedQp + 1> kBetaTable = {
   86, 88,
 };
 
+DeblockingFilter::DeblockingFilter(PictureData *pic_data, YuvPicture *rec_pic,
+                 int beta_offset, int tc_offset)
+  : restrictions_(Restrictions::Get()),
+  pic_data_(pic_data),
+  rec_pic_(rec_pic),
+  beta_offset_(beta_offset),
+  tc_offset_(tc_offset) {
+}
+
 void DeblockingFilter::DeblockPicture() {
   bool has_secondary_tree = pic_data_->HasSecondaryCuTree();
   int num_ctus = pic_data_->GetNumberOfCtu();
   int subblock_size = kSubblockSizeExt;
-  if (Restrictions::Get().disable_ext_deblock_subblock_size_4) {
+  if (restrictions_.disable_ext_deblock_subblock_size_4) {
     subblock_size = kSubblockSize;
   }
   for (int rsaddr = 0; rsaddr < num_ctus; rsaddr++) {
@@ -79,7 +88,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
   const bool deblock_luma = cu_tree == CuTree::Primary;
   const bool deblock_chroma = pic_data_->GetMaxNumComponents() > 1 &&
     (!pic_data_->HasSecondaryCuTree() || cu_tree == CuTree::Secondary) &&
-    !Restrictions::Get().disable_deblock_chroma_filter;
+    !restrictions_.disable_deblock_chroma_filter;
 
   for (int dy = 0; dy < constants::kMaxBlockSize; dy += subblock_size) {
     for (int dx = 0; dx < constants::kMaxBlockSize; dx += subblock_size) {
@@ -111,7 +120,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
       }
 
       int qp = (cu_p->GetQp(luma) + cu_q->GetQp(luma) + 1) >> 1;
-      if (Restrictions::Get().disable_deblock_depending_on_qp) {
+      if (restrictions_.disable_deblock_depending_on_qp) {
         qp = 32;
       }
       // TODO(dev): Add check for if a PU (CU) is coded losslessly
@@ -121,7 +130,7 @@ void DeblockingFilter::DeblockCtu(int rsaddr, CuTree cu_tree, Direction dir,
 
       if (deblock_chroma && boundary_strength == 2) {
         int chroma_qp = (cu_p->GetQp(chroma) + cu_q->GetQp(chroma) + 1) >> 1;
-        if (Restrictions::Get().disable_deblock_depending_on_qp) {
+        if (restrictions_.disable_deblock_depending_on_qp) {
           chroma_qp = 31;
         }
         int chroma_x = x >> chroma_shift_x;
@@ -147,7 +156,7 @@ int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
                                           int pos_x, int pos_y, Direction dir) {
   static const int one_integer_step = MotionVector::kScale;
   int boundary_strength = 0;
-  if (Restrictions::Get().disable_deblock_boundary_strength_zero) {
+  if (restrictions_.disable_deblock_boundary_strength_zero) {
     boundary_strength = 1;
   }
   YuvComponent luma = YuvComponent::kY;
@@ -225,7 +234,7 @@ int DeblockingFilter::GetBoundaryStrength(const CodingUnit &cu_p,
     }
   }
   if (boundary_strength == 1 &&
-      Restrictions::Get().disable_deblock_boundary_strength_one) {
+      restrictions_.disable_deblock_boundary_strength_one) {
     boundary_strength = 2;
   }
   return boundary_strength;
@@ -271,7 +280,7 @@ void DeblockingFilter::FilterEdgeLuma(int x, int y, Direction dir,
     int d = d0 + d3;
 
     if (d >= beta &&
-        !Restrictions::Get().disable_deblock_initial_sample_decision) {
+        !restrictions_.disable_deblock_initial_sample_decision) {
       continue;
     }
 
@@ -285,10 +294,10 @@ void DeblockingFilter::FilterEdgeLuma(int x, int y, Direction dir,
     strong_filter &=
       CheckStrongFilter(src + block_offset + step_size * 3, beta, tc, offset);
 
-    if (strong_filter && !Restrictions::Get().disable_deblock_strong_filter) {
+    if (strong_filter && !restrictions_.disable_deblock_strong_filter) {
       FilterLumaStrong(src + block_offset, step_size, offset, 2 * tc);
     } else {
-      if (Restrictions::Get().disable_deblock_weak_filter) {
+      if (restrictions_.disable_deblock_weak_filter) {
         continue;
       }
       int side_threshold = (beta + (beta >> 1)) >> 3;
@@ -329,7 +338,7 @@ void DeblockingFilter::FilterLumaWeak(Sample* src_ptr, ptrdiff_t step_size,
     int32_t delta = (9 * (q0 - p0) - 3 * (q1 - p1) + 8) >> 4;
 
     if (std::abs(delta) >= threshold &&
-        !Restrictions::Get().disable_deblock_weak_sample_decision) {
+        !restrictions_.disable_deblock_weak_sample_decision) {
       src += step_size;
       continue;
     }
@@ -338,7 +347,7 @@ void DeblockingFilter::FilterLumaWeak(Sample* src_ptr, ptrdiff_t step_size,
     src[-offset] = util::ClipBD(p0 + delta, sample_max);
     src[0] = util::ClipBD(q0 - delta, sample_max);
 
-    if (!Restrictions::Get().disable_deblock_two_samples_weak_filter) {
+    if (!restrictions_.disable_deblock_two_samples_weak_filter) {
       if (filter_p1) {
         Sample p2 = src[-offset * 3];
         int32_t delta_p1 = util::Clip3(

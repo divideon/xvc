@@ -75,6 +75,11 @@ std::array<std::array<uint8_t, 16>, 3> TransformHelper::kScanCoeff4x4 = { {
   { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 },
 } };
 
+InverseTransform::InverseTransform(int bitdepth)
+  : restrictions_(Restrictions::Get()),
+  bitdepth_(bitdepth) {
+}
+
 void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                                  const CoeffBuffer &in_buffer,
                                  ResidualBuffer *out_buffer) {
@@ -84,7 +89,7 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
     cu.GetTransformType(comp, 1) == TransformType::kDefault &&
     cu.GetTransformType(comp, 0) == TransformType::kDefault;
   const bool default_high_precision =
-    !Restrictions::Get().disable_ext2_transform_high_precision;
+    !restrictions_.disable_ext2_transform_high_precision;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool high_prec1 = default_high_precision || height >= 64 || height == 2;
   const bool high_prec2 = default_high_precision || width >= 64 || width == 2;
@@ -100,7 +105,7 @@ void InverseTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   const ptrdiff_t temp_stride = kBufferStride_;
 
   if (can_dst_4x4 && width == 4 && height == 4 &&
-      !Restrictions::Get().disable_ext2_transform_dst) {
+      !restrictions_.disable_ext2_transform_dst) {
     InvPartialDst4(shift1, high_prec1, coeff, coeff_stride,
                    temp_ptr, temp_stride);
     InvPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,
@@ -856,6 +861,11 @@ InverseTransform::InvGenericTransformN(int shift, int lines, bool zero_out,
   }
 }
 
+ForwardTransform::ForwardTransform(int bitdepth)
+  : restrictions_(Restrictions::Get()),
+  bitdepth_(bitdepth) {
+}
+
 void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
                                  const ResidualBuffer &in_buffer,
                                  CoeffBuffer *out_buffer) {
@@ -866,7 +876,7 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
     cu.GetTransformType(comp, 0) == TransformType::kDefault;
   // TODO(PH) Should remove legacy behavior and only look at restriction flag
   const bool default_high_precision =
-    !Restrictions::Get().disable_ext2_transform_high_precision;
+    !restrictions_.disable_ext2_transform_high_precision;
   const bool high_prec1 = default_high_precision || width >= 64 || width == 2;
   const bool high_prec2 = default_high_precision || height >= 64 || height == 2;
   const int shift1 = util::SizeToLog2(width) + bitdepth_ - 9 +
@@ -881,7 +891,7 @@ void ForwardTransform::Transform(const CodingUnit &cu, YuvComponent comp,
   const ptrdiff_t temp_stride = kBufferStride_;
 
   if (can_dst_4x4 && width == 4 && height == 4 &&
-      !Restrictions::Get().disable_ext2_transform_dst) {
+      !restrictions_.disable_ext2_transform_dst) {
     FwdPartialDst4(shift1, high_prec1, resi_ptr, resi_stride,
                    temp_ptr, temp_stride);
     FwdPartialDst4(shift2, high_prec2, temp_ptr, temp_stride,

@@ -86,6 +86,7 @@ private:
                      const SampleBufferConst &src_buffer,
                      int out_width, int out_height, SampleBuffer *out_buffer);
 
+  const Restrictions restrictions_;
   int bitdepth_;
   SampleBufferStorage temp_pred_buffer_;
 };

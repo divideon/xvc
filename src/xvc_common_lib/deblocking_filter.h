@@ -36,12 +36,7 @@ enum class Direction {
 class DeblockingFilter {
 public:
   DeblockingFilter(PictureData *pic_data, YuvPicture *rec_pic,
-                   int beta_offset, int tc_offset) :
-    pic_data_(pic_data),
-    rec_pic_(rec_pic),
-    beta_offset_(beta_offset),
-    tc_offset_(tc_offset) {
-  }
+                   int beta_offset, int tc_offset);
   void DeblockPicture();
 
 private:
@@ -70,6 +65,7 @@ private:
   void FilterChroma(Sample *src_ptr, ptrdiff_t step_size,
                     ptrdiff_t offset, int tc2);
 
+  const Restrictions &restrictions_;
   PictureData *pic_data_;
   YuvPicture *rec_pic_;
   int beta_offset_ = 0;
