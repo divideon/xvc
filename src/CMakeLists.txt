@@ -52,7 +52,9 @@ set(XVC_COMMON_LIB_SOURCES
 
 set(XVC_COMMON_LIB_SIMD_SOURCES
     "xvc_common_lib/simd/inter_prediction_simd.cc"
-    "xvc_common_lib/simd/inter_prediction_simd.h")
+    "xvc_common_lib/simd/inter_prediction_simd.h"
+    "xvc_common_lib/simd/resampler_simd.cc"
+    "xvc_common_lib/simd/resampler_simd.h")
 
 set(XVC_DEC_LIB_SOURCES
     "xvc_dec_lib/bit_reader.cc"

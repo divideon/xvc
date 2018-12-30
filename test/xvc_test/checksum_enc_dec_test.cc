@@ -96,7 +96,7 @@ protected:
     pic_encoder_->GetPicData()->SetPoc(0);
     pic_encoder_->GetPicData()->SetDoc(0);
     pic_encoder_->GetPicData()->SetTid(0);
-    xvc::Resampler resampler;
+    xvc::Resampler resampler(simd_->resampler);
     xvc::PictureFormat input_format(kPicWidth, kPicHeight, input_bitdepth_,
                                     segment_.chroma_format,
                                     segment_.color_matrix, false);

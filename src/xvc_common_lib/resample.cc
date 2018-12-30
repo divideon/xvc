@@ -304,98 +304,38 @@ void Resampler::CopyFromBytesWithResampling(const uint8_t *pic8,
 
 uint8_t*
 Resampler::CopyToBytesWithShift(YuvComponent comp, const YuvPicture &src_pic,
-                                int out_bitdepth, int dither,
+                                int out_bitdepth, bool dither,
                                 uint8_t *out8) const {
   const int src_bitdepth = src_pic.GetBitdepth();
-  const int out_width = src_pic.GetDisplayWidth(comp);
-  const int out_height = src_pic.GetDisplayHeight(comp);
+  const int width = src_pic.GetDisplayWidth(comp);
+  const int height = src_pic.GetDisplayHeight(comp);
   const Sample *src = src_pic.GetSamplePtr(comp, 0, 0);
   const ptrdiff_t src_stride = src_pic.GetStride(comp);
+  const int downshift = src_bitdepth - out_bitdepth;
 
   if (out_bitdepth > 8) {
     uint16_t *out16 = reinterpret_cast<uint16_t*>(out8);
     if (out_bitdepth == src_bitdepth) {
-      for (int y = 0; y < out_height; y++) {
-        memcpy(out16, src, out_width * sizeof(Sample));
-        out16 += out_width;
-        src += src_stride;
-      }
+      simd_.copy_sample_short(width, height, src, src_stride, out16, width);
     } else if (out_bitdepth > src_bitdepth) {
-      int bit_shift = out_bitdepth - src_bitdepth;
-      for (int y = 0; y < out_height; y++) {
-        for (int x = 0; x < out_width; x++) {
-          *out16++ = src[x] << bit_shift;
-        }
-        src += src_stride;
-      }
+      int upshift = out_bitdepth - src_bitdepth;
+      simd_.upshift_sample_short(width, height, upshift, src, src_stride,
+                                 out16, width);
     } else {
-      int bit_shift = src_bitdepth - out_bitdepth;
-      Sample sample_max = (1 << out_bitdepth) - 1;
-      if (dither) {
-        int d = 0;
-        int mask = (1 << bit_shift) - 1;
-        for (int y = 0; y < out_height; y++) {
-          for (int x = 0; x < out_width; x++) {
-            d += src[x];
-            *out16++ = static_cast<uint16_t>(util::ClipBD(d >> bit_shift,
-                                                          sample_max));
-            d &= mask;
-          }
-          src += src_stride;
-        }
-      } else {
-        for (int y = 0; y < out_height; y++) {
-          for (int x = 0; x < out_width; x++) {
-            *out16++ = static_cast<uint16_t>(util::ClipBD(
-              (src[x] + (1 << (bit_shift - 1))) >> bit_shift,
-              sample_max));
-          }
-          src += src_stride;
-        }
-      }
+      simd_.downshift_sample_short[dither](width, height, downshift,
+                                           out_bitdepth, src, src_stride,
+                                           out16, width);
     }
-    return reinterpret_cast<uint8_t*>(out16);
-  } else {
-    if (src_bitdepth <= 8) {
-      if (sizeof(Sample) == 1) {
-        for (int y = 0; y < out_height; y++) {
-          memcpy(out8, src, out_width * sizeof(Sample));
-          out8 += out_width;
-          src += src_stride;
-        }
-      } else {
-        for (int y = 0; y < out_height; y++) {
-          for (int x = 0; x < out_width; x++) {
-            *out8++ = static_cast<uint8_t>(src[x]);
-          }
-          src += src_stride;
-        }
-      }
-    } else {
-      int bit_shift = src_bitdepth - out_bitdepth;
-      if (dither) {
-        int d = 0;
-        int mask = (1 << bit_shift) - 1;
-        for (int y = 0; y < out_height; y++) {
-          for (int x = 0; x < out_width; x++) {
-            d += src[x];
-            *out8++ = static_cast<uint8_t>(util::Clip3(d >> bit_shift, 0, 255));
-            d &= mask;
-          }
-          src += src_stride;
-        }
-      } else {
-        for (int y = 0; y < out_height; y++) {
-          for (int x = 0; x < out_width; x++) {
-            *out8++ = static_cast<uint8_t>(util::Clip3(
-              (src[x] + (1 << (bit_shift - 1))) >> bit_shift, 0, 255));
-          }
-          src += src_stride;
-        }
-      }
-    }
-    return out8;
+    return reinterpret_cast<uint8_t*>(out16 + width * height);
   }
+
+  if (src_bitdepth <= 8) {
+    simd_.copy_sample_byte(width, height, src, src_stride, out8, width);
+  } else {
+    simd_.downshift_sample_byte[dither](width, height, downshift, out_bitdepth,
+                                        src, src_stride, out8, width);
+  }
+  return out8 + width * height;
 }
 
 void Resampler::CopyToWithResize(const YuvPicture &src_pic,
@@ -532,6 +472,98 @@ void Resampler::ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
       dst += 4;
     }
   }
+}
+
+static void CopySampleToByte(int width, int height,
+                             const Sample *src, ptrdiff_t src_stride,
+                             uint8_t *out, ptrdiff_t out_stride) {
+  if (sizeof(Sample) == 1) {
+    for (int y = 0; y < height; y++) {
+      memcpy(out, src, width * sizeof(Sample));
+      src += src_stride;
+      out += out_stride;
+    }
+  } else {
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        out[x] = static_cast<uint8_t>(src[x]);
+      }
+      src += src_stride;
+      out += out_stride;
+    }
+  }
+}
+
+static void CopySampleToShort(int width, int height,
+                              const Sample *src, ptrdiff_t src_stride,
+                              uint16_t *out, ptrdiff_t out_stride) {
+  if (sizeof(Sample) == 1) {
+    assert(0);
+  } else {
+    for (int y = 0; y < height; y++) {
+      memcpy(out, src, width * sizeof(Sample));
+      src += src_stride;
+      out += out_stride;
+    }
+  }
+}
+
+template <typename T>
+static void DownshiftSampleDither(int width, int height, int shift,
+                                  int out_bitdepth,
+                                  const Sample *src, ptrdiff_t src_stride,
+                                  T *out, ptrdiff_t out_stride) {
+  const Sample sample_max = (1 << out_bitdepth) - 1;
+  const int mask = (1 << shift) - 1;
+  int sample = 0;
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      sample += src[x];
+      out[x] = static_cast<T>(util::ClipBD(sample >> shift, sample_max));
+      sample &= mask;
+    }
+    src += src_stride;
+    out += out_stride;
+  }
+}
+
+template <typename T>
+static void DownshiftSampleFast(int width, int height, int shift,
+                                int out_bitdepth,
+                                const Sample *src, ptrdiff_t src_stride,
+                                T *out, ptrdiff_t out_stride) {
+  const Sample sample_max = (1 << out_bitdepth) - 1;
+  const int add = 1 << (shift - 1);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      out[x] =
+        static_cast<T>(util::ClipBD((src[x] + add) >> shift, sample_max));
+    }
+    src += src_stride;
+    out += out_stride;
+  }
+}
+
+static void UpshiftSampleToShort(int width, int height, int shift,
+                                 const Sample *src, ptrdiff_t src_stride,
+                                 uint16_t *out, ptrdiff_t out_stride) {
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      out[x] = src[x] << shift;
+    }
+    src += src_stride;
+    out += out_stride;
+  }
+}
+
+Resampler::SimdFunc::SimdFunc() {
+  copy_sample_byte = &CopySampleToByte;
+  copy_sample_short = &CopySampleToShort;
+  downshift_sample_byte[0] = &DownshiftSampleFast<uint8_t>;
+  downshift_sample_byte[1] = &DownshiftSampleDither<uint8_t>;
+  downshift_sample_short[0] = &DownshiftSampleFast<uint16_t>;
+  downshift_sample_short[1] = &DownshiftSampleDither<uint16_t>;
+  upshift_sample_short = &UpshiftSampleToShort;
 }
 
 namespace resample {

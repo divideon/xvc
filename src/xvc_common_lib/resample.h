@@ -34,7 +34,9 @@ class Resampler {
 public:
   using PicPlane = std::pair<const uint8_t *, ptrdiff_t>;
   using PicPlanes = std::array<PicPlane, constants::kMaxYuvComponents>;
-  Resampler() {}
+  struct SimdFunc;
+
+  explicit Resampler(const SimdFunc &simd) : simd_(simd) {}
   void ConvertFrom(const PictureFormat &src_format, const uint8_t *src_bytes,
                    YuvPicture *out_pic);
   void ConvertFrom(const PictureFormat &src_format,
@@ -58,7 +60,7 @@ private:
                                    const PictureFormat &src_format,
                                    YuvPicture *out_pic) const;
   uint8_t* CopyToBytesWithShift(YuvComponent comp, const YuvPicture &src_pic,
-                                int out_bitdepth, int dither,
+                                int out_bitdepth, bool dither,
                                 uint8_t *out8) const;
   void CopyToWithResize(const YuvPicture &src_pic,
                         const PictureFormat &output_format,
@@ -70,10 +72,33 @@ private:
   void ConvertColorSpace8bit709(uint8_t *dst, int width, int height,
                                 const uint16_t *src) const;
 
+  const SimdFunc &simd_;
   std::vector<uint8_t> tmp_bytes_;
 };
 
-// TODO(PH) Refactor into class above
+struct Resampler::SimdFunc {
+  static const int kDither = 2;  // 0=off 1=on
+  SimdFunc();
+  void(*copy_sample_byte)(int width, int height,
+                          const Sample *src, ptrdiff_t src_stride,
+                          uint8_t *out, ptrdiff_t out_stride);
+  void(*copy_sample_short)(int width, int height,
+                           const Sample *src, ptrdiff_t src_stride,
+                           uint16_t *out, ptrdiff_t out_stride);
+  void(*downshift_sample_byte[kDither])(int width, int height, int shift,
+                                        int out_bitdepth,
+                                        const Sample *src, ptrdiff_t src_stride,
+                                        uint8_t *out, ptrdiff_t out_stride);
+  void(*downshift_sample_short[kDither])(int width, int height, int shift,
+                                         int out_bitdepth, const Sample *src,
+                                         ptrdiff_t src_stride, uint16_t *out,
+                                         ptrdiff_t out_stride);
+  void(*upshift_sample_short)(int width, int height, int shift,
+                              const Sample *src, ptrdiff_t src_stride,
+                              uint16_t *out, ptrdiff_t out_stride);
+};
+
+// TODO(PH) Refactor into Resampler class
 
 namespace resample {
 

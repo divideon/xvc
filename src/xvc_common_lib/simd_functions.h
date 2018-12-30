@@ -27,6 +27,7 @@
 #include "xvc_common_lib/common.h"
 #include "xvc_common_lib/simd_cpu.h"
 #include "xvc_common_lib/inter_prediction.h"
+#include "xvc_common_lib/resample.h"
 
 namespace xvc {
 
@@ -34,6 +35,7 @@ struct SimdFunctions {
   explicit SimdFunctions(const std::set<CpuCapability> &capabilities);
 
   InterPrediction::SimdFunc inter_prediction;
+  Resampler::SimdFunc resampler;
 };
 
 }   // namespace xvc

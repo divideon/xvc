@@ -37,7 +37,8 @@ namespace xvc {
 Encoder::Encoder(int internal_bitdepth, int num_threads)
   : segment_header_(new SegmentHeader()),
   simd_(SimdCpu::GetRuntimeCapabilities(), internal_bitdepth),
-  encoder_settings_() {
+  encoder_settings_(),
+  input_resampler_(simd_.resampler) {
   assert(internal_bitdepth >= 8);
 #if XVC_HIGH_BITDEPTH
   assert(internal_bitdepth <= 16);

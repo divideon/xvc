@@ -40,7 +40,7 @@ PictureDecoder::PictureDecoder(const SimdFunctions &simd,
                                const PictureFormat &pic_fmt,
                                int crop_width, int crop_height)
   : simd_(simd),
-  output_resampler_(),
+  output_resampler_(simd.resampler),
   output_format_(),
   pic_data_(std::make_shared<PictureData>(pic_fmt.chroma_format, pic_fmt.width,
                                           pic_fmt.height, pic_fmt.bitdepth)),

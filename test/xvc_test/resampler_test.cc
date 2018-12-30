@@ -21,11 +21,14 @@
 
 #include <algorithm>
 #include <list>
+#include <memory>
 #include <vector>
 
 #include "googletest/include/gtest/gtest.h"
 
 #include "xvc_common_lib/resample.h"
+#include "xvc_common_lib/simd_cpu.h"
+#include "xvc_common_lib/simd_functions.h"
 #include "xvc_test/yuv_helper.h"
 
 namespace {
@@ -39,10 +42,19 @@ static const bool kOutputDither = false;
 static const bool kModePadding = true;
 static const bool kModeResampling = false;
 
-class ResamplerTest : public ::testing::TestWithParam<int> {
+struct TestParam {
+  int bitdepth;
+  bool simd;
+};
+
+class ResamplerTest : public ::testing::TestWithParam<TestParam> {
 protected:
   void SetUp() override {
-    upshift = GetParam() - kInputBitdepth;
+    std::set<xvc::CpuCapability> caps = GetParam().simd ?
+      xvc::SimdCpu::GetRuntimeCapabilities() : std::set<xvc::CpuCapability>();
+    simd_.reset(new xvc::SimdFunctions(caps));
+    resampler_.reset(new xvc::Resampler(simd_->resampler));
+    upshift = GetParam().bitdepth - kInputBitdepth;
     fmt_40x40_yuv420p8 =
       xvc::PictureFormat(40, 40, kInputBitdepth, xvc::ChromaFormat::k420,
                          xvc::ColorMatrix::k601, kOutputDither);
@@ -56,7 +68,7 @@ protected:
       xvc::PictureFormat(34, 34, kInputBitdepth, xvc::ChromaFormat::kArgb,
                          xvc::ColorMatrix::k601, kOutputDither);
     fmt_40x40_internal =
-      xvc::PictureFormat(40, 40, GetParam(), xvc::ChromaFormat::k420,
+      xvc::PictureFormat(40, 40, GetParam().bitdepth, xvc::ChromaFormat::k420,
                          xvc::ColorMatrix::kUndefined, kOutputDither);
   }
 
@@ -83,10 +95,10 @@ protected:
     const int pad_height = use_sample_padding ?
       internal_fmt.height - input_fmt.height : 0;
     xvc::YuvPicture rec_pic(internal_fmt, true, pad_width, pad_height);
-    resampler.ConvertFrom(input_fmt, &input_bytes[0], &rec_pic);
+    resampler_->ConvertFrom(input_fmt, &input_bytes[0], &rec_pic);
     rec_pic.PadBorder();    // required for resampling to work
     std::vector<uint8_t> output_bytes;
-    resampler.ConvertTo(rec_pic, output_fmt, &output_bytes);
+    resampler_->ConvertTo(rec_pic, output_fmt, &output_bytes);
     return output_bytes;
   }
 
@@ -109,7 +121,8 @@ protected:
     return luma_bytes;
   }
 
-  xvc::Resampler resampler;
+  std::unique_ptr<xvc::SimdFunctions> simd_;
+  std::unique_ptr<xvc::Resampler> resampler_;
   int upshift;
   xvc::PictureFormat fmt_40x40_yuv420p8;
   xvc::PictureFormat fmt_34x34_yuv420p8;
@@ -122,14 +135,16 @@ TEST_P(ResamplerTest, FromBytesNormalResolutionWithCrop_40to40to40) {
   TestYuvPic orig_pic = CreateOrigPic(fmt_40x40_yuv420p8);
   xvc::YuvPicture dst_pic = CreateYuvPic(fmt_40x40_internal,
                                          &fmt_40x40_yuv420p8);
-  resampler.ConvertFrom(fmt_40x40_yuv420p8, &orig_pic.GetBytes()[0], &dst_pic);
+  resampler_->ConvertFrom(fmt_40x40_yuv420p8, &orig_pic.GetBytes()[0],
+                          &dst_pic);
   ASSERT_TRUE(TestYuvPic::SameSamples(40, 40, orig_pic, upshift, dst_pic, 0));
 }
 
 TEST_P(ResamplerTest, FromBytesNormalResolutionWithResample_40to40to40) {
   TestYuvPic orig_pic = CreateOrigPic(fmt_40x40_yuv420p8);
   xvc::YuvPicture dst_pic = CreateYuvPic(fmt_40x40_internal, nullptr);
-  resampler.ConvertFrom(fmt_40x40_yuv420p8, &orig_pic.GetBytes()[0], &dst_pic);
+  resampler_->ConvertFrom(fmt_40x40_yuv420p8, &orig_pic.GetBytes()[0],
+                          &dst_pic);
   ASSERT_TRUE(TestYuvPic::SameSamples(40, 40, orig_pic, upshift, dst_pic, 0));
 }
 
@@ -137,14 +152,16 @@ TEST_P(ResamplerTest, FromBytesOddResolutionWithPadding_34to40to34) {
   TestYuvPic orig_pic = CreateOrigPic(fmt_34x34_yuv420p8);
   xvc::YuvPicture dst_pic = CreateYuvPic(fmt_40x40_internal,
                                          &fmt_34x34_yuv420p8);
-  resampler.ConvertFrom(fmt_34x34_yuv420p8, &orig_pic.GetBytes()[0], &dst_pic);
+  resampler_->ConvertFrom(fmt_34x34_yuv420p8, &orig_pic.GetBytes()[0],
+                          &dst_pic);
   ASSERT_TRUE(TestYuvPic::SameSamples(34, 34, orig_pic, upshift, dst_pic, 0));
 }
 
 TEST_P(ResamplerTest, FromBytesOddResolutionWithResample_34to40to34) {
   TestYuvPic orig_pic = CreateOrigPic(fmt_34x34_yuv420p8);
   xvc::YuvPicture dst_pic = CreateYuvPic(fmt_40x40_internal, nullptr);
-  resampler.ConvertFrom(fmt_34x34_yuv420p8, &orig_pic.GetBytes()[0], &dst_pic);
+  resampler_->ConvertFrom(fmt_34x34_yuv420p8, &orig_pic.GetBytes()[0],
+                          &dst_pic);
   // TODO(PH) Calculating PSNR between pictures of different size...
   double psnr_y = orig_pic.CalcPsnr(xvc::YuvComponent::kY, dst_pic);
   ASSERT_GE(psnr_y, 25.0);
@@ -243,10 +260,12 @@ TEST_P(ResamplerTest, ToRgbBytesOddResolutionWithResample_34to40to34) {
 }
 
 INSTANTIATE_TEST_CASE_P(NormalBitdepth, ResamplerTest,
-                        ::testing::Values(8));
+                        ::testing::Values(TestParam{ 8, false },
+                                          TestParam{ 8, true }));
 #if XVC_HIGH_BITDEPTH
 INSTANTIATE_TEST_CASE_P(HighBitdepth, ResamplerTest,
-                        ::testing::Values(10));
+                        ::testing::Values(TestParam{ 10, false },
+                                          TestParam{ 10, true }));
 #endif
 
 }   // namespace

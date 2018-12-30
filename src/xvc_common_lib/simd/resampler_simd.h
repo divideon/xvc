@@ -19,21 +19,26 @@
 * Please visit https://xvc.io/license/ for more information.
 ******************************************************************************/
 
-#include "xvc_common_lib/simd_functions.h"
+#ifndef XVC_COMMON_LIB_SIMD_RESAMPLER_SIMD_H_
+#define XVC_COMMON_LIB_SIMD_RESAMPLER_SIMD_H_
 
-#if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
-#include "xvc_common_lib/simd/inter_prediction_simd.h"
-#include "xvc_common_lib/simd/resampler_simd.h"
-#endif
+#include <set>
+
+#include "xvc_common_lib/common.h"
+#include "xvc_common_lib/simd_cpu.h"
 
 namespace xvc {
 
-SimdFunctions::SimdFunctions(const std::set<CpuCapability> &capabilities)
-  : inter_prediction() {
-#if defined(XVC_ARCH_ARM) || defined(XVC_ARCH_X86) || defined(XVC_ARCH_MIPS)
-  simd::InterPredictionSimd::Register(capabilities, this);
-  simd::ResamplerSimd::Register(capabilities, this);
-#endif
-}
+struct SimdFunctions;
 
+namespace simd {
+
+struct ResamplerSimd {
+  static void Register(const std::set<CpuCapability> &caps,
+                       xvc::SimdFunctions *simd);
+};
+
+}   // namespace simd
 }   // namespace xvc
+
+#endif  // XVC_COMMON_LIB_SIMD_RESAMPLER_SIMD_H_
