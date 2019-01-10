@@ -107,7 +107,7 @@ void DownshiftSampleToByteDitherNeon(int width, int height, int shift,
     for (int x = 0; x < width8; x += 8) {
       uint16x8_t vsrc = vld1q_u16(src + x);
       vsum = vqaddq_u16(vsum, vsrc);
-      uint8x8_t vtmp = vmovn_u16(vshlq_u16(vsum, vshift));
+      uint8x8_t vtmp = vqmovn_u16(vshlq_u16(vsum, vshift));
       vst1_u8(out + x, vtmp);
       vsum = vandq_u16(vsum, vmask);
     }
