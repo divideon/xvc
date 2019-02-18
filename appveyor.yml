@@ -16,7 +16,7 @@ build:
   project: xvc.sln
   
 artifacts:
-    - path: $(target)\Release\*.*
+    - path: app\Release\*.*
       name: $(APPVEYOR_PROJECT_NAME)-$(target)
 
 deploy:
