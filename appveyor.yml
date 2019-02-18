@@ -1,0 +1,29 @@
+image: Visual Studio 2017
+configuration: Release
+
+environment:
+  matrix:
+   - target: x64
+     xvc_target: "x86_64"
+   - target: Arm64
+     xvc_target: "^arm64"
+
+before_build: 
+ - SET XVC_TARGET_ARCH=%xvc_target%
+ - cmake . -A %target%
+
+build:
+  project: xvc.sln
+  
+artifacts:
+    - path: $(target)\Release\*.*
+      name: $(APPVEYOR_PROJECT_NAME)-$(target)
+
+deploy:
+  - provider: GitHub
+    artifact: $(APPVEYOR_PROJECT_NAME)-$(target)
+    auth_token:
+      secure: 'hY5Mk6KOwgQ97TzEBsM7Woqr1ZIm5QTvHg8EvxMV1x8j3wk/3mNBMqWFFbEIBK0i'
+    prerelease: true
+    on:
+      appveyor_repo_tag: true
