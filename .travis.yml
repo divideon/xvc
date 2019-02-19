@@ -9,6 +9,7 @@ addons:
 script:
  - cmake .
  - make
+ - make test
 
 jobs:
   include:
