@@ -7,7 +7,8 @@ addons:
      - cmake
 
 script:
- - cmake .
+ - mkdir build && cd build
+ - cmake ..
  - make
  - make test
 
