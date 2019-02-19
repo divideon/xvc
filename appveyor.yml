@@ -5,8 +5,6 @@ environment:
   matrix:
    - target: x64
      xvc_target: "x86_64"
-   - target: Arm64
-     xvc_target: "^arm64"
 
 before_build: 
  - SET XVC_TARGET_ARCH=%xvc_target%
@@ -23,7 +21,7 @@ deploy:
   - provider: GitHub
     artifact: $(APPVEYOR_PROJECT_NAME)-$(target)
     auth_token:
-      secure: 'hY5Mk6KOwgQ97TzEBsM7Woqr1ZIm5QTvHg8EvxMV1x8j3wk/3mNBMqWFFbEIBK0i'
+      secure: 'crYJW1VEBGF+La21YHoo9EO28nF55K0FyvVMeWwMBjf0JSyhGSuY1VUowmYyikGt'
     prerelease: true
     on:
       appveyor_repo_tag: true
