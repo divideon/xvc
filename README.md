@@ -1,4 +1,4 @@
-# xvc codec
+# xvc codec [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/divideon/xvc?branch=master&svg=true)](https://ci.appveyor.com/project/divideon/xvc)
 
 The xvc codec is a next-generation software-defined video compression format, built using
 world-class compression technologies.
