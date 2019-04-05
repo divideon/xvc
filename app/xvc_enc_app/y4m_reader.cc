@@ -86,7 +86,11 @@ bool Y4mReader::Read(PictureFormat *out_format, std::streamoff *start_skip,
         pos = end - buf;
         break;
       case 'C':  // color space
-        if (!strncmp(buf + pos, "420p10", 6)) {
+        if (!strncmp(buf + pos, "420p12", 6)) {
+          pic_fmt.input_bitdepth = 12;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_420;
+          pos += 6;
+        } else if (!strncmp(buf + pos, "420p10", 6)) {
           pic_fmt.input_bitdepth = 10;
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_420;
           pos += 6;
@@ -94,6 +98,10 @@ bool Y4mReader::Read(PictureFormat *out_format, std::streamoff *start_skip,
           pic_fmt.input_bitdepth = 8;
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_420;
           pos += 3;
+        } else if (!strncmp(buf + pos, "422p12", 6)) {
+          pic_fmt.input_bitdepth = 12;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_422;
+          pos += 6;
         } else if (!strncmp(buf + pos, "422p10", 6)) {
           pic_fmt.input_bitdepth = 10;
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_422;
@@ -102,6 +110,10 @@ bool Y4mReader::Read(PictureFormat *out_format, std::streamoff *start_skip,
           pic_fmt.input_bitdepth = 8;
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_422;
           pos += 3;
+        } else if (!strncmp(buf + pos, "444p12", 6)) {
+          pic_fmt.input_bitdepth = 12;
+          pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_444;
+          pos += 6;
         } else if (!strncmp(buf + pos, "444p10", 6)) {
           pic_fmt.input_bitdepth = 10;
           pic_fmt.chroma_format = XVC_ENC_CHROMA_FORMAT_444;
