@@ -9,10 +9,20 @@ os:
   - linux
   - osx
 
+addons:
+  homebrew:
+    packages: ccache
+
+env:
+  matrix:
+    - build_type=Release
+    - build_type=Debug
+    - build_type=Release build_shared=ON
+
 script:
   - mkdir build && cd build
-  - cmake ..
-  - make
+  - cmake .. -DCMAKE_{C,CXX}_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=${build_type:-Release} -DBUILD_SHARED_LIBS=${build_shared:-OFF}
+  - make -j 8
   - make test
   - sudo make install
 
