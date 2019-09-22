@@ -50,5 +50,4 @@ target_compile_options(xvc_dec_app PRIVATE ${cxx_flags})
 target_include_directories(xvc_dec_app PUBLIC . ../src)
 target_link_libraries(xvc_dec_app LINK_PUBLIC xvc_dec_lib)
 
-install(TARGETS xvc_enc_app xvc_dec_app DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
-
+install(TARGETS xvc_enc_app xvc_dec_app DESTINATION "${CMAKE_INSTALL_BINDIR}")
