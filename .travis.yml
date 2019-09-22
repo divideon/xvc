@@ -1,21 +1,22 @@
 language: cpp
-dist: xenial
-
-addons:
-  apt:
-    packages:
-     - cmake
+cache: ccache
+dist: bionic
+osx_image: xcode11
+compiler:
+  - gcc
+  - clang
+os:
+  - linux
+  - osx
 
 script:
- - mkdir build && cd build
- - cmake ..
- - make
- - make test
+  - mkdir build && cd build
+  - cmake ..
+  - make
+  - make test
+  - sudo make install
 
-jobs:
-  include:
-    - name: "Linux GCC"
-    - name: "Linux Clang"
-      compiler: clang
-    - name: "macOS GCC"
-      os: osx
+matrix:
+  exclude:
+    - os: osx
+      compiler: gcc
