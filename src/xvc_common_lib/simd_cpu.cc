@@ -23,9 +23,9 @@
 
 #include "xvc_common_lib/simd_cpu.h"
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <intrin.h>
-#endif  // _MSC_VER
+#endif  // _WIN32
 
 #include <string.h>
 
@@ -46,7 +46,7 @@ std::set<CpuCapability> SimdCpu::GetMaskedCaps(uint32_t mask) {
 #if XVC_ARCH_X86
 
 static void cpuinfo_x86(uint32_t eax, uint32_t ecx, int registers[4]) {
-#ifdef _MSC_VER
+#ifdef _WIN32
   if (eax <= 1) {
     __cpuid(registers, eax);
   } else {
@@ -73,7 +73,7 @@ static void cpuinfo_x86(uint32_t eax, uint32_t ecx, int registers[4]) {
 }
 
 static bool cpu_xgetbv_x86() {
-#ifdef _MSC_VER
+#ifdef _WIN32
   auto xcr0 = _xgetbv(0);
   return (xcr0 & 6) == 6;
 #else
@@ -127,7 +127,7 @@ std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {
 
 #elif XVC_ARCH_ARM
 #if XVC_HAVE_NEON
-#ifdef _MSC_VER
+#ifdef _WIN32
 static int cpu_has_neon_arm() {
   return -1;
 }
