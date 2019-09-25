@@ -5,6 +5,8 @@ endif()
 
 project (xvc CXX C)
 
+include(GNUInstallDirs)
+
 find_package(Threads REQUIRED)
 
 # Project options
@@ -97,5 +99,4 @@ endforeach()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/xvc.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/xvc.pc" @ONLY)
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xvc.pc"
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
-
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
