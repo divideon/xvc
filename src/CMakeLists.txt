@@ -252,5 +252,5 @@ endif()
 install(FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/xvc_enc_lib/xvcenc.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/xvc_dec_lib/xvcdec.h"
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/include")
-install(TARGETS xvc_enc_lib xvc_dec_lib DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(TARGETS xvc_enc_lib xvc_dec_lib DESTINATION "${CMAKE_INSTALL_LIBDIR}")
