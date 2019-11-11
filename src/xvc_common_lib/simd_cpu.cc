@@ -127,7 +127,11 @@ std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {
 
 #elif XVC_ARCH_ARM
 #if XVC_HAVE_NEON
-#ifdef _WIN32
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
+static int cpu_has_neon_arm() {
+  return 1;
+}
+#elif defined(_WIN32)
 static int cpu_has_neon_arm() {
   return -1;
 }
