@@ -127,7 +127,11 @@ std::set<CpuCapability> SimdCpu::GetRuntimeCapabilities() {
 
 #elif XVC_ARCH_ARM
 #if XVC_HAVE_NEON
-#ifdef _WIN32
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
+static int cpu_has_neon_arm() {
+  return 1;
+}
+#elif defined(_WIN32)
 static int cpu_has_neon_arm() {
   return -1;
 }
@@ -155,6 +159,15 @@ static int cpu_has_neon_arm() {
   }
   fclose(f);
   return 0;
+}
+#elif defined(__FreeBSD__)
+#include <sys/auxv.h>
+static int cpu_has_neon_arm() {
+  unsigned long hwcap = 0;
+  if (elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap))) {
+    return -1;
+  }
+  return !!(hwcap & HWCAP_NEON);
 }
 #else
 #error "Unknown architecture for runtime NEON detection"
