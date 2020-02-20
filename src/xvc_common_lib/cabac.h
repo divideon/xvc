@@ -79,12 +79,9 @@ struct CabacCommon {
   static const int kNumCoeffLastPosCtxLuma = 25;
   static const int kNumCoeffLastPosCtxChroma = 3;
   static const int kNumMvpIdxCtx = 1;
-  static const int kNumSaoMergeFlagCtx = 1;
-  static const int kNumSaoTypeIdxCtx = 1;
   static const int kNumTransformSkipFlagCtx = 2;
   static const int kNumTransformSelectEnableCtx = 6;
   static const int kNumTransformSelectIdxCtx = 4;
-  static const int kNumTquantBypassFlagCtx = 1;
 };
 
 template<typename ContextModel>

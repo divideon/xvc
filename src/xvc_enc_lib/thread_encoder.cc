@@ -22,6 +22,7 @@
 #include "xvc_enc_lib/thread_encoder.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace xvc {
 

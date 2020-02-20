@@ -24,6 +24,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "xvc_common_lib/common.h"

@@ -33,13 +33,6 @@ static const uint8_t kNotUsed = 0;
 static const uint8_t kDef = 154;  // TODO(PH) Used but value not determined
 
 static const uint8_t
-kInitCuTransquantBypassFlag[3][CabacCommon::kNumTquantBypassFlagCtx] = {
-  { 154 },
-  { 154 },
-  { 154 },
-};
-
-static const uint8_t
 kInitSplitQuadFlag[3][CabacCommon::kNumSplitQuadFlagCtx] = {
   { 107,  139,  126, 255, 0, },
   { 107,  139,  126, 255, 0, },
@@ -256,20 +249,6 @@ kInitMvpIdx[3][CabacCommon::kNumMvpIdxCtx] = {
   { 168 },
   { 168 },
   { kNotUsed },
-};
-
-static const uint8_t
-kInitSaoMergeFlag[3][CabacCommon::kNumSaoMergeFlagCtx] = {
-  { 153, },
-  { 153, },
-  { 153, },
-};
-
-static const uint8_t
-InitSaoTypeIdx[3][CabacCommon::kNumSaoTypeIdxCtx] = {
-  { 160, },
-  { 185, },
-  { 200, },
 };
 
 static const uint8_t

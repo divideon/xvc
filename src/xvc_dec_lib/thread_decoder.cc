@@ -22,6 +22,7 @@
 #include "xvc_dec_lib/thread_decoder.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace xvc {
 
