@@ -90,10 +90,6 @@ extern "C" {
       (param->output_bitdepth > 16 || param->output_bitdepth < 8)) {
       return XVC_DEC_BITDEPTH_OUT_OF_RANGE;
     }
-    if (param->output_bitdepth != 0 &&
-      (param->output_bitdepth > 16 || param->output_bitdepth < 8)) {
-      return XVC_DEC_BITDEPTH_OUT_OF_RANGE;
-    }
     if (param->max_framerate < (1.0 * xvc::constants::kTimeScale /
       (1 << xvc::constants::kFrameRateBitDepth)) ||
         param->max_framerate > xvc::constants::kTimeScale) {

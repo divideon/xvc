@@ -68,6 +68,7 @@ void ThreadDecoder::DecodeAsync(
   work.prev_segment_header = std::move(prev_segment_header);
   work.nal_offset = nal_offset;
   work.nal = std::move(nal);
+  work.success = false;
 
   // Signal one worker thread to begin processing
   std::unique_lock<std::mutex> lock(global_mutex_);

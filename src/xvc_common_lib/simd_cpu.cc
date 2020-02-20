@@ -163,7 +163,7 @@ static int cpu_has_neon_arm() {
 #elif defined(__FreeBSD__)
 #include <sys/auxv.h>
 static int cpu_has_neon_arm() {
-  unsigned long hwcap = 0;
+  unsigned long hwcap = 0;  // NOLINT (runtime/int)
   if (elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap))) {
     return -1;
   }

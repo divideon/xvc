@@ -703,8 +703,6 @@ InterSearch::MotionEstAffine(const CodingUnit &cu, const Qp &qp,
     Bits bits = GetMvdBits(mvp, mv, 0);
     Distortion cost = (dist >> bi_dist_shift) + ((lambda * bits) >> 16);
     if (cost < best_cost || force_mv_bootstrap) {
-      best_cost = cost;
-      best_dist = dist;
       best_mv = mv;
     } else {
       // TODO(PH) Maybe saving prediction samples instead of re-calculating

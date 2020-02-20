@@ -72,6 +72,7 @@ void ThreadEncoder::EncodeAsync(
   work.nal_buffer = std::move(output_nal_buffer);
   work.segment_qp = segment_qp;
   work.buffer_flag = buffer_flag;
+  work.pic_bytes = nullptr;
 
   // Signal one worker thread to begin processing
   std::unique_lock<std::mutex> lock(global_mutex_);

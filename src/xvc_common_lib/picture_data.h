@@ -88,10 +88,12 @@ public:
 
   // CU data
   CodingUnit *GetCtu(CuTree cu_tree, int rsaddr) {
-    return ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr];
+    return static_cast<CodingUnit*>(
+      ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr]);
   }
   const CodingUnit *GetCtu(CuTree cu_tree, int rsaddr) const {
-    return ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr];
+    return static_cast<CodingUnit*>(
+      ctu_rs_list_[static_cast<int>(cu_tree)][rsaddr]);
   }
   CodingUnit* SetCtu(CuTree cu_tree, int rsaddr, CodingUnit *cu);
   int GetNumberOfCtu() const {
@@ -100,12 +102,14 @@ public:
   const CodingUnit* GetCuAt(CuTree cu_tree, int posx, int posy) const {
     ptrdiff_t cu_idx = (posy / constants::kMinBlockSize) * cu_pic_stride_ +
       (posx / constants::kMinBlockSize);
-    return cu_pic_table_[static_cast<int>(cu_tree)][cu_idx];
+    return static_cast<CodingUnit*>(
+      cu_pic_table_[static_cast<int>(cu_tree)][cu_idx]);
   }
   CodingUnit* GetCuAtForModification(CuTree cu_tree, int posx, int posy) {
     ptrdiff_t cu_idx = (posy / constants::kMinBlockSize) * cu_pic_stride_ +
       (posx / constants::kMinBlockSize);
-    return cu_pic_table_[static_cast<int>(cu_tree)][cu_idx];
+    return static_cast<CodingUnit*>(
+      cu_pic_table_[static_cast<int>(cu_tree)][cu_idx]);
   }
   const CodingUnit* GetLumaCu(const CodingUnit *cu) const;
   CodingUnit* CreateCu(CuTree cu_tree, int depth, int posx, int posy,

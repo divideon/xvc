@@ -207,7 +207,6 @@ void Encoder::SetEncoderSettings(const EncoderSettings &settings) {
   segment_header_->max_binary_split_depth = settings.max_binary_split_depth;
   segment_header_->source_padding = settings.source_padding != 0;
   segment_header_->chroma_qp_offset_table = settings.chroma_qp_offset_table;
-  segment_header_->leading_pictures = settings.leading_pictures;
   segment_header_->chroma_qp_offset_u = settings.chroma_qp_offset_u;
   segment_header_->chroma_qp_offset_v = settings.chroma_qp_offset_v;
   segment_header_->adaptive_qp = settings.adaptive_qp;

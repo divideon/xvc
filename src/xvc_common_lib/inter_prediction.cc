@@ -1068,7 +1068,8 @@ void InterPrediction::MotionCompAffine(const CodingUnit &cu, YuvComponent comp,
                              pred_buffer);
   }
 
-  auto get_subblock_size = [](const MotionVector& ref, MotionVector &mv_uni,
+  auto get_subblock_size = [](const MotionVector& ref,
+                              const MotionVector &mv_uni,
                               int size, int scale) {
     static const int kMinSubblockSize = 4;
     static const int kSizeShift = 6 - MotionVector::kPrecisionShift;
@@ -1663,7 +1664,6 @@ InterPrediction::DeriveLicParams(const CodingUnit &cu, YuvComponent comp,
     ((1 << kModelQuantShift) + (stddev_xx_shifted / 2)) / stddev_xx_shifted;
   const int scale = (stddev_xy_shifted * stddev_xx_scaled) >> total_shift;
   LicParams params;
-  assert(params.shift == kDefaultScaleShift);
   params.scale = util::Clip3(scale, 0, 1 << (kDefaultScaleShift + 2));
   const int offset = (sum_y - ((params.scale * sum_x) >> params.shift) +
     (1 << (size_shift - 1))) >> size_shift;

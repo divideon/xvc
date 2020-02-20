@@ -56,12 +56,12 @@ public:
     if (segment_header_.low_delay) {
       int num_l0 = FillPrevPoc(RefPicList::kL0, 0, curr_poc, curr_tid,
                                pic_buffer, &dependencies, rpl);
-      num_l0 = FillLowerPoc(RefPicList::kL0, num_l0, curr_poc, 0,
-                            pic_buffer, &dependencies, rpl);
+      FillLowerPoc(RefPicList::kL0, num_l0, curr_poc, 0,
+                   pic_buffer, &dependencies, rpl);
       int num_l1 = FillPrevPoc(RefPicList::kL1, 0, curr_poc, curr_tid,
                                pic_buffer, &dependencies, rpl);
-      num_l1 = FillLowerPoc(RefPicList::kL1, num_l1, curr_poc, 0,
-                            pic_buffer, &dependencies, rpl);
+      FillLowerPoc(RefPicList::kL1, num_l1, curr_poc, 0,
+                   pic_buffer, &dependencies, rpl);
       return dependencies;
     }
     if (Restrictions::Get().disable_inter_bipred) {

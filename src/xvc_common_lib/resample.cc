@@ -227,7 +227,6 @@ Resampler::CopyFromBytesWithPadding(YuvComponent comp,
   assert(input_format.chroma_format == out_pic->GetChromaFormat());
   assert(out_pic->GetWidth(YuvComponent::kY) >= 0);
   assert(out_pic->GetHeight(YuvComponent::kY) >= 0);
-  assert(sizeof(Sample) == 2 || input_format.bitdepth == 8);
   assert(input_format.bitdepth <= out_pic->GetBitdepth());
 
   const int in_width =
@@ -897,7 +896,7 @@ void BilinearResample(uint8_t *dst_start, int dst_width, int dst_height,
   U* dst = reinterpret_cast<U *>(dst_start);
 
   int shift = dst_bitdepth - src_bitdepth;
-  if (shift > 0) {
+  if (shift > 1) {
     for (int i = 0; i < src_height; i++) {
       for (int j = 0; j < src_width; j++) {
         dst[2 * j] = static_cast<U>(src[j] << shift);
