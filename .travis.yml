@@ -9,11 +9,19 @@ os:
   - linux
   - osx
 
+addons:
+  homebrew:
+    packages: ccache
+
 env:
   matrix:
     - build_type=Release
     - build_type=Debug
     - build_type=Release build_shared=ON
+
+install:
+  - if [ $TRAVIS_OS_NAME = osx ]; then brew install ccache; fi
+  - export PATH="/usr/local/opt/ccache/libexec:$PATH"
 
 script:
   - mkdir build && cd build
