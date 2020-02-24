@@ -9,10 +9,6 @@ os:
   - linux
   - osx
 
-addons:
-  homebrew:
-    packages: ccache
-
 env:
   matrix:
     - build_type=Release
