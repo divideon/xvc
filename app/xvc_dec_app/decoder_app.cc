@@ -343,12 +343,17 @@ void DecoderApp::PrintUsage() {
   GetLog() << "      1: 4:2:0" << std::endl;
   GetLog() << "      2: 4:2:2" << std::endl;
   GetLog() << "      3: 4:4:4" << std::endl;
+  GetLog() << "  -output-color-matrix <0..3>" << std::endl;
+  GetLog() << "      0: Undefined (default)" << std::endl;
+  GetLog() << "      1: Rec. BT.601" << std::endl;
+  GetLog() << "      2: Rec. BT.709" << std::endl;
+  GetLog() << "      3: Rec. BT.2020" << std::endl;
   GetLog() << "  -output-bitdepth <int>" << std::endl;
   GetLog() << "  -max-framerate <int>" << std::endl;
   GetLog() << "  -threads <int> default is -1 (auto-detect)" << std::endl;
-  GetLog() << "  -dither <0/1>" << std::endl;
+  GetLog() << "  -dither <0..1>" << std::endl;
   GetLog() << "  -loop <int>" << std::endl;
-  GetLog() << "  -verbose <0/1>" << std::endl;
+  GetLog() << "  -verbose <0..1>" << std::endl;
 }
 
 size_t DecoderApp::ReadNextNalSize(std::istream *input) {

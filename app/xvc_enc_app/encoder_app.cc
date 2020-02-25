@@ -787,6 +787,11 @@ void EncoderApp::PrintUsage() {
   std::cout << "      1: 4:2:0 (default)" << std::endl;
   std::cout << "      2: 4:2:2" << std::endl;
   std::cout << "      3: 4:4:4" << std::endl;
+  std::cout << "  -input-color-matrix <0..3>" << std::endl;
+  std::cout << "      0: Undefined (default)" << std::endl;
+  std::cout << "      1: Rec. BT.601" << std::endl;
+  std::cout << "      2: Rec. BT.709" << std::endl;
+  std::cout << "      3: Rec. BT.2020" << std::endl;
 #if XVC_HIGH_BITDEPTH
   std::cout << "  -input-bitdepth <8..14>" << std::endl;
   std::cout << "  -internal-bitdepth <8..14>" << std::endl;
@@ -802,10 +807,16 @@ void EncoderApp::PrintUsage() {
     << ")" << std::endl;
   std::cout << "  -max-keypic-distance <int> (default: 640)" << std::endl;
   std::cout << "  -closed-gop <int> (default: 0)" << std::endl;
+  std::cout << "  -low-delay <0..1> (default: 0)" << std::endl;
   std::cout << "  -num-ref-pics <0..5> (default: 2)" << std::endl;
   std::cout << "  -checksum-mode <0..1>" << std::endl;
   std::cout << "      0: Reduced checksum verification (default)" << std::endl;
   std::cout << "      1: Maximum checksum robustness" << std::endl;
+  std::cout << "  -chroma-qp-offset-table <0..1>" << std::endl;
+  std::cout << "      0: No offset" << std::endl;
+  std::cout << "      1: Reduced chroma QP for high QP (default)" << std::endl;
+  std::cout << "  -chroma-qp-offset-u <-32..31>" << std::endl;
+  std::cout << "  -chroma-qp-offset-v <-32..31>" << std::endl;
   std::cout << "  -deblock <0..2>" << std::endl;
   std::cout << "      0: disabled" << std::endl;
   std::cout << "      1: enabled (default)" << std::endl;
@@ -813,8 +824,9 @@ void EncoderApp::PrintUsage() {
   std::cout << "  -beta-offset <-32..31>" << std::endl;
   std::cout << "  -tc-offset <-32..31>" << std::endl;
   std::cout << "  -qp <-64..63> (default: 32)" << std::endl;
+  std::cout << "  -flat-lambda <0..1> (default: 0)" << std::endl;
   std::cout << "  -multi-passes <0..2>" << std::endl;
-  std::cout << "      0: Single-pass (default)" << std::endl;
+  std::cout << "      0: Single pass (default)" << std::endl;
   std::cout << "      1: Single pass with start picture determination"
     << std::endl;
   std::cout << "      2: Multi-pass" << std::endl;
@@ -832,6 +844,12 @@ void EncoderApp::PrintUsage() {
   std::cout << "     -1: auto-detect" << std::endl;
   std::cout << "      0: disabled (default)" << std::endl;
   std::cout << "     1+: number of threads" << std::endl;
+  std::cout << "  -simd-mask <0..4294967295>" << std::endl;
+  std::cout << "  -explicit-encoder-settings " <<
+    "\"param1 value1 param2 value2\"" << std::endl;
+  std::cout << "      Complete list of parameter settings available in"
+    << std::endl;
+  std::cout << "      ParseExplicitSettings in encoder_settings.cc" << std::endl;
   std::cout << "  -verbose <0..1>" << std::endl;
 }
 
