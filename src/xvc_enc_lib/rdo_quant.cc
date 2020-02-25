@@ -495,7 +495,8 @@ int RdoQuant::CoeffSignHideFast(const CodingUnit &cu, YuvComponent comp,
       last_subblock = 1;
     }
 
-    if (last_nonzero_pos - first_nonzero_pos > constants::SignHidingThreshold) {
+    if (last_nonzero_pos - first_nonzero_pos >
+        constants::kSignHidingThreshold) {
       Coeff coeff = get_coeff(out, out_stride, first_nonzero_pos);
       int sign = (coeff > 0) ? 0 : 1;
 

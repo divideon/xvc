@@ -135,7 +135,7 @@ const int kMaxNumC1Flags = 8;
 const int kMaxNumC2Flags = 1;
 const int kSubblockShift = 2;
 const uint32_t kCoeffRemainBinReduction = 3;
-const int SignHidingThreshold = 3;
+const int kSignHidingThreshold = 3;
 
 // Deblocking
 const int kDeblockOffsetBits = 6;

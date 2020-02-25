@@ -282,7 +282,8 @@ SyntaxReaderCabac<Ctx>::ReadCoeffSubblock(const CodingUnit &cu,
     // sign hiding
     bool sign_hidden = false;
     if (!restrictions_.disable_transform_sign_hiding &&
-        last_nonzero_pos - first_nonzero_pos > constants::SignHidingThreshold) {
+        last_nonzero_pos - first_nonzero_pos >
+        constants::kSignHidingThreshold) {
       sign_hidden = true;
     }
     last_nonzero_pos = -1;

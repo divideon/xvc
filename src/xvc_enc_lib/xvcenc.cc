@@ -257,7 +257,7 @@ extern "C" {
       encoder_settings.lambda_scale_b = param->lambda_b;
     }
 
-    // Explicit speed settings override the settings
+    // Explicit encoder settings override the settings
     if (param->explicit_encoder_settings) {
       std::string explicit_settings(param->explicit_encoder_settings);
       encoder_settings.ParseExplicitSettings(explicit_settings);
