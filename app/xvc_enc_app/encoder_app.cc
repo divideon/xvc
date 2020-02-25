@@ -849,7 +849,8 @@ void EncoderApp::PrintUsage() {
     "\"param1 value1 param2 value2\"" << std::endl;
   std::cout << "      Complete list of parameter settings available in"
     << std::endl;
-  std::cout << "      ParseExplicitSettings in encoder_settings.cc" << std::endl;
+  std::cout << "      ParseExplicitSettings in encoder_settings.cc"
+    << std::endl;
   std::cout << "  -verbose <0..1>" << std::endl;
 }
 
