@@ -49,10 +49,10 @@ public:
 
 private:
   enum class RdMode {
-    INTER_ME,
-    INTER_FULLPEL,
-    INTER_LIC,
-    INTER_LIC_FULLPEL,
+    kInterMe,
+    kInterFullpel,
+    kInterLic,
+    kInterLicFullpel,
   };
   struct RdoCost;
 

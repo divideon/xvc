@@ -81,7 +81,7 @@ public:
                             MergeCandLookup *out_cand_list);
 
 private:
-  enum class SearchMethod { TzSearch, FullSearch };
+  enum class SearchMethod { kTzSearch, kFullSearch };
   static const int kSearchRangeBi = 4;
   static constexpr int kFastMergeNumCand = 4;
   static constexpr double kFastMergeCostFactor = 1.25;

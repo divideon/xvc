@@ -470,7 +470,7 @@ InterSearch::SearchRefIdx(CodingUnit *cu, const Qp &qp, RefPicList ref_list,
   const bool force_mvd_zero = cu->GetPicData()->GetForceBipredL1MvdZero() &&
     ref_list == RefPicList::kL1;
   const SearchMethod search_method =
-    bipred ? SearchMethod::FullSearch : SearchMethod::TzSearch;
+    bipred ? SearchMethod::kFullSearch : SearchMethod::kTzSearch;
   Distortion cost_best = initial_best_cost;
   Distortion cost_best_unique = std::numeric_limits<Distortion>::max();
   if (!bipred) {
@@ -616,7 +616,7 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
     cu.GetRefPicLists()->GetRefPic(ref_list, ref_idx);
   const PicNum ref_poc =
     cu.GetRefPicLists()->GetRefPoc(ref_list, ref_idx);
-  const int search_range = search_method == SearchMethod::FullSearch ?
+  const int search_range = search_method == SearchMethod::kFullSearch ?
     encoder_settings_.inter_search_range_bi : GetSearchRangeUniPred(ref_poc);
   MvFullpel clip_min, clip_max;
   if (!mv_bootstrap) {
@@ -629,10 +629,10 @@ InterSearch::MotionEstNormal(const CodingUnit &cu, const Qp &qp,
   MvFullpel mv_fullpel;
   SampleMetric fullpel_metric(simd_.sample_metric, bitdepth_,
                               GetFullpelMetric(cu));
-  if (search_method == SearchMethod::FullSearch) {
+  if (search_method == SearchMethod::kFullSearch) {
     mv_fullpel =
       FullSearch(cu, qp, fullpel_metric, mvp, *ref_pic, clip_min, clip_max);
-  } else if (search_method == SearchMethod::TzSearch) {
+  } else if (search_method == SearchMethod::kTzSearch) {
     TzSearch tz_search(orig_pic_, *this, encoder_settings_, search_range);
     mv_fullpel =
       tz_search.Search(cu, qp, fullpel_metric, mvp, *ref_pic,

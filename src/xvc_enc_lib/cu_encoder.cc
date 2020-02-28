@@ -475,20 +475,20 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
   }
 
   if (!fast_skip_inter) {
-    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_ME,
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::kInterMe,
                                  best_cost.cost);
     save_if_best_cost(cost);
   }
 
   if (!fast_skip_inter && pic_data_.GetUseLocalIlluminationCompensation() &&
       !Restrictions::Get().disable_ext2_inter_local_illumination_comp) {
-    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC,
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::kInterLic,
                                  best_cost.cost);
     save_if_best_cost(cost);
   }
 
   if (!Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
-    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_FULLPEL,
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::kInterFullpel,
                                  best_cost.cost);
     save_if_best_cost(cost);
   }
@@ -496,7 +496,7 @@ CuEncoder::CompressInterPic(CodingUnit **best_cu_ref, CodingUnit **temp_cu_ref,
   if (pic_data_.GetUseLocalIlluminationCompensation() &&
       !Restrictions::Get().disable_ext2_inter_local_illumination_comp &&
       !Restrictions::Get().disable_ext2_inter_adaptive_fullpel_mv) {
-    RdoCost cost = CompressInter(cu, qp, writer, RdMode::INTER_LIC_FULLPEL,
+    RdoCost cost = CompressInter(cu, qp, writer, RdMode::kInterLicFullpel,
                                  best_cost.cost);
     save_if_best_cost(cost);
   }
@@ -548,19 +548,19 @@ CuEncoder::CompressInter(CodingUnit *cu, const Qp &qp,
     search_flags |= InterSearchFlags::kUniPredOnly;
   }
   switch (rd_mode) {
-    case CuEncoder::RdMode::INTER_ME:
+    case CuEncoder::RdMode::kInterMe:
       if (cu->CanUseAffine() &&
           !Restrictions::Get().disable_ext2_inter_affine) {
         search_flags |= InterSearchFlags::kAffine;
       }
       break;
-    case CuEncoder::RdMode::INTER_FULLPEL:
+    case CuEncoder::RdMode::kInterFullpel:
       search_flags |= InterSearchFlags::kFullPelMv;
       break;
-    case CuEncoder::RdMode::INTER_LIC:
+    case CuEncoder::RdMode::kInterLic:
       search_flags |= InterSearchFlags::kLic;
       break;
-    case CuEncoder::RdMode::INTER_LIC_FULLPEL:
+    case CuEncoder::RdMode::kInterLicFullpel:
       search_flags |= InterSearchFlags::kFullPelMv;
       search_flags |= InterSearchFlags::kLic;
       break;
