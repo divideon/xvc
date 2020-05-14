@@ -22,6 +22,7 @@
 #ifndef XVC_COMMON_LIB_TRANSFORM_DATA_H_
 #define XVC_COMMON_LIB_TRANSFORM_DATA_H_
 
+#include <stdint.h>
 #include <array>
 
 namespace xvc {
